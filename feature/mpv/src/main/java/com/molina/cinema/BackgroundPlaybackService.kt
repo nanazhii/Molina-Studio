@@ -70,7 +70,7 @@ class BackgroundPlaybackService : Service(), MPVLib.EventObserver {
             setPriority(NotificationCompat.PRIORITY_LOW)
             setContentTitle(cachedMetadata.formatTitle())
             setContentText(cachedMetadata.formatArtistAlbum())
-            setSmallIcon(R.drawable.ic_mpv_symbolic)
+            setSmallIcon(R.drawable.ic_stat_terminal)
             setContentIntent(pendingIntent)
             setOngoing(true)
             setColor(getColor(R.color.player_playlist_active))

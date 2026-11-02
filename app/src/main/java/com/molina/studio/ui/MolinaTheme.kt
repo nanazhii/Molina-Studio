@@ -12,6 +12,7 @@ object MolinaTheme {
     val Background = Color(0xFF0A0A0F)
     val OnBackground = Color(0xFFEDEDED)
     // Hijau status/merek terminal (#69F0AE). Nilai ARGB dan SGR (ANSI truecolor) harus tetap sama.
+    const val GOOD_ARGB = 0xFF69F0AE.toInt()
     const val GOOD_SGR = "38;2;105;240;174"
     val Good = Color(0xFF69F0AE)
     val Warn = Color(0xFFFFD54F)

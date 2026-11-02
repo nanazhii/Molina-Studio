@@ -84,7 +84,7 @@ class TerminalService : Service() {
             .setSmallIcon(R.drawable.ic_stat_molina)
             .setContentTitle("Molina Terminal")
             .setContentText("Sesi terminal berjalan")
-            .setColor(MolinaTheme.GOLD_ARGB)
+            .setColor(MolinaTheme.GOOD_ARGB)
             .setCategory(Notification.CATEGORY_SERVICE)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
