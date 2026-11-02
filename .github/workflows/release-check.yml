@@ -1,9 +1,16 @@
 name: Release check (R8)
 
-# Manual: membangun APK rilis (R8 + shrink resource) dan memeriksa bukan debuggable.
+# Otomatis tiap push ke main (selain dokumen) dan manual: membangun APK rilis (R8 + shrink resource) dan memeriksa bukan debuggable.
 # Tidak memengaruhi build.yml. Unggah hasil sebagai artefak terpisah.
 on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "docs/**"]
   workflow_dispatch:
+
+concurrency:
+  group: release-check-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
