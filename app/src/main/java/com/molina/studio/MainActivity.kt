@@ -41,13 +41,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.Color
 
-private enum class Tab(val label: String, val glyph: String, val color: Color) {
-    Mpv("mpv", "\u25B6", Color(0xFFB9A7E8)),          // lavender redup: bioskop
-    Files("Berkas", "\u25A4", Color(0xFF7FB2E5)),       // biru lembut: penjelajah berkas (Terminal kini di Settings)
-    Code("Code", "< >", Color(0xFFFFB300)),             // emas: editor
-    Settings("Settings", "\u2699", Color(0xFFCDBFA3))  // champagne: pengaturan
+private enum class Tab(@StringRes val labelRes: Int, val glyph: String, val color: Color) {
+    Mpv(R.string.tab_mpv, "\u25B6", Color(0xFFB9A7E8)),          // lavender redup: bioskop
+    Files(R.string.tab_files, "\u25A4", Color(0xFF7FB2E5)),       // biru lembut: penjelajah berkas (Terminal kini di Settings)
+    Code(R.string.tab_editor, "< >", Color(0xFFFFB300)),             // emas: editor
+    Settings(R.string.tab_settings, "\u2699", Color(0xFFCDBFA3))  // champagne: pengaturan
 }
 
 /** True saat keyboard layar tampil. Dipakai agar nav bawah tidak makan ruang saat mengetik. */
@@ -206,7 +208,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme(colorScheme = MolinaColors) {
                 var selected by rememberSaveable { mutableIntStateOf(0) }
-                androidx.compose.runtime.LaunchedEffect(selected) { com.molina.core.common.CrashContext.tab = Tab.entries[selected].label }
+                androidx.compose.runtime.LaunchedEffect(selected) { com.molina.core.common.CrashContext.tab = this@MainActivity.getString(Tab.entries[selected].labelRes) }
                 val codeSession = remember {
                     com.molina.code.ui.CodeSession(
                         AppPaths.get(this@MainActivity).appRoot.path, // [WORKSPACE-IN-MOLINA]
@@ -336,13 +338,13 @@ class MainActivity : ComponentActivity() {
                                                     Text(tab.glyph, fontWeight = FontWeight.Bold)
                                                 }
                                             },
-                                            label = { Text(tab.label) },
+                                            label = { Text(stringResource(tab.labelRes), fontWeight = if (selected == i) FontWeight.Bold else FontWeight.Normal) },
                                             colors = NavigationBarItemDefaults.colors(
-                                                selectedIconColor = tab.color,
-                                                selectedTextColor = tab.color,
-                                                indicatorColor = tab.color.copy(alpha = 0.18f),
-                                                unselectedIconColor = tab.color.copy(alpha = 0.55f),
-                                                unselectedTextColor = tab.color.copy(alpha = 0.55f)
+                                                selectedIconColor = androidx.compose.ui.graphics.lerp(tab.color, Color.White, 0.30f),
+                                                selectedTextColor = androidx.compose.ui.graphics.lerp(tab.color, Color.White, 0.30f),
+                                                indicatorColor = tab.color.copy(alpha = 0.28f),
+                                                unselectedIconColor = tab.color.copy(alpha = 0.40f),
+                                                unselectedTextColor = tab.color.copy(alpha = 0.40f)
                                             )
                                         )
                                     }
@@ -375,7 +377,7 @@ class MainActivity : ComponentActivity() {
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            "Molina ${Tab.entries[selected].label}",
+                            "Molina ${stringResource(Tab.entries[selected].labelRes)}",
                             color = MaterialTheme.colorScheme.onBackground
                         )
                     }
