@@ -1,0 +1,29 @@
+name: Uji JVM
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "docs/**"]
+  pull_request:
+    paths-ignore: ["**.md", "docs/**"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  jvm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Pasang kotlinc 2.1.21 (SHA-256 dipin)
+        run: |
+          set -euo pipefail
+          curl -fsSL -o "$RUNNER_TEMP/kc.zip" https://github.com/JetBrains/kotlin/releases/download/v2.1.21/kotlin-compiler-2.1.21.zip
+          echo "1ba08a8b45da99339a0601134cc037b54cf85e9bc0edbe76dcbd27c2d684a977  $RUNNER_TEMP/kc.zip" | sha256sum -c -
+          unzip -q "$RUNNER_TEMP/kc.zip" -d "$RUNNER_TEMP"
+          echo "KOTLINC=$RUNNER_TEMP/kotlinc/bin/kotlinc" >> "$GITHUB_ENV"
+      - name: Uji JVM murni
+        run: JOBS=3 bash scripts/run_jvm_tests.sh

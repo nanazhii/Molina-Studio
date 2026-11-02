@@ -1,0 +1,78 @@
+name: Native mpv (Molina Cinema 5a)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Paket build
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf pkgconf libtool ninja-build python3-pip gperf nasm
+          sudo pip3 install --break-system-packages meson
+      - name: Bangun libmpv + libplayer (arm64)
+        run: bash scripts/native_mpv.sh
+      - name: Ringkasan hash
+        if: success()
+        run: |
+          {
+            echo '### SHA256SUMS'; echo '```'; cat _native_out/SHA256SUMS; echo '```'
+            echo '### Hash unduhan (salin ke native/pins.sha256 setelah ditinjau)'
+            echo '```'; sort -u _native_out/download-sha256.txt; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: success()
+        with:
+          name: molina-native-arm64
+          path: |
+            _native_out/molina-native-arm64.tgz
+            _native_out/SHA256SUMS
+            _native_out/download-sha256.txt
+            _native_out/BUILD-INFO.txt
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: native-logs
+          path: |
+            _native/**/meson-logs/meson-log.txt
+            _native_out/download-sha256.txt
+          if-no-files-found: ignore
+          retention-days: 7
+
+  publish:
+    needs: native
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: molina-native-arm64
+      - name: Terbitkan ke GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="native-mpv-${GITHUB_SHA:0:7}-run${GITHUB_RUN_NUMBER}"
+          SUM="$(sha256sum molina-native-arm64.tgz | cut -d' ' -f1)"
+          grep -q "$SUM  molina-native-arm64.tgz" SHA256SUMS
+          gh release create "$TAG" molina-native-arm64.tgz SHA256SUMS BUILD-INFO.txt \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+            --title "Pustaka native mpv (arm64) $TAG" \
+            --notes "libmpv/libplayer arm64 dari mpv-android commit dipin (lihat BUILD-INFO.txt). SHA-256 tgz: $SUM"
+          {
+            echo '### Release native'
+            echo "- tag: \`$TAG\`"
+            echo "- sha256 tgz: \`$SUM\`"
+          } >> "$GITHUB_STEP_SUMMARY"

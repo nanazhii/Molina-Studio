@@ -1,0 +1,79 @@
+name: Build Molina Studio
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md", "docs/**"]
+  pull_request:
+    paths-ignore: ["**.md", "docs/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Gerbang telemetri dan URL
+        run: python3 scripts/telemetry_gate.py
+      - name: Gerbang rahasia
+        run: python3 scripts/secret_gate.py
+      - name: Gerbang komponen bundel
+        run: python3 scripts/bundle_gate.py
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
+        with:
+          gradle-version: 8.10.2
+      - name: Siapkan kunci tanda tangan tetap
+        if: github.event_name != 'pull_request'
+        env:
+          MOLINA_KEYSTORE_B64: ${{ secrets.MOLINA_KEYSTORE_B64 }}
+          MOLINA_KEYSTORE_PASSWORD: ${{ secrets.MOLINA_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$MOLINA_KEYSTORE_B64" ] && [ -n "$MOLINA_KEYSTORE_PASSWORD" ]; then
+            ( umask 077; printf %s "$MOLINA_KEYSTORE_B64" | tr -d '[:space:]' | base64 -d > "$RUNNER_TEMP/molina.p12" )
+            echo "MOLINA_KEYSTORE_FILE=$RUNNER_TEMP/molina.p12" >> "$GITHUB_ENV"
+            echo "Kunci tetap dipakai."
+          else
+            echo "::warning::Secret kunci belum diisi; memakai keystore debug acak."
+          fi
+      - name: Diagnosa kunci tanda tangan
+        if: github.event_name != 'pull_request' && env.MOLINA_KEYSTORE_FILE != ''
+        env:
+          MOLINA_KEYSTORE_PASSWORD: ${{ secrets.MOLINA_KEYSTORE_PASSWORD }}
+        run: |
+          f="$MOLINA_KEYSTORE_FILE"
+          echo "ukuran berkas: $(stat -c %s "$f") byte, sha256: $(sha256sum "$f" | cut -d' ' -f1)"
+          echo "panjang password: $(printf %s "$MOLINA_KEYSTORE_PASSWORD" | wc -c) karakter"
+          if keytool -list -storetype pkcs12 -keystore "$f" -storepass:env MOLINA_KEYSTORE_PASSWORD -alias molina 2>&1 | grep -E "molina|PrivateKeyEntry|SHA-?256"; then :; else echo "::error::keytool gagal membuka keystore/alias molina"; exit 1; fi
+          if openssl pkcs12 -in "$f" -nodes -passin env:MOLINA_KEYSTORE_PASSWORD 2>/dev/null | grep -q "PRIVATE KEY"; then
+            echo "Kunci privat terbaca dengan password keystore."
+          else
+            echo "::error::Kunci privat TIDAK terbaca dengan MOLINA_KEYSTORE_PASSWORD (password key berbeda atau berkas rusak)"; exit 1
+          fi
+      - name: Pustaka native mpv (terverifikasi SHA-256)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/fetch_native.sh
+      - name: Build debug APK
+        env:
+          MOLINA_KEYSTORE_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.MOLINA_KEYSTORE_PASSWORD || '' }}
+        run: gradle :app:assembleDebug --stacktrace
+      - name: Cetak sidik jari tanda tangan APK
+        run: |
+          A=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$A" verify --print-certs app/build/outputs/apk/debug/*.apk | grep -i "SHA-256" || true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: molina-debug
+          path: app/build/outputs/apk/debug/*.apk
+      - name: Hapus kunci sementara
+        if: always()
+        run: rm -f "$RUNNER_TEMP/molina.p12"
