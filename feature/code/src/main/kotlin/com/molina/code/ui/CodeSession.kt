@@ -1,0 +1,1410 @@
+package com.molina.code.ui
+
+import android.os.Handler
+import android.os.Looper
+import android.view.View
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.molina.code.history.HistoryKind
+import com.molina.code.history.HistoryStore
+import com.molina.code.preview.PreviewKind
+import com.molina.code.preview.PythonTerminalRun
+import com.molina.code.preview.TerminalRunLang
+import com.molina.code.preview.RunPlans
+import com.molina.code.run.ScriptExecutor
+import com.molina.code.run.ScriptShare
+import com.molina.code.run.ScriptSink
+import io.github.rosemoe.sora.widget.CodeEditor
+import java.io.File
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.TimeUnit
+
+/**
+ * Satu tab editor. Tiap tab punya instance editor sendiri (dibuat malas) sehingga isi, posisi
+ * kursor, dan riwayat undo/redo terpisah per tab (blueprint bagian 7).
+ *
+ * Penanda dirty dibandingkan dengan isi tersimpan (baseline berupa sidik jari teks), jadi undo
+ * sampai kembali ke isi awal menghapus titik emas (blueprint bagian 31.2).
+ */
+class EditorTab internal constructor(val id: Int, initialTitle: String) {
+    var title by mutableStateOf(initialTitle)
+        internal set
+
+    /** True bila isi berbeda dari yang tersimpan/dibuka. Menjadi titik emas pada judul tab. */
+    var dirty by mutableStateOf(false)
+        internal set
+
+    /** Berkas di disk. Null = belum pernah disimpan (Simpan membuka dialog Simpan sebagai). */
+    var file by mutableStateOf<File?>(null)
+        internal set
+
+    /** True selama isi tab masih dibaca dari disk/draf; editor dikunci agar tidak tertimpa. */
+    var loading by mutableStateOf(false)
+        internal set
+
+    /** Naik setiap isi berubah (setelah event selesai). Memicu hitung ulang state Undo/Redo. */
+    var revision by mutableIntStateOf(0)
+        internal set
+
+    /** Pembungkus kata per tab (default aktif, blueprint v2 bagian 12). Diubah dari menu titik tiga. */
+    var wordWrap by mutableStateOf(true)
+
+    /** Hanya baca per tab. Diubah dari menu titik tiga. */
+    var readOnly by mutableStateOf(false)
+
+    /** Kunci entri Script Execution bila tab ini hasil EDIT dari Settings; dipakai saat Kirim ke Script Execution. */
+    internal var scriptKey: String? = null
+
+    /** Naik saat hasil pencarian atau seleksi berubah; memicu hitung ulang penghitung find bar. */
+    var findRevision by mutableIntStateOf(0)
+        internal set
+
+    /** Akhir baris yang dipakai saat menulis ke disk. Editor sendiri selalu memegang teks LF. */
+    internal var eol by mutableStateOf(Eol.LF)
+
+    /** State agar find bar dan toolbar ikut diperbarui begitu editor tab selesai dibuat. */
+    internal var editor by mutableStateOf<CodeEditor?>(null)
+
+    /** Sidik jari isi tersimpan/dibuka (pembanding dirty). Tab "Baru" = sidik jari teks kosong. */
+    internal var baseFp: Long = FileStore.EMPTY_FP
+
+    /** Akhir baris pada isi tersimpan/dibuka. Beda dari [eol] = dirty (hanya akhir baris yang berubah). */
+    internal var baseEol: Eol = Eol.LF
+
+    /** [CODE-GUTTER] Teks tersimpan (LF) untuk penanda perubahan di gutter; null = dimuat malas dari disk. */
+    @Volatile
+    internal var baseText: String? = null
+    internal var gutterTask: Runnable? = null
+    internal var gutterJob: kotlinx.coroutines.Job? = null
+
+    /** Teks hasil pemulihan yang menunggu editor dibuat. */
+    internal var pendingText: String? = null
+
+    /** Teks dari Terminal yang menunggu editor dibuat (lihat CodeSession.insertAtCursor). */
+    internal var queuedInsert: String? = null
+
+    /** Dipasang sesi: dipanggil tiap perubahan status isi untuk menjadwalkan autosave draf. */
+    internal var onEdited: (() -> Unit)? = null
+
+    private val checkTask = Runnable { recomputeDirty() }
+
+    /** Isi tab saat ini; null bila lebih panjang dari [maxChars] atau belum ada. */
+    internal fun currentTextOrNull(maxChars: Int): String? {
+        val ed = editor
+        if (ed != null) {
+            val content = ed.text
+            return if (content.length > maxChars) null else content.toString()
+        }
+        val p = pendingText ?: return null
+        return if (p.length > maxChars) null else p
+    }
+
+    /** Tab kosong yang belum pernah disentuh; boleh dipakai ulang saat membuka berkas. */
+    internal fun isPristine(): Boolean {
+        if (file != null || dirty || loading || queuedInsert != null) return false
+        val len = editor?.text?.length ?: (pendingText?.length ?: 0)
+        return len == 0
+    }
+
+    /** Bandingkan isi sekarang dengan baseline. Dipanggil setelah edit (ditunda) dan setelah simpan/muat. */
+    internal fun recomputeDirty() {
+        if (loading) return
+        val ed = editor
+        val text: String? = if (ed != null) {
+            val c = ed.text
+            if (c.length > MAX_COMPARE_CHARS) null else c.toString()
+        } else {
+            pendingText ?: ""
+        }
+        val now = text == null || FileStore.fingerprint(text) != baseFp || eol != baseEol
+        if (now != dirty) {
+            dirty = now
+            onEdited?.invoke()
+        }
+    }
+
+    /** Tunda hitung ulang dirty sampai edit berhenti (trailing debounce), supaya mengetik tetap ringan. */
+    internal fun scheduleDirtyCheck(view: View) {
+        view.removeCallbacks(checkTask)
+        view.postDelayed(checkTask, DIRTY_CHECK_MS)
+    }
+
+    /** Isi [text] kini tersimpan di disk dengan akhir baris [savedEol]. */
+    internal fun markSaved(text: String, savedEol: Eol) {
+        baseFp = FileStore.fingerprint(text)
+        baseEol = savedEol
+        baseText = if (text.length <= 400_000) text else null
+        recomputeDirty()
+        ChangeGutter.schedule(this)
+    }
+
+    /** Pasang isi bersih dari disk (buka atau muat ulang). Teks sudah LF. */
+    internal fun applyDiskText(text: String, fileEol: Eol) {
+        setBody(text)
+        eol = fileEol
+        baseEol = fileEol
+        baseFp = FileStore.fingerprint(text)
+        baseText = if (text.length <= 400_000) text else null
+        dirty = false
+        loading = false
+        editor?.setEditable(!readOnly)
+        ChangeGutter.schedule(this)
+    }
+
+    /** Pasang isi dari draf: baseline dan akhir baris dikembalikan, lalu dirty dihitung ulang. */
+    internal fun applyDraft(text: String, draftEol: Eol, base: Long, baseEolSaved: Eol) {
+        setBody(text)
+        eol = draftEol
+        baseFp = base
+        baseEol = baseEolSaved
+        baseText = null
+        loading = false
+        editor?.setEditable(!readOnly)
+        dirty = true
+        recomputeDirty()
+        ChangeGutter.schedule(this)
+    }
+
+    /** Berkas tab dihapus dari disk: isi tinggal di editor, jadi tab ditandai belum tersimpan. */
+    internal fun markOrphaned() {
+        file = null
+        baseFp = FileStore.ORPHAN_FP
+        dirty = true
+        onEdited?.invoke()
+    }
+
+    private fun setBody(text: String) {
+        val ed = editor
+        if (ed == null) pendingText = text else ed.setText(text)
+    }
+
+    internal fun disposeEditor() {
+        editor?.release()
+        editor = null
+    }
+
+    companion object {
+        private const val DIRTY_CHECK_MS = 150L
+        private const val MAX_COMPARE_CHARS = 2_000_000
+    }
+}
+
+/** Permintaan dialog Simpan sebagai. [after] dipanggil setelah berkas benar-benar tersimpan. */
+class SaveAsRequest internal constructor(val tab: EditorTab, val after: (() -> Unit)?)
+
+/**
+ * Status layar Code: daftar tab, tab aktif, dan panel direktori. Dibuat SATU kali di tingkat
+ * Activity supaya tab tidak hilang saat pengguna pindah ke tab bawah lain.
+ *
+ * Bila [draftDir] diberikan, tab beserta isi yang belum disimpan ditulis ke folder itu (autosave
+ * berjeda 1,5 detik, plus [flushDrafts] saat Activity berhenti) dan dipulihkan saat sesi dibuat
+ * lagi, jadi tab "Baru" tidak hilang ketika proses dimatikan atau layar diputar.
+ */
+class CodeSession(val workDir: String, draftDir: File? = null) {
+    val tabs = mutableStateListOf<EditorTab>()
+
+    val find = FindState()
+
+    /** Dialog Pergi ke baris terbuka. */
+    var gotoOpen by mutableStateOf(false)
+
+    /** [CODE-PALETTE] Palet Perintah terbuka. */
+    var paletteOpen by mutableStateOf(false)
+
+    /** [CODE-SEARCH] Dialog Cari di berkas dan Struktur berkas terbuka. */
+    var findFilesOpen by mutableStateOf(false)
+    var outlineOpen by mutableStateOf(false)
+
+    /** [CODE-SYMBOL] Dialog Pergi ke simbol terbuka, dan indeks simbol folder utama (cache per berkas, hidup selama sesi). */
+    var symbolOpen by mutableStateOf(false)
+    internal val symbolIndex = SymbolIndex()
+
+    /** [CODE-INFO] Layar Informasi berkas (statistik teks dan jenis berkas) terbuka. */
+    var infoOpen by mutableStateOf(false)
+
+    /** [CODE-FONT] Dialog Ukuran font editor terbuka. */
+    var fontOpen by mutableStateOf(false)
+
+    /** [CODE-FONT] Ukuran font semua editor (sp); diingat lewat [runStore], dimuat saat runStore dipasang. */
+    var editorFontSp by mutableIntStateOf(FONT_DEFAULT_SP)
+        private set
+
+    fun applyEditorFontSp(sp: Int) {
+        val v = sp.coerceIn(FONT_MIN_SP, FONT_MAX_SP)
+        if (v == editorFontSp) return
+        editorFontSp = v
+        runStore?.put(RunPrefs.KEY_FONT_SP, v.toString())
+    }
+
+    /** [CODE-STYLE] Keluarga font, ligature, dan sticky scroll semua editor; diingat lewat [runStore]. */
+    internal var editorFont by mutableStateOf(EditorFont.JETBRAINS)
+        private set
+    var editorLigature by mutableStateOf(true)
+        private set
+    var editorSticky by mutableStateOf(true)
+        private set
+
+    internal fun applyEditorFont(f: EditorFont) {
+        if (f == editorFont) return
+        editorFont = f
+        runStore?.put(RunPrefs.KEY_FONT_FAMILY, f.id)
+    }
+
+    fun toggleEditorLigature() {
+        editorLigature = !editorLigature
+        runStore?.put(RunPrefs.KEY_LIGATURE, if (editorLigature) "1" else "0")
+    }
+
+    fun toggleEditorSticky() {
+        editorSticky = !editorSticky
+        runStore?.put(RunPrefs.KEY_STICKY, if (editorSticky) "1" else "0")
+    }
+
+    /** [CODE-TM] Dialog Tema kode, tema token aktif, dan saklar highlight TextMate. */
+    var themeOpen by mutableStateOf(false)
+    var editorTheme by mutableStateOf(MolinaTextMate.DEFAULT_THEME)
+        private set
+    var tmEnabled by mutableStateOf(true)
+        private set
+
+    fun applyEditorTheme(id: String) {
+        if (id == editorTheme) return
+        editorTheme = id
+        runStore?.put(RunPrefs.KEY_TM_THEME, id)
+    }
+
+    fun toggleTextMate() {
+        tmEnabled = !tmEnabled
+        runStore?.put(RunPrefs.KEY_TM_ON, if (tmEnabled) "1" else "0")
+    }
+
+    private fun loadEditorFont() {
+        runStore?.get(RunPrefs.KEY_FONT_SP)?.toIntOrNull()?.let { editorFontSp = it.coerceIn(FONT_MIN_SP, FONT_MAX_SP) }
+        runStore?.get(RunPrefs.KEY_FONT_FAMILY)?.let { editorFont = EditorFont.fromId(it) }
+        runStore?.get(RunPrefs.KEY_LIGATURE)?.let { editorLigature = it != "0" }
+        runStore?.get(RunPrefs.KEY_STICKY)?.let { editorSticky = it != "0" }
+        runStore?.get(RunPrefs.KEY_TM_THEME)?.let { editorTheme = MolinaTextMate.themeOf(it).id }
+        runStore?.get(RunPrefs.KEY_TM_ON)?.let { tmEnabled = it != "0" }
+        runStore?.get(RunPrefs.KEY_FORMAT_SAVE)?.let { formatOnSave = it == "1" } // [CODE-FORMAT]
+        runStore?.get(RunPrefs.KEY_DIFF_CONTRAST)?.let { diffContrast = it == "1" } // [CODE-HISTORY2]
+        runStore?.get(RunPrefs.KEY_CHECK_SAVE)?.let { checkOnSave = it == "1" } // [CODE-CHECK-SAVE]
+        runStore?.get(RunPrefs.KEY_LSP_LIVE)?.let { liveEnabled = it == "1"; live.setEnabled(liveEnabled) } // [CODE-LSP3]
+    }
+
+    /** [CODE-FORMAT] Format otomatis sebelum menyimpan berkas (bawaan mati). Galat format tidak pernah menahan simpan. */
+    var formatOnSave by mutableStateOf(false)
+        private set
+
+    /** [CODE-CHECK-SAVE] Periksa kode otomatis SETELAH berkas tersimpan (bawaan mati). Tidak pernah menahan atau mengubah simpan. */
+    var checkOnSave by mutableStateOf(false)
+        private set
+
+    fun toggleCheckOnSave() {
+        checkOnSave = !checkOnSave
+        runStore?.put(RunPrefs.KEY_CHECK_SAVE, if (checkOnSave) "1" else "0")
+    }
+
+    /** [CODE-CHECK-SAVE] Galat pemeriksa saat simpan hanya dimunculkan sekali per sesi (mis. shellcheck belum terpasang). */
+    internal var checkFailNoted = false
+
+    /** [CODE-HISTORY2] Diff kontras tinggi di Riwayat versi (Tema kode). Bawaan mati: memakai token Clean/Danger transparan. */
+    var diffContrast by mutableStateOf(false)
+        private set
+
+    fun toggleDiffContrast() {
+        diffContrast = !diffContrast
+        runStore?.put(RunPrefs.KEY_DIFF_CONTRAST, if (diffContrast) "1" else "0")
+    }
+
+    /** Catatan galat format untuk toast "Tersimpan" berikutnya. */
+    private var saveNote: String? = null
+
+    fun toggleFormatOnSave() {
+        formatOnSave = !formatOnSave
+        runStore?.put(RunPrefs.KEY_FORMAT_SAVE, if (formatOnSave) "1" else "0")
+    }
+
+    /** [CODE-REPLACE] Penggantian terakhir di berkas, untuk Urungkan (hanya di memori). */
+    internal var lastReplace by mutableStateOf<ReplaceUndo?>(null)
+
+    /** [CODE-TEMPLATE] Dialog Live Template dan pemilih jenis Scratch terbuka. */
+    var templatesOpen by mutableStateOf(false)
+    var scratchOpen by mutableStateOf(false)
+
+    /** Dialog Simpan sebagai yang sedang terbuka (null = tertutup). */
+    var saveAs by mutableStateOf<SaveAsRequest?>(null)
+        private set
+
+    /** Dialog aksi berkas (menu, ganti nama, hapus, baru). Dirender oleh [FileDialogs]. */
+    internal var fileDialog by mutableStateOf<FileDialog?>(null)
+
+    /** Pemilih berkas/folder yang sedang terbuka (null = tertutup). */
+    internal var picker by mutableStateOf<PickerRequest?>(null)
+
+    /** Tab dirty yang menunggu konfirmasi Muat ulang. */
+    internal var reloadConfirm by mutableStateOf<EditorTab?>(null)
+        private set
+
+    var activeId by mutableIntStateOf(-1)
+        private set
+
+    /** Pesan singkat untuk pengguna (Toast). Dipasang oleh CodeScreen. */
+    var toast: (String) -> Unit = {}
+
+    private var nextId = 1
+    private var lastSaveDir: File? = null
+
+    internal val mainHandler = Handler(Looper.getMainLooper())
+    private val io: ExecutorService = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "molina-code-io").apply { isDaemon = true }
+    }
+    private val store: DraftStore? = draftDir?.let { DraftStore(it) }
+
+    /** [CODE-HISTORY] Riwayat versi per berkas (folder privat, bersama folder draf); null bila sesi tanpa folder draf. */
+    internal val history: HistoryStore? = draftDir?.let { HistoryStore(File(it, "history")) }
+    var historyOpen by mutableStateOf(false)
+    private var historyTrimmed = false
+
+    /** [CODE-TEMPLATE] Template buatan pengguna (disimpan di folder draf privat). */
+    internal val templates = TemplateStore(draftDir?.let { File(it, "live_templates.json") })
+    private val draftTask = Runnable { persistDrafts() }
+
+    /** Panel direktori (F4). Folder utama awal = folder kerja. */
+    internal val dir = DirectoryState(this, File(workDir))
+
+    /** Panel pratinjau langsung / keluaran skrip di bawah editor (tombol Play). */
+    internal val preview = PreviewController()
+
+    /** True saat halaman penuh terbuka (Tinjauan Markdown/JSON/HTML atau Keluaran skrip); :app menyembunyikan bottom nav. */
+    val previewFullScreen: Boolean
+        get() = preview.open
+
+    /** Opsi Settings "Pakai WebView untuk HTML"; dipasang :app. */
+    var htmlWebView: Boolean
+        get() = preview.htmlWebView
+        set(value) { preview.htmlWebView = value }
+
+    /** Status eksekusi skrip untuk panel Keluaran. */
+    internal val run = RunController(mainHandler)
+
+    /** Dipasang :app (Debian PRoot). Null = tombol Play untuk skrip memberi tahu bahwa belum tersedia. */
+    var scriptExecutor: ScriptExecutor?
+        get() = run.executor
+        set(value) { run.executor = value }
+
+    /** [CODE-FORMAT] Pemformat kode (bawaan + Debian). */
+    internal val format = FormatController(mainHandler)
+
+    /** [CODE-FORMAT] Dipasang :app (Debian PRoot, jalur FORMAT). Null = pemformat Debian memberi tahu belum tersedia; JSON/XML tetap jalan. */
+    var formatExecutor: ScriptExecutor?
+        get() = format.executor
+        set(value) { format.executor = value }
+
+    /** [CODE-CHECK] Pemeriksa kode sekali jalan (bawaan + Debian), hasil terakhir, dan dialog daftar masalah. */
+    internal val checker = CheckController(mainHandler)
+    internal var problems by mutableStateOf<ProblemList?>(null)
+    var problemsOpen by mutableStateOf(false)
+
+    /** [CODE-CHECK] Dipasang :app (Debian PRoot, jalur CHECK). Null = pemeriksa Debian memberi tahu belum tersedia; JSON/XML tetap jalan. */
+    var checkExecutor: ScriptExecutor?
+        get() = checker.executor
+        set(value) { checker.executor = value }
+
+    /** [CODE-LSP2] Dipasang :app (Debian PRoot, jalur LSP): proses menetap dua arah untuk language server. Null = LSP tidak tersedia. */
+    var lspExecutor: com.molina.code.lsp.StreamExecutor? = null
+
+    /** [CODE-LSP3] Dipasang :app: penerjemah path Android <-> Debian (aturan terlihat mengikuti Terminal; dibaca ulang tiap sesi mulai). */
+    var lspPathMap: (() -> com.molina.code.lsp.LspPathMap)? = null
+
+    /** [CODE-LSP3] Saklar "Diagnostik langsung (Python)" (bawaan mati) dan status sesi untuk lencana di bilah status. */
+    var liveEnabled by mutableStateOf(false)
+        private set
+    var liveState by mutableStateOf(com.molina.code.lsp.LiveState.OFF)
+        private set
+    var liveDetail by mutableStateOf<String?>(null)
+        private set
+
+    private val liveEvents = object : com.molina.code.lsp.LspLiveEvents {
+        override fun onState(state: com.molina.code.lsp.LiveState, detail: String?) {
+            liveState = state
+            liveDetail = detail
+        }
+
+        override fun onNotice(message: String) = toast(message)
+
+        override fun onDiagnostics(tabId: Int, hostPath: String, items: List<com.molina.code.check.Diagnostic>, stamp: com.molina.code.lsp.TextStamp?) =
+            applyLiveDiagnostics(tabId, items, stamp)
+    }
+
+    internal val live = com.molina.code.lsp.LspLive(
+        env = AndroidLiveEnv(mainHandler),
+        events = liveEvents,
+        executorProvider = { if (lspPathMap != null) lspExecutor else null },
+        pathsProvider = { lspPathMap!!.invoke() },
+    )
+
+    /**
+     * [CODE-LSP5] Pintu completion untuk bahasa editor [tab]; null bila saklar mati, berkas belum punya path, atau bukan
+     * Python. Dipanggil dari thread latar Sora: hanya membaca nilai, tidak menyentuh editor.
+     */
+    internal fun completionBackendFor(tab: EditorTab): LspCompletionBackend? {
+        if (!liveEnabled || tab.loading) return null
+        val f = tab.file ?: return null
+        if (isLibraryFile(f)) return null // [CODE-DEBLIB]
+        val spec = com.molina.code.lsp.LspServers.of(f.name, null) ?: return null
+        val path = f.absolutePath
+        return LspCompletionBackend { text, line, column ->
+            live.completeBlocking(path, spec.languageId, text, line, column, COMPLETION_TIMEOUT_MS)
+        }
+    }
+
+    /** [CODE-LSP6] Permintaan definisi sedang menunggu server; menu "Pergi ke definisi" redup selama itu. */
+    var definitionBusy by mutableStateOf(false)
+        private set
+
+    /** [CODE-LSP6] Daftar tujuan bila definisi punya lebih dari satu hasil; null = dialog tertutup. */
+    var definitionChoices by mutableStateOf<List<com.molina.code.lsp.DefinitionChoice>?>(null)
+
+    /** [CODE-LSP6] Pergi ke definisi nama di kursor lewat pylsp (Jedi): lompat, pilih dari daftar, atau toast alasannya. */
+    fun goToDefinition() {
+        if (definitionBusy) return
+        val tab = active ?: return
+        val ed = tab.editor ?: return
+        val f = tab.file
+        if (!liveEnabled) return toast("Nyalakan \"Python langsung\" di menu titik tiga dulu")
+        if (f == null) return toast("Simpan berkas dulu agar server bisa membacanya")
+        if (isLibraryFile(f)) return toast("Pergi ke definisi belum didukung dari berkas pustaka Debian") // [CODE-DEBLIB]
+        if (tab.loading) return
+        val spec = com.molina.code.lsp.LspServers.of(f.name, tab.firstLineOrNull())
+            ?: return toast("Pergi ke definisi saat ini hanya untuk Python")
+        val text = tab.currentTextOrNull(MAX_LIVE_CHARS) ?: return toast("Berkas terlalu besar untuk server")
+        val pos = try {
+            val l = ed.cursor.leftLine
+            Triple(l, ed.cursor.leftColumn, ed.text.getLineString(l))
+        } catch (e: Exception) {
+            return // editor sedang dibuat ulang
+        }
+        val line = pos.first
+        val word = com.molina.code.lsp.LspDefinitionLogic.wordAt(pos.third, pos.second)
+            ?: return toast("Letakkan kursor pada sebuah nama")
+        val stamp = com.molina.code.lsp.TextStamp(text.length, text.hashCode())
+        val path = f.absolutePath
+        definitionBusy = true
+        liveSync(tab) // daftarkan dokumen supaya sesi yang tidur bisa dibangunkan
+        live.requestDefinition(path, spec.languageId, text, line, word.requestColumn, DEFINITION_TIMEOUT_MS) { reply ->
+            definitionBusy = false
+            onDefinitionReply(tab, stamp, path, word, line, reply)
+        }
+    }
+
+    private fun onDefinitionReply(
+        tab: EditorTab, stamp: com.molina.code.lsp.TextStamp, path: String,
+        word: com.molina.code.lsp.WordSpan, line: Int, reply: com.molina.code.lsp.LspDefinitionReply,
+    ) {
+        when (reply) {
+            is com.molina.code.lsp.LspDefinitionReply.Error -> toast(reply.reason)
+            is com.molina.code.lsp.LspDefinitionReply.Targets -> {
+                if (tabs.none { it === tab } || activeId != tab.id) return // pengguna sudah pindah tab: jangan melompat
+                val now = tab.currentTextOrNull(MAX_LIVE_CHARS)
+                if (now == null || !stamp.matches(now)) return toast("Teks berubah saat mencari, ketuk lagi")
+                val first = com.molina.code.lsp.LspDefinitionLogic.classify(reply.list, path, word, line, dir.root.path) { java.io.File(it).isFile }
+                // [CODE-DEBLIB] tujuan hanya di Debian: buka lewat path rootfs (hanya-baca)
+                val debRoot = if (first is com.molina.code.lsp.DefinitionOutcome.OnlyInDebian) debianRoot?.invoke() else null
+                val outcome = if (debRoot != null) {
+                    com.molina.code.lsp.LspDefinitionLogic.classifyDebian(reply.list) { com.molina.code.nav.RootfsPaths.resolve(debRoot, it) }
+                } else {
+                    first
+                }
+                when (outcome) {
+                    is com.molina.code.lsp.DefinitionOutcome.Jump -> openLocation(outcome.hostPath, outcome.line + 1, outcome.column)
+                    is com.molina.code.lsp.DefinitionOutcome.Choose -> definitionChoices = outcome.choices
+                    else -> com.molina.code.lsp.LspDefinitionLogic.message(outcome)?.let { toast(it) }
+                }
+            }
+        }
+    }
+
+    /** [CODE-LSP6] Pilihan dari daftar tujuan: tutup dialog lalu buka berkas dan lompat. */
+    internal fun openDefinitionChoice(c: com.molina.code.lsp.DefinitionChoice) {
+        definitionChoices = null
+        openLocation(c.hostPath, c.line + 1, c.column)
+    }
+
+    // ---------------------------------------------------------------- [CODE-BACK] Kembali setelah lompat
+
+    private val jumps = com.molina.code.nav.JumpStack()
+
+    /** Jumlah posisi yang bisa dikembalikan; menu Kembali redup bila 0. */
+    var backDepth by mutableIntStateOf(0)
+        private set
+
+    /** Label "nama:baris" untuk pil Kembali yang tampil sebentar setelah lompat; null = pil tersembunyi. */
+    var backHint by mutableStateOf<String?>(null)
+
+    private fun tabAlive(id: Int): Boolean = tabs.any { it.id == id }
+
+    /** Posisi kursor tab aktif untuk dicatat sebelum melompat. Null bila tab kosong, memuat, atau editor belum ada. */
+    private fun currentJumpPoint(): com.molina.code.nav.JumpPoint? {
+        val tab = active ?: return null
+        val ed = tab.editor ?: return null
+        if (tab.loading || tab.isPristine()) return null
+        return try {
+            com.molina.code.nav.JumpPoint(tab.id, ed.cursor.leftLine, ed.cursor.leftColumn + 1)
+        } catch (e: Exception) {
+            null // editor sedang dibuat ulang
+        }
+    }
+
+    private fun recordJump(origin: com.molina.code.nav.JumpPoint?, destTabId: Int, destLine: Int) {
+        if (jumps.push(origin, com.molina.code.nav.JumpPoint(destTabId, destLine, 0))) {
+            backDepth = jumps.size
+            backHint = backLabel()
+        }
+    }
+
+    private fun backLabel(): String? {
+        val p = jumps.peek { tabAlive(it) } ?: return null
+        val t = tabs.firstOrNull { it.id == p.tabId } ?: return null
+        return (t.file?.name ?: t.title) + ":" + (p.line + 1)
+    }
+
+    /** Kembali ke posisi sebelum lompatan terakhir; tab yang sudah ditutup dilewati. */
+    fun jumpBack() {
+        val p = jumps.pop { tabAlive(it) }
+        val tab = if (p == null) null else tabs.firstOrNull { it.id == p.tabId }
+        backDepth = jumps.size
+        backHint = if (backDepth > 0) backLabel() else null
+        if (p == null || tab == null) return toast("Tidak ada posisi sebelumnya")
+        preview.open = false
+        activeId = tab.id
+        jumpWhenReady(tab, p.line, p.column, 40)
+    }
+
+    // ---------------------------------------------------------------- [CODE-DEBLIB] Berkas pustaka Debian (hanya-baca)
+
+    /** Dipasang :app. Folder rootfs Debian di Android; null = fitur buka pustaka Debian tidak tersedia. */
+    var debianRoot: (() -> File?)? = null
+
+    private val libCache = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+    @Volatile private var libRootPath: String? = null
+
+    /** True bila [f] berada di dalam rootfs Debian: tab-nya dikunci hanya-baca, tanpa Aksi file, Simpan, dan LSP. */
+    internal fun isLibraryFile(f: File?): Boolean {
+        if (f == null) return false
+        val root = debianRoot?.invoke() ?: return false
+        if (libRootPath != root.path) { libRootPath = root.path; libCache.clear() }
+        return libCache.getOrPut(f.path) { com.molina.code.nav.RootfsPaths.isUnder(root, f) }
+    }
+
+    fun toggleLive() {
+        if (!liveEnabled && (lspExecutor == null || lspPathMap == null)) return toast("Diagnostik langsung belum tersedia di perangkat ini")
+        liveEnabled = !liveEnabled
+        runStore?.put(RunPrefs.KEY_LSP_LIVE, if (liveEnabled) "1" else "0")
+        live.setEnabled(liveEnabled)
+        if (liveEnabled) active?.let { liveSync(it) }
+        else tabs.forEach { t -> // matikan: buang garis bawah milik server
+            if (problems?.tabId == t.id && problems?.label == LIVE_LABEL) clearProblems(t)
+        }
+    }
+
+    /**
+     * [CODE-LSP3] Kabari sesi LSP bahwa isi [tab] berubah/dibuka (debounce di [com.molina.code.lsp.LspLive]). Hanya berkas
+     * Python yang sudah punya path di disk (server membaca path guest); selain itu dilepas dari sesi.
+     */
+    internal fun liveSync(tab: EditorTab) {
+        if (!liveEnabled) return
+        val f = tab.file
+        if (f == null || tab.loading) { if (f == null) live.release(tab.id); return }
+        if (isLibraryFile(f)) { live.release(tab.id); return } // [CODE-DEBLIB] pustaka Debian tidak dikirim ke pylsp
+        if (tab.editor == null) return
+        val spec = com.molina.code.lsp.LspServers.of(f.name, tab.firstLineOrNull())
+        if (spec == null) { live.release(tab.id); return }
+        live.touch(tab.id, f.absolutePath, spec) { tab.currentTextOrNull(MAX_LIVE_CHARS) }
+    }
+
+    /** Pasang diagnostik server hanya bila isi editor masih persis yang dikirim; selain itu menunggu hasil yang lebih baru. */
+    private fun applyLiveDiagnostics(tabId: Int, items: List<com.molina.code.check.Diagnostic>, stamp: com.molina.code.lsp.TextStamp?) {
+        val tab = tabs.firstOrNull { it.id == tabId } ?: return
+        val ed = tab.editor ?: return
+        val text = tab.currentTextOrNull(MAX_LIVE_CHARS) ?: return
+        if (stamp == null || !stamp.matches(text)) return
+        if (items.isEmpty()) {
+            clearProblems(tab)
+            return
+        }
+        try {
+            ed.diagnostics = diagnosticsContainer(text, items)
+        } catch (e: Exception) {
+            return // editor sedang dibuat ulang
+        }
+        problems = ProblemList(tab.id, tab.file?.name ?: tab.title, LIVE_LABEL, items, null)
+    }
+
+    /** [CODE-CHECK] Lompat ke masalah ([line], [col] basis 1) di tab [tabId]. */
+    internal fun jumpToProblem(tabId: Int, line: Int, col: Int) {
+        val tab = tabs.firstOrNull { it.id == tabId } ?: return
+        preview.open = false
+        activeId = tab.id
+        jumpWhenReady(tab, (line - 1).coerceAtLeast(0), (col - 1).coerceAtLeast(0), 40)
+    }
+
+    /** Dipasang :app. Null = menu \"Kirim ke Script Execution\" redup. */
+    var scriptSink: ScriptSink? = null
+
+    /** Dipasang :app. (teks, jalankan) -> pesan galat atau null. Null = menu Terminal redup. */
+    var terminalSink: ((String, Boolean) -> String?)? = null
+
+    /** Teks seleksi aktif, atau baris kursor bila tidak ada seleksi. Kosong bila tidak ada editor. */
+    internal fun selectionOrLine(): String {
+        val ed = active?.editor ?: return ""
+        return try {
+            val c = ed.cursor
+            if (c.isSelected) ed.text.substring(c.left, c.right) else ed.text.getLineString(c.leftLine)
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
+    /** Kirim seleksi (atau baris kursor) ke Terminal; [execute] true = langsung Enter. */
+    fun sendToTerminal(execute: Boolean) {
+        val sink = terminalSink
+        if (sink == null) { toast("Terminal belum tersedia"); return }
+        val text = selectionOrLine().trimEnd('\n', '\r')
+        if (text.isBlank()) { toast("Tidak ada teks untuk dikirim"); return }
+        sink(text, execute)?.let { toast(it) }
+    }
+
+    // ---------------------------------------------------------------- [CODE-PYRUN2] Jalankan Python/Shell di Terminal
+
+    /** Dialog "Jalankan di Terminal" untuk .py/.sh terbuka. */
+    var pyRunOpen by mutableStateOf(false)
+
+    /** Dipasang :app. Berkas host -> jalur guest Debian, atau null bila foldernya tidak terlihat di PRoot. */
+    var guestPathResolver: ((File) -> String?)? = null
+
+    /** Dipasang :app. Menyimpan pilihan dialog (mode terakhir, tanya/langsung). Null = tidak diingat. */
+    var runStore: RunStore? = null
+        set(value) { field = value; loadEditorFont() } // [CODE-FONT]
+
+    /** Penulisan berkas terakhir oleh Jalankan di Terminal, untuk Urungkan (hanya di memori). */
+    internal var lastTerminalRun by mutableStateOf<TerminalRunUndo?>(null)
+
+    /** Bahasa tab aktif (.py / .sh) dari berkas, atau judul untuk tab tanpa berkas; null = bukan skrip yang dikenal. */
+    internal fun runLang(): TerminalRunLang? {
+        val t = active ?: return null
+        return PythonTerminalRun.langOf(t.file?.name ?: t.title)
+    }
+
+    /** True = dialog tampil (bawaan). False = pengguna memilih "ingat pilihan", langsung jalankan dengan mode terakhir. */
+    internal fun runAsk(): Boolean = runStore?.get(RunPrefs.KEY_ASK) != "0"
+
+    /** True bila mode terakhir adalah berkas (selain itu heredoc). */
+    internal fun runSavedFile(): Boolean = runStore?.get(RunPrefs.KEY_MODE) == "file"
+
+    internal fun saveRunChoice(file: Boolean, ask: Boolean) {
+        val s = runStore ?: return
+        s.put(RunPrefs.KEY_MODE, if (file) "file" else "heredoc")
+        s.put(RunPrefs.KEY_ASK, if (ask) "1" else "0")
+    }
+
+    /** Menu "Dialog jalankan": balik antara tanya dulu dan langsung. */
+    fun toggleRunAsk() {
+        val s = runStore ?: return
+        val ask = !runAsk()
+        s.put(RunPrefs.KEY_ASK, if (ask) "1" else "0")
+        toast(if (ask) "Jalankan di Terminal: tanya dulu" else "Jalankan di Terminal: langsung (" + (if (runSavedFile()) "berkas" else "heredoc") + ")")
+    }
+
+    /**
+     * Titik masuk menu "Jalankan di Terminal" untuk tab .py/.sh. Dialog tampil kecuali pengguna memilih langsung;
+     * mode berkas langsung hanya untuk tab yang sudah punya berkas (tab baru tetap membuka dialog untuk memberi nama).
+     */
+    fun runInTerminalForLang() {
+        val lang = runLang()
+        val tab = active
+        if (lang == null || tab == null) { sendToTerminal(true); return }
+        val file = runSavedFile()
+        val own = tab.file
+        if (runAsk() || (file && own == null)) { pyRunOpen = true; return }
+        if (file && own != null) runScriptFileAt(tab, own, lang) else runScriptHeredoc(lang)
+    }
+
+    internal fun scriptHasSelection(): Boolean = try {
+        active?.editor?.cursor?.isSelected == true
+    } catch (e: Exception) {
+        false
+    }
+
+    /** Sumber mode heredoc: seleksi bila ada, selain itu seluruh isi tab (bukan hanya baris kursor). */
+    internal fun scriptSourceText(): String {
+        val tab = active ?: return ""
+        val ed = tab.editor
+        try {
+            if (ed != null && ed.cursor.isSelected) return ed.text.substring(ed.cursor.left, ed.cursor.right)
+        } catch (e: Exception) {
+        }
+        return tab.currentTextOrNull(Int.MAX_VALUE) ?: ""
+    }
+
+    /** Berkas tujuan mode berkas: folder berkas tab (atau folder simpan bawaan) + [fileName]. */
+    internal fun scriptTarget(tab: EditorTab, fileName: String?): File? {
+        if (fileName == null) return null
+        return File(tab.file?.parentFile ?: defaultSaveDir(tab), fileName)
+    }
+
+    /** Mode 1: kirim sebagai heredoc (`python3 << 'PYEOF'` atau `bash << 'SHEOF'`) lalu Enter. Editor dan disk tidak disentuh. */
+    fun runScriptHeredoc(lang: TerminalRunLang) {
+        val sink = terminalSink
+        if (sink == null) { toast("Terminal belum tersedia"); return }
+        val cmd = PythonTerminalRun.heredoc(scriptSourceText(), lang)
+        if (cmd == null) { toast("Tidak ada kode untuk dikirim"); return }
+        sink(cmd, true)?.let { toast(it) }
+    }
+
+    /** Mode 2: nama dari dialog (ekstensi otomatis) lalu [runScriptFileAt]. */
+    fun runScriptFile(rawName: String, lang: TerminalRunLang) {
+        val tab = active ?: return
+        val n = PythonTerminalRun.normalizeName(rawName, lang)
+        val target = scriptTarget(tab, n.name)
+        if (target == null) { toast(n.error ?: "Nama tidak valid"); return }
+        runScriptFileAt(tab, target, lang)
+    }
+
+    /**
+     * Tulis isi tab ke [target] lalu jalankan dari foldernya. Isi lama dicadangkan ([lastTerminalRun]) sebelum
+     * ditimpa. Tab bersih yang sudah berupa [target] langsung dijalankan tanpa menulis.
+     */
+    internal fun runScriptFileAt(tab: EditorTab, target: File, lang: TerminalRunLang) {
+        val sink = terminalSink
+        if (sink == null) { toast("Terminal belum tersedia"); return }
+        if (tab.loading) { toast("Editor sedang memuat"); return }
+        val guest = guestPathResolver?.invoke(target)
+        if (guest == null) {
+            toast("Folder ini tidak terlihat di Debian. Simpan di folder kerja Molina atau aktifkan akses penuh storage.")
+            return
+        }
+        val cmd = PythonTerminalRun.fileCommand(guest, lang)
+        if (tab.file == target && !tab.dirty) { sink(cmd, true)?.let { toast(it) }; return }
+        val content = FileStore.applyEol(tab.currentTextOrNull(Int.MAX_VALUE) ?: "", tab.eol)
+        if (content.isBlank()) { toast("Tidak ada kode untuk dijalankan"); return }
+        runIo {
+            var undo: TerminalRunUndo? = null
+            var err: String? = null
+            try {
+                undo = TerminalRunEngine.begin(target, content)
+                FileStore.writeUtf8Atomic(target, content)
+            } catch (e: Exception) {
+                err = e.message ?: "Gagal menulis berkas"
+            }
+            val failure = err
+            val made = undo
+            mainHandler.post {
+                if (failure != null) { toast(failure); return@post }
+                lastTerminalRun = made
+                dir.refresh()
+                sink(cmd, true)?.let { toast(it) }
+            }
+        }
+    }
+
+    /** Dipasang :app. (nama, isi) -> pesan hasil untuk toast. Null = menu Simpan sebagai snippet redup. */
+    var snippetSink: ((String, String) -> String)? = null
+
+    /** Simpan seleksi (atau baris kursor) sebagai snippet Terminal. Nama = baris pertama yang tidak kosong. */
+    fun saveSelectionAsSnippet() {
+        val sink = snippetSink
+        if (sink == null) { toast("Snippet belum tersedia"); return }
+        val text = selectionOrLine().trimEnd('\n', '\r')
+        if (text.isBlank()) { toast("Tidak ada teks untuk disimpan"); return }
+        if (text.length > 4000) { toast("Teks terlalu panjang untuk snippet (maks. 4000 karakter)"); return }
+        val name = text.lineSequence().map { it.trim() }.firstOrNull { it.isNotEmpty() }.orEmpty().take(40)
+        toast(sink(name, text))
+    }
+
+    /**
+     * Sisipkan teks di posisi kursor tab aktif (mengganti seleksi bila ada). Mengembalikan pesan galat atau null.
+     * Bila editor tab belum dibuat (tab Code belum pernah tampil), teks diantrekan dan disisipkan saat editor dibuat.
+     */
+    fun insertAtCursor(text: String): String? {
+        val tab = active ?: return "Tidak ada tab editor"
+        if (tab.loading) return "Editor sedang memuat"
+        if (tab.readOnly) return "Tab ini hanya-baca"
+        val clean = text.replace("\r\n", "\n").replace('\r', '\n')
+        val ed = tab.editor
+        if (ed == null) {
+            tab.queuedInsert = (tab.queuedInsert ?: "") + clean
+            return null
+        }
+        return try {
+            ed.insertText(clean, clean.length)
+            null
+        } catch (e: Exception) {
+            "Gagal menyisipkan teks"
+        }
+    }
+
+    val active: EditorTab?
+        get() = tabs.firstOrNull { it.id == activeId }
+
+    init {
+        if (!restoreDrafts()) newTab()
+    }
+
+    fun newTab(): EditorTab {
+        val tab = EditorTab(nextId++, nextUntitledTitle())
+        tab.onEdited = { scheduleDraft(); liveSync(tab) } // [CODE-LSP3]
+        tabs.add(tab)
+        activeId = tab.id
+        scheduleDraft()
+        return tab
+    }
+
+    /** [CODE-TEMPLATE] Tab scratch bernama Scratch.<ekstensi> (Scratch 2.<ekstensi>, dst. bila sudah dipakai); belum punya berkas. */
+    fun newScratch(ext: String): EditorTab {
+        val used = tabs.map { it.title }.toSet()
+        var n = 1
+        while (true) {
+            val t = if (n == 1) "Scratch.$ext" else "Scratch $n.$ext"
+            if (t !in used) break
+            n++
+        }
+        val title = if (n == 1) "Scratch.$ext" else "Scratch $n.$ext"
+        val tab = EditorTab(nextId++, title)
+        tab.onEdited = { scheduleDraft(); liveSync(tab) } // [CODE-LSP3]
+        tabs.add(tab)
+        activeId = tab.id
+        scheduleDraft()
+        return tab
+    }
+
+    /** Nomor terkecil yang belum dipakai tab lain, jadi menutup tab lalu membuka baru tidak menaikkan angka. */
+    private fun nextUntitledTitle(): String {
+        val used = tabs.map { it.title }.toSet()
+        var n = 1
+        while (true) {
+            val t = if (n == 1) UNTITLED else "$UNTITLED $n"
+            if (t !in used) return t
+            n++
+        }
+    }
+
+    /** Buka find bar; seleksi satu baris pendek (maks 64 karakter) menjadi kata cari awal. */
+    fun openFind() {
+        val ed = active?.editor
+        if (ed != null) {
+            val c = ed.cursor
+            if (c.isSelected && c.right - c.left in 1..64) {
+                val sel = ed.text.subSequence(c.left, c.right).toString()
+                if ('\n' !in sel) find.query = sel
+            }
+        }
+        find.open = true
+        find.focusTick++
+    }
+
+    fun select(id: Int) {
+        if (tabs.any { it.id == id }) activeId = id
+    }
+
+    /** Menutup tab. Selalu menyisakan satu tab kosong. Konfirmasi tab dirty ada di layar. */
+    fun close(id: Int) {
+        val index = tabs.indexOfFirst { it.id == id }
+        if (index < 0) return
+        live.release(id) // [CODE-LSP3]
+        jumps.dropTab(id) // [CODE-BACK]
+        backDepth = jumps.size
+        if (backDepth == 0) backHint = null
+        tabs.removeAt(index).disposeEditor()
+        if (tabs.isEmpty()) {
+            newTab()
+        } else if (activeId == id) {
+            activeId = tabs[minOf(index, tabs.size - 1)].id
+        }
+        scheduleDraft()
+    }
+
+    // ---------------------------------------------------------------- Buka berkas (F4)
+
+    /** Tab yang sedang memegang [file] (dibandingkan lewat path kanonik), atau null. */
+    internal fun tabFor(file: File): EditorTab? {
+        val key = FileStore.keyOf(file)
+        return tabs.firstOrNull { t -> t.file?.let { FileStore.keyOf(it) } == key }
+    }
+
+    /** True bila ada tab yang berkasnya sama dengan atau berada di bawah [file] (folder). */
+    internal fun hasTabUnder(file: File): Boolean {
+        val key = FileStore.keyOf(file)
+        return tabs.any { t ->
+            val k = t.file?.let { FileStore.keyOf(it) } ?: return@any false
+            k == key || k.startsWith("$key/")
+        }
+    }
+
+    /** Folder awal pemilih Buka: folder berkas tab aktif, lalu folder utama panel. */
+    internal fun defaultOpenDir(): File = active?.file?.parentFile ?: dir.root
+
+    /**
+     * Buka berkas di tab. Berkas yang sudah terbuka hanya dipilih (tidak ada tab ganda). Tab "Baru"
+     * yang masih kosong dipakai ulang. Isi dibaca di thread IO; tab dikunci selama dibaca.
+     */
+    fun openFile(file: File) {
+        dir.closePanel()
+        val existing = tabFor(file)
+        if (existing != null) {
+            activeId = existing.id
+            return
+        }
+        val reuse = active?.takeIf { it.isPristine() }
+        val tab = reuse ?: newTab()
+        tab.file = file
+        tab.title = file.name
+        if (isLibraryFile(file)) tab.readOnly = true // [CODE-DEBLIB]
+        tab.loading = true
+        tab.editor?.setEditable(false)
+        dir.selected = file.path
+        scheduleDraft()
+        runIo {
+            val r = FileStore.readForOpen(file)
+            mainHandler.post {
+                if (tabs.none { it === tab }) return@post
+                val text = r.text
+                if (text == null) {
+                    toast(r.error ?: "Gagal membuka ${file.name}")
+                    if (reuse != null) {
+                        tab.file = null
+                        tab.title = nextUntitledTitle()
+                        tab.loading = false
+                        tab.editor?.setEditable(!tab.readOnly)
+                    } else {
+                        close(tab.id)
+                    }
+                } else {
+                    tab.applyDiskText(text, r.eol)
+                    if (r.hadBom) toast("BOM dibuang saat berkas disimpan")
+                }
+                scheduleDraft()
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------- Muat ulang (F4)
+
+    /** Muat ulang tab aktif dari disk. Tab dirty meminta konfirmasi dulu (buang perubahan). */
+    fun reloadActive() {
+        val tab = active ?: return
+        if (tab.file == null) {
+            toast("Berkas belum disimpan")
+            return
+        }
+        if (tab.loading) return
+        if (tab.dirty) reloadConfirm = tab else doReload(tab)
+    }
+
+    internal fun cancelReload() {
+        reloadConfirm = null
+    }
+
+    internal fun doReload(tab: EditorTab) {
+        reloadConfirm = null
+        val f = tab.file ?: return
+        tab.loading = true
+        tab.editor?.setEditable(false)
+        runIo {
+            val r = FileStore.readForOpen(f)
+            mainHandler.post {
+                if (tabs.none { it === tab }) return@post
+                val text = r.text
+                if (text == null) {
+                    toast(r.error ?: "Gagal memuat ulang ${f.name}")
+                    tab.loading = false
+                    tab.editor?.setEditable(!tab.readOnly)
+                } else {
+                    tab.applyDiskText(text, r.eol)
+                    toast("Dimuat ulang: ${f.name}")
+                }
+                scheduleDraft()
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------- Sinkron tab dengan operasi berkas (F4)
+
+    /** Berkas/folder [old] diganti nama jadi [new]: arahkan tab yang menunjuk ke sana. */
+    internal fun onRenamed(old: File, new: File) {
+        val oldKey = FileStore.keyOf(old)
+        for (t in tabs) {
+            val f = t.file ?: continue
+            val k = FileStore.keyOf(f)
+            if (k == oldKey) {
+                t.file = new
+                t.title = new.name
+            } else if (k.startsWith("$oldKey/")) {
+                t.file = File(new, k.substring(oldKey.length + 1))
+            }
+        }
+        scheduleDraft()
+    }
+
+    /** Berkas/folder [gone] dihapus: tab di dalamnya tetap terbuka sebagai belum tersimpan. */
+    internal fun onDeleted(gone: File) {
+        val key = FileStore.keyOf(gone)
+        var orphaned = 0
+        for (t in tabs) {
+            val f = t.file ?: continue
+            val k = FileStore.keyOf(f)
+            if (k == key || k.startsWith("$key/")) {
+                t.markOrphaned()
+                orphaned++
+            }
+        }
+        if (orphaned > 0) toast("Berkas dihapus dari disk. Tab tetap terbuka (belum disimpan)")
+        scheduleDraft()
+    }
+
+    // ---------------------------------------------------------------- Simpan (F3e)
+
+    /**
+     * Simpan tab. Tab yang sudah punya berkas ditulis langsung; tab baru membuka dialog Simpan
+     * sebagai. [after] dipanggil setelah tersimpan dan tanpa edit baru selama penulisan.
+     */
+    fun save(tab: EditorTab, after: (() -> Unit)? = null) {
+        if (tab.loading) return
+        val target = tab.file
+        if (target == null) {
+            saveAs = SaveAsRequest(tab, after)
+        } else if (formatOnSave && !tab.readOnly && tab.editor != null && !format.busy) {
+            // [CODE-FORMAT] format dulu, lalu tulis apa pun hasilnya
+            formatForSave(tab) { note ->
+                saveNote = note
+                writeTab(tab, target, after)
+            }
+        } else {
+            writeTab(tab, target, after)
+        }
+    }
+
+    /** Menu titik tiga "Simpan sebagai": selalu membuka dialog untuk tab aktif. */
+    fun saveAsActive() {
+        val tab = active ?: return
+        if (!tab.loading) saveAs = SaveAsRequest(tab, null)
+    }
+
+    fun cancelSaveAs() {
+        saveAs = null
+    }
+
+    /** Folder awal dialog Simpan sebagai: folder berkas tab, lalu folder simpan terakhir, lalu folder utama panel. */
+    internal fun defaultSaveDir(tab: EditorTab): File =
+        tab.file?.parentFile ?: lastSaveDir ?: dir.root
+
+    internal fun commitSaveAs(req: SaveAsRequest, target: File) {
+        saveAs = null
+        lastSaveDir = target.parentFile
+        writeTab(req.tab, target, req.after)
+    }
+
+    private fun writeTab(tab: EditorTab, target: File, after: (() -> Unit)?) {
+        if (isLibraryFile(target)) return toast("Berkas pustaka Debian hanya-baca. Gunakan Simpan sebagai ke folder kerja") // [CODE-DEBLIB]
+        val text = tab.currentTextOrNull(Int.MAX_VALUE) ?: ""
+        val eol = tab.eol
+        val formatNote = saveNote // [CODE-FORMAT]
+        saveNote = null
+        runIo {
+            val hist = history
+            if (hist != null) recordHistoryBefore(hist, target) // [CODE-HISTORY] isi disk sebelum ditimpa
+            val err = try {
+                FileStore.writeUtf8Atomic(target, FileStore.applyEol(text, eol))
+                null
+            } catch (e: Exception) {
+                e
+            }
+            if (err == null && hist != null) recordHistorySaved(hist, target, text)
+            mainHandler.post {
+                if (err != null) {
+                    toast("Gagal menyimpan: ${err.message ?: err.javaClass.simpleName}")
+                } else {
+                    tab.file = target
+                    tab.title = target.name
+                    // Baseline = isi yang barusan ditulis. Bila pengguna mengetik selama penulisan,
+                    // recomputeDirty membiarkan tab tetap dirty dan "after" tidak dijalankan.
+                    tab.markSaved(text, eol)
+                    dir.selected = target.path
+                    dir.refreshParentOf(target)
+                    scheduleDraft()
+                    toast("Tersimpan: ${target.name}" + (formatNote?.let { " \u00B7 tanpa format: $it" } ?: ""))
+                    if (!tab.dirty) {
+                        after?.invoke()
+                    } else if (after != null) {
+                        toast("Ada perubahan baru, tab tidak ditutup")
+                    }
+                    if (checkOnSave && after == null) checkAfterSave(tab) // [CODE-CHECK-SAVE]
+                }
+            }
+        }
+    }
+
+    /** [CODE-HISTORY] Di thread IO: catat isi disk saat ini bila beda dari versi terbaru (menangkap perubahan dari luar). */
+    private fun recordHistoryBefore(h: HistoryStore, target: File) {
+        try {
+            if (!target.isFile || target.length() > HistoryStore.MAX_CHARS * 4L) return
+            FileStore.readForOpen(target).text?.let { h.record(target, it, HistoryKind.BEFORE) }
+        } catch (e: Exception) {
+            // best-effort: riwayat tidak boleh menggagalkan simpan
+        }
+    }
+
+    private fun recordHistorySaved(h: HistoryStore, target: File, text: String) {
+        try {
+            h.record(target, text, HistoryKind.SAVED)
+            if (!historyTrimmed) {
+                historyTrimmed = true
+                h.trimGlobal(HistoryStore.MAX_TOTAL_BYTES)
+            }
+        } catch (e: Exception) {
+            // best-effort
+        }
+    }
+
+    // ---------------------------------------------------------------- Draf (F3e)
+
+    /** Jadwalkan tulis draf 1,5 detik setelah edit terakhir (debounce). */
+    internal fun scheduleDraft() {
+        if (store == null) return
+        mainHandler.removeCallbacks(draftTask)
+        mainHandler.postDelayed(draftTask, DRAFT_DELAY_MS)
+    }
+
+    private fun persistDrafts() {
+        val st = store ?: return
+        val snap = snapshot() ?: return
+        runIo { st.write(snap) }
+    }
+
+    /** Tulis draf sekarang dan tunggu selesai (maks 2 detik). Dipanggil dari Activity.onStop. */
+    fun flushDrafts() {
+        val st = store ?: return
+        mainHandler.removeCallbacks(draftTask)
+        val snap = snapshot() ?: return
+        try {
+            io.submit(Runnable { st.write(snap) }).get(2, TimeUnit.SECONDS)
+        } catch (e: Exception) {
+            // best-effort
+        }
+    }
+
+    private fun snapshot(): DraftSnapshot? {
+        if (store == null) return null
+        val entries = tabs.map { tab ->
+            val text = if (tab.dirty && !tab.loading) tab.currentTextOrNull(MAX_DRAFT_CHARS) else null
+            DraftEntry(
+                tab.id, tab.title, tab.file?.path, tab.dirty, tab.wordWrap, tab.readOnly, text,
+                tab.eol, tab.baseEol, tab.baseFp
+            )
+        }
+        return DraftSnapshot(activeId, nextId, entries, dir.root.path)
+    }
+
+    /** Pulihkan daftar tab dari draf. Isi dibaca di thread IO; tab dikunci (loading) sampai selesai. */
+    private fun restoreDrafts(): Boolean {
+        val st = store ?: return false
+        val snap = st.load() ?: return false
+        if (snap.tabs.isEmpty()) return false
+        snap.root?.let { dir.restoreRoot(File(it)) }
+        for (t in snap.tabs) {
+            val tab = EditorTab(t.id, t.title)
+            tab.onEdited = { scheduleDraft(); liveSync(tab) } // [CODE-LSP3]
+            tab.file = t.path?.let { File(it) }
+            tab.wordWrap = t.wrap
+            tab.readOnly = t.readOnly
+            tab.eol = t.eol
+            tab.baseEol = t.baseEol
+            tab.baseFp = t.baseFp
+            tab.dirty = t.dirty
+            tabs.add(tab)
+            if (!t.dirty && tab.file == null) continue // tab kosong: tidak ada yang dibaca
+            tab.loading = true
+            runIo {
+                val draft: String? = if (t.dirty) st.readDraft(t.id) else null
+                val disk: OpenResult? = if (draft == null) tab.file?.let { FileStore.readForOpen(it) } else null
+                mainHandler.post {
+                    val diskText = disk?.text
+                    if (draft != null) {
+                        tab.applyDraft(draft, t.eol, t.baseFp, t.baseEol)
+                    } else if (disk != null && diskText != null) {
+                        tab.applyDiskText(diskText, disk.eol)
+                    } else {
+                        toast("Gagal memuat ${tab.title}")
+                        close(tab.id)
+                    }
+                }
+            }
+        }
+        nextId = maxOf(snap.next, (snap.tabs.maxOfOrNull { it.id } ?: 0) + 1)
+        activeId = if (tabs.any { it.id == snap.active }) snap.active else tabs.first().id
+        return true
+    }
+
+    /** Jalankan [block] di thread IO tunggal sesi. Aman dipanggil setelah sesi dilepas (diabaikan). */
+    internal fun runIo(block: () -> Unit) {
+        try {
+            io.execute(block)
+        } catch (e: RejectedExecutionException) {
+            // sesi sudah dilepas
+        }
+    }
+
+    /**
+     * Tombol Play. Skrip berjalan: hentikan. Markdown/JSON: buka/tutup pratinjau langsung.
+     * .sh/.py: jalankan isi editor sekarang (tidak perlu disimpan) di Debian PRoot.
+     */
+    internal fun playActive() {
+        if (run.running) {
+            run.stop()
+            return
+        }
+        val tab = active ?: return
+        if (tab.loading) return
+        when (tab.previewKind()) {
+            PreviewKind.MARKDOWN, PreviewKind.JSON, PreviewKind.HTML -> {
+                if (preview.open && preview.mode == PaneMode.Preview) {
+                    preview.open = false
+                } else {
+                    preview.invalidate()
+                    preview.anchorLine = tab.editor?.cursor?.leftLine ?: -1
+                    preview.mode = PaneMode.Preview
+                    preview.open = true
+                }
+            }
+            PreviewKind.SCRIPT -> runScript(tab)
+            PreviewKind.NONE -> toast("Play mendukung berkas .sh, .py, .md, .json, dan .html")
+        }
+    }
+
+    /** Menu titik tiga: kirim isi tab aktif ke Script Execution (Settings). Berkas sama = entri diperbarui. */
+    internal fun sendToScripts() {
+        val sink = scriptSink ?: run { toast("Script Execution belum tersedia"); return }
+        val tab = active ?: return
+        if (tab.loading) return
+        val text = tab.currentTextOrNull(MAX_RUN_CHARS) ?: run { toast("Skrip terlalu besar untuk dikirim"); return }
+        if (text.isBlank()) { toast("Editor kosong, tidak ada yang dikirim"); return }
+        val title = tab.file?.name ?: tab.title
+        val key = tab.scriptKey ?: tab.file?.path ?: "tab:${tab.title}"
+        val res = sink.send(ScriptShare(title, key, text))
+        toast(res.message)
+        // Tab hasil EDIT dari Script Execution: kiriman berhasil = tersimpan, penanda belum-disimpan padam.
+        if (res.ok && tab.scriptKey != null && tab.file == null) tab.markSaved(text, tab.eol)
+    }
+
+    /**
+     * Buka isi skrip dari Script Execution di tab editor (tombol EDIT di Settings). Tab dengan [key] yang sama
+     * hanya dipilih; tab kosong yang belum disentuh dipakai ulang. Isi dianggap belum tersimpan sampai
+     * dikirim balik lewat menu titik tiga > Kirim ke Script Execution.
+     */
+    fun openScript(title: String, key: String, text: String) {
+        dir.closePanel()
+        val existing = tabs.firstOrNull { it.scriptKey == key }
+        if (existing != null) {
+            activeId = existing.id
+            return
+        }
+        val tab = active?.takeIf { it.isPristine() } ?: newTab()
+        tab.title = title
+        tab.scriptKey = key
+        tab.applyDraft(text.replace("\r\n", "\n").replace('\r', '\n'), Eol.LF, FileStore.EMPTY_FP, Eol.LF)
+        activeId = tab.id
+        scheduleDraft()
+    }
+
+    private fun runScript(tab: EditorTab) {
+        val text = tab.currentTextOrNull(MAX_RUN_CHARS)
+        if (text == null) {
+            toast("Skrip terlalu besar untuk dijalankan")
+            return
+        }
+        val plan = RunPlans.of(tab.file?.name ?: tab.title, tab.firstLineOrNull()) // [CODE-TEMPLATE] scratch
+        if (plan == null) {
+            toast("Interpreter skrip tidak dikenal")
+            return
+        }
+        if (run.executor == null) {
+            toast("Eksekutor skrip belum terpasang")
+            return
+        }
+        preview.mode = PaneMode.Output
+        preview.open = true
+        run.start(tab.title, text, plan, tab.file?.parentFile?.path)
+    }
+
+    // [CODE-PALETTE] buka berkas:baris dari tautan error di panel Keluaran
+    internal fun openLocation(path: String, line: Int, col: Int) {
+        val origin = currentJumpPoint() // [CODE-BACK]
+        val f = resolveLocation(path)
+        val base = path.substringAfterLast('/')
+        val tab: EditorTab? = if (f != null) {
+            openFile(f)
+            tabFor(f)
+        } else {
+            tabs.firstOrNull { it.file?.name == base || it.title == base }
+                ?: tabs.firstOrNull { it.title == run.title }
+        }
+        if (tab == null) {
+            toast("Berkas tidak ditemukan: $path")
+            return
+        }
+        preview.open = false
+        activeId = tab.id
+        recordJump(origin, tab.id, line - 1) // [CODE-BACK]
+        jumpWhenReady(tab, line - 1, col, 40)
+    }
+
+    private fun resolveLocation(raw: String): File? {
+        var p = raw.removePrefix("file://")
+        if (p.startsWith("/sdcard/")) p = "/storage/emulated/0/" + p.removePrefix("/sdcard/")
+        val cands = ArrayList<File>()
+        if (p.startsWith("/")) {
+            cands.add(File(p))
+        } else {
+            active?.file?.parentFile?.let { cands.add(File(it, p)) }
+            cands.add(File(workDir, p))
+            cands.add(File(dir.root, p))
+        }
+        return cands.firstOrNull { it.isFile }
+    }
+
+    /** Lompat ke [line] (basis 0) begitu editor tab siap dan teksnya selesai dimuat; mencoba ulang tiap 100 ms. */
+    private fun jumpWhenReady(tab: EditorTab, line: Int, col: Int, tries: Int) {
+        val ed = tab.editor
+        val total = ed?.text?.lineCount ?: 0
+        if (ed != null && !tab.loading && total > 0 && (line < total || tries <= 0)) {
+            ed.jumpToLineHighlighted(line.coerceIn(0, total - 1), col)
+            return
+        }
+        if (tries <= 0) return
+        mainHandler.postDelayed({ jumpWhenReady(tab, line, col, tries - 1) }, 100L)
+    }
+
+    fun releaseAll() {
+        run.release()
+        format.release() // [CODE-FORMAT]
+        checker.release() // [CODE-CHECK]
+        live.shutdown() // [CODE-LSP3]
+        mainHandler.removeCallbacks(draftTask)
+        tabs.forEach { it.disposeEditor() }
+        io.shutdown()
+    }
+
+    companion object {
+        const val UNTITLED = "Baru"
+        private const val DRAFT_DELAY_MS = 1500L
+        private const val MAX_DRAFT_CHARS = 2_000_000
+        private const val MAX_RUN_CHARS = 500_000
+        private const val MAX_LIVE_CHARS = 300_000
+        internal const val LIVE_LABEL = "pylsp"
+        private const val DEFINITION_TIMEOUT_MS = 5_000L // [CODE-LSP6] Jedi pertama kali bisa lambat
+    }
+}

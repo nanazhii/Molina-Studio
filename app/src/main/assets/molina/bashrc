@@ -1,0 +1,75 @@
+# Molina Terminal - dibuat otomatis oleh aplikasi. Jangan diedit manual (ditimpa tiap sesi baru).
+[ -f /etc/profile ] && . /etc/profile
+[ -f "$HOME/.bashrc" ] && . "$HOME/.bashrc"
+
+# [DIR-STATUS-COLOR v5]
+# Prompt: hijau + label [MOLINA] HANYA di home internal aplikasi (/sdcard/Molina dan isinya).
+# Hijau (tanpa label) juga di home ($HOME = ~) dan isinya: prompt user@localhost:~ default.
+# Merah di mana pun selain itu, termasuk folder kerja (MOLINA_WORKSPACE).
+# Semua alias path penyimpanan disamakan ke /sdcard/... sebelum dicocokkan.
+__molina_ps1() {
+  [ -r /etc/molina/prompt.env ] && . /etc/molina/prompt.env
+  printf '%s\n' "$PWD" > /etc/molina/lastdir 2>/dev/null
+  local sgr="$MOLINA_PS_OTHER" tag="" p="$PWD"
+  case "$p" in
+    /storage/emulated/0|/storage/emulated/0/*) p="/sdcard${p#/storage/emulated/0}" ;;
+    /storage/self/primary|/storage/self/primary/*) p="/sdcard${p#/storage/self/primary}" ;;
+    /mnt/sdcard|/mnt/sdcard/*) p="/sdcard${p#/mnt/sdcard}" ;;
+  esac
+  case "$PWD" in
+    "$HOME"|"$HOME"/*) [ -n "$HOME" ] && [ "$HOME" != / ] && sgr="$MOLINA_PS_HOME" ;;
+  esac
+  case "$p" in
+    /sdcard/Molina|/sdcard/Molina/*) sgr="$MOLINA_PS_HOME"; tag="[MOLINA] " ;;
+  esac
+  PS1='\[\e['"$sgr"'m\]'"$tag"'user@localhost:\w $\[\e[0m\] '
+}
+PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND;}__molina_ps1"
+
+# Tombol CLEAR aplikasi mengirim ESC [ 9 9 ~ agar prompt digambar ulang setelah layar dibersihkan.
+bind '"\e[99~": redraw-current-line' 2>/dev/null
+
+# Banner berbingkai; HARUS sama dengan MolinaShell.banner (Kotlin).
+__molina_banner() {
+  [ -r /etc/molina/prompt.env ] && . /etc/molina/prompt.env # warna tema prompt aktif (MOLINA_PS_HOME)
+  local t="$MOLINA_BRAND" b="${MOLINA_PS_HOME:-$MOLINA_BRAND_SGR}" bar
+  local f="${b#1;}"
+  printf -v bar '%*s' $((${#t} + 4)) ''
+  bar="${bar// /─}"
+  printf '\033[%sm╭%s╮\033[0m\n' "$f" "$bar"
+  printf '\033[%sm│\033[0m  \033[%sm%s\033[0m  \033[%sm│\033[0m\n' "$f" "$b" "$t" "$f"
+  printf '\033[%sm╰%s╯\033[0m\n' "$f" "$bar"
+}
+__molina_banner
+
+# [GIT-CRED-GUARD] Token git tidak boleh tersimpan sebagai teks biasa (~/.git-credentials). Perintah: molina-git-secure
+HISTCONTROL="${HISTCONTROL:-ignoreboth}"
+HISTIGNORE="${HISTIGNORE:+$HISTIGNORE:}*ghp_*:*gho_*:*ghu_*:*ghs_*:*ghr_*:*github_pat_*:*glpat-*"
+
+molina-git-secure() {
+  command -v git >/dev/null 2>&1 || { echo "git belum terpasang (Setelan > Paket)."; return 1; }
+  git config --global --unset-all credential.helper 2>/dev/null
+  git config --global credential.helper 'cache --timeout=3600' || { echo "Gagal mengatur credential.helper."; return 1; }
+  if [ -e "$HOME/.git-credentials" ]; then
+    shred -u "$HOME/.git-credentials" 2>/dev/null || rm -f "$HOME/.git-credentials"
+    echo "~/.git-credentials dihapus."
+  fi
+  git credential-cache exit >/dev/null 2>&1
+  local bad
+  bad=$(git remote -v 2>/dev/null | grep -E '://[^/@ ]+:[^/@ ]+@' | sed -E 's#(://[^/@:]*):[^/@]*@#\1:***@#')
+  if [ -n "$bad" ]; then
+    echo "Peringatan: remote di folder ini memuat token di URL:"
+    echo "$bad"
+    echo "Ganti dengan: git remote set-url origin https://github.com/PEMILIK/REPO.git"
+  fi
+  echo "Token kini hanya disimpan di memori selama 1 jam (credential.helper cache)."
+  echo "Menghapus berkas tidak menjamin data hilang dari penyimpanan flash: CABUT token lama di GitHub (Settings > Developer settings) dan buat yang baru."
+}
+
+__molina_git_notice() {
+  if [ -s "$HOME/.git-credentials" ] || grep -qsE '^[[:space:]]*helper[[:space:]]*=[[:space:]]*store' "$HOME/.gitconfig" "$HOME/.config/git/config" /etc/gitconfig; then
+    printf '\033[33mPeringatan:\033[0m git menyimpan token sebagai teks biasa. Jalankan \033[1mmolina-git-secure\033[0m.\n'
+  fi
+}
+__molina_git_notice
+# [/GIT-CRED-GUARD]

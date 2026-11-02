@@ -1,0 +1,57 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.cxx/
+.externalNativeBuild/
+captures/
+*.jks
+*.keystore
+# kunci tanda tangan: JANGAN di-commit
+*.p12
+molina-keys/
+# artefak build native 5a
+_native/
+_native_out/
+# pustaka native mpv (diunduh CI, tidak di-commit)
+feature/mpv/src/main/jniLibs/
+__pycache__/
+molina_*.py
+# pemicu CI
+0001-*.patch
+!app/src/main/assets/molina/molina_dl.py
+terminal-logs/
+# berkas patch/cadangan sekali pakai: simpan di luar repo [REPO-CLEAN]
+/*.patch
+/*.bak*
+/molina_*.sh
+/patch_*.py
+/explorer.py
+/molina_ui_v5_dock.py
+# patch sekali pakai: simpan di luar repo [REPO-CLEAN2]
+scripts/patch_*.py
+# sisa build di kedalaman mana pun [REPO-HYGIENE]
+*.bak
+*.bak[0-9]*
+*.orig
+*.rej
+*.patch
+**/patch_*.py
+**/molina_patch_*.sh
+# keluaran probe perangkat (dihasilkan scripts/rootfs_audit.sh dan probe LSP) [DOCS-REVIEW]
+docs/rootfs_audit.txt
+docs/lsp_probe.txt
+# internal: jangan dipublikasikan [PUBLIC-CLEAN]
+/progres.md
+/docs/BLUEPRINT.md
+/docs/blueprint-code-editor.md
+/docs/HANDOFF.md
+/docs/UJI_PERANGKAT.md
+/docs/SIGNING.md
+/docs/lsp_probe.txt
+/docs/rootfs_audit.txt
+/scripts/rootfs_audit.sh
+# folder kerja & cadangan lokal: jangan dipublikasikan [PUBLIC-CLEAN2]
+/Molina-Kerja/
+.molina-backup/

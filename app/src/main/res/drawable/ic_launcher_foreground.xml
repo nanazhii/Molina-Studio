@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Logo Molina: jendela terminal + prompt emas (chevron) + kursor garis bawah. Zona aman 66dp di tengah. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Badan jendela -->
+    <path
+        android:fillColor="#14161B"
+        android:strokeColor="#2A2D35"
+        android:strokeWidth="2"
+        android:pathData="M32,26h44a10,10 0 0 1 10,10v36a10,10 0 0 1 -10,10h-44a10,10 0 0 1 -10,-10v-36a10,10 0 0 1 10,-10z" />
+    <!-- Bar judul: tiga titik -->
+    <path
+        android:fillColor="#E6B450"
+        android:pathData="M31,35.5m-2,0a2,2 0 1 1 4,0a2,2 0 1 1 -4,0" />
+    <!-- [BRAND-TERMINAL-ICON] Lencana play kecil: penanda Cinema, tetap bernuansa terminal -->
+    <path
+        android:fillColor="#F5D58A"
+        android:strokeColor="#F5D58A"
+        android:strokeWidth="1"
+        android:strokeLineJoin="round"
+        android:pathData="M70,31.5L70,39.5L77,35.5z" />
+    <!-- Prompt chevron -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#E6B450"
+        android:strokeWidth="6.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M36,48L52,60L36,72" />
+    <!-- Kursor garis bawah -->
+    <path
+        android:fillColor="#F5D58A"
+        android:pathData="M58,68.5h18a2.5,2.5 0 0 1 0,5h-18a2.5,2.5 0 0 1 0,-5z" />
+</vector>

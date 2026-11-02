@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Lalu lintas Java/Kotlin (NewPipe, pemasang yt-dlp): tanpa cleartext, hanya CA sistem.
+         Catatan: mpv memakai jaringan native, tidak tunduk pada berkas ini; lihat UrlPolicy. -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
