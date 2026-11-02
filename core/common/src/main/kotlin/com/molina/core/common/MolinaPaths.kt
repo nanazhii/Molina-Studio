@@ -41,6 +41,6 @@ interface MolinaPaths {
 
     companion object {
         const val APP_FOLDER = "Molina"
-        const val DEV_FOLDER = "Molina-Kerja" // [WORKSPACE-NEUTRAL] nama default netral
+        const val DEV_FOLDER = "Molina" // [WORKSPACE-IN-MOLINA] sama dengan APP_FOLDER: tidak ada folder kerja terpisah
     }
 }

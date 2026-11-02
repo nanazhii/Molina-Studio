@@ -145,10 +145,11 @@ internal class ProotScriptExecutor(context: Context, private val lane: Lane = La
             val ws = File(storage, workspace).apply { mkdirs() }
             File(rootfsDir, "sdcard/$workspace").mkdirs()
             File(rootfsDir, "storage/emulated/0/$workspace").mkdirs()
-            listOf(
+            val wsBinds = if (workspace == com.molina.core.common.MolinaPaths.APP_FOLDER) emptyList<String>() else listOf( // [WORKSPACE-IN-MOLINA]
                 "--bind=${ws.absolutePath}:/sdcard/$workspace",
                 "--bind=${ws.absolutePath}:/storage/emulated/0/$workspace",
-            ) + StorageBinds.app(app, rootfsDir)
+            )
+            wsBinds + StorageBinds.app(app, rootfsDir)
         }
         val cwd = hostDir?.let { GuestPaths.of(it, storage, workspace, full, listOf(com.molina.core.common.MolinaPaths.APP_FOLDER)) } ?: "/root"
 

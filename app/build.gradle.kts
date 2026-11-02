@@ -35,12 +35,12 @@ android {
         debug {
             signingConfigs.findByName("molina")?.let { signingConfig = it }
             // [WORKSPACE-NEUTRAL-ALL] Folder kerja sama dengan rilis: tanpa override dari luar.
-            buildConfigField("String", "WORKSPACE_DIR", "\"Molina-Kerja\"")
+            buildConfigField("String", "WORKSPACE_DIR", "\"Molina\"") // [WORKSPACE-IN-MOLINA]
         }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            buildConfigField("String", "WORKSPACE_DIR", "\"Molina-Kerja\"") // [WORKSPACE-NEUTRAL]
+            buildConfigField("String", "WORKSPACE_DIR", "\"Molina\"") // [WORKSPACE-NEUTRAL] [WORKSPACE-IN-MOLINA]
             proguardFiles(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro")
             signingConfigs.findByName("molina")?.let { signingConfig = it }
         }

@@ -199,11 +199,11 @@ object TerminalSessions {
             File(rootfsDir, "storage/emulated/0/$WORKSPACE_DIR").mkdirs()
             val appBinds = StorageBinds.app(ctx, rootfsDir)
             appVisible = appBinds.isNotEmpty()
-            arrayOf(
+            val wsBinds = if (WORKSPACE_DIR == com.molina.core.common.MolinaPaths.APP_FOLDER) emptyList<String>() else listOf( // [WORKSPACE-IN-MOLINA]
                 "--bind=${ws.absolutePath}:/sdcard/$WORKSPACE_DIR",
                 "--bind=${ws.absolutePath}:/storage/emulated/0/$WORKSPACE_DIR",
-                *appBinds.toTypedArray()
             )
+            arrayOf(*wsBinds.toTypedArray(), *appBinds.toTypedArray())
         }
 
         // /proc palsu hanya untuk berkas yang diblokir Android (di Android 8 biasanya tidak ada yang dipasang).
