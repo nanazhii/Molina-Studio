@@ -165,7 +165,7 @@ private fun SummaryMark(allVerified: Boolean) {
     }
 }
 
-/** Ikon baris "Komponen bundel" di halaman Paket [BUNDLE-PAGE]: gembok hijau besar bila semua komponen Wajib terverifikasi, selain itu titik kuning. */
+/** Ikon baris "Komponen bawaan Molina" di halaman Paket [BUNDLE-PAGE]: gembok hijau besar bila semua komponen Wajib terverifikasi, selain itu titik kuning. */
 @Composable
 internal fun BundleLinkIcon(allVerified: Boolean) {
     Box(Modifier.size(34.dp), contentAlignment = Alignment.Center) {

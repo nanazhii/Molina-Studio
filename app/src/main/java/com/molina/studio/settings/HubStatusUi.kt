@@ -61,9 +61,9 @@ internal fun hubStatusRows(
     val debian = when (rootfs) {
         RootfsState.Ready -> Pair("Siap", HubTone.Ok)
         RootfsState.Missing -> Pair("Belum terpasang", HubTone.Warn)
-        RootfsState.Verifying -> Pair("Memverifikasi rootfs", HubTone.Idle)
+        RootfsState.Verifying -> Pair("Memeriksa Debian", HubTone.Idle)
         is RootfsState.Downloading -> Pair("Mengunduh ${rootfs.percent}%", HubTone.Idle)
-        is RootfsState.Extracting -> Pair("Mengekstrak ${rootfs.percent}%", HubTone.Idle)
+        is RootfsState.Extracting -> Pair("Membuka paket ${rootfs.percent}%", HubTone.Idle)
         is RootfsState.Failed -> Pair("Gagal dipasang", HubTone.Bad)
         is RootfsState.Maintenance -> Pair("Sedang dikelola", HubTone.Idle)
     }
@@ -84,7 +84,7 @@ internal fun hubStatusRows(
         else Pair("Mati", HubTone.Idle)
     return listOf(
         HubRow("Debian", debian.first, debian.second, onSystem),
-        HubRow("Paket Debian", apt.first, apt.second, onPackages),
+        HubRow("Program Debian", apt.first, apt.second, onPackages),
         HubRow("yt-dlp", yt.first, yt.second, onPackages),
         HubRow("Cadangan", backup.first, backup.second, onAutomation),
         HubRow("Pembaruan otomatis", autoRow.first, autoRow.second, onPackages)

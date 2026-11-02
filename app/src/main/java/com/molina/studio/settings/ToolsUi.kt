@@ -177,34 +177,34 @@ internal fun PackagesPage(
     }
 
     Text(
-        "Pusat paket Molina: pembaruan, paket Debian (apt), dan alat (pasang, cek versi, hapus). Skrip umum ada di menu Script execution.",
+        "Di sini Anda memperbarui program di dalam Debian, memasang atau menghapus alat tambahan, dan memeriksa versinya. Skrip biasa ada di menu Script execution.",
         color = W7D.TextDim, fontSize = 13.sp, modifier = Modifier.padding(bottom = 8.dp)
     )
     UpdateStatusSection()
-    Category("Debian (apt)")
+    Category("Program Debian")
     DebianInfoRow(aptLast to aptPending) // [DEBIAN-INFO]
     BadgeOverlay(if (aptPending > 0) aptPending.toString() else null, false, gold = true) {
-        W7Link({ W7IconAptSync() }, "Periksa pembaruan paket", AptHistory.checkSubtitle(aptPending)) { onApt(AptJob.CheckUpdates) }
+        W7Link({ W7IconAptSync() }, "Cek pembaruan program", AptHistory.checkSubtitle(aptPending)) { onApt(AptJob.CheckUpdates) }
     }
-    W7Link({ W7IconAptSync() }, "Perbarui dan tingkatkan paket", AptHistory.subtitle(aptLast)) { onApt(AptJob.UpdateUpgrade) }
-    W7Link({ W7IconToolList() }, "Bersihkan cache dan paket yatim", "Hapus cache .deb dan paket yatim (autoremove dan apt clean): menambah ruang kosong Debian") { onApt(AptJob.CleanUp) }
-    W7Link({ W7IconToolList() }, "Pasang paket Starter", "ca-certificates, python3, python3-mutagen, openssh-client, yt-dlp sekali ketuk (apt resmi Debian + yt-dlp terverifikasi SHA-256)") { onApt(AptJob.InstallStarter) } // [TERM-STARTER1] [STARTER-YTDLP]
+    W7Link({ W7IconAptSync() }, "Perbarui semua program", AptHistory.subtitle(aptLast)) { onApt(AptJob.UpdateUpgrade) }
+    W7Link({ W7IconToolList() }, "Bersihkan sisa program yang tidak terpakai", "Hapus file unduhan lama dan program yang tidak lagi dibutuhkan agar ruang kosong bertambah") { onApt(AptJob.CleanUp) }
+    W7Link({ W7IconToolList() }, "Pasang paket dasar (Starter)", "Python, SSH, pengunduh video (yt-dlp), dan sertifikat keamanan sekali ketuk. Dari sumber resmi dan diperiksa keasliannya") { onApt(AptJob.InstallStarter) } // [TERM-STARTER1] [STARTER-YTDLP]
     Spacer(Modifier.height(12.dp))
     Category("Alat")
     remember { com.molina.studio.automation.AutoPrefs.init(ctx) }
     val autoSt by com.molina.studio.automation.AutoPrefs.state.collectAsState()
     BadgeOverlay(if (autoSt.ytdlpOutdated) "Baru" else null, true, gold = true) {
         W7Link(
-            { W7IconYtdlp() }, "Mesin cadangan (yt-dlp)",
+            { W7IconYtdlp() }, "Pengunduh tambahan (yt-dlp)",
             if (autoSt.ytdlpOutdated) "Pembaruan tersedia: ${autoSt.ytdlpInstalled} \u2192 ${autoSt.ytdlpLatest}"
-            else "TikTok, Facebook, dll. lewat Debian (default mati)",
+            else "Untuk TikTok, Facebook, dan situs lain yang tidak dikenali pemutar (bawaan: mati)",
             onOpenYtdlp
         )
     }
     Spacer(Modifier.height(12.dp))
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(
-            "Alat Debian", color = W7D.NavHeader, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+            "Alat tambahan di Debian", color = W7D.NavHeader, fontSize = 14.sp, fontWeight = FontWeight.Bold,
             modifier = Modifier.weight(1f)
         )
         ActionText("+ TAMBAH ALAT", Blue) { draft = ToolDraft(null, "", "", "", "", "") }
@@ -246,15 +246,15 @@ internal fun PackagesPage(
         }
     }
 
-    Category("Komponen bundel")
+    Category("Komponen bawaan Molina")
     remember { com.molina.studio.automation.AutoPrefs.init(ctx) }
     val bundleSt by com.molina.studio.automation.AutoPrefs.state.collectAsState()
     val bundleAll = remember { com.molina.core.common.BundledComponents.all(com.molina.engine.newpipe.NewPipeInfo.VERSION) }
     val bundleRep = remember { com.molina.core.common.BundledComponents.securityReport(bundleAll) }
     BadgeOverlay(if (bundleSt.newpipeOutdated || bundleSt.ytdlpOutdated) "Baru" else null, true, gold = true) {
         W7Link(
-            { BundleLinkIcon(bundleRep.requiredVerified) }, "Komponen bundel",
-            "${bundleAll.size} komponen \u00b7 ${bundleRep.hashPinned} terverifikasi SHA-256 \u00b7 ringkasan keamanan",
+            { BundleLinkIcon(bundleRep.requiredVerified) }, "Komponen bawaan Molina",
+            "${bundleAll.size} komponen \u00b7 ${bundleRep.hashPinned} sudah diperiksa keasliannya \u00b7 ringkasan keamanan",
             onOpenBundle
         )
     }
@@ -279,9 +279,9 @@ internal fun PackagesPage(
             ToolAction.Version -> "Memeriksa versi ${pr.tool.name}."
             ToolAction.Remove ->
                 if (pr.tool.builtin) {
-                    "Menghapus ${pr.tool.name} dari Debian sampai tuntas: purge paket, dependensi yatim, konfigurasi, " +
-                        "cache, dan sisa berkas, lalu diverifikasi. Pengaturan pengguna ikut hilang (mis. ~/.gitconfig " +
-                        "untuk Git). Aplikasi lain yang bergantung padanya bisa berhenti bekerja."
+                    "Menghapus ${pr.tool.name} dari Debian sampai tuntas: program, pendukung yang tidak terpakai, setelan, " +
+                        "cache, dan sisa file, lalu dipastikan bersih. Setelan pribadi ikut hilang (mis. ~/.gitconfig " +
+                        "untuk Git). Program lain yang memakainya bisa berhenti bekerja."
                 } else {
                     "Menjalankan skrip hapus ${pr.tool.name}. Pastikan skripnya membersihkan sisa berkas sendiri."
                 }

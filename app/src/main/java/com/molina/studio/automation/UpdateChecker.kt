@@ -92,7 +92,7 @@ object UpdateChecker {
             AutoPrefs.clearYtdlp(ctx)
         }
 
-        // 2) apt: perintah sama dengan "Periksa pembaruan paket"; jalur AUTO agar tidak memblokir editor/unduhan.
+        // 2) apt: perintah sama dengan "Cek pembaruan program"; jalur AUTO agar tidak memblokir editor/unduhan.
         val job = AptJob.CheckUpdates
         val (code, out) = runScript(ctx, job.command, job.timeoutMs)
         if (code == 0) {

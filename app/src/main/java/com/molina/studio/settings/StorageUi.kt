@@ -129,11 +129,11 @@ internal fun StoragePage(onOpenPackages: () -> Unit) {
     val i = info
     Category("Ruang penyimpanan")
     if (i == null) {
-        StorageRow("Menghitung ukuran...", "Rootfs Debian besar, mohon tunggu beberapa detik.")
+        StorageRow("Menghitung ukuran...", "Debian berukuran besar, mohon tunggu beberapa detik.")
     } else {
         StorageRow("Penyimpanan internal tersisa", fmtBytes(i.free) + " dari " + fmtBytes(i.total))
-        StorageRow("Debian (rootfs)", fmtBytes(i.rootfs))
-        StorageRow("Cache apt (.deb unduhan)", fmtBytes(i.aptCache))
+        StorageRow("Sistem Debian (rootfs)", fmtBytes(i.rootfs))
+        StorageRow("File unduhan program Debian (cache apt)", fmtBytes(i.aptCache))
         StorageRow("Cache aplikasi", fmtBytes(i.appCache))
         StorageRow("Folder Molina (/sdcard/" + TerminalSessions.WORKSPACE_DIR + ")", fmtBytes(i.workspace))
         StorageRow("Recycle Bin", fmtBytes(i.trash))
@@ -145,8 +145,8 @@ internal fun StoragePage(onOpenPackages: () -> Unit) {
     ) { showCenter = true }
     // [CACHE-APT-PAKET] cache apt dibersihkan dari Paket > Debian (apt); di sini hanya tautan
     SettingsItem(
-        "Cache apt dan paket yatim",
-        "Dibersihkan dari Paket > Debian (apt). Cache apt juga ikut di Pusat Pembersihan Cerdas."
+        "Sisa program Debian yang tidak terpakai",
+        "Dibersihkan dari Paket > Program Debian. Juga ikut dibersihkan di Pusat Pembersihan Cerdas."
     ) { onOpenPackages() }
     SettingsItem(
         "Bersihkan cache aplikasi",

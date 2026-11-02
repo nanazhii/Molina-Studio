@@ -62,7 +62,7 @@ internal fun W7IconRootfs() {
 
 private fun mb(bytes: Long) = "${bytes / (1024 * 1024)} MB"
 
-/** Settings > Sistem > "Kelola rootfs Debian" (TERM-ROOTFS2): cadangkan, pulihkan, atur ulang. */
+/** Settings > Sistem > "Kelola Debian (Linux di Molina)" (TERM-ROOTFS2): cadangkan, pulihkan, atur ulang. */
 @Composable
 internal fun RootfsAdminDialog(onDismiss: () -> Unit) {
     val ctx = LocalContext.current
@@ -94,7 +94,7 @@ internal fun RootfsAdminDialog(onDismiss: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 W7IconRootfs()
                 Spacer(Modifier.width(10.dp))
-                Text("Kelola rootfs Debian")
+                Text("Kelola Debian (Linux di Molina)")
             }
         },
         text = {
@@ -114,21 +114,21 @@ internal fun RootfsAdminDialog(onDismiss: () -> Unit) {
                         Text(f.message, fontSize = 12.sp)
                     }
                     pending is Pending.Reset -> Text(
-                        "Seluruh rootfs Debian (paket, setelan, berkas di home) akan DIHAPUS. Folder /sdcard tidak tersentuh. " +
+                        "Seluruh isi Debian (program, setelan, dan file di folder home) akan DIHAPUS. File di /sdcard tidak tersentuh. " +
                             "Cadangkan dulu bila perlu. Lanjutkan?", fontSize = 12.sp
                     )
                     pending is Pending.Restore -> Text(
-                        "Rootfs saat ini akan diganti isi cadangan ${(pending as Pending.Restore).f.file.name}. " +
-                            "Semua sesi Terminal ditutup. Rootfs lama dikembalikan otomatis bila pemulihan gagal. Lanjutkan?", fontSize = 12.sp
+                        "Debian saat ini akan diganti dengan isi cadangan ${(pending as Pending.Restore).f.file.name}. " +
+                            "Semua sesi Terminal ditutup. Debian lama dikembalikan otomatis bila pemulihan gagal. Lanjutkan?", fontSize = 12.sp
                     )
                     else -> {
                         Text(
-                            "Cadangan disimpan di ${RootfsAdmin.backupDir(ctx).path}. Berkas .tar.gz yang Anda salin ke folder itu ikut terdaftar.",
+                            "Cadangan disimpan di ${RootfsAdmin.backupDir(ctx).path}. File .tar.gz yang Anda salin ke folder itu ikut terdaftar.",
                             fontSize = 12.sp
                         )
                         Spacer(Modifier.height(8.dp))
-                        if (!ready) Text("Rootfs belum terpasang: pencadangan dan pengaturan ulang dinonaktifkan, tetapi Anda bisa memulihkan dari cadangan di bawah.", fontSize = 12.sp)
-                        if (backups.isEmpty()) Text("Belum ada cadangan rootfs.", fontSize = 12.sp)
+                        if (!ready) Text("Debian belum terpasang: fitur cadangkan dan atur ulang belum bisa dipakai, tetapi Anda bisa memulihkan dari cadangan di bawah.", fontSize = 12.sp)
+                        if (backups.isEmpty()) Text("Belum ada cadangan Debian.", fontSize = 12.sp)
                         backups.forEach { b ->
                             TextButton(onClick = { pending = Pending.Restore(b) }) {
                                 Text("Pulihkan ${b.file.name}\n${mb(b.bytes)} \u00B7 ${fmt.format(Date(b.modified))}", fontSize = 12.sp)
@@ -146,10 +146,10 @@ internal fun RootfsAdminDialog(onDismiss: () -> Unit) {
                     pending is Pending.Restore -> TextButton(onClick = {
                         val p = pending as Pending.Restore; pending = null; RootfsAdmin.restore(ctx, p.f.file)
                     }) { Text("Ya, pulihkan") }
-                    pending is Pending.Reset -> TextButton(onClick = { pending = null; RootfsAdmin.reset(ctx) }) { Text("Ya, hapus rootfs") }
+                    pending is Pending.Reset -> TextButton(onClick = { pending = null; RootfsAdmin.reset(ctx) }) { Text("Ya, hapus Debian") }
                     else -> {
                         TextButton(enabled = ready, onClick = { RootfsAdmin.backup(ctx) }) { Text("Cadangkan sekarang") }
-                        TextButton(enabled = ready, onClick = { pending = Pending.Reset }) { Text("Atur ulang rootfs") }
+                        TextButton(enabled = ready, onClick = { pending = Pending.Reset }) { Text("Atur ulang Debian") }
                     }
                 }
             }

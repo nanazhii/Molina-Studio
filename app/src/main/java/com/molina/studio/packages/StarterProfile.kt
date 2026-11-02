@@ -1,7 +1,7 @@
 package com.molina.studio.packages
 
 /**
- * [TERM-STARTER1] Profil "Starter": paket apt terkurasi yang dipasang sekali ketuk dari Setelan > Paket > Debian (apt).
+ * [TERM-STARTER1] Profil "Starter": paket apt terkurasi yang dipasang sekali ketuk dari Setelan > Paket > Program Debian.
  * Sumbernya hanya repositori resmi Debian (terverifikasi tanda tangan apt). [STARTER-YTDLP] yt-dlp ikut sebagai bagian Starter
  * tetapi BUKAN lewat apt: aplikasi memasangnya sesudah apt selesai (YtdlpInstaller.installIfMissing, rilis resmi + SHA-256).
  * vim dan ffmpeg tidak lagi ikut Starter (ffmpeg tetap bisa dipasang dari Setelan > Paket > Alat).

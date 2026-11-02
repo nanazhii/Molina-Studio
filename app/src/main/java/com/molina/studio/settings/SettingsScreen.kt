@@ -87,12 +87,12 @@ private fun titleOf(p: Page): String = when (p) {
     Page.Tampilan -> "Tampilan Molina"
     Page.CrashReports -> "Crash Reporter"
     Page.Log -> "Log"
-    Page.Stream -> "Mesin cadangan (yt-dlp)"
+    Page.Stream -> "Pengunduh tambahan (yt-dlp)"
     Page.Network -> "Keamanan dan privasi"
     Page.Scripts -> "Script execution"
     Page.Code -> "Editor Code"
     Page.Packages -> "Paket"
-    Page.Bundle -> "Komponen bundel"
+    Page.Bundle -> "Komponen bawaan Molina"
     Page.TerminalApp -> "Terminal"
     Page.Downloads -> "Unduhan"
     Page.Storage -> "Penyimpanan"
@@ -110,7 +110,7 @@ private class Hit(val title: String, val summary: String, val page: Page)
 
 /** Indeks pencarian Settings: judul, keterangan singkat, dan halaman tujuan. */
 private val INDEX = listOf(
-    Hit("Pengaturan Terminal", "Molina Terminal: debugging, I/O, tampilan", Page.Terminal),
+    Hit("Pengaturan Terminal", "Atur tampilan dan perilaku Molina Terminal", Page.Terminal),
     Hit("Debugging", "Log level, key logging, notifikasi crash", Page.Debugging),
     Hit("Log Level", "Off, Normal, Debug, Verbose", Page.Debugging),
     Hit("Crash Reporter", "Lihat, salin, atau hapus laporan crash", Page.CrashReports),
@@ -120,37 +120,37 @@ private val INDEX = listOf(
     Hit("Terminal View", "Terminal Margin Adjustment", Page.TerminalView),
     Hit("Tampilan Molina", "Ukuran font dan tema warna prompt", Page.Tampilan),
     Hit("Log", "Log aktivitas mpv, Terminal, dan sistem", Page.Log),
-    Hit("Mesin cadangan (yt-dlp)", "TikTok, Facebook, dll. lewat Debian (default mati)", Page.Stream),
-    Hit("Keamanan dan privasi", "Kebijakan URL, jaringan lokal (LAN), layar privat", Page.Network),
+    Hit("Pengunduh tambahan (yt-dlp)", "Untuk TikTok, Facebook, dan situs lain yang tidak dikenali pemutar (bawaan: mati)", Page.Stream),
+    Hit("Keamanan dan privasi", "Atur tautan yang boleh dibuka, akses jaringan rumah, dan layar privat", Page.Network),
     Hit("Molina Shield", "Filter lalu lintas pemutar", Page.Network),
     Hit("Script execution", "Kelola dan jalankan skrip dari editor Code di Molina Terminal", Page.Scripts),
     Hit("Kirim ke Script Execution", "Skrip dari editor Code (menu titik tiga) tampil di Script execution", Page.Scripts),
     Hit("Tambah skrip", "Skrip umum baru; isinya ditulis di editor Code", Page.Scripts),
-    Hit("Editor Code", "Pratinjau HTML: renderer native atau WebView", Page.Code),
+    Hit("Editor Code", "Cara menampilkan pratinjau halaman web saat Anda mengedit kode", Page.Code),
     Hit("Pratinjau HTML", "WebView untuk halaman HTML (JavaScript dan jaringan mati)", Page.Code),
-    Hit("Paket", "Pusat paket: pembaruan, paket Debian (apt), alat pasang, versi, hapus (Python 3, Git, FFmpeg, yt-dlp)", Page.Packages),
-    Hit("Tambah alat", "Buat alat sendiri dengan skrip pasang, versi, hapus", Page.Packages),
-    Hit("Komponen bundel", "Daftar komponen, versi, peran, dan jaminan keamanan (NewPipe, libmpv, PRoot, yt-dlp)", Page.Bundle),
-    Hit("Keamanan komponen", "Ringkasan hash SHA-256 dan sumber dipin untuk komponen bundel", Page.Bundle),
-    Hit("apt update", "Perbarui dan tingkatkan paket Debian (apt update && apt upgrade -y)", Page.Packages),
-    Hit("apt upgrade", "Perbarui dan tingkatkan paket Debian (apt update && apt upgrade -y)", Page.Packages),
-    Hit("Periksa versi alat", "Periksa semua versi Python 3, Git, FFmpeg di Paket > Alat", Page.Packages),
-    Hit("Cadangan dan pemulihan", "Cadangkan atau pulihkan penanda video, snippet, dan setelan (folder Backup)", Page.System),
+    Hit("Paket", "Pembaruan program Debian, alat tambahan (Python 3, Git, FFmpeg, yt-dlp): pasang, cek versi, hapus", Page.Packages),
+    Hit("Tambah alat", "Daftarkan alat buatan sendiri beserta cara memasang, mengecek, dan menghapusnya", Page.Packages),
+    Hit("Komponen bawaan Molina", "Daftar komponen bawaan Molina, versinya, fungsinya, dan keamanannya (NewPipe, libmpv, PRoot, yt-dlp)", Page.Bundle),
+    Hit("Keamanan komponen", "Bukti keaslian komponen bawaan: sidik digital (SHA-256) dan sumber yang dikunci", Page.Bundle),
+    Hit("apt update", "Cek lalu pasang pembaruan program Debian (dikenal juga sebagai apt update dan apt upgrade)", Page.Packages),
+    Hit("apt upgrade", "Cek lalu pasang pembaruan program Debian (dikenal juga sebagai apt update dan apt upgrade)", Page.Packages),
+    Hit("Periksa versi alat", "Cek versi semua alat sekaligus (Python 3, Git, FFmpeg) di Paket > Alat", Page.Packages),
+    Hit("Cadangan dan pemulihan", "Simpan atau pulihkan penanda video, potongan perintah, dan setelan (folder Backup)", Page.System),
     Hit("Pulihkan dari Backup", "Pulihkan penanda video, snippet, dan setelan dari molina-backup.json", Page.System),
     Hit("Profil setelan", "Simpan setelan sebagai profil bernama (mis. Nonton, Dev, Hemat Baterai) dan ganti dengan satu ketukan", Page.System),
-    Hit("Diagnostik sekali klik", "Bangun ZIP diagnostik (perangkat, versi mpv/yt-dlp, status PRoot, laporan bug, crash) dan bagikan", Page.Info),
-    Hit("Terminal (sesi)", "Buka sesi Debian PRoot di Molina Terminal", Page.TerminalApp),
-    Hit("Unduhan", "Unduh video atau audio dari URL: antrean, riwayat, ulangi yang gagal", Page.Downloads),
-    Hit("Penyimpanan", "Ukuran Debian, cache, Recycle Bin, folder kerja, dan bersihkan ruang", Page.Storage),
-    Hit("Bersihkan cache", "Hapus cache aplikasi dan sisa sementara (cache apt ada di Paket)", Page.Storage),
-    Hit("Bersihkan cache apt", "Hapus cache .deb dan paket yatim di Debian (autoremove dan apt clean)", Page.Packages),
+    Hit("Diagnostik sekali klik", "Kumpulkan info HP, versi aplikasi, dan laporan masalah dalam satu file ZIP untuk dikirim ke pengembang", Page.Info),
+    Hit("Terminal (sesi)", "Buka layar perintah Debian di Molina Terminal", Page.TerminalApp),
+    Hit("Unduhan", "Simpan video atau lagu dari tautan: daftar tunggu, riwayat, dan ulangi yang gagal", Page.Downloads),
+    Hit("Penyimpanan", "Lihat pemakaian ruang (Debian, cache, Recycle Bin, folder kerja) dan bersihkan", Page.Storage),
+    Hit("Bersihkan cache", "Hapus file sementara aplikasi (sisa program Debian dibersihkan lewat Paket)", Page.Storage),
+    Hit("Bersihkan cache apt", "Hapus file unduhan lama dan program yang tidak terpakai di Debian", Page.Packages),
     Hit("Pusat Pembersihan Cerdas", "Estimasi ruang per kategori: cache, sisa unduhan Debian, laporan lama, file sementara, Recycle Bin", Page.Storage),
-    Hit("Monitor Sistem", "Kecepatan unduh dan unggah, pemakaian CPU dan RAM secara langsung", Page.Monitor),
+    Hit("Monitor Sistem", "Kecepatan internet serta pemakaian prosesor (CPU) dan memori (RAM) secara langsung", Page.Monitor),
     Hit("CPU", "Pemakaian CPU seluruh proses Molina", Page.Monitor),
     Hit("RAM", "Pemakaian memori seluruh proses Molina", Page.Monitor),
     Hit("Kecepatan jaringan", "Unduh dan unggah per detik", Page.Monitor),
-    Hit("Pembaruan paket", "Status pembaruan Debian, yt-dlp, NewPipe dan pemeriksaan otomatis (Wi-Fi, 24 jam)", Page.Packages),
-    Hit("Pembaruan otomatis", "Perbarui lencana paket Debian dan yt-dlp lewat WorkManager", Page.Packages),
+    Hit("Pembaruan paket", "Status pembaruan Debian, yt-dlp, dan NewPipe, termasuk pengecekan otomatis (lewat Wi-Fi, tiap 24 jam)", Page.Packages),
+    Hit("Pembaruan otomatis", "Cek pembaruan Debian dan yt-dlp otomatis di latar belakang", Page.Packages),
     Hit("Cadangan otomatis", "Cadangan gabungan harian ke folder Backup", Page.System),
     Hit("Unduhan masuk ke Cinema", "Unduhan selesai otomatis muncul di Terakhir diputar Molina Cinema", Page.Player),
     Hit("Statistik tontonan", "Waktu tonton per hari dan video paling sering diputar (lokal)", Page.Stats),
@@ -167,11 +167,11 @@ private val INDEX = listOf(
     Hit("Tentang Molina", "Apa itu Molina: fitur, privasi, dan kebutuhan sistem", Page.AboutMolina),
     Hit("Lisensi dan atribusi", "Lisensi Molina dan komponen pihak ketiga, teks lengkap bisa dibaca offline", Page.Licenses),
     Hit("Kode sumber", "Alamat repo resmi Molina dan lisensi GPL", Page.Licenses),
-    Hit("Rilis Debian", "Versi Debian dan jumlah paket terpasang di Paket > Debian (apt)", Page.Packages),
-    Hit("Pasang paket Starter", "Profil utilitas: ca-certificates, python3, python3-mutagen, openssh-client, yt-dlp di Paket > Debian (apt) [STARTER-YTDLP]", Page.Packages),
-    Hit("Kelola rootfs Debian", "Backup, restore, dan reset rootfs Debian di Sistem", Page.System),
+    Hit("Rilis Debian", "Versi Debian dan jumlah program yang terpasang", Page.Packages),
+    Hit("Pasang paket dasar (Starter)", "Perangkat dasar sekali ketuk: Python, SSH, pengunduh video (yt-dlp), dan sertifikat keamanan, di Paket > Program Debian", Page.Packages),
+    Hit("Kelola Debian (Linux di Molina)", "Cadangkan, pulihkan, atau kembalikan Debian ke kondisi awal (rootfs)", Page.System),
     Hit("Status Molina", "Ringkasan Debian, paket, yt-dlp, dan cadangan di Sistem > Info", Page.Info),
-    Hit("Informasi perangkat", "Versi Molina Studio, Android, perangkat, arsitektur, dan RAM", Page.Info),
+    Hit("Informasi perangkat", "Versi aplikasi, Android, tipe HP, dan memori (RAM)", Page.Info),
     Hit("Versi libmpv", "Versi Molina Terminal, Molina Cinema, libmpv, dan FFmpeg", Page.Info)
 )
 
@@ -322,17 +322,17 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                         )
                     }
                     Page.System -> {
-                        W7Link({ W7IconInfo() }, "Info", "Status Molina, versi, perangkat, dan diagnostik") { open(Page.Info) } // [INFO-PAGE]
-                        W7Link({ W7IconTerminal() }, "Pengaturan Terminal", "Molina Terminal: debugging, I/O, tampilan") { open(Page.Terminal) }
-                        W7Link({ W7IconTerminal() }, "Editor Code", "Pratinjau HTML: renderer native atau WebView") { open(Page.Code) }
-                        W7Link({ W7IconShield() }, "Keamanan dan privasi", "Kebijakan URL, jaringan lokal (LAN), layar privat") { open(Page.Network) }
-                        W7Link({ W7IconToolList() }, "Penyimpanan", "Ukuran Debian, cache, Recycle Bin, dan bersihkan ruang") { open(Page.Storage) }
+                        W7Link({ W7IconInfo() }, "Info", "Kondisi Molina, versi aplikasi, info HP, dan pemeriksaan masalah") { open(Page.Info) } // [INFO-PAGE]
+                        W7Link({ W7IconTerminal() }, "Pengaturan Terminal", "Atur tampilan dan perilaku Molina Terminal") { open(Page.Terminal) }
+                        W7Link({ W7IconTerminal() }, "Editor Code", "Cara menampilkan pratinjau halaman web saat Anda mengedit kode") { open(Page.Code) }
+                        W7Link({ W7IconShield() }, "Keamanan dan privasi", "Atur tautan yang boleh dibuka, akses jaringan rumah, dan layar privat") { open(Page.Network) }
+                        W7Link({ W7IconToolList() }, "Penyimpanan", "Lihat pemakaian ruang dan bersihkan file yang tidak perlu") { open(Page.Storage) }
                         Category("Cadangan dan profil") // [SETELAN-PUSAT]
-                        W7Link({ W7IconToolList() }, "Cadangan dan pemulihan", "Penanda video, snippet, dan setelan dalam satu berkas Backup") { showBackup = true }
+                        W7Link({ W7IconToolList() }, "Cadangan dan pemulihan", "Simpan dan pulihkan penanda video, potongan perintah, dan setelan dalam satu file") { showBackup = true }
                         AutoBackupRows()
                         W7Link({ W7IconToolList() }, "Profil setelan", "Simpan dan ganti kumpulan setelan dengan satu ketukan") { showProfiles = true }
-                        Category("Debian")
-                        W7Link({ W7IconRootfs() }, "Kelola rootfs Debian", "Cadangkan, pulihkan, atau atur ulang seluruh rootfs (tar.gz)") { showRootfsAdmin = true } // [TERM-ROOTFS2]
+                        Category("Linux Debian di Molina")
+                        W7Link({ W7IconRootfs() }, "Kelola Debian (Linux di Molina)", "Cadangkan, pulihkan, atau kembalikan Debian ke kondisi awal") { showRootfsAdmin = true } // [TERM-ROOTFS2]
                     }
                     Page.Info -> HubInfoPage( // [INFO-PAGE] rumah informasi diagnostik; gabungan About lama
                         onSystem = { open(Page.System) },

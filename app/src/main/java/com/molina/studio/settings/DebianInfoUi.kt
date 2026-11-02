@@ -36,7 +36,7 @@ internal object DebianInfoReader {
     }
 }
 
-/** Settings > Paket > Debian (apt): rilis Debian dan jumlah paket. [refreshKey] berubah setelah apt selesai agar angka dibaca ulang. */
+/** Settings > Paket > Program Debian: rilis Debian dan jumlah paket. [refreshKey] berubah setelah apt selesai agar angka dibaca ulang. */
 @Composable
 internal fun DebianInfoRow(refreshKey: Any?) {
     val ctx = LocalContext.current

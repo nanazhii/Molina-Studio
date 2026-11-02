@@ -85,7 +85,7 @@ private fun summarize(reports: List<RefreshReport>): String {
     val left = reports.sumOf { it.remaining }
     val head = if (total == 0 && left == 0) "Sudah bersih, tidak ada proses aktif."
     else "Bersih: $total proses dihentikan."
-    val tail = if (left > 0) " $left proses tidak mau mati." else ""
+    val tail = if (left > 0) " $left proses tidak bisa ditutup." else ""
     val notes = reports.mapNotNull { it.note }.filter { it.isNotBlank() }
     return head + tail + if (notes.isEmpty()) "" else "\n" + notes.joinToString("\n")
 }
@@ -131,7 +131,7 @@ internal fun SystemRefreshDialog(onClose: () -> Unit) {
         text = {
             Column {
                 Text(
-                    "Mematikan proses latar sampai akar. Aplikasi tetap terbuka." +
+                    "Menutup semua proses di latar belakang sampai bersih. Aplikasi tetap terbuka." +
                         if (appRamMb > 0) " RAM aplikasi: $appRamMb MB." else "",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
@@ -144,7 +144,7 @@ internal fun SystemRefreshDialog(onClose: () -> Unit) {
                     ) { run(r.id) }
                 }
                 if (rows.none { it.id == "code" }) {
-                    RefreshRow("Code", "Segera hadir (Fase 6)", enabled = false) {}
+                    RefreshRow("Code", "Segera hadir", enabled = false) {}
                 }
                 if (running) {
                     Text(
@@ -186,7 +186,7 @@ private fun RefreshRow(title: String, subtitle: String, enabled: Boolean, onClic
     }
 }
 
-/** Halaman "Mesin cadangan (yt-dlp)": sakelar, status, pasang/perbarui. */
+/** Halaman "Pengunduh tambahan (yt-dlp)": sakelar, status, pasang/perbarui. */
 @Composable
 internal fun StreamEnginePage() {
     val ctx = LocalContext.current
@@ -200,9 +200,9 @@ internal fun StreamEnginePage() {
     }
 
     SwitchRow(
-        "Aktifkan yt-dlp (cadangan)",
+        "Aktifkan pengunduh tambahan (yt-dlp)",
         "Untuk TikTok, Facebook, dan situs lain yang tidak dikenali NewPipe. Satu resolusi memulai " +
-            "proot + python (RAM bisa naik ratusan MB sesaat), jadi default mati.",
+            "Debian dan Python (memori bisa naik ratusan MB sesaat), jadi bawaannya mati.",
         ytdlpOn
     ) {
         StreamEnginePrefs.enableYtdlp(it)
@@ -223,7 +223,7 @@ internal fun StreamEnginePage() {
     SettingsItem(
         if (st is YtdlpStatus.Ready) "Perbarui yt-dlp" else "Pasang yt-dlp",
         when (val i = install) {
-            YtdlpInstallState.Idle -> "Unduh rilis resmi (HTTPS) dan verifikasi SHA-256."
+            YtdlpInstallState.Idle -> "Unduh versi resmi lewat koneksi aman, lalu periksa keasliannya."
             is YtdlpInstallState.Working -> i.message
             is YtdlpInstallState.Done -> "Berhasil, versi ${i.version ?: "?"}."
             is YtdlpInstallState.Failed -> "Gagal: ${i.message}"
@@ -231,10 +231,10 @@ internal fun StreamEnginePage() {
     ) { if (!working) YtdlpInstaller.install(ctx) }
 
     if (st is YtdlpStatus.Ready) {
-        SettingsItem("Versi yt-dlp", "Jalankan yt-dlp --version di Debian (memulai proot + python sesaat).") {
+        SettingsItem("Versi yt-dlp", "Cek versi yt-dlp yang terpasang (Debian dinyalakan sebentar).") {
             ytRun = ToolRun("yt-dlp: Versi", "yt-dlp --version", 2 * 60_000L, "Memeriksa versi yt-dlp.", false)
         }
-        SettingsItem("Hapus yt-dlp", "Hapus tuntas: biner, cache, dan konfigurasi. Python 3 tidak ikut dihapus.") {
+        SettingsItem("Hapus yt-dlp", "Hapus sampai bersih: programnya, file sementara, dan setelannya. Python 3 tidak ikut dihapus.") {
             ytRun = ToolRun(
                 "yt-dlp: Hapus", ToolPurge.script(listOf("yt-dlp"), ToolPurge.YTDLP_PATHS, false), 10 * 60_000L,
                 "Menghapus yt-dlp sampai tuntas: semua salinan biner, cache, dan konfigurasi, lalu diverifikasi. " +

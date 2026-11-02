@@ -19,33 +19,33 @@ import java.util.Locale
 /** Pintasan perawatan Debian di Settings > Sistem. Dijalankan lewat [ToolRunDialog] di Debian PRoot. */
 internal enum class AptJob(val title: String, val command: String, val timeoutMs: Long, val note: String) {
     UpdateUpgrade(
-        "Perbarui dan tingkatkan paket",
+        "Perbarui semua program",
         "apt update -o APT::Sandbox::User=root && " +
             "apt upgrade -y -o APT::Sandbox::User=root -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef",
         50 * 60_000L,
-        "Memperbarui daftar paket Debian, lalu meningkatkan semua paket tanpa bertanya. " +
-            "Butuh internet, bisa mengunduh banyak data dan memakan beberapa menit. " +
-            "Upgrade hanya berjalan jika update berhasil."
+        "Mengecek program terbaru di Debian, lalu memperbarui semuanya tanpa bertanya lagi. " +
+            "Butuh internet, bisa memakai banyak kuota dan memakan beberapa menit. " +
+            "Pembaruan hanya berjalan jika pengecekan berhasil."
     ),
     CheckUpdates(
-        "Periksa pembaruan paket",
+        "Cek pembaruan program",
         "apt update -o APT::Sandbox::User=root && (apt list --upgradable 2>/dev/null | grep -c 'upgradable from' || true)",
         10 * 60_000L,
-        "Memperbarui daftar paket lalu menghitung paket yang bisa ditingkatkan. Tidak memasang apa pun."
+        "Mengecek ada berapa program yang bisa diperbarui. Tidak ada yang dipasang atau diubah."
     ),
     CleanUp(
-        "Bersihkan cache dan paket yatim",
+        "Bersihkan sisa program yang tidak terpakai",
         "apt-get autoremove -y -o APT::Sandbox::User=root && apt-get clean",
         10 * 60_000L,
-        "Menghapus paket yang tidak lagi dibutuhkan (autoremove) dan cache unduhan apt. Aman dijalankan kapan saja dan menambah ruang kosong Debian."
+        "Menghapus program yang tidak lagi dibutuhkan dan sisa file unduhan lama. Aman dijalankan kapan saja dan menambah ruang kosong."
     ),
     InstallStarter(
-        "Pasang paket Starter",
+        "Pasang paket dasar (Starter)",
         StarterProfile.SCRIPT,
         40 * 60_000L,
-        "Memasang paket terkurasi: ${StarterProfile.DISPLAY.joinToString(", ")} (paket apt dari repositori resmi Debian yang ditandatangani; yt-dlp dari rilis resmi, diverifikasi SHA-256). " +
-            "Butuh internet dan ruang kosong minimal 1 GB; paket yang sudah terpasang dilewati. " +
-            "yt-dlp dipasang otomatis setelah apt selesai bila belum ada. ffmpeg tidak ikut; tambahkan dari Setelan > Paket > Alat bila perlu."
+        "Memasang perangkat dasar pilihan: ${StarterProfile.DISPLAY.joinToString(", ")} (dari sumber resmi Debian dan rilis resmi yt-dlp; keasliannya diperiksa otomatis). " +
+            "Butuh internet dan ruang kosong minimal 1 GB; yang sudah terpasang dilewati. " +
+            "yt-dlp dipasang otomatis setelahnya bila belum ada. ffmpeg tidak ikut; tambahkan dari Setelan > Paket > Alat bila perlu."
     )
 }
 
@@ -60,8 +60,8 @@ private fun aptSummary(lines: List<String>): String? {
         val (up, added, removed, held) = m.destructured
         return if (up == "0" && added == "0") "Sistem sudah terbaru."
         else buildString {
-            append("Ringkasan: $up paket ditingkatkan, $added baru dipasang, $removed dihapus")
-            if (held != "0") append(", $held ditahan")
+            append("Ringkasan: $up diperbarui, $added baru dipasang, $removed dihapus")
+            if (held != "0") append(", $held ditunda")
             append(".")
         }
     }
@@ -72,13 +72,13 @@ private fun aptSummary(lines: List<String>): String? {
 private fun starterSummary(lines: List<String>): String? {
     val m = lines.mapNotNull { APT_COUNTS.find(it) }.lastOrNull() ?: return null
     val added = m.groupValues[2]
-    return if (added == "0") "Semua paket apt Starter sudah terpasang." else "$added paket baru dipasang (termasuk dependensi)."
+    return if (added == "0") "Semua paket dasar sudah terpasang." else "$added paket baru dipasang (termasuk pendukungnya)."
 }
 
 private val COUNT_LINE = Regex("""^\d+$""")
 
 private fun countSummary(lines: List<String>): String? =
-    lines.lastOrNull()?.toIntOrNull()?.let { if (it == 0) "Sistem sudah terbaru." else "$it paket dapat ditingkatkan." }
+    lines.lastOrNull()?.toIntOrNull()?.let { if (it == 0) "Sistem sudah terbaru." else "$it program dapat diperbarui." }
 
 @Composable
 internal fun DebianAptDialog(job: AptJob, onClose: () -> Unit) {
@@ -102,7 +102,7 @@ internal fun DebianAptDialog(job: AptJob, onClose: () -> Unit) {
             AptJob.InstallStarter -> YtdlpInstaller.installIfMissing(ctx) { r -> // [STARTER-YTDLP]
                 val msg = when (r) {
                     is YtdlpInstallState.Done -> if (r.version != null) "yt-dlp terpasang, versi ${r.version}." else "yt-dlp sudah terpasang."
-                    is YtdlpInstallState.Failed -> "yt-dlp gagal dipasang: ${r.message}. Coba lagi di Setelan > Paket > Mesin cadangan (yt-dlp)."
+                    is YtdlpInstallState.Failed -> "yt-dlp gagal dipasang: ${r.message}. Coba lagi di Setelan > Paket > Pengunduh tambahan (yt-dlp)."
                     else -> null
                 }
                 if (msg != null) Handler(Looper.getMainLooper()).post { Toast.makeText(ctx.applicationContext, msg, Toast.LENGTH_LONG).show() }
@@ -146,12 +146,12 @@ internal object AptHistory {
     }
 
     fun checkSubtitle(n: Int): String = when {
-        n < 0 -> "Cek apakah ada paket Debian yang bisa ditingkatkan"
+        n < 0 -> "Cek apakah ada program Debian yang bisa diperbarui"
         n == 0 -> "Sistem terbaru"
-        else -> "$n paket menunggu ditingkatkan"
+        else -> "$n pembaruan menunggu dipasang"
     }
 
     fun subtitle(at: Long): String =
-        if (at <= 0L) "apt update && apt upgrade -y"
+        if (at <= 0L) "Belum pernah diperbarui di sini"
         else "Terakhir berhasil: " + SimpleDateFormat("d MMM HH.mm", Locale("id", "ID")).format(Date(at))
 }

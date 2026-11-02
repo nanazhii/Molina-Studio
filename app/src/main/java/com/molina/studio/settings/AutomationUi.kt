@@ -40,7 +40,7 @@ private fun whenText(at: Long, never: String): String =
     if (at <= 0L) never else SimpleDateFormat("d MMM HH.mm", Locale("id", "ID")).format(Date(at))
 
 private fun ytdlpText(s: AutoState): String = when {
-    s.ytdlpInstalled.isEmpty() && s.ytdlpLatest.isEmpty() -> "Belum diperiksa, atau yt-dlp belum terpasang"
+    s.ytdlpInstalled.isEmpty() && s.ytdlpLatest.isEmpty() -> "Belum dicek, atau yt-dlp belum terpasang"
     s.ytdlpOutdated -> "Pembaruan tersedia: ${s.ytdlpInstalled} \u2192 ${s.ytdlpLatest}"
     s.ytdlpInstalled.isNotEmpty() -> "Terbaru (${s.ytdlpInstalled})"
     else -> "Rilis terbaru: ${s.ytdlpLatest}"
@@ -49,7 +49,7 @@ private fun ytdlpText(s: AutoState): String = when {
 private fun newpipeText(s: AutoState): String {
     val cur = com.molina.engine.newpipe.NewPipeInfo.VERSION
     return when {
-        s.newpipeOutdated -> "Pembaruan tersedia: $cur \u2192 ${s.newpipeLatest}. Dibundel di aplikasi, jadi perlu rilis Molina baru (naikkan versi di CI)."
+        s.newpipeOutdated -> "Pembaruan tersedia: $cur \u2192 ${s.newpipeLatest}. Sudah menyatu di aplikasi, jadi baru terbarui lewat versi Molina yang baru."
         s.newpipeLatest.isNotEmpty() -> "Terbaru ($cur)"
         else -> "Dibundel $cur. Belum diperiksa."
     }
@@ -81,20 +81,20 @@ internal fun UpdateStatusSection() {
         modifier = Modifier.padding(bottom = 4.dp)
     )
     BadgeOverlay(if (pending > 0) pending.toString() else null, false, gold = true) {
-        SettingsItem("Paket Debian", AptHistory.checkSubtitle(pending)) {}
+        SettingsItem("Program Debian", AptHistory.checkSubtitle(pending)) {}
     }
     BadgeOverlay(if (st.ytdlpOutdated) "Baru" else null, true, gold = true) {
-        SettingsItem("yt-dlp (mesin cadangan)", ytdlpText(st) + if (st.ytdlpOutdated) ". Perbarui di Paket > Alat." else "") {}
+        SettingsItem("yt-dlp (pengunduh tambahan)", ytdlpText(st) + if (st.ytdlpOutdated) ". Perbarui di Paket > Alat." else "") {}
     }
     BadgeOverlay(if (st.newpipeOutdated) "Baru" else null, true, gold = true) {
-        SettingsItem("NewPipeExtractor (mesin pencarian)", newpipeText(st)) {}
+        SettingsItem("NewPipeExtractor (pencari video)", newpipeText(st)) {}
     }
 
     // [PAKET-BRAND] subjudul Pembaruan tunggal
     SwitchRow(
-        "Periksa pembaruan otomatis",
-        "Maksimal sekali per 24 jam dan hanya saat Wi-Fi. Menyegarkan lencana paket Debian dan " +
-            "yt-dlp (ubin Paket) tanpa membuka dialog. Tanpa notifikasi dan tidak memasang apa pun.",
+        "Cek pembaruan otomatis",
+        "Paling sering sekali per 24 jam dan hanya lewat Wi-Fi. Memperbarui angka pembaruan program Debian dan " +
+            "yt-dlp di menu Paket tanpa membuka dialog. Tanpa notifikasi dan tidak memasang apa pun.",
         st.autoUpdate
     ) {
         AutoPrefs.setAutoUpdate(ctx, it)
@@ -102,7 +102,7 @@ internal fun UpdateStatusSection() {
     }
     SettingsItem(
         if (running) "Memeriksa\u2026" else "Periksa sekarang",
-        "Terakhir: " + whenText(st.lastCheck, "belum pernah") + ". Berjalan di latar dan bisa memakai data seluler."
+        "Terakhir: " + whenText(st.lastCheck, "belum pernah") + ". Berjalan di latar belakang dan bisa memakai data seluler."
     ) { if (!running) UpdateChecker.checkNow(ctx) }
 
 }

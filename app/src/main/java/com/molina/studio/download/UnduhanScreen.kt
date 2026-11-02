@@ -150,7 +150,7 @@ fun UnduhanScreen(modifier: Modifier = Modifier) {
             error = null
             DownloadNav.pendingUrls = emptyList()
             val note = buildString {
-                append(if (r.added > 0) "${r.added} URL ditambahkan" else "URL sudah ada di daftar")
+                append(if (r.added > 0) "${r.added} tautan ditambahkan" else "Tautan sudah ada di daftar")
                 if (r.skipped > 0 && r.added > 0) append(", ${r.skipped} sudah ada")
                 if (r.dropped > 0) append(", ${r.dropped} melewati batas ${DownloadCommand.MAX_URLS}")
                 if (DownloadRunner.isRunning()) append(". Unduhan masih berjalan; mulai setelah selesai.")
@@ -188,13 +188,13 @@ fun UnduhanScreen(modifier: Modifier = Modifier) {
         // [win7-form] formulir dalam jendela kaca Aero; frame RGB berputar hanya saat unduhan berjalan.
         item {
             RgbFrame(Modifier.fillMaxWidth(), animate = run.running) {
-                Win7GlassWindow("Unduh dari URL", icon = { W7IconDownloadBig(18.dp) }) {
+                Win7GlassWindow("Unduh dari tautan", icon = { W7IconDownloadBig(18.dp) }) {
                     OutlinedTextField(
                         value = urls,
                         onValueChange = { urls = it; error = null },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !run.running,
-                        label = { Text("URL (satu per baris)") },
+                        label = { Text("Tautan (satu per baris)") },
                         minLines = 2,
                         maxLines = 6,
                         colors = OutlinedTextFieldDefaults.colors(
@@ -256,16 +256,16 @@ fun UnduhanScreen(modifier: Modifier = Modifier) {
                             }
                             if (subs.isNotEmpty()) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Chip("Sematkan", subsMode == "embed", !run.running) { subsMode = "embed" }
-                                    Chip("File .srt", subsMode == "file", !run.running) { subsMode = "file" }
+                                    Chip("Gabung ke video", subsMode == "embed", !run.running) { subsMode = "embed" }
+                                    Chip("File terpisah (.srt)", subsMode == "file", !run.running) { subsMode = "file" }
                                 }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Chip("Poster + info", sidecar, !run.running) { sidecar = !sidecar }
+                                Chip("Poster dan info", sidecar, !run.running) { sidecar = !sidecar }
                             }
                             if (sidecar) {
                                 Text(
-                                    "Poster (.jpg) dan info (.info.json) disimpan di samping video untuk rak Molina Cinema; poster bisa ikut tampil di Galeri.",
+                                    "Gambar poster dan info video disimpan di samping videonya agar tampil rapi di Molina Cinema; poster bisa ikut tampil di Galeri.",
                                     color = W7D.TextDim, fontSize = 11.sp,
                                 )
                             }
@@ -281,10 +281,10 @@ fun UnduhanScreen(modifier: Modifier = Modifier) {
                                 }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Chip("Sampul + tag", cover, !run.running) { cover = !cover }
+                                Chip("Sampul dan info lagu", cover, !run.running) { cover = !cover }
                             }
                         }
-                        Text("Batas kecepatan", color = W7D.TextDim, fontSize = 12.sp)
+                        Text("Batasi kecepatan unduh", color = W7D.TextDim, fontSize = 12.sp)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             DownloadChoices.LIMIT_RATES.forEach { r ->
                                 Chip(DownloadChoices.rateLabel(r), limitRate == r, !run.running) { limitRate = r }
@@ -292,11 +292,11 @@ fun UnduhanScreen(modifier: Modifier = Modifier) {
                         }
                         // [DL-PERCHANNEL] subfolder per kanal; tampil sebagai baris rak di Molina Cinema
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Chip("Folder per kanal", perChannel, !run.running) { perChannel = !perChannel }
+                            Chip("Satu folder per kanal", perChannel, !run.running) { perChannel = !perChannel }
                         }
                         if (perChannel) {
                             Text(
-                                "Berkas disimpan di subfolder bernama kanal (mis. Video/Nama Kanal/) dan tampil sebagai baris rak di Molina Cinema.",
+                                "File disimpan di folder sesuai nama kanal (mis. Video/Nama Kanal/) dan tampil per baris di Molina Cinema.",
                                 color = W7D.TextDim, fontSize = 11.sp,
                             )
                         }
@@ -308,7 +308,7 @@ fun UnduhanScreen(modifier: Modifier = Modifier) {
                         }
                         if (wifiOnly) {
                             Text(
-                                "Unduhan hanya dimulai di jaringan tidak berkuota. Hotspot yang ditandai berkuota juga ditolak.",
+                                "Unduhan hanya berjalan lewat Wi-Fi atau jaringan tanpa batas kuota. Hotspot yang ditandai berkuota juga tidak dipakai.",
                                 color = W7D.TextDim, fontSize = 11.sp,
                             )
                         }
@@ -441,7 +441,7 @@ private fun SessionSummary(
     val text = when {
         running && total == 0 -> "Menyiapkan unduhan…"
         running -> "Berjalan: $total item"
-        cancelled -> "Dibatalkan: $ok berhasil, $failed gagal. Berkas .part tetap ada; URL yang sama dilanjutkan."
+        cancelled -> "Dibatalkan: $ok berhasil, $failed gagal. File setengah jadi (.part) disimpan; tautan yang sama akan dilanjutkan."
         finished -> "Selesai: $ok berhasil, $failed gagal"
         else -> "Sesi berhenti"
     }
@@ -597,9 +597,9 @@ private fun statusLine(item: DownloadItemState, pct: Double?): String = when (it
         null -> "Memproses"
         "merge" -> "Menggabungkan video dan audio"
         "extract" -> "Mengonversi audio"
-        "recode" -> "Menyesuaikan format agar kompatibel (H.264/AAC)"
-        "subs" -> "Menyematkan subtitle"
-        "cover" -> "Menyematkan sampul"
+        "recode" -> "Menyesuaikan format agar bisa diputar di semua HP"
+        "subs" -> "Menggabungkan subtitle ke video"
+        "cover" -> "Menempelkan sampul"
         else -> "Memproses: ${item.stage}"
     }
     DownloadItemStatus.DONE -> if (item.existed) "Selesai (berkas sudah ada)" else "Selesai"
