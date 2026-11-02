@@ -51,9 +51,26 @@ internal class DebianArchive(context: Context) {
         if (!File(rootfs, "usr/bin/env").exists()) {
             return Probe.Missing("Debian belum terpasang. Buka Settings > Terminal untuk menyiapkannya.")
         }
+        // [7ZIP-BUNDLE] 7z bawaan APK didahulukan (versi dipin); 7z dari apt hanya cadangan.
+        if (bundledLib().isFile) return Probe.Ready(SevenZipCommand.GUEST_BUNDLED)
         val bin = SevenZipCommand.GUEST_BINARIES.firstOrNull { guestHas(rootfs, it) }
             ?: return Probe.Missing(SevenZipCommand.HINT_INSTALL)
         return Probe.Ready(bin)
+    }
+
+    private fun bundledLib(): File = File(app.applicationInfo.nativeLibraryDir, SevenZipCommand.BUNDLED_LIB)
+
+    /** [7ZIP-BUNDLE] Bind lib7zz.so ke [SevenZipCommand.GUEST_BUNDLED] hanya bila biner itu yang dipakai. */
+    private fun withBundledBind(binds: List<Pair<String, String>>, binary: String): List<Pair<String, String>> =
+        if (binary == SevenZipCommand.GUEST_BUNDLED) binds + (bundledLib().absolutePath to SevenZipCommand.GUEST_BUNDLED) else binds
+
+    /** [7ZIP-BUNDLE] Titik mount berkas: berkas kosong di rootfs yang ditimpa bind saat proot berjalan. */
+    private fun ensureBundledMountPoint(rootfs: File) {
+        try {
+            val f = File(rootfs, SevenZipCommand.GUEST_BUNDLED.removePrefix("/"))
+            f.parentFile?.mkdirs()
+            if (!f.exists()) f.createNewFile()
+        } catch (e: IOException) { /* bind tetap dicoba; galat nyata akan muncul dari proot */ }
     }
 
     private fun guestHas(rootfs: File, guestPath: String): Boolean {
@@ -292,12 +309,14 @@ internal class DebianArchive(context: Context) {
     /** Titik mount harus ada di rootfs sebelum proot dijalankan (sama seperti StorageBinds). */
     private fun ensureMountPoints(rootfs: File) {
         for (g in listOf(SevenZipCommand.GUEST_SRC, SevenZipCommand.GUEST_OUT)) File(rootfs, g.removePrefix("/")).mkdirs()
+        ensureBundledMountPoint(rootfs)
     }
 
     /** [ARCHIVE6] Titik mount kompres: satu `/mnt/molina-in/<i>` per folder sumber, plus [SevenZipCommand.GUEST_OUT]. */
     private fun ensureCreateMountPoints(rootfs: File, sourceDirs: Int) {
         File(rootfs, SevenZipCommand.GUEST_OUT.removePrefix("/")).mkdirs()
         for (i in 0 until sourceDirs) File(rootfs, (SevenZipCommand.GUEST_IN + "/" + i).removePrefix("/")).mkdirs()
+        ensureBundledMountPoint(rootfs)
     }
 
     private fun isLink(f: File): Boolean = try { Files.isSymbolicLink(f.toPath()) } catch (e: Exception) { false }
@@ -353,7 +372,7 @@ internal class DebianArchive(context: Context) {
         consume: (Reader) -> Boolean,
     ): Outcome {
         val argv = try {
-            SevenZipCommand.prootArgsScoped(rootfsDir.absolutePath, binds, binary, args)
+            SevenZipCommand.prootArgsScoped(rootfsDir.absolutePath, withBundledBind(binds, binary), binary, args)
         } catch (e: IllegalArgumentException) {
             throw IOException(e.message ?: "Argumen proot tidak valid")
         }

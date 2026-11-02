@@ -8,7 +8,7 @@ def rd(p):
     with open(os.path.join(ROOT, p), encoding="utf-8") as f: return f.read()
 
 REG = "core/common/src/main/kotlin/com/molina/core/common/BundledComponents.kt"
-SHA_OK = {"newpipe", "libmpv", "proot", "rootfs", "ytdlp"}  # klaim Sha256 baru WAJIB ditambah di sini setelah pin-nya ada
+SHA_OK = {"newpipe", "libmpv", "proot", "rootfs", "ytdlp", "sevenzip"}  # klaim Sha256 baru WAJIB ditambah di sini setelah pin-nya ada
 HEX = re.compile(r"^[0-9a-f]{64}$")
 problems = []
 
@@ -73,6 +73,25 @@ for n in present:
         problems.append("SHA-256 PRoot TIDAK COCOK: %s" % n)
 for n in pinned:
     if n not in present: problems.append("pin PRoot tanpa berkas: %s" % n)
+
+# 7-Zip bawaan: lib7zz.so wajib ada, dipin, dan hash cocok [7ZIP-BUNDLE]
+sz_pins = {}
+for line in rd("scripts/sevenzip/pins.sha256").splitlines():
+    line = line.strip()
+    if not line or line.startswith("#"): continue
+    parts = line.split(None, 1)
+    if len(parts) != 2 or not HEX.match(parts[0]):
+        problems.append("scripts/sevenzip/pins.sha256: baris tidak valid: %r" % line[:60]); continue
+    sz_pins[parts[1].strip()] = parts[0]
+sz_path = os.path.join(ROOT, JNI, "lib7zz.so")
+if "lib7zz.so" not in sz_pins:
+    problems.append("lib7zz.so belum dipin di scripts/sevenzip/pins.sha256")
+elif not os.path.isfile(sz_path):
+    problems.append("lib7zz.so tidak ada di %s" % JNI)
+else:
+    with open(sz_path, "rb") as f:
+        if hashlib.sha256(f.read()).hexdigest() != sz_pins["lib7zz.so"]:
+            problems.append("SHA-256 lib7zz.so TIDAK COCOK")
 
 # Debian rootfs: hash 64 hex di Rootfs.kt
 rf = rd("app/src/main/java/com/molina/studio/terminal/Rootfs.kt")

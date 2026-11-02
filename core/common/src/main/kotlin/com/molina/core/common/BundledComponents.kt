@@ -71,6 +71,7 @@ object BundledComponents {
     const val PIN_ROOTFS = "Rootfs.kt:ROOTFS_SHA256"
     const val PIN_YTDLP = "yt-dlp:SHA2-256SUMS"
     const val PIN_PROOT = "scripts/proot/pins.sha256"
+    const val PIN_SEVENZIP = "scripts/sevenzip/pins.sha256"
 
     /** [newpipeVersion] disuntikkan dari NewPipeInfo.VERSION agar hanya ada satu sumber kebenaran. */
     fun all(newpipeVersion: String): List<BundledComponent> = listOf(
@@ -93,6 +94,11 @@ object BundledComponents {
             "proot", "PRoot", "commit 01f83b88", ComponentRole.Pendukung, ComponentOrigin.Apk, Assurance.Sha256,
             "green-green-avk/build-proot-android", "GPL-2.0-or-later", "Debian, yt-dlp, Script execution",
             "Biner prebuilt di jniLibs (arm64), hash dipin dan dicek CI. Tanpa PRoot, fitur berbasis Debian tidak jalan.", PIN_PROOT
+        ),
+        BundledComponent(
+            "sevenzip", "7-Zip", "26.05 (7zzs statis)", ComponentRole.Pendukung, ComponentOrigin.Apk, Assurance.Sha256,
+            "ip7z/7zip rilis resmi (7-zip.org)", "LGPL-2.1-or-later / BSD / unRAR restriction", "Kompres dan ekstrak arsip di Penjelajah",
+            "Biner statis arm64 di jniLibs (lib7zz.so), hash dipin dan dicek CI. Berjalan di Debian PRoot; tidak perlu apt install.", PIN_SEVENZIP
         ),
         BundledComponent(
             "rootfs", "Debian rootfs", "trixie-slim arm64", ComponentRole.Pendukung, ComponentOrigin.Runtime, Assurance.Sha256,

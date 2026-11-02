@@ -13,6 +13,10 @@ package com.molina.core.common
 object SevenZipCommand {
     /** Urut prioritas. `7z` ada di paket `7zip`; `7zz` hanya di `7zip-standalone`. */
     val GUEST_BINARIES = listOf("/usr/bin/7z", "/usr/bin/7zz")
+
+    /** [7ZIP-BUNDLE] 7-Zip statis (7zzs) dibundel di APK sebagai lib7zz.so, lalu di-bind ke guest sebagai [GUEST_BUNDLED]. */
+    const val BUNDLED_LIB = "lib7zz.so"
+    const val GUEST_BUNDLED = "/usr/local/bin/7zz-molina"
     const val GUEST_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
     const val INSTALL_CMD = "apt-get update && apt-get install -y --no-install-recommends 7zip"
     const val HINT_INSTALL = "7zip belum terpasang di Debian. Di Terminal jalankan: $INSTALL_CMD"
