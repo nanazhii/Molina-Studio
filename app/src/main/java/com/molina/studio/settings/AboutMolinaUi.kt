@@ -17,13 +17,13 @@ import com.molina.studio.ui.MolinaTheme
 @Composable
 internal fun AboutMolinaPage(onLicenses: () -> Unit) {
     Text(
-        "Terminal Linux dan pemutar media dalam satu aplikasi Android.",
+        "IDE mobile dengan multimedia dalam satu aplikasi Android.",
         color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium
     )
     AboutSection(
         "Apa itu Molina?",
-        "Molina Studio adalah aplikasi Android gratis dan bebas (open source) yang menggabungkan dua hal: terminal Linux " +
-            "untuk bekerja dan pemutar media bergaya home theater untuk menonton dan mendengarkan. Semuanya berjalan " +
+        "Molina Studio adalah aplikasi Android gratis dan bebas (open source) yang menggabungkan dua hal: IDE mobile " +
+            "untuk menulis dan menjalankan kode (terminal Debian Linux, editor, dan pengelola paket) serta pemutar media bergaya home theater untuk menonton dan mendengarkan. Semuanya berjalan " +
             "langsung di ponsel Anda, tanpa perlu root."
     )
     AboutSection(
