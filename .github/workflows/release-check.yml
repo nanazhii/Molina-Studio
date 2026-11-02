@@ -47,20 +47,20 @@ jobs:
           else
             echo "::warning::Secret kunci belum diisi; APK rilis tidak bertanda tangan."
           fi
-      - name: Diagnosa kunci tanda tangan
+      - name: Verifikasi kunci tanda tangan (senyap)
         if: github.event_name != 'pull_request' && env.MOLINA_KEYSTORE_FILE != ''
         env:
           MOLINA_KEYSTORE_PASSWORD: ${{ secrets.MOLINA_KEYSTORE_PASSWORD }}
         run: |
+          set +x
           f="$MOLINA_KEYSTORE_FILE"
-          echo "ukuran berkas: $(stat -c %s "$f") byte, sha256: $(sha256sum "$f" | cut -d' ' -f1)"
-          echo "panjang password: $(printf %s "$MOLINA_KEYSTORE_PASSWORD" | wc -c) karakter"
-          if keytool -list -storetype pkcs12 -keystore "$f" -storepass:env MOLINA_KEYSTORE_PASSWORD -alias molina 2>&1 | grep -E "molina|PrivateKeyEntry|SHA-?256"; then :; else echo "::error::keytool gagal membuka keystore/alias molina"; exit 1; fi
-          if openssl pkcs12 -in "$f" -nodes -passin env:MOLINA_KEYSTORE_PASSWORD 2>/dev/null | grep -q "PRIVATE KEY"; then
-            echo "Kunci privat terbaca dengan password keystore."
-          else
-            echo "::error::Kunci privat TIDAK terbaca dengan MOLINA_KEYSTORE_PASSWORD (password key berbeda atau berkas rusak)"; exit 1
+          if ! keytool -list -storetype pkcs12 -keystore "$f" -storepass:env MOLINA_KEYSTORE_PASSWORD -alias molina >/dev/null 2>&1; then
+            echo "::error::keystore tidak bisa dibuka atau alias molina tidak ada"; exit 1
           fi
+          if ! openssl pkcs12 -in "$f" -nodes -passin env:MOLINA_KEYSTORE_PASSWORD 2>/dev/null | grep -q "PRIVATE KEY"; then
+            echo "::error::kunci privat tidak terbaca (password tidak cocok atau berkas rusak)"; exit 1
+          fi
+          echo "Keystore valid."
       - name: Pustaka native mpv (terverifikasi SHA-256)
         env:
           GH_TOKEN: ${{ github.token }}
