@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="label_share_intent">Putar dengan Molina Cinema</string>
+    <string name="title_activity_settings">Pengaturan</string>
+    <string name="action_settings">Pengaturan</string>
+
+    <string name="pref_header_general">Umum</string>
+    <string name="pref_header_general_summary">Folder awal, bahasa suara dan subtitle, warna aplikasi</string>
+    <string name="pref_header_video">Kualitas gambar</string>
+    <string name="pref_header_video_summary">Ketajaman dan kemulusan gambar</string>
+    <string name="pref_header_ui">Tampilan</string>
+    <string name="pref_header_ui_summary">Arah layar, tombol kontrol, dan daftar putar</string>
+    <string name="pref_header_gestures">Gestur sentuh</string>
+    <string name="pref_header_gestures_summary">Geser dan ketuk layar untuk atur suara, kecerahan, maju atau mundur</string>
+    <string name="pref_header_developer">Info teknis</string>
+    <string name="pref_header_developer_summary">Info performa dan opsi untuk mencari masalah</string>
+    <string name="pref_header_advanced">Lanjutan (pengguna mahir)</string>
+    <string name="pref_header_advanced_summary">Ubah hanya jika Anda tahu fungsinya</string>
+    <string name="pref_header_about_mpv">Tentang Molina Cinema</string>
+    <string name="pref_header_about_mpv_summary">Versi aplikasi dan informasi lisensi</string>
+
+    <string name="pref_default_file_manager_path_title">Folder awal pemilih file</string>
+    <string name="pref_material_you_theming_title">Warna mengikuti wallpaper</string>
+    <string name="pref_material_you_theming_summary">Warna aplikasi menyesuaikan wallpaper HP Anda</string>
+    <string name="pref_default_audio_language_title">Bahasa suara utama</string>
+    <string name="pref_default_audio_language_message">Bahasa suara yang dipilih otomatis jika sebuah video punya beberapa pilihan suara.\nIsi dengan kode bahasa 2 atau 3 huruf, misalnya id (Indonesia), en (Inggris), ja (Jepang). Boleh lebih dari satu, pisahkan dengan koma, misalnya id,en.</string>
+    <string name="pref_default_subtitle_language_title">Bahasa subtitle utama</string>
+    <string name="pref_default_subtitle_language_message">Bahasa subtitle yang dipilih otomatis jika sebuah video punya beberapa subtitle.\nIsi dengan kode bahasa 2 atau 3 huruf, misalnya id (Indonesia), en (Inggris). Boleh lebih dari satu, pisahkan dengan koma, misalnya id,en.</string>
+    <string name="pref_hardware_decoding_title">Percepat dengan chip HP</string>
+    <string name="pref_hardware_decoding_summary">Memakai chip khusus di HP agar video lebih lancar dan hemat baterai. Matikan jika gambar hijau, hitam, atau patah-patah.</string>
+    <string name="pref_background_play_title">Lanjut main saat aplikasi ditutup</string>
+    <string name="pref_background_play_summary">Pilih kapan suara tetap terdengar setelah Anda keluar dari aplikasi.</string>
+    <string name="pref_save_position_title">Ingat terakhir nonton</string>
+    <string name="pref_save_position_summary">Saat video yang sama diputar lagi, pemutaran lanjut dari menit terakhir.</string>
+    <string name="pref_remember_brightness_title">Ingat kecerahan layar</string>
+    <string name="pref_remember_brightness_summary">Kecerahan yang Anda atur dipakai lagi saat pemutar dibuka.</string>
+    <string name="pref_new_intent_replace_title">Putar file baru langsung</string>
+    <string name="pref_new_intent_replace_summary">Saat Anda membuka file baru ketika pemutar masih berjalan di latar belakang, file itu langsung diputar menggantikan daftar putar. Jika dimatikan, file ditambahkan di akhir daftar.</string>
+    <string name="pref_auto_rotation_title">Arah layar</string>
+    <string name="pref_auto_rotation_summary">Pilih apakah video diputar mendatar (landscape) atau tegak (portrait).</string>
+    <string name="pref_display_media_title_title">Tampilkan judul video</string>
+    <string name="pref_display_media_title_summary">Tampilkan judul atau nama file di atas tombol kontrol. File audio selalu menampilkan info lagunya.</string>
+    <string name="pref_bottom_controls_title">Letakkan tombol kontrol di bawah layar</string>
+    <string name="pref_no_ui_pause_title">Tetap main saat menu terbuka</string>
+    <string name="pref_no_ui_pause_summary">Video terus berjalan saat Anda membuka menu, daftar putar, atau pilihan trek. Pilih “Tidak pernah” jika ingin video berhenti sementara saat menu terbuka.</string>
+    <string name="pref_playlist_exit_warning_title">Tanya sebelum keluar</string>
+    <string name="pref_playlist_exit_warning_summary">Munculkan konfirmasi sebelum keluar jika masih ada daftar putar.</string>
+    <string name="pref_play_folder_title">Putar semua video di folder</string>
+    <string name="pref_play_folder_summary">Saat membuka file dari memori HP, semua media di folder yang sama ikut masuk daftar putar, dimulai dari file yang Anda pilih.</string>
+
+    <string name="pref_seek_gesture_smooth_title">Geser maju atau mundur lebih halus</string>
+    <string name="pref_gesture_horiz_title">Geser mendatar</string>
+    <string name="pref_gesture_vert_left_title">Geser tegak (sisi kiri)</string>
+    <string name="pref_gesture_vert_right_title">Geser tegak (sisi kanan)</string>
+    <string name="pref_gesture_tap_left_title">Ketuk dua kali (kiri)</string>
+    <string name="pref_gesture_tap_center_title">Ketuk dua kali (tengah)</string>
+    <string name="pref_gesture_tap_right_title">Ketuk dua kali (kanan)</string>
+    <string name="pref_gesture_custom_helptext">Jika ketukan diatur ke “Kustom”, Anda bisa mengaitkannya ke perintah apa pun lewat input.conf. Kode tombolnya: <b>0x10001</b> (kiri), <b>0x10002</b> (tengah), <b>0x10003</b> (kanan).\nContoh, untuk maju 6 detik:\n\t\t0x10003 no-osd seek 6</string>
+
+    <string name="pref_video_upscale_title">Kualitas saat gambar diperbesar</string>
+    <string name="pref_video_downscale_title">Kualitas saat gambar diperkecil</string>
+    <string name="pref_video_debanding_title">Haluskan gradasi warna</string>
+    <string name="pref_video_debanding_summary">Mengurangi garis-garis pita pada langit atau latar polos.</string>
+    <string name="pref_video_interpolation_title">Gerakan lebih mulus</string>
+    <string name="pref_video_interpolation_message">Mengurangi gambar yang terlihat patah-patah saat kecepatan frame video tidak cocok dengan layar HP.</string>
+    <string name="pref_video_tscale_title">Gaya penghalusan gerakan</string>
+    <string name="pref_video_tscale_summary">Pilih cara menghaluskan perpindahan antar frame.</string>
+    <string name="pref_video_tscale_message">Hanya berlaku jika “Gerakan lebih mulus” di atas diaktifkan.</string>
+    <string name="pref_video_fastdecode_title">Mode ringan (kualitas turun)</string>
+    <string name="pref_video_fastdecode_summary">Video lebih lancar di HP yang kurang kuat, tetapi <b>kualitas gambar turun cukup banyak</b>.</string>
+
+    <string name="pref_ignore_audio_focus_title">Jangan berhenti saat ada suara lain</string>
+    <string name="pref_ignore_audio_focus_summary">Video tetap berjalan dan suaranya tidak dikecilkan walaupun aplikasi lain memutar suara.</string>
+    <string name="pref_stats_mode_title">Tampilkan info performa</string>
+    <string name="pref_stats_mode_summary">Pilih info teknis yang tampil di layar saat memutar.</string>
+    <string name="pref_gpu_debug_title">Catatan error grafis (untuk pengembang)</string>
+    <string name="pref_gpu_next_title">Mesin gambar baru (eksperimen)</string>
+    <string name="pref_gpu_next_summary">Memakai mesin gambar generasi baru. Hasil bisa lebih bagus, tetapi belum tentu stabil di semua HP. Matikan jika video bermasalah.</string>
+    <string name="pref_version_info">Info versi</string>
+    <string name="pref_edit_mpv_conf">Edit mpv.conf (pengguna mahir)</string>
+    <string name="pref_edit_mpv_conf_message">Anda dapat mengubah konfigurasi pemutar langsung di sini. Salah isi bisa membuat pemutar bermasalah.</string>
+    <string name="pref_edit_input_conf">Edit input.conf (pengguna mahir)</string>
+    <string name="pref_edit_input_conf_message">Atur tombol pintasan di sini, berguna untuk remote TV dan keyboard.\n\nPenting: beberapa tombol sudah ditetapkan Molina Cinema dan tidak bisa diganti, misalnya “j” untuk ganti subtitle.</string>
+
+    <string name="scaler_filter">Jenis filter</string>
+    <string name="interpolation_switch">Aktifkan gerakan lebih mulus</string>
+    <string name="interpolation_video_sync">Sinkronisasi video</string>
+</resources>
