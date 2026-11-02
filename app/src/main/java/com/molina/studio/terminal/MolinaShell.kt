@@ -13,8 +13,8 @@ object MolinaShell {
     const val BRAND_SGR = "1;${MolinaTheme.GOOD_SGR}"
     /** Akar data aplikasi di dalam Debian (bind appRoot; lihat StorageBinds). */
     const val APP_ROOT = "/sdcard/Molina"
-    /** Folder kerja terminal = MolinaDir.Workspace; dipakai bashrc untuk warna prompt (MOLINA_HOME). */
-    const val HOME_DIR = "$APP_ROOT/Workspace"
+    /** Folder kerja terminal = akar Molina; dipakai bashrc untuk warna prompt (MOLINA_HOME). */
+    const val HOME_DIR = APP_ROOT
     const val REDRAW_SEQ = "\u001b[99~"       // dipetakan ke redraw-current-line di bashrc
 
     /** Banner untuk tema prompt yang sedang aktif (warna = warna home tema; dipakai tombol CLEAR). */

@@ -209,7 +209,7 @@ class MainActivity : ComponentActivity() {
                 androidx.compose.runtime.LaunchedEffect(selected) { com.molina.core.common.CrashContext.tab = Tab.entries[selected].label }
                 val codeSession = remember {
                     com.molina.code.ui.CodeSession(
-                        AppPaths.get(this@MainActivity).dir(com.molina.core.common.MolinaDir.Workspace).path, // [WORKSPACE-IN-MOLINA]
+                        AppPaths.get(this@MainActivity).appRoot.path, // [WORKSPACE-IN-MOLINA]
                         java.io.File(filesDir, "code-drafts")
                     ).also {
                         codeSessionRef = it

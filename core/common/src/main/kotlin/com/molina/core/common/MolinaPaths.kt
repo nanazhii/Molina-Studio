@@ -11,7 +11,6 @@ enum class MolinaDir(val folderName: String) {
     Video("Media/Video"),
     Audio("Media/Audio"),
     Iptv("Media/IPTV"),
-    Workspace("Workspace"),
     Scripts("Scripts"),
     Backup("Backup"),
     Documents("Documents"),
@@ -34,7 +33,7 @@ interface MolinaPaths {
     /** Penyimpanan privat aplikasi (filesDir). Satu-satunya tempat untuk rahasia. */
     val privateRoot: File
 
-    /** Alias lama = [devProject]. Dipertahankan sampai pemakai (MainActivity) dipindah ke dir(MolinaDir.Workspace). */
+    /** Alias lama = [devProject]. Dipertahankan sampai pemakai (MainActivity) dipindah ke appRoot. Subfolder Workspace sudah dihapus. */
     val workspace: File get() = devProject
 
     fun dir(kind: MolinaDir): File = File(appRoot, kind.folderName)
