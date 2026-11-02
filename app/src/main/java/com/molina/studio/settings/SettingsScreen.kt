@@ -64,7 +64,7 @@ object SettingsNav {
 }
 
 private enum class Page {
-    Home, System, Terminal, Debugging, TerminalIO, TerminalView, Tampilan, CrashReports, Log, Stream, Network, Scripts, Packages, Bundle, Code, TerminalApp, Downloads, Storage, Monitor, Player, Stats, Info
+    Home, System, Terminal, Debugging, TerminalIO, TerminalView, Tampilan, CrashReports, Log, Stream, Network, Scripts, Packages, Bundle, Code, TerminalApp, Downloads, Storage, Monitor, Player, Stats, Info, Licenses, AboutMolina
 }
 
 private fun parentOf(p: Page): Page? = when (p) {
@@ -73,7 +73,7 @@ private fun parentOf(p: Page): Page? = when (p) {
     Page.Stream, Page.Bundle -> Page.Packages
     Page.Debugging, Page.TerminalIO, Page.TerminalView, Page.Tampilan -> Page.Terminal
     Page.CrashReports -> Page.Debugging
-    Page.Log, Page.Monitor -> Page.Info // [INFO-PAGE]
+    Page.Log, Page.Monitor, Page.Licenses, Page.AboutMolina -> Page.Info // [INFO-PAGE]
     else -> Page.System
 }
 
@@ -100,6 +100,8 @@ private fun titleOf(p: Page): String = when (p) {
     Page.Player -> "Pemutar"
     Page.Stats -> "Statistik tontonan"
     Page.Info -> "Info"
+    Page.Licenses -> "Lisensi dan atribusi"
+    Page.AboutMolina -> "Tentang Molina"
 }
 
 private fun trailOf(p: Page): List<Page> = generateSequence(p) { parentOf(it) }.toList().reversed()
@@ -162,6 +164,9 @@ private val INDEX = listOf(
     Hit("About", "Versi, perangkat, status, dan lisensi (kini di Sistem > Info)", Page.Info),
     Hit("Salin info debug", "Salin ringkasan versi dan status untuk laporan bug", Page.Info),
     Hit("Info", "Status Molina dan informasi dasar perangkat", Page.Info),
+    Hit("Tentang Molina", "Apa itu Molina: fitur, privasi, dan kebutuhan sistem", Page.AboutMolina),
+    Hit("Lisensi dan atribusi", "Lisensi Molina dan komponen pihak ketiga, teks lengkap bisa dibaca offline", Page.Licenses),
+    Hit("Kode sumber", "Alamat repo resmi Molina dan lisensi GPL", Page.Licenses),
     Hit("Rilis Debian", "Versi Debian dan jumlah paket terpasang di Paket > Debian (apt)", Page.Packages),
     Hit("Pasang paket Starter", "Profil utilitas: ca-certificates, python3, python3-mutagen, openssh-client, yt-dlp di Paket > Debian (apt) [STARTER-YTDLP]", Page.Packages),
     Hit("Kelola rootfs Debian", "Backup, restore, dan reset rootfs Debian di Sistem", Page.System),
@@ -336,7 +341,9 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                         onDiagnostics = { showDiag = true },
                         onBugReport = { BugReport.export(aptCtx) },
                         onLog = { open(Page.Log) },
-                        onMonitor = { open(Page.Monitor) }
+                        onMonitor = { open(Page.Monitor) },
+                        onAbout = { open(Page.AboutMolina) },
+                        onLicenses = { open(Page.Licenses) }
                     )
                     Page.Terminal -> {
                         SettingsItem("Debugging", "Preferences for debugging") { page = Page.Debugging }
@@ -368,6 +375,8 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                     Page.Bundle -> BundlePage(onOpenYtdlp = { open(Page.Stream) })
                     Page.Storage -> StoragePage(onOpenPackages = { open(Page.Packages) })
                     Page.Monitor -> SystemMonitorPage()
+                    Page.Licenses -> LicensesPage()
+                    Page.AboutMolina -> AboutMolinaPage(onLicenses = { open(Page.Licenses) })
                     Page.TerminalApp -> {}
                 }
             }

@@ -4,8 +4,6 @@ import android.app.ActivityManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.net.Uri
-import android.content.Intent
 import android.os.Build
 import android.widget.Toast
 import androidx.compose.foundation.layout.Spacer
@@ -18,8 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.molina.studio.automation.AutoPrefs
-import com.molina.core.common.BundledComponents
-import com.molina.engine.newpipe.NewPipeInfo
 import com.molina.studio.cinema.MpvVersionBridge
 import com.molina.studio.terminal.RootfsManager
 
@@ -36,7 +32,9 @@ internal fun HubInfoPage(
     onDiagnostics: () -> Unit,
     onBugReport: () -> Unit,
     onLog: () -> Unit,
-    onMonitor: () -> Unit
+    onMonitor: () -> Unit,
+    onAbout: () -> Unit,
+    onLicenses: () -> Unit
 ) {
     val ctx = LocalContext.current
     remember { AptHistory.init(ctx); AutoPrefs.init(ctx); RootfsManager.refresh(ctx) }
@@ -81,25 +79,9 @@ internal fun HubInfoPage(
     W7Link({ W7IconLog() }, "Laporan bug", "Gabungan kronologis dan per kelompok (Cinema, Terminal, Sistem, Logcat, Crash) ke folder Export") { onBugReport() }
     W7Link({ W7IconLog() }, "Log", "Log aktivitas mpv, Terminal, dan sistem") { onLog() }
     W7Link({ W7IconMonitor(32.dp) }, "Monitor Sistem", "Unduh, unggah, CPU, dan RAM secara langsung") { onMonitor() }
-    Category("Lisensi dan atribusi") // [LICENSE-SCREEN] dihasilkan dari BundledComponents
-    val licenseItems = remember { BundledComponents.all(NewPipeInfo.VERSION) }
-    // [ABOUT-REPO] alamat resmi repo dan lisensi; dibuka lewat browser, bisa disalin
-    val repoUrl = "https://github.com/nanazhii/Molina-Studio"
-    val openUrl: (String) -> Unit = { url ->
-        runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-            .onFailure { Toast.makeText(ctx, "Tidak ada browser untuk membuka tautan", Toast.LENGTH_SHORT).show() }
-    }
-    SettingsItem("Lisensi Molina Studio", "GPL-3.0-or-later \u00b7 ketuk untuk membaca teks lengkap") { openUrl("$repoUrl/blob/main/LICENSE") }
-    SettingsItem("Kode sumber", "$repoUrl \u00b7 ketuk untuk membuka") { openUrl(repoUrl) }
-    SettingsItem("Salin alamat repo", "$repoUrl.git") {
-        val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        cm.setPrimaryClip(ClipData.newPlainText("Molina kode sumber", "$repoUrl.git"))
-        Toast.makeText(ctx, "Alamat repo disalin", Toast.LENGTH_SHORT).show()
-    }
-    SettingsItem("Pengembang", "\u00a9 Molina Studio (nanazhii). Perangkat lunak bebas di bawah GPL-3.0-or-later, tanpa jaminan apa pun.") {}
-    licenseItems.forEach { c ->
-        SettingsItem(c.name, c.license + (if (c.version.isBlank()) "" else " \u00b7 " + c.version) + "\n" + c.source) {}
-    }
+    Category("Tentang")
+    W7Link({ W7IconInfo() }, "Tentang Molina", "Apa itu Molina, fitur, privasi, dan kebutuhan sistem") { onAbout() }
+    W7Link({ W7IconToolList() }, "Lisensi dan atribusi", "GPL-3.0-or-later \u00b7 teks lisensi komponen pihak ketiga, bisa dibaca tanpa internet") { onLicenses() }
 }
 
 /** [INFO-DECODER] Label dekoder untuk kartu Versi dan perangkat; selaras dengan tombol SW/HW/HW+ di pemutar. */
