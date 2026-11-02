@@ -40,16 +40,16 @@ fun main() {
 
     // --- GuestPaths
     val root = "/storage/emulated/0"
-    eq("gp ws file", GuestPaths.of("$root/Molina-Kerja/a/b.py", root, "Molina-Kerja", false), "/sdcard/Molina-Kerja/a/b.py")
-    eq("gp ws dir", GuestPaths.of("$root/Molina-Kerja", root, "Molina-Kerja", false), "/sdcard/Molina-Kerja")
-    eq("gp outside ws", GuestPaths.of("$root/Download/x.sh", root, "Molina-Kerja", false), null)
-    eq("gp prefix trap", GuestPaths.of("$root/Molina-Kerja2/x", root, "Molina-Kerja", false), null)
-    eq("gp full", GuestPaths.of("$root/Download/x.sh", root, "Molina-Kerja", true), "/sdcard/Download/x.sh")
-    eq("gp full root", GuestPaths.of(root, root, "Molina-Kerja", true), "/sdcard")
-    eq("gp dotdot", GuestPaths.of("$root/Molina-Kerja/../x", root, "Molina-Kerja", true), null)
-    eq("gp other root", GuestPaths.of("/data/x", root, "Molina-Kerja", true), null)
-    eq("gp extra root", GuestPaths.of("$root/Molina/Media/Video", root, "Molina-Kerja", false, listOf("Molina")), "/sdcard/Molina/Media/Video")
-    eq("gp extra prefix trap", GuestPaths.of("$root/Molina2/x", root, "Molina-Kerja", false, listOf("Molina")), null)
+    eq("gp ws file", GuestPaths.of("$root/Proyek/a/b.py", root, "Proyek", false), "/sdcard/Proyek/a/b.py")
+    eq("gp ws dir", GuestPaths.of("$root/Proyek", root, "Proyek", false), "/sdcard/Proyek")
+    eq("gp outside ws", GuestPaths.of("$root/Download/x.sh", root, "Proyek", false), null)
+    eq("gp prefix trap", GuestPaths.of("$root/Proyek2/x", root, "Proyek", false), null)
+    eq("gp full", GuestPaths.of("$root/Download/x.sh", root, "Proyek", true), "/sdcard/Download/x.sh")
+    eq("gp full root", GuestPaths.of(root, root, "Proyek", true), "/sdcard")
+    eq("gp dotdot", GuestPaths.of("$root/Proyek/../x", root, "Proyek", true), null)
+    eq("gp other root", GuestPaths.of("/data/x", root, "Proyek", true), null)
+    eq("gp extra root", GuestPaths.of("$root/Molina/Media/Video", root, "Proyek", false, listOf("Molina")), "/sdcard/Molina/Media/Video")
+    eq("gp extra prefix trap", GuestPaths.of("$root/Molina2/x", root, "Proyek", false, listOf("Molina")), null)
 
     // --- OutputBuffer
     run {

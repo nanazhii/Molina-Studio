@@ -18,11 +18,11 @@ fun main() {
         "proot", "--link2symlink", "--kill-on-exit", "-0",
         "--rootfs=/r", "--cwd=/root",
         "--bind=/dev", "--bind=/proc", "--bind=/sys",
-        "--bind=/h/ws:/sdcard/Molina-Kerja",
+        "--bind=/h/ws:/sdcard/Proyek",
         "/usr/bin/env", "-i", *env.toTypedArray(),
         "/bin/bash", "--rcfile", "/etc/molina/bashrc", "-i"
     )
-    val cfg = ProotConfig("/r", "/root", listOf("--bind=/h/ws:/sdcard/Molina-Kerja"), env)
+    val cfg = ProotConfig("/r", "/root", listOf("--bind=/h/ws:/sdcard/Proyek"), env)
     check("golden tanpa sysvipc", cfg.args().contentEquals(legacy))
 
     // 2) sysvipc disisipkan setelah --kill-on-exit, sebelum -0

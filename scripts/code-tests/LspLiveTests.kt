@@ -23,7 +23,7 @@ private fun check(name: String, ok: Boolean) {
 }
 
 private const val ROOT = "/storage/emulated/0"
-private const val FILE = "$ROOT/Molina-Kerja/a.py"
+private const val FILE = "$ROOT/Proyek/a.py"
 
 /** Waktu palsu: jadwal berjalan hanya saat advance(). post() langsung jalan. */
 private class FakeEnv : LspLiveEnv {
@@ -90,7 +90,7 @@ private class Ev : LspLiveEvents {
 private class Rig(val cfg: LspLiveConfig = LspLiveConfig(), val exec: FakeExec = FakeExec()) {
     val env = FakeEnv()
     val ev = Ev()
-    val live = LspLive(env, ev, { exec }, { LspPathMap(ROOT, "Molina-Kerja", false, emptyList()) }, cfg)
+    val live = LspLive(env, ev, { exec }, { LspPathMap(ROOT, "Proyek", false, emptyList()) }, cfg)
     var text = "import os\n"
     fun touch(tab: Int = 1, path: String = FILE) = live.touch(tab, path, LspServers.PYTHON) { text }
     fun ready() { touch(); env.advance(cfg.debounceMs); exec.initOk() }
@@ -123,8 +123,8 @@ fun main() {
         check("699 ms sejak sentuhan terakhir: masih belum", r.exec.handles.isEmpty())
         r.env.advance(1)
         check("debounce selesai: SATU proses, STARTING", r.exec.handles.size == 1 && r.live.state == LiveState.STARTING)
-        check("argv dan cwd benar", r.exec.requests[0].guestArgv == listOf("pylsp") && r.exec.requests[0].hostDir == "$ROOT/Molina-Kerja" && r.exec.requests[0].missingHint!!.contains("python3-pylsp"))
-        check("initialize memakai rootUri guest", ((r.exec.handle.sent[0]["params"] as Map<*, *>)["rootUri"]) == "file:///sdcard/Molina-Kerja")
+        check("argv dan cwd benar", r.exec.requests[0].guestArgv == listOf("pylsp") && r.exec.requests[0].hostDir == "$ROOT/Proyek" && r.exec.requests[0].missingHint!!.contains("python3-pylsp"))
+        check("initialize memakai rootUri guest", ((r.exec.handle.sent[0]["params"] as Map<*, *>)["rootUri"]) == "file:///sdcard/Proyek")
         r.exec.initOk()
         check("READY", r.live.state == LiveState.READY)
         check("didOpen berisi teks saat debounce selesai", r.exec.handle.methods().contains("textDocument/didOpen"))
@@ -135,7 +135,7 @@ fun main() {
     }
     run { // diagnostik: terjemah path, sembunyikan pycodestyle, stempel teks
         val r = Rig(); r.live.setEnabled(true); r.ready()
-        r.exec.server(publish("file:///sdcard/Molina-Kerja/a.py", diag("pyflakes", "x"), diag("pycodestyle", "gaya")))
+        r.exec.server(publish("file:///sdcard/Proyek/a.py", diag("pyflakes", "x"), diag("pycodestyle", "gaya")))
         check("diagnostik sampai dengan tabId dan path Android", r.ev.diags.size == 1 && r.ev.diags[0].first == 1 && r.ev.diags[0].second == FILE)
         check("pycodestyle disembunyikan", r.ev.diags[0].third.size == 1 && r.ev.diags[0].third[0].source == "pyflakes")
         check("stempel cocok dengan teks yang dikirim", r.ev.stamps[0]!!.matches("import os\n") && !r.ev.stamps[0]!!.matches("import sys\n"))
@@ -218,7 +218,7 @@ fun main() {
     }
     run { // executor tidak ada
         val env = FakeEnv(); val ev = Ev()
-        val live = LspLive(env, ev, { null }, { LspPathMap(ROOT, "Molina-Kerja", false) })
+        val live = LspLive(env, ev, { null }, { LspPathMap(ROOT, "Proyek", false) })
         live.setEnabled(true); live.touch(1, FILE, LspServers.PYTHON) { "x" }; env.advance(700); live.touch(1, FILE, LspServers.PYTHON) { "y" }; env.advance(700)
         check("tanpa executor: satu notice, tidak melempar", ev.notices.size == 1)
     }
@@ -233,13 +233,13 @@ fun main() {
     }
     run { // Simpan sebagai (path berubah) dan tutup tab
         val r = Rig(); r.live.setEnabled(true); r.ready()
-        val newPath = "$ROOT/Molina-Kerja/b.py"
+        val newPath = "$ROOT/Proyek/b.py"
         r.touch(1, newPath); r.env.advance(700)
         val m = r.exec.handle.methods()
         check("path berubah: didClose path lama lalu didOpen path baru", m.takeLast(2) == listOf("textDocument/didClose", "textDocument/didOpen"))
         r.live.release(1)
         check("release: didClose terkirim", r.exec.handle.methods().last() == "textDocument/didClose")
-        r.exec.server(publish("file:///sdcard/Molina-Kerja/b.py", diag("pyflakes")))
+        r.exec.server(publish("file:///sdcard/Proyek/b.py", diag("pyflakes")))
         check("diagnostik untuk tab yang sudah dilepas diabaikan", r.ev.diags.isEmpty())
     }
     run { // berkas di luar lingkup (akses penuh mati)
@@ -283,7 +283,7 @@ fun main() {
         check("completion: item sampai dari thread lain", got?.map { it.label } == listOf("pardir", "path") && got[1].kind == 9)
         val sent = r.exec.handle.sent.last { it["method"] == "textDocument/completion" }["params"] as Map<*, *>
         check("completion: uri guest dan posisi benar",
-            (sent["textDocument"] as Map<*, *>)["uri"] == "file:///sdcard/Molina-Kerja/a.py" && (sent["position"] as Map<*, *>)["character"] == 3.0)
+            (sent["textDocument"] as Map<*, *>)["uri"] == "file:///sdcard/Proyek/a.py" && (sent["position"] as Map<*, *>)["character"] == 3.0)
         check("completion: teks terbaru dikirim lebih dulu", r.exec.handle.methods().last { it != null }.let { it == "textDocument/completion" } &&
             r.exec.handle.methods().indexOf("textDocument/didChange").let { it >= 0 })
         val empty = asyncComplete(r, "os.pa", result = "null")
@@ -323,13 +323,13 @@ fun main() {
         val g = Got(); askDef(r, g)
         val req = r.exec.handle.sent.last { it["method"] == "textDocument/definition" }["params"] as Map<*, *>
         check("definition: uri guest dan posisi benar",
-            (req["textDocument"] as Map<*, *>)["uri"] == "file:///sdcard/Molina-Kerja/a.py" && (req["position"] as Map<*, *>)["character"] == 3.0 && (req["position"] as Map<*, *>)["line"] == 0.0)
+            (req["textDocument"] as Map<*, *>)["uri"] == "file:///sdcard/Proyek/a.py" && (req["position"] as Map<*, *>)["character"] == 3.0 && (req["position"] as Map<*, *>)["line"] == 0.0)
         check("definition: teks terbaru dikirim lebih dulu", r.exec.handle.methods().indexOf("textDocument/didChange") in 0 until r.exec.handle.methods().lastIndexOf("textDocument/definition"))
         check("definition: belum ada balasan = cb belum dipanggil", g.replies.isEmpty())
-        r.exec.server("""{"jsonrpc":"2.0","id":${defId(r)},"result":[{"uri":"file:///sdcard/Molina-Kerja/b.py","range":{"start":{"line":4,"character":2},"end":{"line":4,"character":5}}},{"uri":"file:///usr/lib/python3/os.py","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":2}}}]}""")
+        r.exec.server("""{"jsonrpc":"2.0","id":${defId(r)},"result":[{"uri":"file:///sdcard/Proyek/b.py","range":{"start":{"line":4,"character":2},"end":{"line":4,"character":5}}},{"uri":"file:///usr/lib/python3/os.py","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":2}}}]}""")
         val ok = g.replies.singleOrNull() as? com.molina.code.lsp.LspDefinitionReply.Targets
         check("definition: target diterjemahkan ke path Android, pustaka Debian null", ok != null && ok.list.size == 2 &&
-            ok.list[0].hostPath == "$ROOT/Molina-Kerja/b.py" && ok.list[0].line == 4 && ok.list[0].column == 2 && ok.list[1].hostPath == null)
+            ok.list[0].hostPath == "$ROOT/Proyek/b.py" && ok.list[0].line == 4 && ok.list[0].column == 2 && ok.list[1].hostPath == null)
         r.env.advance(5000)
         check("definition: setelah dijawab, timeout tidak memanggil cb lagi", g.replies.size == 1)
         val g2 = Got(); askDef(r, g2)

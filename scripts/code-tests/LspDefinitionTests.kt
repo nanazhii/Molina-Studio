@@ -10,7 +10,7 @@ private fun check(name: String, ok: Boolean) {
     if (ok) println("ok   $name") else { fails++; println("GAGAL $name") }
 }
 
-private const val ROOT = "/storage/emulated/0/Molina-Kerja"
+private const val ROOT = "/storage/emulated/0/Proyek"
 private const val CUR = "$ROOT/a.py"
 private fun t(path: String?, line: Int, col: Int, uri: String = "file:///usr/lib/python3/x.py") = LspDefinitionTarget(path, uri, line, col)
 
@@ -55,7 +55,7 @@ fun main() {
     check("classify: semua di Debian = OnlyInDebian dengan path guest",
         cls(t(null, 5, 0, "file:///usr/lib/python3/os.py"), t(null, 6, 0)) == DefinitionOutcome.OnlyInDebian("/usr/lib/python3/os.py", 2))
     check("classify: path tidak ada di disk dianggap tidak terlihat",
-        cls(t("$ROOT/hantu.py", 1, 0, "file:///sdcard/Molina-Kerja/hantu.py"), exists = { false }) is DefinitionOutcome.OnlyInDebian)
+        cls(t("$ROOT/hantu.py", 1, 0, "file:///sdcard/Proyek/hantu.py"), exists = { false }) is DefinitionOutcome.OnlyInDebian)
     check("classify: campuran terlihat dan Debian = Jump ke yang terlihat", cls(t(null, 5, 0), t("$ROOT/b.py", 1, 2)) == DefinitionOutcome.Jump("$ROOT/b.py", 1, 2))
     check("classify: exists menyaring sebagian", cls(t("$ROOT/hantu.py", 1, 0), t("$ROOT/b.py", 4, 0), exists = { it.endsWith("b.py") }) == DefinitionOutcome.Jump("$ROOT/b.py", 4, 0))
     val cap = LspDefinitionLogic.classify(List(100) { t("$ROOT/f$it.py", it, 0) }, CUR, w, 10, ROOT) as DefinitionOutcome.Choose
@@ -66,7 +66,7 @@ fun main() {
     // ---------------------------------------------------------------- label dan pesan
     check("label: di luar folder proyek hanya nama berkas", LspDefinitionLogic.label("/storage/emulated/0/lain/m.py", 0, ROOT) == "m.py:1")
     check("label: rootDir null hanya nama berkas", LspDefinitionLogic.label("$ROOT/sub/m.py", 4, null) == "m.py:5")
-    check("label: awalan mirip tapi bukan folder (Molina-Kerja2)", LspDefinitionLogic.label("${ROOT}2/m.py", 0, ROOT) == "m.py:1")
+    check("label: awalan mirip tapi bukan folder (Proyek2)", LspDefinitionLogic.label("${ROOT}2/m.py", 0, ROOT) == "m.py:1")
     check("label: sub folder tetap relatif", LspDefinitionLogic.label("$ROOT/sub/m.py", 0, "$ROOT/") == "sub/m.py:1")
     check("pesan: NotFound", LspDefinitionLogic.message(DefinitionOutcome.NotFound) == "Definisi tidak ditemukan")
     check("pesan: AtDefinition", LspDefinitionLogic.message(DefinitionOutcome.AtDefinition) == "Kursor sudah di definisi")

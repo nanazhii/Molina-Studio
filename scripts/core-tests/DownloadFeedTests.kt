@@ -141,7 +141,8 @@ fun main() {
         listOf("--json", "--mode", "video", "--ext", "mp4", "--allow-lan", "--", "https://a.test/1", "http://b.test/2?x=1&y=2"))
     check("galat netguard -> teks ramah", DownloadErrorText.friendly("blocked_local", "[MOLINA-NETGUARD] x") == DownloadErrorText.BLOCKED &&
         DownloadErrorText.friendly("info_failed", "ERROR: [MOLINA-NETGUARD] koneksi ditolak") == DownloadErrorText.BLOCKED)
-    check("dir: izinkan akar Molina", !bad(req.copy(dir = "/sdcard/Molina")) && !bad(req.copy(dir = "/storage/emulated/0/Molina/Media/Audio/")) && !bad(req.copy(dir = "/sdcard/Molina-Kerja/unduhan")))
+    check("dir: izinkan akar Molina", !bad(req.copy(dir = "/sdcard/Molina")) && !bad(req.copy(dir = "/storage/emulated/0/Molina/Media/Audio/")) && !bad(req.copy(dir = "/sdcard/Molina/Workspace/unduhan")))
+    check("dir: folder Molina-Kerja lama ditolak", bad(req.copy(dir = "/sdcard/Molina-Kerja/unduhan")) && bad(req.copy(dir = "/storage/emulated/0/Molina-Kerja")))
     check("dir: tolak di luar Molina", bad(req.copy(dir = "/etc")) && bad(req.copy(dir = "/root/.config")) && bad(req.copy(dir = "/sdcard")) && bad(req.copy(dir = "/sdcard/MolinaX")) && bad(req.copy(dir = "/sdcard/Download")))
     check("dir: tolak traversal", bad(req.copy(dir = "/sdcard/Molina/../Download")) && bad(req.copy(dir = "/sdcard/Molina/./a/..")) && bad(req.copy(dir = "/sdcard/Molina/..")))
     check("pesan galat URL tidak memuat query", DownloadCommand.validate(DownloadRequest(listOf("ftp://x.test/a?token=SECRET")))!!.contains("SECRET").not())

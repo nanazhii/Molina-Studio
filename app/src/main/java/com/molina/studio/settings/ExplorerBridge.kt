@@ -143,7 +143,7 @@ internal object MolinaExplorer {
         if (!visibleInDebian(dir, forNewSession = true)) {
             Toast.makeText(
                 ctx,
-                "Folder ini tidak terlihat di Debian. Aktifkan \"Akses penyimpanan penuh\" di Setelan Terminal, atau pindahkan ke folder Molina atau ${TerminalSessions.WORKSPACE_DIR}.",
+                "Folder ini tidak terlihat di Debian. Aktifkan \"Akses penyimpanan penuh\" di Setelan Terminal, atau pindahkan ke folder Molina.",
                 Toast.LENGTH_LONG
             ).show()
             return false
@@ -252,7 +252,7 @@ internal object MolinaExplorer {
                 if (TerminalPrefs.fullStorageAccess && TerminalSessions.fullAccessOf(TerminalSessions.currentSession) == false)
                     "Sesi terminal ini dibuat sebelum Akses penyimpanan penuh aktif. Buka sesi baru (NEW SESSION)."
                 else
-                    "Folder ini tidak terlihat di Debian. Aktifkan \"Akses penyimpanan penuh\" di Setelan Terminal (berlaku di sesi baru), atau pindahkan ke folder Molina atau ${TerminalSessions.WORKSPACE_DIR}.",
+                    "Folder ini tidak terlihat di Debian. Aktifkan \"Akses penyimpanan penuh\" di Setelan Terminal (berlaku di sesi baru), atau pindahkan ke folder Molina.",
                 Toast.LENGTH_LONG
             ).show()
             return

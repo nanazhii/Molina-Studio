@@ -96,7 +96,7 @@ internal fun HubInfoPage(
         cm.setPrimaryClip(ClipData.newPlainText("Molina kode sumber", "$repoUrl.git"))
         Toast.makeText(ctx, "Alamat repo disalin", Toast.LENGTH_SHORT).show()
     }
-    SettingsItem("Pengembang", "molina_studio \u00b7 \u00a9 Molina Studio. Perangkat lunak bebas di bawah GPL-3.0-or-later, tanpa jaminan apa pun.") {}
+    SettingsItem("Pengembang", "\u00a9 Molina Studio (nanazhii). Perangkat lunak bebas di bawah GPL-3.0-or-later, tanpa jaminan apa pun.") {}
     licenseItems.forEach { c ->
         SettingsItem(c.name, c.license + (if (c.version.isBlank()) "" else " \u00b7 " + c.version) + "\n" + c.source) {}
     }

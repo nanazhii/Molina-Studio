@@ -78,7 +78,6 @@ object DownloadCommand {
     /** [DL-DIR-ALLOWLIST] Akar yang boleh dipakai sebagai folder tujuan (jalur Debian dan jalur Android). */
     private val DIR_ROOTS = listOf(
         "/sdcard/Molina", "/storage/emulated/0/Molina",
-        "/sdcard/Molina-Kerja", "/storage/emulated/0/Molina-Kerja",
     )
 
     /** True bila [dir] berada di bawah salah satu akar Molina dan tidak memuat segmen "." atau "..". */

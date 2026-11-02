@@ -70,8 +70,8 @@ private class Events : LspSessionListener {
     override fun onClosed(reason: String) { closed = reason; closedCount++ }
 }
 
-private fun req() = StreamRequest("pylsp", listOf("pylsp"), "$ROOT/Molina-Kerja")
-private fun paths(full: Boolean = false) = LspPathMap(ROOT, "Molina-Kerja", full, listOf("Molina"))
+private fun req() = StreamRequest("pylsp", listOf("pylsp"), "$ROOT/Proyek")
+private fun paths(full: Boolean = false) = LspPathMap(ROOT, "Proyek", full, listOf("Molina"))
 
 private fun session(ex: FakeExecutor, ev: Events, full: Boolean = false) = LspSession(ex, paths(full), req(), ev)
 
@@ -81,27 +81,27 @@ private fun initOk(ex: FakeExecutor) = ex.server("""{"jsonrpc":"2.0","id":1,"res
 
 private fun pathMapTests() {
     val p = paths()
-    check("host->guest di workspace", p.hostToGuestPath("$ROOT/Molina-Kerja/a/x.py") == "/sdcard/Molina-Kerja/a/x.py")
+    check("host->guest di workspace", p.hostToGuestPath("$ROOT/Proyek/a/x.py") == "/sdcard/Proyek/a/x.py")
     check("host->guest extra root", p.hostToGuestPath("$ROOT/Molina/y.sh") == "/sdcard/Molina/y.sh")
     check("host di luar workspace = null", p.hostToGuestPath("$ROOT/DCIM/z.py") == null)
     check("host di luar storage = null", p.hostToGuestPath("/data/data/app/z.py") == null)
-    check("host dengan .. = null", p.hostToGuestPath("$ROOT/Molina-Kerja/../DCIM/z.py") == null)
-    check("guest /sdcard -> host", p.guestToHostPath("/sdcard/Molina-Kerja/a/x.py") == "$ROOT/Molina-Kerja/a/x.py")
-    check("guest /storage/emulated/0 -> host", p.guestToHostPath("/storage/emulated/0/Molina-Kerja/x.py") == "$ROOT/Molina-Kerja/x.py")
+    check("host dengan .. = null", p.hostToGuestPath("$ROOT/Proyek/../DCIM/z.py") == null)
+    check("guest /sdcard -> host", p.guestToHostPath("/sdcard/Proyek/a/x.py") == "$ROOT/Proyek/a/x.py")
+    check("guest /storage/emulated/0 -> host", p.guestToHostPath("/storage/emulated/0/Proyek/x.py") == "$ROOT/Proyek/x.py")
     check("guest tak terlihat = null", p.guestToHostPath("/sdcard/DCIM/z.py") == null)
     check("guest di luar storage = null (stdlib python)", p.guestToHostPath("/usr/lib/python3.13/os.py") == null)
-    check("guest dengan .. = null", p.guestToHostPath("/sdcard/Molina-Kerja/../DCIM/z.py") == null)
-    check("guest /sdcard-lain bukan awalan sah", p.guestToHostPath("/sdcardx/Molina-Kerja/a.py") == null)
+    check("guest dengan .. = null", p.guestToHostPath("/sdcard/Proyek/../DCIM/z.py") == null)
+    check("guest /sdcard-lain bukan awalan sah", p.guestToHostPath("/sdcardx/Proyek/a.py") == null)
     val f = paths(true)
     check("akses penuh: host->guest", f.hostToGuestPath("$ROOT/DCIM/z.py") == "/sdcard/DCIM/z.py")
     check("akses penuh: guest->host", f.guestToHostPath("/sdcard/DCIM/z.py") == "$ROOT/DCIM/z.py")
     check("akses penuh: root sendiri", f.guestToHostPath("/sdcard") == ROOT)
-    val odd = "$ROOT/Molina-Kerja/folder spasi/büku #1.py"
+    val odd = "$ROOT/Proyek/folder spasi/büku #1.py"
     val uri = p.hostToGuestUri(odd)
-    check("URI guest dienkode", uri == "file:///sdcard/Molina-Kerja/folder%20spasi/b%C3%BCku%20%231.py")
+    check("URI guest dienkode", uri == "file:///sdcard/Proyek/folder%20spasi/b%C3%BCku%20%231.py")
     check("URI guest bolak-balik", uri != null && p.guestUriToHostPath(uri) == odd)
     check("URI bukan file:// = null", p.guestUriToHostPath("untitled:Untitled-1") == null)
-    check("URI rusak = null", p.guestUriToHostPath("file:///sdcard/Molina-Kerja/%zz") == null)
+    check("URI rusak = null", p.guestUriToHostPath("file:///sdcard/Proyek/%zz") == null)
     check("URI stdlib = null", p.guestUriToHostPath("file:///usr/lib/python3/os.py") == null)
 }
 
@@ -158,12 +158,12 @@ private fun pidFilterTests() {
 private fun sessionTests() {
     run { // mulai: initialize dengan rootUri guest
         val ex = FakeExecutor(); val ev = Events(); val s = session(ex, ev)
-        check("start true", s.start("$ROOT/Molina-Kerja/proj"))
-        check("start kedua false", !s.start("$ROOT/Molina-Kerja/proj") && ex.starts == 1)
+        check("start true", s.start("$ROOT/Proyek/proj"))
+        check("start kedua false", !s.start("$ROOT/Proyek/proj") && ex.starts == 1)
         val init = ex.handle.sent.first()
         val params = init["params"] as Map<*, *>
         check("initialize terkirim", init["method"] == "initialize")
-        check("rootUri = URI path guest", params["rootUri"] == "file:///sdcard/Molina-Kerja/proj")
+        check("rootUri = URI path guest", params["rootUri"] == "file:///sdcard/Proyek/proj")
         check("request diteruskan ke executor", ex.request?.guestArgv == listOf("pylsp") && ex.request?.name == "pylsp")
         check("state INITIALIZING", s.state == LspState.INITIALIZING)
     }
@@ -174,18 +174,18 @@ private fun sessionTests() {
     }
     run { // alur lengkap
         val ex = FakeExecutor(); val ev = Events(); val s = session(ex, ev)
-        s.start("$ROOT/Molina-Kerja")
-        val file = "$ROOT/Molina-Kerja/src/a b.py"
+        s.start("$ROOT/Proyek")
+        val file = "$ROOT/Proyek/src/a b.py"
         check("openDocument sebelum siap diterima", s.openDocument(file, "python", "import os\n"))
         check("belum ada didOpen sebelum initialize selesai", ex.handle.methods() == listOf("initialize"))
         initOk(ex)
         check("siap: onReady sekali, state READY", ev.ready == 1 && s.state == LspState.READY)
         check("setelah siap: initialized lalu didOpen", ex.handle.methods() == listOf("initialize", "initialized", "textDocument/didOpen"))
         val open = (ex.handle.sent.last()["params"] as Map<*, *>)["textDocument"] as Map<*, *>
-        check("didOpen memakai URI GUEST (bukan path Android)", open["uri"] == "file:///sdcard/Molina-Kerja/src/a%20b.py")
+        check("didOpen memakai URI GUEST (bukan path Android)", open["uri"] == "file:///sdcard/Proyek/src/a%20b.py")
         s.changeDocument(file, "import sys\n")
         check("didChange terkirim", ex.handle.methods().last() == "textDocument/didChange")
-        ex.server("""{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///sdcard/Molina-Kerja/src/a%20b.py","version":2,"diagnostics":[{"range":{"start":{"line":0,"character":7},"end":{"line":0,"character":10}},"severity":1,"message":"salah"}]}}""")
+        ex.server("""{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///sdcard/Proyek/src/a%20b.py","version":2,"diagnostics":[{"range":{"start":{"line":0,"character":7},"end":{"line":0,"character":10}},"severity":1,"message":"salah"}]}}""")
         check("diagnostik: URI guest diterjemahkan ke path Android", ev.diags.size == 1 && ev.diags[0].first == file && ev.diags[0].second == 2)
         check("diagnostik: isi terkonversi", ev.diags[0].third.size == 1 && ev.diags[0].third[0].message == "salah")
         ex.server("""{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///usr/lib/python3/os.py","diagnostics":[]}}""")
@@ -195,49 +195,49 @@ private fun sessionTests() {
     }
     run { // diagnostik dengan stdout terpotong per byte
         val ex = FakeExecutor(); val ev = Events(); val s = session(ex, ev)
-        s.start("$ROOT/Molina-Kerja")
+        s.start("$ROOT/Proyek")
         val b = LspFraming.encode("""{"jsonrpc":"2.0","id":1,"result":{}}""")
         for (x in b) ex.listener!!.onStdout(byteArrayOf(x), 1)
         check("stdout terpotong 1 byte tetap terbaca", ev.ready == 1)
     }
     run { // dokumen di luar yang terlihat ditolak
         val ex = FakeExecutor(); val s = session(ex, Events())
-        s.start("$ROOT/Molina-Kerja")
+        s.start("$ROOT/Proyek")
         check("openDocument di luar terlihat = false", !s.openDocument("$ROOT/DCIM/z.py", "python", "x"))
         check("openDocument akses penuh = true", run {
             val ex2 = FakeExecutor(); val s2 = session(ex2, Events(), full = true)
-            s2.start("$ROOT/Molina-Kerja"); s2.openDocument("$ROOT/DCIM/z.py", "python", "x")
+            s2.start("$ROOT/Proyek"); s2.openDocument("$ROOT/DCIM/z.py", "python", "x")
         })
     }
     run { // sebelum start
         val s = session(FakeExecutor(), Events())
-        check("openDocument sebelum start = false", !s.openDocument("$ROOT/Molina-Kerja/a.py", "python", "x"))
+        check("openDocument sebelum start = false", !s.openDocument("$ROOT/Proyek/a.py", "python", "x"))
         check("state IDLE sebelum start", s.state == LspState.IDLE)
         s.stop(); s.kill()
         check("stop/kill sebelum start tidak melempar", true)
     }
     run { // stop rapi
         val ex = FakeExecutor(); val ev = Events(); val s = session(ex, ev)
-        s.start("$ROOT/Molina-Kerja"); initOk(ex)
+        s.start("$ROOT/Proyek"); initOk(ex)
         s.stop()
         check("stop: shutdown terkirim", ex.handle.methods().last() == "shutdown" && s.state == LspState.SHUTTING_DOWN)
         check("stop: belum ditutup sebelum server menjawab", ev.closedCount == 0 && ex.handle.cancels == 0)
         ex.server("""{"jsonrpc":"2.0","id":2,"result":null}""")
         check("stop: exit terkirim, klien ditutup, proses dimatikan", ex.handle.methods().contains("exit") && ev.closedCount == 1 && ex.handle.cancels >= 1)
-        check("openDocument setelah stop = false", !s.openDocument("$ROOT/Molina-Kerja/a.py", "python", "x"))
+        check("openDocument setelah stop = false", !s.openDocument("$ROOT/Proyek/a.py", "python", "x"))
         ex.listener!!.onExit(StreamResult(0, true, 10))
         check("onExit sesudah tertutup tidak menggandakan onClosed", ev.closedCount == 1)
     }
     run { // kill saat server tak menjawab
         val ex = FakeExecutor(); val ev = Events(); val s = session(ex, ev)
-        s.start("$ROOT/Molina-Kerja"); initOk(ex); s.stop(); s.kill()
+        s.start("$ROOT/Proyek"); initOk(ex); s.stop(); s.kill()
         check("kill memanggil cancel", ex.handle.cancels == 1)
         ex.listener!!.onExit(StreamResult(-1, true, 50))
         check("kill lalu onExit: onClosed sekali dengan alasan dihentikan", ev.closedCount == 1 && ev.closed == "dihentikan")
     }
     run { // proses mati sendiri
         val ex = FakeExecutor(); val ev = Events(); val s = session(ex, ev)
-        s.start("$ROOT/Molina-Kerja"); initOk(ex)
+        s.start("$ROOT/Proyek"); initOk(ex)
         ex.listener!!.onExit(StreamResult(139, false, 900))
         check("proses mati: onClosed dengan exit code", ev.closedCount == 1 && ev.closed == "server berhenti (exit=139)")
         check("proses mati: state CLOSED", s.state == LspState.CLOSED)
@@ -245,35 +245,35 @@ private fun sessionTests() {
     run { // gagal mulai sinkron (Debian belum terpasang)
         val ex = FakeExecutor(syncExit = StreamResult(-1, false, 0, "Debian belum terpasang."))
         val ev = Events(); val s = session(ex, ev)
-        check("start sinkron gagal: tetap true, onClosed berisi pesan", s.start("$ROOT/Molina-Kerja") && ev.closed == "Debian belum terpasang." && ev.closedCount == 1)
+        check("start sinkron gagal: tetap true, onClosed berisi pesan", s.start("$ROOT/Proyek") && ev.closed == "Debian belum terpasang." && ev.closedCount == 1)
         check("start sinkron gagal: tidak ada initialize terkirim", ex.handle.sent.isEmpty() && s.state == LspState.CLOSED)
     }
     run { // tulis gagal -> klien tertutup
         val ex = FakeExecutor(failWrites = true); val ev = Events(); val s = session(ex, ev)
-        s.start("$ROOT/Molina-Kerja")
+        s.start("$ROOT/Proyek")
         check("tulis gagal: onClosed sekali, proses dimatikan", ev.closedCount == 1 && ev.closed!!.contains("gagal menulis") && ex.handle.cancels >= 1)
     }
     run { // stderr diteruskan
         val ex = FakeExecutor(); val ev = Events(); val s = session(ex, ev)
-        s.start("$ROOT/Molina-Kerja")
+        s.start("$ROOT/Proyek")
         ex.listener!!.onStderr("peringatan "); ex.listener!!.onStderr("server")
         check("stderr diteruskan", ev.logs.toString() == "peringatan server")
     }
     run { // protokol rusak
         val ex = FakeExecutor(); val ev = Events(); val s = session(ex, ev)
-        s.start("$ROOT/Molina-Kerja")
+        s.start("$ROOT/Proyek")
         val bad = "Content-Length: abc\r\n\r\n".toByteArray()
         ex.listener!!.onStdout(bad, bad.size)
         check("header rusak: sesi tertutup dan proses dimatikan", ev.closedCount == 1 && ex.handle.cancels >= 1)
     }
     run { // konkurensi: stdout dan panggilan UI serentak
         val ex = FakeExecutor(); val ev = Events(); val s = session(ex, ev)
-        s.start("$ROOT/Molina-Kerja"); initOk(ex)
-        val file = "$ROOT/Molina-Kerja/c.py"
+        s.start("$ROOT/Proyek"); initOk(ex)
+        val file = "$ROOT/Proyek/c.py"
         s.openDocument(file, "python", "0")
         val t1 = Thread { for (i in 1..300) s.changeDocument(file, "v$i") }
         val t2 = Thread {
-            for (i in 1..300) ex.server("""{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///sdcard/Molina-Kerja/c.py","diagnostics":[]}}""")
+            for (i in 1..300) ex.server("""{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///sdcard/Proyek/c.py","diagnostics":[]}}""")
         }
         t1.start(); t2.start(); t1.join(); t2.join()
         check("konkurensi: 300 diagnostik tiba, 300 didChange terkirim", ev.diags.size == 300 && ex.handle.methods().count { it == "textDocument/didChange" } == 300)

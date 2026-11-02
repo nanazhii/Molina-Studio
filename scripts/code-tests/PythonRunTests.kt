@@ -29,7 +29,7 @@ fun main() {
     check("pembatas bentrok dua kali", P.uniqueDelimiter("PYEOF\nPYEOF_1") == "PYEOF_2")
     check("PYEOF di tengah baris aman", P.uniqueDelimiter("print('PYEOF')") == "PYEOF")
 
-    check("fileCommand biasa", P.fileCommand("/sdcard/Molina-Kerja/tes.py") == "(cd '/sdcard/Molina-Kerja' && python3 'tes.py')")
+    check("fileCommand biasa", P.fileCommand("/sdcard/Proyek/tes.py") == "(cd '/sdcard/Proyek' && python3 'tes.py')")
     check("fileCommand root", P.fileCommand("/x.py") == "(cd '/' && python3 'x.py')")
     check("fileCommand kutip", P.fileCommand("/sdcard/a'b/x.py") == "(cd '/sdcard/a'\\''b' && python3 'x.py')")
 

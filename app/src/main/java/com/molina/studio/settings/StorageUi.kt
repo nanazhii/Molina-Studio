@@ -135,8 +135,19 @@ internal fun StoragePage(onOpenPackages: () -> Unit) {
         StorageRow("Debian (rootfs)", fmtBytes(i.rootfs))
         StorageRow("Cache apt (.deb unduhan)", fmtBytes(i.aptCache))
         StorageRow("Cache aplikasi", fmtBytes(i.appCache))
-        StorageRow("Folder kerja (" + TerminalSessions.WORKSPACE_DIR + ")", fmtBytes(i.workspace))
+        StorageRow("Folder Molina (/sdcard/" + TerminalSessions.WORKSPACE_DIR + ")", fmtBytes(i.workspace))
         StorageRow("Recycle Bin", fmtBytes(i.trash))
+    }
+    SettingsItem("Buka folder Molina", "/sdcard/Molina \u00b7 ketuk untuk membuka di aplikasi File") { // [OPEN-MOLINA-DIR]
+        val opened = runCatching {
+            val uri = android.net.Uri.parse("content://com.android.externalstorage.documents/document/primary%3AMolina")
+            ctx.startActivity(
+                android.content.Intent(android.content.Intent.ACTION_VIEW)
+                    .setDataAndType(uri, "vnd.android.document/directory")
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        }.isSuccess
+        if (!opened) msg = "Aplikasi File tidak bisa membuka folder. Buka manual: /storage/emulated/0/Molina"
     }
     Category("Bersihkan")
     SettingsItem(

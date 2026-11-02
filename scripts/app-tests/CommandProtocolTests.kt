@@ -140,15 +140,15 @@ fun main() {
 
     // [CLI-SCOPE] inScope + gapOk
     val sr = "/storage/emulated/0"
-    val allow = listOf("Molina-Kerja", "Molina")
+    val allow = listOf("Proyek", "Molina")
     check("scope: akses penuh lolos semua", CommandProtocol.inScope("$sr/DCIM/a.jpg", sr, true, allow))
-    check("scope: folder kerja", CommandProtocol.inScope("$sr/Molina-Kerja/a.txt", sr, false, allow))
+    check("scope: folder kerja", CommandProtocol.inScope("$sr/Proyek/a.txt", sr, false, allow))
     check("scope: folder Molina", CommandProtocol.inScope("$sr/Molina/Media/Video/a.mkv", sr, false, allow))
     check("scope: akar folder sendiri", CommandProtocol.inScope("$sr/Molina", sr, false, allow))
     check("scope: DCIM ditolak", !CommandProtocol.inScope("$sr/DCIM/a.jpg", sr, false, allow))
     check("scope: Download ditolak", !CommandProtocol.inScope("$sr/Download/a.mkv", sr, false, allow))
     check("scope: awalan mirip Molina", !CommandProtocol.inScope("$sr/Molina2/a", sr, false, allow))
-    check("scope: awalan mirip folder kerja", !CommandProtocol.inScope("$sr/Molina-Kerja-x/a", sr, false, allow))
+    check("scope: awalan mirip folder kerja", !CommandProtocol.inScope("$sr/Proyek-x/a", sr, false, allow))
     check("scope: akar storage ditolak", !CommandProtocol.inScope(sr, sr, false, allow))
     check("scope: huruf besar-kecil beda ditolak", !CommandProtocol.inScope("$sr/molina/a", sr, false, allow))
     check("scope: root berakhiran slash", CommandProtocol.inScope("$sr/Molina/a", "$sr/", false, allow))
