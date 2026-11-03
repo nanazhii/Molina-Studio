@@ -8,6 +8,8 @@ import android.graphics.Typeface
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.text.InputType
+import android.text.TextWatcher
+import android.text.Editable
 import android.view.ActionMode
 import android.view.Gravity
 import android.view.Menu
@@ -15,6 +17,7 @@ import android.view.MenuItem
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import com.molina.vault.crypto.BackupPolicy
@@ -39,6 +42,8 @@ private const val REQ_IMPORT = 4101
 private const val REQ_EXPORT = 4102
 private const val REQ_BACKUP_EXPORT = 4103
 private const val REQ_BACKUP_PICK = 4104
+private const val REQ_IMPORT_MULTI = 4105
+private const val MAX_BATCH = 100
 private const val MAX_FILE = 16 * 1024 * 1024
 private const val MASK = "••••••••"
 private const val PICKER_TIMEOUT_MS = 60_000L
@@ -75,6 +80,10 @@ class EntryUi(private val host: MainActivity) {
     private var restoreUri: Uri? = null
     private var editKeep: ByteArray? = null   // MOLINA-H2: isi file lama saat mengubah entri
 
+    private var filterText = ""
+    private var filterType: RecordType? = null
+    private val dateFmt = SimpleDateFormat("dd MMM yyyy HH:mm", Locale.getDefault())
+
     /** true jika berkas cadangan sudah dipilih dan menunggu passphrase serta master baru. */
     val hasPendingRestore: Boolean get() = restoreUri != null
     private val pickerLock = Runnable { SessionLock.lock(); clearSensitive() }
@@ -97,30 +106,95 @@ class EntryUi(private val host: MainActivity) {
         RecordType.FILE -> "File lain"
     }
 
-    // ---------- daftar ----------
+    // ---------- daftar ---------- (MOLINA-H3-LIST)
+    private fun typeShort(t: RecordType) = when (t) {
+        RecordType.PASSWORD -> "AKUN"
+        RecordType.NOTE -> "CATATAN"
+        RecordType.SECRET -> "TOKEN"
+        RecordType.KEYSTORE -> "KEYSTORE"
+        RecordType.FILE -> "FILE"
+    }
+
+    private fun typeHint(t: RecordType) = when (t) {
+        RecordType.PASSWORD -> "Username, password, URL"
+        RecordType.NOTE -> "Teks rahasia, diketik langsung"
+        RecordType.SECRET -> "Token atau kunci API"
+        RecordType.KEYSTORE -> "Berkas keystore beserta sandinya"
+        RecordType.FILE -> "Satu dokumen apa saja, misalnya .md"
+    }
+
     private fun showList(): Unit = host.run {
         screen {
             label("MOLINA VAULT", 26f, amber)
+            button("Tambah entri") { showTypePick() }
+            button("Impor banyak berkas") { pickMulti() }
             val listing = try { store.list() } catch (e: Exception) { null }
             if (listing == null) {
                 label("Gagal membaca daftar entri.", 14f, red)
             } else {
                 val extra = if (listing.corrupt > 0) " (${listing.corrupt} rusak/dimanipulasi)" else ""
-                label("${listing.items.size} entri$extra", 16f, Color.WHITE)
-                for (m in listing.items) {
-                    addView(TextView(context).apply {
-                        text = "${m.type.name} · ${m.title}"
-                        textSize = 16f
-                        setTextColor(Color.WHITE)
-                        setPadding(0, 28, 0, 28)
-                        isClickable = true
-                        setOnClickListener { openDetail(m) }
-                    })
+                val countView = TextView(context).apply { setTextColor(Color.WHITE); textSize = 16f; setPadding(0, 20, 0, 8) }
+                addView(countView)
+                val search = makeInput(Spec("Cari judul", Kind.TEXT)).apply { setSingleLine(true); setText(filterText) }
+                addView(search)
+                val chip = TextView(context).apply { textSize = 14f; setTextColor(amber); setPadding(0, 16, 0, 16); isClickable = true }
+                addView(chip)
+                val box = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+                addView(box)
+
+                fun fill() {
+                    box.removeAllViews()
+                    val q = filterText.trim().lowercase()
+                    val shown = listing.items.filter { m ->
+                        (filterType == null || m.type == filterType) && (q.isEmpty() || m.title.lowercase().contains(q))
+                    }
+                    val filtering = q.isNotEmpty() || filterType != null
+                    countView.text = if (filtering) "${shown.size} dari ${listing.items.size} entri$extra" else "${listing.items.size} entri$extra"
+                    chip.text = "Jenis: ${filterType?.let { typeShort(it) } ?: "SEMUA"}  ▸ ketuk untuk ganti"
+                    if (shown.isEmpty()) {
+                        box.addView(TextView(context).apply {
+                            text = if (listing.items.isEmpty()) "Belum ada entri. Ketuk Tambah entri atau Impor banyak berkas." else "Tidak ada entri yang cocok."
+                            textSize = 14f
+                            setTextColor(Color.GRAY)
+                            setPadding(0, 24, 0, 24)
+                        })
+                    }
+                    for (m in shown) {
+                        val row = LinearLayout(context).apply {
+                            orientation = LinearLayout.VERTICAL
+                            setPadding(0, 24, 0, 24)
+                            isClickable = true
+                            setOnClickListener { openDetail(m) }
+                        }
+                        row.addView(TextView(context).apply { text = m.title; textSize = 16f; setTextColor(Color.WHITE) })
+                        row.addView(TextView(context).apply {
+                            text = "${typeShort(m.type)} · ${dateFmt.format(Date(m.modifiedAt))}"
+                            textSize = 12f
+                            setTextColor(Color.GRAY)
+                        })
+                        box.addView(row)
+                        box.addView(View(context).apply {
+                            setBackgroundColor(Color.parseColor("#2A2A2E"))
+                            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 2)
+                        })
+                    }
                 }
+
+                chip.setOnClickListener {
+                    val all = RecordType.values()
+                    val cur = filterType
+                    filterType = if (cur == null) all.first() else all.getOrNull(cur.ordinal + 1)
+                    fill()
+                }
+                search.addTextChangedListener(object : TextWatcher {
+                    override fun beforeTextChanged(s: CharSequence?, st: Int, c: Int, a: Int) {}
+                    override fun onTextChanged(s: CharSequence?, st: Int, b: Int, c: Int) {}
+                    override fun afterTextChanged(s: Editable?) { filterText = s?.toString().orEmpty(); fill() }
+                })
+                fill()
             }
-            button("Tambah entri") { showTypePick() }
-            button("Ganti master password") { showChangeMaster() }
             button("Cadangan terenkripsi") { showBackupForm() }
+            button("Ganti master password") { showChangeMaster() }
             button("Kunci sekarang") { SessionLock.lock(); render() }
         }
     }
@@ -187,7 +261,7 @@ class EntryUi(private val host: MainActivity) {
     private fun showTypePick(): Unit = host.run {
         screen {
             label("Jenis entri", 22f, amber)
-            for (t in RecordType.values()) button(typeName(t)) { showForm(t) }
+            for (t in RecordType.values()) { button(typeName(t)) { showForm(t) }; label(typeHint(t), 12f) }
             button("Batal") { show() }
         }
     }
@@ -481,6 +555,82 @@ class EntryUi(private val host: MainActivity) {
         }
     }
 
+    // MOLINA-H3-MULTI
+    private fun pickMulti() {
+        launchExternal(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+        }, REQ_IMPORT_MULTI)
+    }
+
+    private fun collectUris(data: Intent?): List<Uri> {
+        val out = ArrayList<Uri>()
+        val clip = data?.clipData
+        if (clip != null) {
+            for (i in 0 until clip.itemCount) clip.getItemAt(i).uri?.let { out.add(it) }
+        } else {
+            data?.data?.let { out.add(it) }
+        }
+        return out
+    }
+
+    private fun importMany(all: List<Uri>) {
+        val uris = all.take(MAX_BATCH)
+        val over = all.size - uris.size
+        var status: TextView? = null
+        host.run {
+            screen {
+                label("Impor banyak berkas", 22f, amber)
+                val s = TextView(context).apply { setTextColor(Color.WHITE); textSize = 15f; setPadding(0, 16, 0, 16); text = "Menyiapkan…" }
+                addView(s)
+                status = s
+                label("Jangan tutup layar ini sampai selesai.", 12f)
+            }
+        }
+        host.worker.execute {
+            val existing = HashSet<String>()
+            try { host.store.list().items.filter { it.type == RecordType.FILE }.forEach { existing.add(it.title) } } catch (e: Exception) { }
+            var ok = 0
+            val skipped = ArrayList<String>()
+            val failed = ArrayList<String>()
+            for ((i, uri) in uris.withIndex()) {
+                val name = (displayName(uri) ?: "berkas-${i + 1}").take(200)
+                host.ui.post { status?.text = "(${i + 1}/${uris.size}) $name" }
+                if (name in existing) { skipped.add(name); continue }
+                var bytes: ByteArray? = null
+                try {
+                    bytes = readLimited(uri)
+                    host.store.put(RecordType.FILE, name, listOf(name.toByteArray(Charsets.UTF_8), bytes, ByteArray(0)))
+                    existing.add(name)
+                    ok++
+                } catch (e: Exception) {
+                    failed.add("$name: ${e.message ?: "gagal"}")
+                } finally {
+                    bytes?.fill(0)
+                }
+                host.ui.post { host.onUserInteraction() }
+            }
+            host.ui.post {
+                if (!SessionLock.isUnlocked) host.render() else showImportResult(ok, skipped, failed, over)
+            }
+        }
+    }
+
+    private fun showImportResult(ok: Int, skipped: List<String>, failed: List<String>, over: Int): Unit = host.run {
+        screen {
+            label("Impor selesai", 22f, amber)
+            label("Berhasil: $ok", 16f, Color.WHITE)
+            if (skipped.isNotEmpty()) label("Dilewati (judul sama sudah ada): ${skipped.size}", 14f)
+            if (over > 0) label("Melebihi batas $MAX_BATCH berkas per impor: $over berkas tidak diproses. Ulangi impor untuk sisanya.", 14f, amber)
+            if (failed.isNotEmpty()) {
+                label("Gagal: ${failed.size}", 14f, red)
+                for (f in failed.take(10)) label(f, 12f, red)
+            }
+            button("Selesai") { show() }
+        }
+    }
+
     private fun pickFile() {
         launchExternal(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
@@ -489,7 +639,7 @@ class EntryUi(private val host: MainActivity) {
     }
 
     fun onResult(req: Int, res: Int, data: Intent?) {
-        if (req != REQ_IMPORT && req != REQ_EXPORT && req != REQ_BACKUP_EXPORT && req != REQ_BACKUP_PICK) return
+        if (req != REQ_IMPORT && req != REQ_IMPORT_MULTI && req != REQ_EXPORT && req != REQ_BACKUP_EXPORT && req != REQ_BACKUP_PICK) return
         host.ui.removeCallbacks(pickerLock)
         // Dilepas lewat post: onActivityResult datang SEBELUM onStart, dan onStart memeriksa holdScreen.
         host.ui.post { holdScreen = false }
@@ -499,6 +649,11 @@ class EntryUi(private val host: MainActivity) {
             return
         }
         if (!SessionLock.isUnlocked) { clearSensitive(); host.render(); return }
+        if (req == REQ_IMPORT_MULTI) {
+            val picked = collectUris(data)
+            if (res == Activity.RESULT_OK && picked.isNotEmpty()) importMany(picked)
+            return
+        }
         if (res != Activity.RESULT_OK || uri == null) { if (req == REQ_BACKUP_EXPORT) wipeBackupPass(); return }
         when (req) {
             REQ_IMPORT -> importFrom(uri)
