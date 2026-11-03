@@ -39,10 +39,10 @@ Isi entri (keystore, password, rahasia), vaultKey, master password, metadata (ju
 | 25 | Android 8 tanpa patch keamanan terbaru | Peringatan umur patch (> 365 hari) di layar unlock | Celah root publik; jangan simpan rahasia bernilai tertinggi di perangkat ini |
 | 26 | Kunci Keystore hanya perangkat lunak | Peringatan via KeyInfo.isInsideSecureHardware | Root dapat mengekstrak kunci; perlindungan bergantung pada master |
 | 27 | Accessibility service non-sistem | Unlock diblokir; dicek ulang saat rahasia ditampilkan | Layanan yang diaktifkan setelah rahasia tampil; keyboard jahat |
-| 28 | Ganti master tidak merotasi vaultKey | UI memperingatkan; rotasi vaultKey ada di roadmap | Salinan lama vault + master lama tetap membuka semua entri |
+| 28 | Master lama bocor setelah ganti master | Ganti master merotasi vaultKey dan mengenkripsi ulang semua record (staging, baca-ulang, penanda COMMIT, pulih otomatis bila terhenti); UI memperingatkan soal cadangan lama | Cadangan .mvault lama dan salinan lama vault tetap terbuka dengan kunci lama; record yang sudah rusak dilewati |
 
 ## Di luar cakupan
 Malware root aktif selama sesi terbuka; paksaan fisik terhadap pengguna.
 
 ## Roadmap
-Manifest tersegel (deteksi hapus/ganti), rotasi vaultKey, Argon2id, keypad aman, cadangan terenkripsi (P3).
+Manifest tersegel (deteksi hapus/ganti), Argon2id, keypad aman, cadangan terenkripsi (P3).

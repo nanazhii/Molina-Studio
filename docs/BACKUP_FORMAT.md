@@ -16,3 +16,4 @@ trailer(32) = HMAC-SHA256 atas semua byte sebelumnya; kunci = HMAC(vaultKey, "mo
 - Passphrase cadangan wajib berbeda dari master password (diperiksa dengan membuka header vault).
 - Pemulihan: staging, verifikasi HMAC dan tiap record, pindah, lalu `vault.mvlt` ditulis terakhir dengan master BARU.
 - Batas diakui: cadangan lama yang sah tetap bisa dipulihkan (rollback tidak terdeteksi); tanpa merge; tanpa Recovery Key (P3b).
+- Ganti master merotasi vaultKey. Cadangan lama tetap memuat vaultKey lamanya dan tetap bisa dipulihkan dengan passphrase-nya; buat cadangan baru setelah ganti master.

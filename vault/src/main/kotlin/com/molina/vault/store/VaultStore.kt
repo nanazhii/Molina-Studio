@@ -2,6 +2,7 @@ package com.molina.vault.store
 
 import android.content.Context
 import com.molina.vault.crypto.InvalidVaultException
+import com.molina.vault.crypto.WrongPasswordOrTamperedException
 import com.molina.vault.crypto.PasswordPolicy
 import com.molina.vault.crypto.SessionLock
 import com.molina.vault.crypto.VaultCrypto
@@ -21,6 +22,11 @@ private const val REC_VERSION: Byte = 2
 private const val HEAD = 4 + 1 + 4
 private const val MIN_SEALED = 29 // iv(12) + tag(16) + >=1 byte
 private const val MAX_PAYLOAD = 16 * 1024 * 1024
+private const val ROTATE_DIR = "rotate.tmp"      // MOLINA-H8-ROTATE
+private const val ROTATE_COMMIT = "COMMIT"
+
+/** Rotasi sudah dikomit tetapi belum selesai dipindahkan; akan dituntaskan otomatis saat vault dibuka. */
+class RotationPendingException : Exception("Rotasi kunci tertunda dan vault dikunci. Buka kembali vault untuk menuntaskannya.")
 
 /** Penyimpanan privat: noBackupFilesDir/vault. Satu file per entri, metadata dan isi dienkripsi terpisah. */
 class VaultStore(context: Context) {
@@ -38,15 +44,62 @@ class VaultStore(context: Context) {
     }
 
     fun unlock(master: CharArray) {
+        recoverRotation()
         val file = headerFile.readBytes()
         val key = VaultCrypto.unlock(master, file)
         if (VaultCrypto.needsUpgrade(file)) atomicWrite(headerFile, VaultCrypto.rewrap(master, key))
         SessionLock.begin(key)
     }
 
-    fun changeMaster(newMaster: CharArray) {
+    /**
+     * MOLINA-H8-ROTATE: ganti master SEKALIGUS merotasi vaultKey. Semua record dienkripsi ulang ke staging dan
+     * diverifikasi baca-ulang; baru setelah penanda COMMIT tertulis, berkas dipindahkan dan header diganti.
+     * Bila terhenti di tengah jalan, [recoverRotation] menuntaskan (ada COMMIT) atau membuang staging (tanpa COMMIT).
+     * Mengembalikan jumlah record yang sudah tidak terbaca dan dibiarkan apa adanya.
+     */
+    fun changeMaster(newMaster: CharArray): Int {
         require(PasswordPolicy.isAcceptable(newMaster)) { "Master password terlalu lemah" }
-        SessionLock.use { key -> atomicWrite(headerFile, VaultCrypto.rewrap(newMaster, key)) }
+        recoverRotation()
+        var skipped = 0
+        try {
+            SessionLock.rotate { old ->
+                val fresh = VaultCrypto.newVaultKey()
+                val staging = File(dir, ROTATE_DIR)
+                var committed = false
+                try {
+                    staging.deleteRecursively()
+                    check(staging.mkdirs()) { "Gagal menyiapkan staging" }
+                    var rotated = 0
+                    for (f in dir.listFiles().orEmpty().sortedBy { it.name }) {
+                        if (!f.isFile || !f.name.startsWith("rec_") || !f.name.endsWith(".mvr")) continue
+                        val id = f.name.removePrefix("rec_").removeSuffix(".mvr")
+                        if (!validId(id)) { skipped++; continue }
+                        try {
+                            stageRotated(old, fresh, f, id, staging)
+                            rotated++
+                        } catch (e: WrongPasswordOrTamperedException) {
+                            skipped++
+                        } catch (e: InvalidVaultException) {
+                            skipped++
+                        }
+                    }
+                    check(skipped == 0 || rotated > 0) { "Rotasi dibatalkan: tidak ada record yang bisa dibaca" }
+                    writeSynced(File(staging, headerFile.name), VaultCrypto.rewrap(newMaster, fresh))
+                    writeSynced(File(staging, ROTATE_COMMIT), byteArrayOf(1))
+                    committed = true
+                    commitRotation(staging)
+                } catch (e: Exception) {
+                    fresh.fill(0)
+                    if (!committed) staging.deleteRecursively()
+                    throw if (committed) RotationPendingException() else e
+                }
+                fresh
+            }
+        } catch (e: RotationPendingException) {
+            SessionLock.lock()
+            throw e
+        }
+        return skipped
     }
 
     /** true jika [pass] sama dengan master saat ini; dipakai agar passphrase cadangan berbeda dari master. */
@@ -115,6 +168,58 @@ class VaultStore(context: Context) {
     fun delete(id: String) {
         require(validId(id)) { "ID tidak valid" }
         SessionLock.use { _ -> secureDelete(recFile(id)) }
+    }
+
+    // ---- rotasi (MOLINA-H8-ROTATE) ----
+
+    private fun stageRotated(old: ByteArray, fresh: ByteArray, f: File, id: String, staging: File) {
+        val raw = f.readBytes()
+        try {
+            val n = sealedMetaSize(raw)
+            val meta = VaultCrypto.decryptRecord(old, raw.copyOfRange(HEAD, HEAD + n), aad("meta", id))
+            val data = try {
+                VaultCrypto.decryptRecord(old, raw.copyOfRange(HEAD + n, raw.size), aad("data", id))
+            } catch (e: Exception) {
+                meta.fill(0)
+                throw e
+            }
+            try {
+                val sealedMeta = VaultCrypto.encryptRecord(fresh, meta, aad("meta", id))
+                val sealedData = VaultCrypto.encryptRecord(fresh, data, aad("data", id))
+                VaultCrypto.decryptRecord(fresh, sealedMeta, aad("meta", id)).fill(0)
+                VaultCrypto.decryptRecord(fresh, sealedData, aad("data", id)).fill(0)
+                val out = ByteBuffer.allocate(HEAD + sealedMeta.size + sealedData.size)
+                    .put(REC_MAGIC).put(REC_VERSION).putInt(sealedMeta.size)
+                    .put(sealedMeta).put(sealedData).array()
+                writeSynced(File(staging, "rec_$id.mvr"), out)
+            } finally {
+                meta.fill(0)
+                data.fill(0)
+            }
+        } finally {
+            raw.fill(0)
+        }
+    }
+
+    /** Idempoten: aman dijalankan ulang setelah proses mati di tengah pemindahan. */
+    private fun commitRotation(staging: File) {
+        for (f in staging.listFiles().orEmpty()) {
+            if (!f.name.startsWith("rec_") || !f.name.endsWith(".mvr")) continue
+            if (!f.renameTo(File(dir, f.name))) throw IOException("Gagal memindahkan record rotasi")
+        }
+        val header = File(staging, headerFile.name)
+        if (header.exists() && !header.renameTo(headerFile)) throw IOException("Gagal memindahkan header rotasi")
+        staging.deleteRecursively()
+    }
+
+    internal fun recoverRotation() {
+        val staging = File(dir, ROTATE_DIR)
+        if (!staging.exists()) return
+        if (File(staging, ROTATE_COMMIT).exists()) commitRotation(staging) else staging.deleteRecursively()
+    }
+
+    private fun writeSynced(target: File, data: ByteArray) {
+        FileOutputStream(target).use { it.write(data); it.flush(); it.fd.sync() }
     }
 
     // ---- internal ----

@@ -42,6 +42,9 @@ object VaultCrypto {
         return Created(wrap(master, vaultKey), vaultKey)
     }
 
+    // MOLINA-H8-ROTATE: vaultKey baru untuk rotasi saat ganti master.
+    fun newVaultKey(): ByteArray = ByteArray(32).also(rng::nextBytes)
+
     /** Dipakai juga untuk ganti master password atau upgrade iterasi (salt baru). */
     fun rewrap(newMaster: CharArray, vaultKey: ByteArray): ByteArray = wrap(newMaster, vaultKey)
 

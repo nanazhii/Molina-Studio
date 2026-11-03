@@ -267,12 +267,12 @@ class EntryUi(private val host: MainActivity) {
         }
     }
 
-    // MOLINA-H2
+    // MOLINA-H2, MOLINA-H8-ROTATE
     private fun showChangeMaster(): Unit = host.run {
         clearSensitive()
         screen {
             label("Ganti master password", 22f, amber)
-            label("Hanya header vault yang dibungkus ulang; entri tidak diubah. Perhatian: kunci data (vaultKey) TIDAK dirotasi, jadi salinan lama vault atau cadangan .mvault tetap terbuka dengan master/passphrase lamanya. Jika master lama diduga bocor, buat vault baru lalu pindahkan entri.", 13f, Color.LTGRAY)
+            label("Master dan kunci data (vaultKey) diganti sekaligus: semua entri dienkripsi ulang. Cadangan .mvault lama dan salinan lama vault tetap terbuka dengan master atau passphrase lamanya, jadi buat cadangan baru setelah ini dan hapus yang lama. Jangan tutup aplikasi selama proses berjalan.", 13f, Color.LTGRAY)
             val cur = field("Master password saat ini")
             val n1 = field("Master password baru")
             val n2 = field("Ulangi master password baru")
@@ -298,9 +298,10 @@ class EntryUi(private val host: MainActivity) {
                 b.isEnabled = false
                 msg.text = "Memproses…"
                 worker.execute {
+                    val rotated = IntArray(1)
                     val err: String? = try {
                         if (!store.matchesMaster(old)) "Master password saat ini salah."
-                        else { store.changeMaster(a); null }
+                        else { rotated[0] = store.changeMaster(a); null }
                     } catch (e: Exception) {
                         e.message ?: "Gagal mengganti master"
                     }
@@ -308,8 +309,12 @@ class EntryUi(private val host: MainActivity) {
                     a.fill(Char.MIN_VALUE)
                     ui.post {
                         if (err == null) {
-                            Toast.makeText(host, "Master password diganti. Cadangan lama tetap memakai passphrase-nya sendiri.", Toast.LENGTH_LONG).show()
+                            val extra = if (rotated[0] > 0) " ${rotated[0]} entri rusak dilewati." else ""
+                            Toast.makeText(host, "Master dan kunci data diganti. Buat cadangan .mvault baru.$extra", Toast.LENGTH_LONG).show()
                             if (SessionLock.isUnlocked) show()
+                        } else if (!SessionLock.isUnlocked) {
+                            Toast.makeText(host, err, Toast.LENGTH_LONG).show()
+                            host.render()
                         } else {
                             msg.text = err
                             b.isEnabled = true

@@ -16,6 +16,19 @@ object SessionLock {
         key = null
     }
 
+    // MOLINA-H8-ROTATE
+    /**
+     * Rotasi kunci: [block] menerima kunci lama dan mengembalikan kunci baru. Seluruh proses memegang kunci
+     * monitor, jadi auto-lock tidak bisa menyela dan sesi tidak pernah terbuka kembali sendiri.
+     * Jika [block] melempar, kunci lama tetap dipakai; [block] wajib me-wipe kunci baru yang gagal dikomit.
+     */
+    @Synchronized fun rotate(block: (ByteArray) -> ByteArray) {
+        val old = key ?: throw IllegalStateException("Vault terkunci")
+        val fresh = block(old)
+        old.fill(0)
+        key = fresh
+    }
+
     @Synchronized fun <T> use(block: (ByteArray) -> T): T {
         val k = key ?: throw IllegalStateException("Vault terkunci")
         return block(k)
