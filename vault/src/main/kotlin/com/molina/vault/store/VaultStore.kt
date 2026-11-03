@@ -22,6 +22,8 @@ import java.util.UUID
 private val REC_MAGIC = byteArrayOf(0x4D, 0x56, 0x52, 0x43) // "MVRC"
 private const val REC_VERSION: Byte = 2
 private const val REC_VERSION_BLOB: Byte = 3   // MOLINA-H11-GLUE (lihat BlobRecord)
+/** Batas per berkas gudang (streaming v3). */
+const val VAULT_MAX_FILE_BYTES = StreamCrypto.MAX_STREAM_BYTES
 /** Rekomendasi: blob <= 1 MiB tetap v2 (put), di atasnya v3 (putFile). Belum dikonfirmasi pengguna. */
 const val VAULT_LARGE_THRESHOLD = 1L * 1024 * 1024
 private const val SPACE_MARGIN = 8L * 1024 * 1024
@@ -392,12 +394,15 @@ class VaultStore(context: Context) {
         }
     }
 
-    private fun sealer(key: ByteArray): RecordSealer = object : RecordSealer {
+    internal fun sealer(key: ByteArray): RecordSealer = object : RecordSealer {
         override fun seal(kind: String, id: String, plain: ByteArray): ByteArray =
             VaultCrypto.encryptRecord(key, plain, aad(kind, id))
         override fun open(kind: String, id: String, sealed: ByteArray): ByteArray =
             VaultCrypto.decryptRecord(key, sealed, aad(kind, id))
     }
+
+    /** Sisa ruang kosong di penyimpanan privat Vault (untuk ditampilkan di layar gudang). */
+    fun freeBytes(): Long = freeSpace()
 
     internal fun needSpace(bytes: Long) {
         val free = freeSpace()

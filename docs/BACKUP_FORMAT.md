@@ -17,3 +17,12 @@ trailer(32) = HMAC-SHA256 atas semua byte sebelumnya; kunci = HMAC(vaultKey, "mo
 - Pemulihan: staging, verifikasi HMAC dan tiap record, pindah, lalu `vault.mvlt` ditulis terakhir dengan master BARU.
 - Batas diakui: cadangan lama yang sah tetap bisa dipulihkan (rollback tidak terdeteksi); tanpa merge; tanpa Recovery Key (P3b).
 - Ganti master merotasi vaultKey. Cadangan lama tetap memuat vaultKey lamanya dan tetap bisa dipulihkan dengan passphrase-nya; buat cadangan baru setelah ganti master.
+
+## Berkas besar (record v3) dan streaming (MOLINA-H12-BACKUP)
+
+- Format cadangan TIDAK berubah (tetap versi 1, byte identik). Yang berubah hanya batas: `MAX_RECORD_BYTES` naik dari 33 MiB menjadi 258 MiB (256 MiB blob + kepala record v3 + tag per chunk; panjang record tetap `Int`, jadi tetap di bawah 2 GiB).
+- Ekspor dan pemulihan berjalan streaming dengan buffer 64 KB; HMAC diperbarui per blok. Memori tidak bergantung ukuran berkas.
+- Kompatibilitas: cadangan yang memuat record > 33 MiB ditolak oleh build lama ("Ukuran record tidak wajar") dan record v3 tidak dikenali build sebelum tahap 2b. Cadangan tanpa record besar tetap terbaca di semua build.
+- Opsi "database saja": `export(includeLarge = false)` melewati record v3; jumlahnya dilaporkan di `ExportResult.omitted`. `estimateBytes()` memberi ukuran cadangan sebelum ditulis.
+- Pemulihan: cek ruang kosong per record sebelum menulis ke staging (`InsufficientSpaceException`); setelah HMAC lolos, record v3 diperiksa penuh (setiap chunk). Record v3 yang rusak dilewati dan dihitung pada nilai kembalian `restore()`; bila tidak ada yang bisa dipulihkan, seluruh pemulihan dibatalkan.
+- Ekspor yang gagal di tengah meninggalkan berkas setengah jadi di tujuan: pemanggil wajib menghapusnya (SAF: `DocumentsContract.deleteDocument`).

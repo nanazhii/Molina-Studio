@@ -16,10 +16,10 @@ import java.io.RandomAccessFile
 import java.security.MessageDigest
 import java.util.UUID
 
-private const val MASTER = "kuda-biru-melompat-pagar-77!"
-private const val NEW_MASTER = "bulan-merah-menari-ladang-91!"
+internal const val MASTER = "kuda-biru-melompat-pagar-77!"
+internal const val NEW_MASTER = "bulan-merah-menari-ladang-91!"
 
-private fun gen(total: Long): InputStream = object : InputStream() {
+internal fun gen(total: Long): InputStream = object : InputStream() {
     var pos = 0L
     override fun read(): Int = if (pos >= total) -1 else (((pos++ * 131) xor (pos ushr 5)).toInt() and 0xFF)
     override fun read(b: ByteArray, off: Int, len: Int): Int {
@@ -30,19 +30,19 @@ private fun gen(total: Long): InputStream = object : InputStream() {
     }
 }
 
-private fun genDigest(total: Long): ByteArray {
+internal fun genDigest(total: Long): ByteArray {
     val md = MessageDigest.getInstance("SHA-256"); val ins = gen(total); val buf = ByteArray(65536)
     while (true) { val n = ins.read(buf); if (n < 0) break; md.update(buf, 0, n) }
     return md.digest()
 }
 
-private class Sink : OutputStream() {
+internal class Sink : OutputStream() {
     val md: MessageDigest = MessageDigest.getInstance("SHA-256"); var count = 0L
     override fun write(b: Int) { md.update(b.toByte()); count++ }
     override fun write(b: ByteArray, off: Int, len: Int) { md.update(b, off, len); count += len }
 }
 
-private fun withStore(body: (VaultStore, File) -> Unit) {
+internal fun withStore(body: (VaultStore, File) -> Unit) {
     val tmp = File.createTempFile("vstore", "").also { it.delete(); it.mkdirs() }
     try {
         SessionLock.lock()

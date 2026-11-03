@@ -23,7 +23,8 @@ object BackupCrypto {
     const val TARGET_ITERATIONS = 2_000_000
     const val MAX_ITERATIONS = 10_000_000
     const val MAX_RECORDS = 100_000
-    const val MAX_RECORD_BYTES = 33 * 1024 * 1024
+    // MOLINA-H12-BACKUP: 256 MiB blob + kepala record v3 (meta, small <= 1 MiB) + tag per chunk; cukup di bawah 2 GiB (panjang = Int)
+    const val MAX_RECORD_BYTES = 258 * 1024 * 1024
     const val ID_SIZE = 36
     const val MAC_SIZE = 32
     const val HEADER_SIZE = 4 + 1 + 4 + 16 + 4
