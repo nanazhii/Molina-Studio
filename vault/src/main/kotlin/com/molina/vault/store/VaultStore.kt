@@ -23,8 +23,8 @@ private const val MAX_PAYLOAD = 16 * 1024 * 1024
 
 /** Penyimpanan privat: noBackupFilesDir/vault. Satu file per entri, metadata dan isi dienkripsi terpisah. */
 class VaultStore(context: Context) {
-    private val dir = File(context.applicationContext.noBackupFilesDir, "vault").apply { mkdirs() }
-    private val headerFile = File(dir, "vault.mvlt")
+    internal val dir = File(context.applicationContext.noBackupFilesDir, "vault").apply { mkdirs() }
+    internal val headerFile = File(dir, "vault.mvlt")
 
     fun exists(): Boolean = headerFile.exists()
 
@@ -46,6 +46,13 @@ class VaultStore(context: Context) {
     fun changeMaster(newMaster: CharArray) {
         require(PasswordPolicy.isAcceptable(newMaster)) { "Master password terlalu lemah" }
         SessionLock.use { key -> atomicWrite(headerFile, VaultCrypto.rewrap(newMaster, key)) }
+    }
+
+    /** true jika [pass] sama dengan master saat ini; dipakai agar passphrase cadangan berbeda dari master. */
+    fun matchesMaster(pass: CharArray): Boolean {
+        val k = try { VaultCrypto.unlock(pass, headerFile.readBytes()) } catch (e: Exception) { return false }
+        k.fill(0)
+        return true
     }
 
     fun list(): VaultListing = SessionLock.use { key ->
@@ -98,7 +105,7 @@ class VaultStore(context: Context) {
 
     // ---- internal ----
 
-    private fun readMeta(key: ByteArray, f: File): RecordMeta {
+    internal fun readMeta(key: ByteArray, f: File): RecordMeta {
         val id = f.name.removePrefix("rec_").removeSuffix(".mvr")
         require(validId(id)) { "Nama file tidak valid" }
         val sealed = DataInputStream(FileInputStream(f).buffered()).use { d ->
@@ -130,14 +137,14 @@ class VaultStore(context: Context) {
         return n
     }
 
-    private fun validId(id: String): Boolean =
+    internal fun validId(id: String): Boolean =
         runCatching { UUID.fromString(id).toString() == id }.getOrDefault(false)
 
     private fun recFile(id: String) = File(dir, "rec_$id.mvr")
 
     private fun aad(kind: String, id: String): ByteArray = "$kind|$id".toByteArray(Charsets.UTF_8)
 
-    private fun atomicWrite(target: File, data: ByteArray) {
+    internal fun atomicWrite(target: File, data: ByteArray) {
         val tmp = File(target.parentFile, target.name + ".tmp")
         FileOutputStream(tmp).use { it.write(data); it.flush(); it.fd.sync() }
         if (!tmp.renameTo(target)) {

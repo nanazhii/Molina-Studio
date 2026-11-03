@@ -13,7 +13,11 @@ import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
+import com.molina.vault.crypto.InvalidVaultException
+import com.molina.vault.crypto.PasswordPolicy
 import com.molina.vault.crypto.SessionLock
+import com.molina.vault.crypto.WrongPasswordOrTamperedException
+import com.molina.vault.store.BackupStore
 import com.molina.vault.store.RecordMeta
 import com.molina.vault.store.RecordType
 import java.io.ByteArrayOutputStream
@@ -21,9 +25,14 @@ import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.CharBuffer
 import java.security.MessageDigest
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 private const val REQ_IMPORT = 4101
 private const val REQ_EXPORT = 4102
+private const val REQ_BACKUP_EXPORT = 4103
+private const val REQ_BACKUP_PICK = 4104
 private const val MAX_FILE = 16 * 1024 * 1024
 private const val MASK = "••••••••"
 private const val PICKER_TIMEOUT_MS = 60_000L
@@ -56,6 +65,11 @@ class EntryUi(private val host: MainActivity) {
     private var detailFields: List<ByteArray> = emptyList()
     private var detailMeta: RecordMeta? = null
     private var exportIndex = -1
+    private var backupPass: CharArray? = null
+    private var restoreUri: Uri? = null
+
+    /** true jika berkas cadangan sudah dipilih dan menunggu passphrase serta master baru. */
+    val hasPendingRestore: Boolean get() = restoreUri != null
     private val pickerLock = Runnable { SessionLock.lock(); clearSensitive() }
 
     fun show() { clearSensitive(); showList() }
@@ -64,6 +78,7 @@ class EntryUi(private val host: MainActivity) {
         pickedBytes?.fill(0); pickedBytes = null
         detailFields.forEach { it.fill(0) }; detailFields = emptyList()
         detailMeta = null; nameField = null; fileInfo = null; exportIndex = -1
+        backupPass?.fill(Char.MIN_VALUE); backupPass = null
     }
 
     private fun typeName(t: RecordType) = when (t) {
@@ -96,6 +111,7 @@ class EntryUi(private val host: MainActivity) {
                 }
             }
             button("Tambah entri") { showTypePick() }
+            button("Cadangan terenkripsi") { showBackupForm() }
             button("Kunci sekarang") { SessionLock.lock(); render() }
         }
     }
@@ -184,6 +200,138 @@ class EntryUi(private val host: MainActivity) {
         }
     }
 
+    // ---------- cadangan terenkripsi (.mvault) ----------
+    private fun wipeBackupPass() { backupPass?.fill(Char.MIN_VALUE); backupPass = null }
+
+    private fun showBackupForm(): Unit = host.run {
+        clearSensitive()
+        screen {
+            label("Cadangan terenkripsi", 22f, amber)
+            label("Berkas .mvault dienkripsi dengan passphrase cadangan yang BERBEDA dari master password. Tanpa passphrase ini cadangan tidak bisa dibuka dan tidak ada pemulihan. Simpan di penyimpanan lokal atau media terpisah, jangan di tempat yang sama dengan catatan passphrase.", 13f, Color.LTGRAY)
+            val p1 = field("Passphrase cadangan")
+            val p2 = field("Ulangi passphrase cadangan")
+            val msg = messageView()
+            button("Pilih lokasi dan ekspor") { b ->
+                val a = take(p1)
+                val c = take(p2)
+                val same = a.contentEquals(c)
+                c.fill(Char.MIN_VALUE)
+                val problem = when {
+                    !same -> "Passphrase tidak sama."
+                    !PasswordPolicy.isAcceptable(a) -> "Passphrase terlalu lemah."
+                    else -> null
+                }
+                if (problem != null) { a.fill(Char.MIN_VALUE); msg.text = problem; return@button }
+                b.isEnabled = false
+                msg.text = "Memeriksa…"
+                worker.execute {
+                    val sameAsMaster = store.matchesMaster(a)
+                    ui.post {
+                        if (sameAsMaster || !SessionLock.isUnlocked) {
+                            a.fill(Char.MIN_VALUE)
+                            msg.text = if (sameAsMaster) "Passphrase cadangan harus berbeda dari master password." else "Vault terkunci."
+                            b.isEnabled = true
+                        } else {
+                            wipeBackupPass()
+                            backupPass = a
+                            val stamp = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())
+                            launchExternal(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                                addCategory(Intent.CATEGORY_OPENABLE)
+                                type = "application/octet-stream"
+                                putExtra(Intent.EXTRA_TITLE, "molina-vault-$stamp.mvault")
+                            }, REQ_BACKUP_EXPORT)
+                        }
+                    }
+                }
+            }
+            button("Batal") { show() }
+        }
+    }
+
+    private fun backupTo(uri: Uri) {
+        val pass = backupPass ?: return
+        backupPass = null
+        Toast.makeText(host, "Mengekspor cadangan…", Toast.LENGTH_SHORT).show()
+        host.worker.execute {
+            val r = runCatching {
+                val out = host.contentResolver.openOutputStream(uri, "wt") ?: throw IOException("Tidak bisa menulis berkas")
+                out.use { BackupStore.export(host.store, it, pass) }
+            }
+            pass.fill(Char.MIN_VALUE)
+            host.ui.post {
+                val res = r.getOrNull()
+                val text = when {
+                    res == null -> "Gagal mengekspor cadangan. Hapus berkas yang terbentuk."
+                    res.skipped > 0 -> "Cadangan ${res.count} entri. ${res.skipped} entri rusak dilewati."
+                    else -> "Cadangan ${res.count} entri tersimpan. Uji pulihkan sebelum mengandalkannya."
+                }
+                Toast.makeText(host, text, Toast.LENGTH_LONG).show()
+                if (SessionLock.isUnlocked) show()
+            }
+        }
+    }
+
+    /** Dipanggil dari layar setup (vault kosong). */
+    fun pickBackup() {
+        launchExternal(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+        }, REQ_BACKUP_PICK)
+    }
+
+    fun showRestoreForm() {
+        val uri = restoreUri ?: return
+        host.run {
+            screen {
+                label("MOLINA VAULT", 26f, amber)
+                label("Pulihkan: ${runCatching { displayName(uri) }.getOrNull() ?: "berkas .mvault"}", 15f, Color.WHITE)
+                label("Vault di perangkat ini kosong, jadi cadangan dipulihkan penuh (tanpa gabung). Masukkan passphrase cadangan, lalu pilih master password BARU untuk perangkat ini.", 13f, Color.LTGRAY)
+                val pb = field("Passphrase cadangan")
+                val m1 = field("Master password baru")
+                val m2 = field("Ulangi master password baru")
+                val msg = messageView()
+                button("Pulihkan") { b ->
+                    val bp = take(pb)
+                    val a = take(m1)
+                    val c = take(m2)
+                    val same = a.contentEquals(c)
+                    c.fill(Char.MIN_VALUE)
+                    val problem = when {
+                        !same -> "Master baru tidak sama."
+                        !PasswordPolicy.isAcceptable(a) -> "Master password baru terlalu lemah."
+                        bp.contentEquals(a) -> "Master baru harus berbeda dari passphrase cadangan."
+                        else -> null
+                    }
+                    if (problem != null) { bp.fill(Char.MIN_VALUE); a.fill(Char.MIN_VALUE); msg.text = problem; return@button }
+                    b.isEnabled = false
+                    msg.text = "Memulihkan… (beberapa detik)"
+                    worker.execute {
+                        val err: String? = try {
+                            val ins = contentResolver.openInputStream(uri) ?: throw IOException("Tidak bisa membuka berkas")
+                            ins.use { BackupStore.restore(store, it, bp, a) }
+                            null
+                        } catch (e: WrongPasswordOrTamperedException) { "Passphrase salah atau cadangan rusak." }
+                        catch (e: InvalidVaultException) { e.message ?: "Cadangan tidak valid." }
+                        catch (e: Exception) { "Gagal memulihkan cadangan." }
+                        bp.fill(Char.MIN_VALUE)
+                        a.fill(Char.MIN_VALUE)
+                        ui.post {
+                            if (err == null) {
+                                restoreUri = null
+                                Toast.makeText(host, "Cadangan dipulihkan. Buka dengan master password baru.", Toast.LENGTH_LONG).show()
+                                render()
+                            } else {
+                                msg.text = err
+                                b.isEnabled = true
+                            }
+                        }
+                    }
+                }
+                button("Batal") { restoreUri = null; render() }
+            }
+        }
+    }
+
     // ---------- picker / exporter ----------
     private fun launchExternal(i: Intent, req: Int) {
         host.suppressLockOnce = true
@@ -207,13 +355,22 @@ class EntryUi(private val host: MainActivity) {
     }
 
     fun onResult(req: Int, res: Int, data: Intent?) {
-        if (req != REQ_IMPORT && req != REQ_EXPORT) return
+        if (req != REQ_IMPORT && req != REQ_EXPORT && req != REQ_BACKUP_EXPORT && req != REQ_BACKUP_PICK) return
         host.ui.removeCallbacks(pickerLock)
-        holdScreen = false
-        if (!SessionLock.isUnlocked) { clearSensitive(); host.render(); return }
+        // Dilepas lewat post: onActivityResult datang SEBELUM onStart, dan onStart memeriksa holdScreen.
+        host.ui.post { holdScreen = false }
         val uri = data?.data
-        if (res != Activity.RESULT_OK || uri == null) return
-        if (req == REQ_IMPORT) importFrom(uri) else exportTo(uri)
+        if (req == REQ_BACKUP_PICK) {
+            if (res == Activity.RESULT_OK && uri != null && !SessionLock.isUnlocked) restoreUri = uri
+            return
+        }
+        if (!SessionLock.isUnlocked) { clearSensitive(); host.render(); return }
+        if (res != Activity.RESULT_OK || uri == null) { if (req == REQ_BACKUP_EXPORT) wipeBackupPass(); return }
+        when (req) {
+            REQ_IMPORT -> importFrom(uri)
+            REQ_EXPORT -> exportTo(uri)
+            else -> backupTo(uri)
+        }
     }
 
     private fun importFrom(uri: Uri) {

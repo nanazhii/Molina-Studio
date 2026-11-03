@@ -65,7 +65,7 @@ class MainActivity : BunkerActivity() {
         entries.clearSensitive()
         ui.removeCallbacks(autoLock)
         when {
-            !store.exists() -> showSetup()
+            !store.exists() -> if (entries.hasPendingRestore) entries.showRestoreForm() else showSetup()
             !SessionLock.isUnlocked -> showUnlock()
             else -> { entries.show(); ui.postDelayed(autoLock, 120_000) }
         }
@@ -80,7 +80,7 @@ class MainActivity : BunkerActivity() {
     internal fun LinearLayout.label(t: String, size: Float = 15f, color: Int = Color.LTGRAY) =
         addView(TextView(context).apply { text = t; textSize = size; setTextColor(color); setPadding(0, 16, 0, 16) })
 
-    private fun LinearLayout.field(hintText: String): EditText {
+    internal fun LinearLayout.field(hintText: String): EditText {
         val e = EditText(context).apply {
             hint = hintText
             setHintTextColor(Color.GRAY)
@@ -163,6 +163,7 @@ class MainActivity : BunkerActivity() {
                 }
             }
         }
+        button("Pulihkan dari cadangan") { entries.pickBackup() }
     }
 
     private fun showUnlock() = screen {
