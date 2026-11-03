@@ -14,6 +14,9 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.text.InputType
+import android.view.ActionMode
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
@@ -58,7 +61,7 @@ class MainActivity : BunkerActivity() {
     }
 
     override fun onUserInteraction() {
-        if (SessionLock.isUnlocked) { ui.removeCallbacks(autoLock); ui.postDelayed(autoLock, 120_000) }
+        if (SessionLock.isUnlocked) { ui.removeCallbacks(autoLock); ui.postDelayed(autoLock, store.prefs.autoLockMs) }
     }
 
     @Deprecated("Deprecated in Java")
@@ -75,7 +78,7 @@ class MainActivity : BunkerActivity() {
         when {
             !store.exists() -> if (entries.hasPendingRestore) entries.showRestoreForm() else showSetup()
             !SessionLock.isUnlocked -> showUnlock()
-            else -> { entries.show(); ui.postDelayed(autoLock, 120_000) }
+            else -> { entries.show(); ui.postDelayed(autoLock, store.prefs.autoLockMs) }
         }
     }
 
@@ -112,6 +115,7 @@ class MainActivity : BunkerActivity() {
         "Batal", "Kembali", "Kunci sekarang", "Tutup pratinjau",
         "Impor banyak berkas", "Cadangan terenkripsi", "Ganti master password", "Pulihkan dari cadangan",
         "Ekspor file…", "Tampilkan 10 detik", "Pilih file…",
+        "Pengaturan", "Pindah folder", "30 detik", "2 menit", "5 menit",
     )
     private val dangerLabels = setOf("Hapus entri")
     private val surface = Color.parseColor("#141416")
@@ -214,6 +218,26 @@ class MainActivity : BunkerActivity() {
         setColor(Color.argb(40, Color.red(color), Color.green(color), Color.blue(color)))
     }
 
+    // MOLINA-H7B: lihat/sembunyikan kolom password. Selama terlihat, menu seleksi (salin/potong) dimatikan.
+    internal fun LinearLayout.revealToggle(vararg fields: EditText) {
+        val cb = CheckBox(context).apply { text = "Tampilkan password"; setTextColor(Color.LTGRAY) }
+        cb.setOnCheckedChangeListener { _, on ->
+            val variation = if (on) InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD else InputType.TYPE_TEXT_VARIATION_PASSWORD
+            for (e in fields) {
+                val sel = e.selectionEnd
+                e.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS or variation
+                e.customSelectionActionModeCallback = if (on) object : ActionMode.Callback {
+                    override fun onCreateActionMode(mode: ActionMode?, menu: Menu?): Boolean = false
+                    override fun onPrepareActionMode(mode: ActionMode?, menu: Menu?): Boolean = false
+                    override fun onActionItemClicked(mode: ActionMode?, item: MenuItem?): Boolean = false
+                    override fun onDestroyActionMode(mode: ActionMode?) {}
+                } else null
+                if (sel >= 0) e.setSelection(sel)
+            }
+        }
+        addView(cb)
+    }
+
     internal fun LinearLayout.messageView(): TextView {
         val m = TextView(context).apply { setTextColor(red); setPadding(0, 16, 0, 16) }
         addView(m)
@@ -251,6 +275,7 @@ class MainActivity : BunkerActivity() {
         label("Buat vault baru. Tidak ada pemulihan: jika master password hilang atau ponsel di-reset, data tidak dapat dibuka. Minimal 14 karakter, atau 5 kata.")
         val p1 = field("Master password")
         val p2 = field("Ulangi master password")
+        revealToggle(p1, p2)
         val ack = CheckBox(context).apply { text = "Saya paham tidak ada pemulihan"; setTextColor(Color.LTGRAY) }
         addView(ack)
         val msg = messageView()
@@ -288,6 +313,7 @@ class MainActivity : BunkerActivity() {
         }
         for (w in DeviceHealth.warnings()) label(w, 13f, amber)
         val p = field("Master password")
+        revealToggle(p)
         val msg = messageView()
         val btn = button("Buka") { b ->
             val pw = take(p)

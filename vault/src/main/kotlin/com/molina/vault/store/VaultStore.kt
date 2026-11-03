@@ -32,6 +32,7 @@ class RotationPendingException : Exception("Rotasi kunci tertunda dan vault diku
 class VaultStore(context: Context) {
     internal val dir = File(context.applicationContext.noBackupFilesDir, "vault").apply { mkdirs() }
     internal val headerFile = File(dir, "vault.mvlt")
+    internal val prefs = VaultPrefs(context)   // MOLINA-H7B
 
     fun exists(): Boolean = headerFile.exists()
 
@@ -149,6 +150,7 @@ class VaultStore(context: Context) {
                     .put(REC_MAGIC).put(REC_VERSION).putInt(sealedMeta.size)
                     .put(sealedMeta).put(sealedData).array()
                 atomicWrite(recFile(id), out)
+                prefs.noteChange()
                 RecordMeta(id, type, title, now, cleanFolder, cleanTags)
             }
         } finally {
@@ -167,7 +169,50 @@ class VaultStore(context: Context) {
 
     fun delete(id: String) {
         require(validId(id)) { "ID tidak valid" }
-        SessionLock.use { _ -> secureDelete(recFile(id)) }
+        SessionLock.use { _ -> secureDelete(recFile(id)); prefs.noteChange() }
+    }
+
+    /** MOLINA-H7B: ubah folder (dan tag bila diberikan) tanpa menyentuh isi; hanya metadata yang dienkripsi ulang. */
+    fun relabel(id: String, folder: String, tags: List<String>? = null) {
+        require(validId(id)) { "ID tidak valid" }
+        val cleanFolder = LabelPolicy.cleanFolder(folder)
+        SessionLock.use { key ->
+            val raw = recFile(id).readBytes()
+            try {
+                val n = sealedMetaSize(raw)
+                val plain = VaultCrypto.decryptRecord(key, raw.copyOfRange(HEAD, HEAD + n), aad("meta", id))
+                val j = try { JSONObject(String(plain, Charsets.UTF_8)) } finally { plain.fill(0) }
+                if (j.getString("id") != id) throw InvalidVaultException("ID tidak cocok")
+                if (cleanFolder.isEmpty()) j.remove("folder") else j.put("folder", cleanFolder)
+                if (tags != null) {
+                    val clean = tags.take(LabelPolicy.MAX_TAGS).map { it.take(LabelPolicy.MAX_TAG) }.filter { it.isNotEmpty() }
+                    if (clean.isEmpty()) j.remove("tags") else j.put("tags", JSONArray(clean))
+                }
+                val metaJson = j.toString().toByteArray(Charsets.UTF_8)
+                val sealedMeta = VaultCrypto.encryptRecord(key, metaJson, aad("meta", id))
+                metaJson.fill(0)
+                val rest = raw.size - HEAD - n
+                val out = ByteBuffer.allocate(HEAD + sealedMeta.size + rest)
+                    .put(REC_MAGIC).put(REC_VERSION).putInt(sealedMeta.size)
+                    .put(sealedMeta).put(raw, HEAD + n, rest).array()
+                atomicWrite(recFile(id), out)
+                prefs.noteChange()
+            } finally {
+                raw.fill(0)
+            }
+        }
+    }
+
+    /** Memindahkan semua entri dari folder [from] ke [to] (kosong = tanpa folder). Nama yang sudah ada digabung. */
+    fun renameFolder(from: String, to: String): Int {
+        var moved = 0
+        for (m in list().items) {
+            if (m.folder == from) {
+                relabel(m.id, to)
+                moved++
+            }
+        }
+        return moved
     }
 
     // ---- rotasi (MOLINA-H8-ROTATE) ----

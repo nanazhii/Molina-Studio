@@ -132,6 +132,19 @@ class EntryUi(private val host: MainActivity) {
     private fun showList(): Unit = host.run {
         screen {
             brandHeader()
+            backupReminder()?.let { msg ->
+                addView(TextView(context).apply {
+                    text = msg
+                    textSize = 13f
+                    setTextColor(amber)
+                    background = host.cardDrawable()
+                    setPadding(host.dp(14f), host.dp(10f), host.dp(14f), host.dp(10f))
+                    isClickable = true
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                        .apply { setMargins(0, host.dp(12f), 0, host.dp(4f)) }
+                    setOnClickListener { showBackupForm() }
+                })
+            }
             button("Tambah entri") { showTypePick() }
             button("Impor banyak berkas") { pickMulti() }
             val listing = try { store.list() } catch (e: Exception) { null }
@@ -263,7 +276,119 @@ class EntryUi(private val host: MainActivity) {
             }
             button("Cadangan terenkripsi") { showBackupForm() }
             button("Ganti master password") { showChangeMaster() }
+            button("Pengaturan") { showSettings() }
             button("Kunci sekarang") { SessionLock.lock(); render() }
+        }
+    }
+
+    // ---------- pengaturan, pengingat cadangan, folder (MOLINA-H7B) ----------
+    private fun backupReminder(): String? {
+        val prefs = host.store.prefs
+        val changes = prefs.changesSinceBackup
+        if (changes == 0) return null
+        val last = prefs.lastBackupAt
+        if (last == 0L) return "Belum pernah mencadangkan: $changes perubahan belum aman dari uninstall atau reset. Ketuk untuk membuat cadangan."
+        val days = (System.currentTimeMillis() - last) / 86_400_000L
+        if (changes >= 5 || days >= 14) return "$changes perubahan sejak cadangan terakhir ($days hari lalu). Ketuk untuk mencadangkan."
+        return null
+    }
+
+    private fun backupStatus(): String {
+        val prefs = host.store.prefs
+        val last = prefs.lastBackupAt
+        val ch = prefs.changesSinceBackup
+        if (last == 0L) return if (ch == 0) "belum pernah dibuat" else "belum pernah dibuat ($ch perubahan belum tercadangkan)"
+        return "terakhir ${dateFmt.format(Date(last))}, $ch perubahan sejak itu"
+    }
+
+    private fun LinearLayout.folderCard(caption: String, onClick: () -> Unit) {
+        addView(TextView(context).apply {
+            text = caption
+            textSize = 15f
+            setTextColor(Color.WHITE)
+            background = host.cardDrawable()
+            setPadding(host.dp(14f), host.dp(10f), host.dp(14f), host.dp(10f))
+            isClickable = true
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                .apply { setMargins(0, 0, 0, host.dp(8f)) }
+            setOnClickListener { onClick() }
+        })
+    }
+
+    private fun showSettings(): Unit = host.run {
+        clearSensitive()
+        screen {
+            label("Pengaturan", 22f, amber)
+            label("Auto-lock: vault terkunci setelah tidak disentuh selama waktu ini, dan langsung saat aplikasi ditinggalkan.", 13f, Color.LTGRAY)
+            val cur = store.prefs.autoLockMs
+            for ((name, ms) in listOf("30 detik" to 30_000L, "2 menit" to 120_000L, "5 menit" to 300_000L)) {
+                button(if (cur == ms) "\u2713 $name" else name) { store.prefs.autoLockMs = ms; host.onUserInteraction(); showSettings() }
+            }
+            label("Cadangan: ${backupStatus()}", 13f, Color.LTGRAY)
+            button("Cadangan terenkripsi") { showBackupForm() }
+            val items = try { store.list().items } catch (e: Exception) { emptyList() }
+            val folders = items.map { it.folder }.filter { it.isNotEmpty() }.distinct().sortedBy { it.lowercase() }
+            if (folders.isNotEmpty()) {
+                label("Folder (ketuk untuk ganti nama)", 13f, Color.LTGRAY)
+                for (f in folders) folderCard("$f \u00b7 ${items.count { it.folder == f }} entri") { showRenameFolder(f) }
+            }
+            button("Kembali") { show() }
+        }
+    }
+
+    private fun showRenameFolder(old: String): Unit = host.run {
+        clearSensitive()
+        screen {
+            label("Ganti nama folder", 22f, amber)
+            label("Semua entri di folder \"$old\" dipindah ke nama baru. Bila nama baru sudah ada, isinya digabung. Kosongkan nama untuk mengeluarkan entri dari folder.", 13f, Color.LTGRAY)
+            val input = makeInput(Spec("Nama folder baru", Kind.TEXT)).apply { setSingleLine(true); setText(old) }
+            addView(input)
+            val msg = messageView()
+            button("Simpan") { b ->
+                val to = LabelPolicy.cleanFolder(input.text.toString())
+                b.isEnabled = false
+                msg.text = "Memproses\u2026"
+                worker.execute {
+                    val r = runCatching { store.renameFolder(old, to) }
+                    ui.post {
+                        if (r.isSuccess) {
+                            if (filterFolder == old) filterFolder = null
+                            showSettings()
+                        } else {
+                            msg.text = r.exceptionOrNull()?.message ?: "Gagal mengganti nama folder"
+                            b.isEnabled = true
+                        }
+                    }
+                }
+            }
+            button("Batal") { showSettings() }
+        }
+    }
+
+    private fun showMoveFolder(m: RecordMeta): Unit = host.run {
+        clearSensitive()
+        screen {
+            label("Pindah folder", 22f, amber)
+            label(m.title, 15f, Color.WHITE)
+            val input = makeInput(Spec("Nama folder (kosongkan = tanpa folder)", Kind.TEXT)).apply { setSingleLine(true); setText(m.folder) }
+            addView(input)
+            val items = try { store.list().items } catch (e: Exception) { emptyList() }
+            val folders = items.map { it.folder }.filter { it.isNotEmpty() }.distinct().sortedBy { it.lowercase() }
+            if (folders.isNotEmpty()) {
+                label("Folder yang ada (ketuk untuk memilih)", 13f, Color.LTGRAY)
+                for (f in folders) folderCard(f) { input.setText(f) }
+            }
+            val msg = messageView()
+            button("Simpan") { b ->
+                val to = LabelPolicy.cleanFolder(input.text.toString())
+                b.isEnabled = false
+                msg.text = "Memproses\u2026"
+                worker.execute {
+                    val err: String? = try { store.relabel(m.id, to); null } catch (e: Exception) { e.message ?: "Gagal memindahkan" }
+                    ui.post { if (err == null) show() else { msg.text = err; b.isEnabled = true } }
+                }
+            }
+            button("Batal") { show() }
         }
     }
 
@@ -276,6 +401,7 @@ class EntryUi(private val host: MainActivity) {
             val cur = field("Master password saat ini")
             val n1 = field("Master password baru")
             val n2 = field("Ulangi master password baru")
+            revealToggle(cur, n1, n2)
             val msg = messageView()
             button("Ganti master") { b ->
                 val old = take(cur)
@@ -555,6 +681,7 @@ class EntryUi(private val host: MainActivity) {
             pass.fill(Char.MIN_VALUE)
             host.ui.post {
                 val res = r.getOrNull()
+                if (res != null) host.store.prefs.markBackedUp()
                 val text = when {
                     res == null -> "Gagal mengekspor cadangan. Hapus berkas yang terbentuk."
                     res.skipped > 0 -> "Cadangan ${res.count} entri. ${res.skipped} entri rusak dilewati."
@@ -584,6 +711,7 @@ class EntryUi(private val host: MainActivity) {
                 val pb = field("Passphrase cadangan")
                 val m1 = field("Master password baru")
                 val m2 = field("Ulangi master password baru")
+                revealToggle(pb, m1, m2)
                 val msg = messageView()
                 button("Pulihkan") { b ->
                     val bp = take(pb)
@@ -613,6 +741,7 @@ class EntryUi(private val host: MainActivity) {
                         ui.post {
                             if (err == null) {
                                 restoreUri = null
+                                store.prefs.markBackedUp()
                                 Toast.makeText(host, "Cadangan dipulihkan. Buka dengan master password baru.", Toast.LENGTH_LONG).show()
                                 render()
                             } else {
@@ -882,6 +1011,7 @@ class EntryUi(private val host: MainActivity) {
                 }
             }
             button("Ubah entri") { showEdit(m) }
+            button("Pindah folder") { showMoveFolder(m) }
             button("Hapus entri") { confirmDelete(m) }
             button("Kembali") { show() }
         }

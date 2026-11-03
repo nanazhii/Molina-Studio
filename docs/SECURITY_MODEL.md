@@ -7,7 +7,7 @@ Isi entri (keystore, password, rahasia), vaultKey, master password, metadata (ju
 - KDF: PBKDF2-HMAC-SHA256, 900.000 iterasi, salt 16 byte acak. Parser menolak iterasi < 600.000 (anti-downgrade) dan > 10.000.000 (anti-DoS).
 - vaultKey: 256-bit acak (CSPRNG), dibungkus 2 lapis AES-256-GCM: (1) kunci dari master, (2) kunci Android Keystore perangkat. Header menjadi AAD kedua lapisan.
 - Entri: subkunci HKDF-SHA256 per (jenis, id); AES-256-GCM, IV 96-bit acak; AAD = "jenis|id". Metadata dan isi dienkripsi terpisah. Folder dan tag (opsional) ikut di dalam metadata terenkripsi; record lama tanpa field itu tetap valid dan format .mvault tidak berubah.
-- Penyimpanan: noBackupFilesDir, tulis atomik. Tanpa cloud, tanpa backup otomatis, tanpa izin internet.
+- Penyimpanan: noBackupFilesDir, tulis atomik. Tanpa cloud, tanpa backup otomatis, tanpa izin internet. Pengaturan non-rahasia (auto-lock, waktu cadangan terakhir, jumlah perubahan sejak cadangan) disimpan di shared_prefs; tidak memuat isi, judul, atau jumlah entri.
 
 ## Matriks ancaman
 | # | Ancaman | Kontrol | Risiko sisa |
