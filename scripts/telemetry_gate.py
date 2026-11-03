@@ -36,6 +36,7 @@ DEP_EXT = (".kts", ".gradle", ".properties", ".toml")
 
 URL = re.compile(r"https?://([A-Za-z0-9._-]+)")
 PERM = re.compile(r'uses-permission[^>]*android:name="([^"]+)"')
+REMOVE = re.compile(r'uses-permission[^>]*tools:node="remove"')
 TRAILING = re.compile(r"\s//\s.*$")
 
 
@@ -75,7 +76,8 @@ for p in files():
             for tok in FORBIDDEN_DEPS:
                 if tok in low:
                     problems.append("%s:%d token terlarang: %s" % (rel, i, tok))
-        for perm in PERM.findall(code):
+        # tools:node="remove" MEMBUANG izin; bukan izin baru.
+        for perm in ([] if REMOVE.search(code) else PERM.findall(code)):
             if perm not in ALLOWED_PERMISSIONS:
                 problems.append("%s:%d izin tidak diizinkan: %s" % (rel, i, perm))
         if 'usesCleartextTraffic="true"' in code:
