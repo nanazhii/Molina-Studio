@@ -16,7 +16,7 @@ import java.nio.ByteBuffer
 import java.util.UUID
 
 private val REC_MAGIC = byteArrayOf(0x4D, 0x56, 0x52, 0x43) // "MVRC"
-private const val REC_VERSION: Byte = 1
+private const val REC_VERSION: Byte = 2
 private const val HEAD = 4 + 1 + 4
 private const val MIN_SEALED = 29 // iv(12) + tag(16) + >=1 byte
 private const val MAX_PAYLOAD = 16 * 1024 * 1024

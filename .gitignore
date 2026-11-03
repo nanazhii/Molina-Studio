@@ -129,3 +129,6 @@ patch_*.py
 /.backup/
 *.local.md
 *.private.md
+*.mvlt
+*.mvr
+*.mvault

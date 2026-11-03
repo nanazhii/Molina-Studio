@@ -8,6 +8,7 @@ import java.security.KeyStore
 import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
+import javax.crypto.Mac
 import javax.crypto.SecretKey
 import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.GCMParameterSpec
@@ -61,11 +62,35 @@ object VaultCrypto {
 
     // Enkripsi record individual (judul, URL, user, password) dengan vaultKey.
     fun encryptRecord(vaultKey: ByteArray, plain: ByteArray, aad: ByteArray): ByteArray =
-        seal(SecretKeySpec(vaultKey, "AES"), plain, aad, softwareKey = true)
+        sealSub(vaultKey, plain, aad)
 
     fun decryptRecord(vaultKey: ByteArray, blob: ByteArray, aad: ByteArray): ByteArray =
-        try { open(SecretKeySpec(vaultKey, "AES"), blob, aad) }
+        try { openSub(vaultKey, blob, aad) }
         catch (e: GeneralSecurityException) { throw WrongPasswordOrTamperedException() }
+
+    /** HKDF-SHA256 (RFC 5869), salt nol, info = domain|aad -> subkunci 32 byte per (jenis, id). */
+    private fun hkdf(ikm: ByteArray, info: ByteArray): ByteArray {
+        val mac = Mac.getInstance("HmacSHA256")
+        mac.init(SecretKeySpec(ByteArray(32), "HmacSHA256"))
+        val prk = mac.doFinal(ikm)
+        mac.init(SecretKeySpec(prk, "HmacSHA256"))
+        mac.update("molina-vault/record/v2|".toByteArray(Charsets.UTF_8))
+        mac.update(info)
+        mac.update(0x01.toByte())
+        val okm = mac.doFinal()
+        prk.fill(0)
+        return okm
+    }
+
+    private fun sealSub(vaultKey: ByteArray, plain: ByteArray, aad: ByteArray): ByteArray {
+        val sk = hkdf(vaultKey, aad)
+        try { return seal(SecretKeySpec(sk, "AES"), plain, aad, softwareKey = true) } finally { sk.fill(0) }
+    }
+
+    private fun openSub(vaultKey: ByteArray, blob: ByteArray, aad: ByteArray): ByteArray {
+        val sk = hkdf(vaultKey, aad)
+        try { return open(SecretKeySpec(sk, "AES"), blob, aad) } finally { sk.fill(0) }
+    }
 
     private fun wrap(master: CharArray, vaultKey: ByteArray): ByteArray {
         val salt = ByteArray(SALT_SIZE).also(rng::nextBytes)
