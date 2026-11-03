@@ -1,6 +1,7 @@
 package com.molina.vault
 
 // MOLINA-UI-v1
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
@@ -24,13 +25,14 @@ import java.util.concurrent.Executors
 
 class MainActivity : BunkerActivity() {
     private val bg = Color.parseColor("#0E0E10")
-    private val amber = Color.parseColor("#FFB300")
-    private val red = Color.parseColor("#FF6E6E")
-    private val ui = Handler(Looper.getMainLooper())
-    private val worker = Executors.newSingleThreadExecutor()
-    private lateinit var store: VaultStore
+    internal val amber = Color.parseColor("#FFB300")
+    internal val red = Color.parseColor("#FF6E6E")
+    internal val ui = Handler(Looper.getMainLooper())
+    internal val worker = Executors.newSingleThreadExecutor()
+    internal lateinit var store: VaultStore
     private lateinit var limiter: AttemptLimiter
     private var started = false
+    internal val entries by lazy { EntryUi(this) }
     private val autoLock = Runnable { SessionLock.lock(); render() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,11 +41,11 @@ class MainActivity : BunkerActivity() {
         limiter = AttemptLimiter(this)
     }
 
-    override fun onStart() { super.onStart(); started = true; render() }
+    override fun onStart() { super.onStart(); started = true; if (!(entries.holdScreen && SessionLock.isUnlocked)) render() }
 
     override fun onStop() {
         started = false
-        ui.removeCallbacksAndMessages(null)
+        ui.removeCallbacks(autoLock)
         super.onStop()
     }
 
@@ -51,24 +53,31 @@ class MainActivity : BunkerActivity() {
         if (SessionLock.isUnlocked) { ui.removeCallbacks(autoLock); ui.postDelayed(autoLock, 120_000) }
     }
 
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        entries.onResult(requestCode, resultCode, data)
+    }
+
     override fun onDestroy() { worker.shutdown(); super.onDestroy() }
 
-    private fun render() {
+    internal fun render() {
+        entries.clearSensitive()
         ui.removeCallbacks(autoLock)
         when {
             !store.exists() -> showSetup()
             !SessionLock.isUnlocked -> showUnlock()
-            else -> { showVault(); ui.postDelayed(autoLock, 120_000) }
+            else -> { entries.show(); ui.postDelayed(autoLock, 120_000) }
         }
     }
 
     // ---- helpers UI ----
-    private fun screen(build: LinearLayout.() -> Unit) {
+    internal fun screen(build: LinearLayout.() -> Unit) {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(56, 120, 56, 56); build() }
         setContentView(ScrollView(this).apply { setBackgroundColor(bg); addView(col) })
     }
 
-    private fun LinearLayout.label(t: String, size: Float = 15f, color: Int = Color.LTGRAY) =
+    internal fun LinearLayout.label(t: String, size: Float = 15f, color: Int = Color.LTGRAY) =
         addView(TextView(context).apply { text = t; textSize = size; setTextColor(color); setPadding(0, 16, 0, 16) })
 
     private fun LinearLayout.field(hintText: String): EditText {
@@ -84,7 +93,7 @@ class MainActivity : BunkerActivity() {
         return e
     }
 
-    private fun LinearLayout.button(t: String, onClick: (Button) -> Unit): Button {
+    internal fun LinearLayout.button(t: String, onClick: (Button) -> Unit): Button {
         val b = Button(context).apply {
             text = t
             setTextColor(Color.BLACK)
@@ -95,14 +104,14 @@ class MainActivity : BunkerActivity() {
         return b
     }
 
-    private fun LinearLayout.messageView(): TextView {
+    internal fun LinearLayout.messageView(): TextView {
         val m = TextView(context).apply { setTextColor(red); setPadding(0, 16, 0, 16) }
         addView(m)
         return m
     }
 
     /** Ambil isi field sebagai CharArray lalu kosongkan Editable. */
-    private fun take(e: EditText): CharArray {
+    internal fun take(e: EditText): CharArray {
         val t = e.text
         val out = CharArray(t.length)
         t.getChars(0, t.length, out, 0)

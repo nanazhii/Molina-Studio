@@ -10,15 +10,24 @@ import com.molina.vault.crypto.SessionLock
 
 /** Basis semua layar Vault: anti-screenshot, anti-overlay, dan kunci otomatis saat keluar. */
 open class BunkerActivity : Activity() {
+    /** Diset tepat sebelum membuka picker sistem agar sesi tidak langsung dikunci. */
+    internal var suppressLockOnce = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
         super.onCreate(savedInstanceState)
         window.decorView.filterTouchesWhenObscured = true
     }
 
+    override fun onResume() {
+        super.onResume()
+        suppressLockOnce = false
+    }
+
     override fun onStop() {
         super.onStop()
-        if (!isChangingConfigurations) SessionLock.lock()
+        if (suppressLockOnce) suppressLockOnce = false
+        else if (!isChangingConfigurations) SessionLock.lock()
     }
 
     /** Paket accessibility service non-sistem yang aktif (potensi pembaca layar). */
