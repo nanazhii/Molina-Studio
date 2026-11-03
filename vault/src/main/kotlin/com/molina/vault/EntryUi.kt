@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.net.Uri
+import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.text.InputType
 import android.text.TextUtils
@@ -26,13 +27,19 @@ import com.molina.vault.crypto.InvalidVaultException
 import com.molina.vault.crypto.PassphraseGenerator
 import com.molina.vault.crypto.PasswordPolicy
 import com.molina.vault.crypto.SessionLock
+import com.molina.vault.crypto.StreamCrypto
 import com.molina.vault.crypto.WrongPasswordOrTamperedException
 import com.molina.vault.store.BackupStore
+import com.molina.vault.store.BlobInfo
+import com.molina.vault.store.InsufficientSpaceException
 import com.molina.vault.store.LabelPolicy
 import com.molina.vault.store.RecordMeta
 import com.molina.vault.store.RecordType
+import com.molina.vault.store.VAULT_LARGE_THRESHOLD
 import java.io.ByteArrayOutputStream
+import java.io.FilterInputStream
 import java.io.IOException
+import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.CharBuffer
 import java.nio.charset.CodingErrorAction
@@ -48,7 +55,7 @@ private const val REQ_BACKUP_EXPORT = 4103
 private const val REQ_BACKUP_PICK = 4104
 private const val REQ_IMPORT_MULTI = 4105
 private const val MAX_BATCH = 100
-private const val MAX_FILE = 32 * 1024 * 1024
+private const val MAX_FILE = 1024 * 1024   // MOLINA-H12-STREAM: = VAULT_LARGE_THRESHOLD; di atasnya memakai jalur streaming v3
 private const val PREVIEW_MAX = 512 * 1024
 private const val MASK = "••••••••"
 private const val PICKER_TIMEOUT_MS = 60_000L
@@ -56,6 +63,31 @@ private const val REVEAL_MS = 10_000L
 
 private class WipeableBuffer : ByteArrayOutputStream() {
     fun wipe() { buf.fill(0) }
+}
+
+/** MOLINA-H12-STREAM: berkas melebihi ambang v2; pemanggil beralih ke jalur streaming. */
+private class TooLargeException : IOException("File lebih dari 1 MiB. Gunakan Impor banyak berkas untuk berkas besar.")
+
+/** MOLINA-H12-STREAM: pembungkus aliran impor: laporan kemajuan (maks 4x/detik) dan pembatalan oleh pengguna. */
+private class ProgressInputStream(
+    src: InputStream,
+    private val cancelled: () -> Boolean,
+    private val onProgress: (Long) -> Unit,
+) : FilterInputStream(src) {
+    private var total = 0L
+    private var lastTick = 0L
+
+    private fun tick(n: Int) {
+        if (cancelled()) throw IOException("Dibatalkan")
+        if (n > 0) {
+            total += n
+            val now = System.currentTimeMillis()
+            if (now - lastTick >= 250L) { lastTick = now; onProgress(total) }
+        }
+    }
+
+    override fun read(): Int { val b = super.read(); tick(if (b >= 0) 1 else 0); return b }
+    override fun read(b: ByteArray, off: Int, len: Int): Int { val n = super.read(b, off, len); tick(n); return n }
 }
 
 private enum class Kind { TEXT, SECRET, MULTI, FILE }
@@ -76,6 +108,8 @@ class EntryUi(private val host: MainActivity) {
         private set
 
     private var pickedBytes: ByteArray? = null
+    private var detailBlob: BlobInfo? = null   // MOLINA-H12-STREAM: deskriptor blob bila entri v3
+    @Volatile private var importCancelled = false
     private var nameField: EditText? = null
     private var fileInfo: TextView? = null
     private var detailFields: List<ByteArray> = emptyList()
@@ -99,7 +133,7 @@ class EntryUi(private val host: MainActivity) {
     fun clearSensitive() {
         pickedBytes?.fill(0); pickedBytes = null
         detailFields.forEach { it.fill(0) }; detailFields = emptyList()
-        detailMeta = null; nameField = null; fileInfo = null; exportIndex = -1
+        detailMeta = null; detailBlob = null; nameField = null; fileInfo = null; exportIndex = -1
         backupPass?.fill(Char.MIN_VALUE); backupPass = null
         editKeep?.fill(0); editKeep = null
     }
@@ -453,6 +487,10 @@ class EntryUi(private val host: MainActivity) {
     }
 
     private fun showEdit(m: RecordMeta) {
+        if (detailBlob != null) {   // MOLINA-H12-STREAM: cegah penimpaan blob dengan field kosong
+            Toast.makeText(host, "Berkas besar belum bisa diubah. Ekspor lalu impor ulang.", Toast.LENGTH_LONG).show()
+            return
+        }
         val copy = detailFields.map { it.copyOf() }
         showForm(m.type, m, copy)
     }
@@ -795,6 +833,7 @@ class EntryUi(private val host: MainActivity) {
         val uris = all.take(MAX_BATCH)
         val importFolder = filterFolder.orEmpty()
         val over = all.size - uris.size
+        importCancelled = false
         var status: TextView? = null
         host.run {
             screen {
@@ -804,6 +843,7 @@ class EntryUi(private val host: MainActivity) {
                 addView(s)
                 status = s
                 label("Jangan tutup layar ini sampai selesai.", 12f)
+                button("Batal") { b -> importCancelled = true; b.isEnabled = false }
             }
         }
         host.worker.execute {
@@ -815,13 +855,33 @@ class EntryUi(private val host: MainActivity) {
             for ((i, uri) in uris.withIndex()) {
                 val name = (displayName(uri) ?: "berkas-${i + 1}").take(200)
                 host.ui.post { status?.text = "(${i + 1}/${uris.size}) $name" }
+                if (importCancelled) {
+                    if (failed.none { it.contains("dibatalkan") }) failed.add("Impor dibatalkan oleh pengguna")
+                    break
+                }
                 if (name in existing) { skipped.add(name); continue }
                 var bytes: ByteArray? = null
                 try {
-                    bytes = readLimited(uri)
-                    host.store.put(RecordType.FILE, name, listOf(name.toByteArray(Charsets.UTF_8), bytes, ByteArray(0)), folder = importFolder)
+                    val size = querySize(uri)
+                    val progress: (Long) -> Unit = { done ->
+                        host.ui.post {
+                            status?.text = "(${i + 1}/${uris.size}) $name · ${fmtSize(done)}" + (if (size > 0) " / ${fmtSize(size)}" else "")
+                        }
+                    }
+                    if (size > VAULT_LARGE_THRESHOLD) {   // MOLINA-H12-STREAM
+                        importLarge(uri, name, size, importFolder, progress)
+                    } else {
+                        try {
+                            bytes = readLimited(uri)
+                            host.store.put(RecordType.FILE, name, listOf(name.toByteArray(Charsets.UTF_8), bytes, ByteArray(0)), folder = importFolder)
+                        } catch (e: TooLargeException) {
+                            importLarge(uri, name, -1L, importFolder, progress)
+                        }
+                    }
                     existing.add(name)
                     ok++
+                } catch (e: InsufficientSpaceException) {
+                    failed.add("$name: ruang tidak cukup (butuh ${fmtSize(e.needed)}, tersedia ${fmtSize(e.free)})")
                 } catch (e: Exception) {
                     failed.add("$name: ${e.message ?: "gagal"}")
                 } finally {
@@ -915,7 +975,7 @@ class EntryUi(private val host: MainActivity) {
                     val n = it.read(buf)
                     if (n < 0) break
                     total += n
-                    if (total > MAX_FILE) throw IOException("File lebih dari 32 MB")
+                    if (total > MAX_FILE) throw TooLargeException()
                     sink.write(buf, 0, n)
                 }
             }
@@ -925,6 +985,61 @@ class EntryUi(private val host: MainActivity) {
             sink.wipe()
         }
     }
+
+    // MOLINA-H12-STREAM ------------------------------------------------------------------
+    private fun querySize(uri: Uri): Long = try {
+        host.contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { c ->
+            if (c.moveToFirst() && !c.isNull(0)) c.getLong(0) else -1L
+        } ?: -1L
+    } catch (e: Exception) { -1L }
+
+    private fun fmtSize(b: Long): String = when {
+        b >= (1L shl 20) -> String.format(Locale.US, "%.1f MB", b / 1048576.0)
+        b >= (1L shl 10) -> String.format(Locale.US, "%.1f KB", b / 1024.0)
+        else -> "$b byte"
+    }
+
+    private fun hexPrefix(sha: ByteArray): String = sha.take(8).joinToString("") { "%02x".format(it) }
+
+    /** Berkas > ambang v2: streaming ke record v3, memori O(64 KB). [size] = -1 bila tidak diketahui. */
+    private fun importLarge(uri: Uri, name: String, size: Long, folder: String, onProgress: (Long) -> Unit) {
+        if (size > StreamCrypto.MAX_STREAM_BYTES) throw IOException("Berkas lebih dari ${fmtSize(StreamCrypto.MAX_STREAM_BYTES)}")
+        val raw = host.contentResolver.openInputStream(uri) ?: throw IOException("Tidak bisa membuka file")
+        ProgressInputStream(raw, { importCancelled }, onProgress).use { ins ->
+            host.store.putFile(
+                RecordType.FILE, name,
+                listOf(name.toByteArray(Charsets.UTF_8), ByteArray(0), ByteArray(0)),
+                1, ins, folder = folder, expectedBytes = size,
+            )
+        }
+    }
+
+    /** Hasil ekspor yang gagal tidak boleh tertinggal sebagai plaintext parsial di tujuan SAF. */
+    private fun discardExportTarget(uri: Uri) {
+        var removed = false
+        try { removed = DocumentsContract.deleteDocument(host.contentResolver, uri) } catch (e: Exception) { }
+        if (!removed) {
+            try { host.contentResolver.openOutputStream(uri, "wt")?.close() } catch (e: Exception) { }
+        }
+    }
+
+    private fun exportLarge(uri: Uri, id: String) {
+        host.worker.execute {
+            var err: String? = null
+            try {
+                val out = host.contentResolver.openOutputStream(uri, "wt") ?: throw IOException("Tidak bisa menulis ke tujuan")
+                out.use { host.store.exportBlob(id, it) }
+            } catch (e: Exception) {
+                err = e.message ?: "Gagal mengekspor"
+            }
+            if (err != null) discardExportTarget(uri)
+            val msg = err
+            host.ui.post {
+                Toast.makeText(host, if (msg == null) "Diekspor tanpa enkripsi. Hapus setelah dipakai." else "Gagal mengekspor: $msg. Tujuan ekspor dibersihkan.", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+    // ------------------------------------------------------------------------------------
 
     private fun displayName(uri: Uri): String? = try {
         host.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
@@ -938,7 +1053,15 @@ class EntryUi(private val host: MainActivity) {
     // ---------- detail ----------
     private fun openDetail(m: RecordMeta) {
         host.worker.execute {
-            val r = runCatching { host.store.read(m.id) }
+            var blob: BlobInfo? = null
+            val r = runCatching {
+                if (host.store.isLarge(m.id)) {   // MOLINA-H12-STREAM: v3, blob tidak dimuat
+                    val o = host.store.openLarge(m.id)
+                    blob = o.info
+                    o.fields
+                } else host.store.read(m.id)
+            }
+            val info = blob
             host.ui.post {
                 val f = r.getOrNull()
                 if (f == null) {
@@ -948,6 +1071,7 @@ class EntryUi(private val host: MainActivity) {
                 } else {
                     clearSensitive()
                     detailFields = f
+                    detailBlob = info
                     detailMeta = m
                     showDetail()
                 }
@@ -996,7 +1120,13 @@ class EntryUi(private val host: MainActivity) {
                 label(s.label, 13f)
                 when (s.kind) {
                     Kind.FILE -> {
-                        label("${data.size} byte · SHA-256 ${fingerprint(data)}", 14f, Color.WHITE)
+                        val bi = detailBlob   // MOLINA-H12-STREAM
+                        if (bi != null && bi.index == i) {
+                            label("${fmtSize(bi.size)} · SHA-256 ${hexPrefix(bi.sha256)}", 14f, Color.WHITE)
+                            label("Berkas besar: terenkripsi per bagian dan tidak dimuat ke memori.", 12f)
+                        } else {
+                            label("${data.size} byte · SHA-256 ${fingerprint(data)}", 14f, Color.WHITE)
+                        }
                         if (m.type == RecordType.FILE && canPreview(i)) button("Pratinjau di dalam Vault") { preview(m.title, i) }
                         button("Ekspor file…") { confirmExport(i) }
                     }
@@ -1010,7 +1140,8 @@ class EntryUi(private val host: MainActivity) {
                     }
                 }
             }
-            button("Ubah entri") { showEdit(m) }
+            if (detailBlob == null) button("Ubah entri") { showEdit(m) }
+            else label("Berkas besar: untuk mengubah, ekspor lalu impor ulang (pengeditan menyusul).", 12f)
             button("Pindah folder") { showMoveFolder(m) }
             button("Hapus entri") { confirmDelete(m) }
             button("Kembali") { show() }
@@ -1019,6 +1150,8 @@ class EntryUi(private val host: MainActivity) {
 
     // MOLINA-H4-PREVIEW
     private fun canPreview(index: Int): Boolean {
+        val bi = detailBlob   // MOLINA-H12-STREAM: blob v3 tidak dimuat, tidak ada pratinjau
+        if (bi != null && bi.index == index) return false
         val data = detailFields.getOrNull(index) ?: return false
         if (data.size > PREVIEW_MAX) return false
         val m = detailMeta ?: return false
@@ -1122,10 +1255,14 @@ class EntryUi(private val host: MainActivity) {
     }
 
     private fun exportTo(uri: Uri) {
+        val bi = detailBlob   // MOLINA-H12-STREAM
+        val id = detailMeta?.id
+        if (bi != null && id != null && bi.index == exportIndex) { exportLarge(uri, id); return }
         val copy = detailFields.getOrNull(exportIndex)?.copyOf() ?: return
         host.worker.execute {
             val r = runCatching { host.contentResolver.openOutputStream(uri, "wt")!!.use { it.write(copy) } }
             copy.fill(0)
+            if (r.isFailure) discardExportTarget(uri)   // MOLINA-H12-STREAM
             host.ui.post {
                 Toast.makeText(host, if (r.isSuccess) "Diekspor tanpa enkripsi. Hapus setelah dipakai." else "Gagal mengekspor", Toast.LENGTH_LONG).show()
             }
