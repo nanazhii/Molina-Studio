@@ -16,7 +16,7 @@ import kotlin.system.exitProcess
 private var failures = 0
 private var total = 0
 
-private fun test(name: String, body: () -> Unit) {
+internal fun test(name: String, body: () -> Unit) {
     total++
     try {
         body()
@@ -27,10 +27,10 @@ private fun test(name: String, body: () -> Unit) {
     }
 }
 
-private fun expect(cond: Boolean, msg: String) { if (!cond) throw AssertionError(msg) }
-private fun <T> expectEq(a: T, b: T, msg: String) { if (a != b) throw AssertionError("$msg: diharapkan $b, dapat $a") }
+internal fun expect(cond: Boolean, msg: String) { if (!cond) throw AssertionError(msg) }
+internal fun <T> expectEq(a: T, b: T, msg: String) { if (a != b) throw AssertionError("$msg: diharapkan $b, dapat $a") }
 
-private inline fun <reified E : Throwable> expectThrows(msg: String, body: () -> Unit) {
+internal inline fun <reified E : Throwable> expectThrows(msg: String, body: () -> Unit) {
     try { body() } catch (e: Throwable) {
         if (e is E) return
         throw AssertionError("$msg: diharapkan ${E::class.simpleName}, dapat ${e::class.simpleName}")
@@ -390,6 +390,7 @@ fun main() {
     passphraseTests()
     backupTests()
     streamTests()
+    stage2Tests()
     println("Ringkasan: ${total - failures} lulus, $failures gagal dari $total uji")
     if (failures > 0) exitProcess(1)
 }

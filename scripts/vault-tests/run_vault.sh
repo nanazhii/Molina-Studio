@@ -7,7 +7,9 @@ KC="${KOTLINC:-kotlinc}"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 V=vault/src/main/kotlin/com/molina/vault/crypto
+S=vault/src/main/kotlin/com/molina/vault/store
 "$KC" -nowarn -d "$OUT" \
   "$V/AttemptLogic.kt" "$V/SecurityPatch.kt" "$V/PassphraseGenerator.kt" "$V/BackupCrypto.kt" "$V/StreamCrypto.kt" \
-  scripts/vault-tests/CryptoStubs.kt scripts/vault-tests/VaultTests.kt
+  "$S/Models.kt" "$S/BlobRecord.kt" "$S/SecureWipe.kt" \
+  scripts/vault-tests/CryptoStubs.kt scripts/vault-tests/VaultTests.kt scripts/vault-tests/StreamStoreTests.kt
 java -Xmx64m -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" VaultTestsKt

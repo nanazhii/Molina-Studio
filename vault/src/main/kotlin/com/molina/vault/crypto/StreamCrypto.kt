@@ -154,6 +154,89 @@ object StreamCrypto {
         }
     }
 
+    // MOLINA-H10B-WRITER
+    /**
+     * OutputStream yang mengenkripsi aliran per chunk (setara [encrypt], tetapi didorong dari sisi penulis).
+     * Dipakai untuk menyambung dekripsi -> enkripsi tanpa menampung berkas (mis. rotasi kunci).
+     * WAJIB di-close() agar chunk terakhir tertulis; close() TIDAK menutup [out]. result() hanya valid sesudah close().
+     */
+    class Writer(
+        vaultKey: ByteArray,
+        aad: ByteArray,
+        private val out: OutputStream,
+        private val chunkSize: Int = CHUNK_SIZE,
+        private val maxBytes: Long = MAX_STREAM_BYTES,
+    ) : OutputStream() {
+        private val prefix = ByteArray(7)
+        private val fullAad: ByteArray
+        private val key: ByteArray
+        private val sha = MessageDigest.getInstance("SHA-256")
+        private val buf: ByteArray
+        private var filled = 0
+        private var index = 0
+        private var total = 0L
+        private var closed = false
+        private var digest: ByteArray? = null
+
+        init {
+            require(vaultKey.size == 32) { "vaultKey harus 32 byte" }
+            require(chunkSize in MIN_CHUNK..MAX_CHUNK) { "Ukuran chunk tidak valid" }
+            val salt = ByteArray(16).also(rng::nextBytes)
+            rng.nextBytes(prefix)
+            val header = ByteBuffer.allocate(HEADER_SIZE)
+                .put(MAGIC).put(VERSION).putInt(chunkSize).put(salt).put(prefix).array()
+            key = streamKey(vaultKey, salt, aad)
+            fullAad = header + aad
+            buf = ByteArray(chunkSize)
+            out.write(header)
+        }
+
+        override fun write(b: Int) { write(byteArrayOf(b.toByte()), 0, 1) }
+
+        override fun write(b: ByteArray, off: Int, len: Int) {
+            check(!closed) { "Writer sudah ditutup" }
+            var o = off
+            var left = len
+            while (left > 0) {
+                if (filled == chunkSize) flushChunk(false)
+                val n = minOf(left, chunkSize - filled)
+                total += n
+                if (total > maxBytes) throw InvalidVaultException("Berkas melebihi batas ukuran")
+                System.arraycopy(b, o, buf, filled, n)
+                filled += n; o += n; left -= n
+            }
+        }
+
+        private fun flushChunk(last: Boolean) {
+            sha.update(buf, 0, filled)
+            out.write(seal(key, prefix, index, last, fullAad, buf, filled))
+            filled = 0
+            if (!last) {
+                index++
+                if (index < 0) throw InvalidVaultException("Terlalu banyak chunk")
+            }
+        }
+
+        override fun close() {
+            if (closed) return
+            closed = true
+            try {
+                flushChunk(true)
+                out.flush()
+                digest = sha.digest()
+            } finally {
+                key.fill(0)
+                buf.fill(0)
+            }
+        }
+
+        fun result(): Result {
+            val d = digest
+            check(closed && d != null) { "result() hanya valid sesudah close() yang berhasil" }
+            return Result(total, d)
+        }
+    }
+
     // ---- internal ----
 
     private fun seal(key: ByteArray, prefix: ByteArray, index: Int, last: Boolean, aad: ByteArray, buf: ByteArray, len: Int): ByteArray {
