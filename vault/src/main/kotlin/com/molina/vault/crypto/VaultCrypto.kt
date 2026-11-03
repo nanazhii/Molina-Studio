@@ -1,6 +1,7 @@
 package com.molina.vault.crypto
 
 import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyInfo
 import android.security.keystore.KeyProperties
 import java.nio.ByteBuffer
 import java.security.GeneralSecurityException
@@ -121,6 +122,23 @@ object VaultCrypto {
         try {
             return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
         } finally { spec.clearPassword() }
+    }
+
+    /**
+     * true = kunci Keystore perangkat berada di TEE/StrongBox; false = hanya perangkat lunak;
+     * null = tidak bisa ditentukan (kunci belum ada atau API menolak).
+     */
+    @Suppress("DEPRECATION")
+    fun deviceKeyInSecureHardware(): Boolean? = try {
+        val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        val key = ks.getKey(KS_ALIAS, null) as? SecretKey
+        if (key == null) null
+        else {
+            val info = SecretKeyFactory.getInstance(key.algorithm, "AndroidKeyStore").getKeySpec(key, KeyInfo::class.java) as KeyInfo
+            info.isInsideSecureHardware
+        }
+    } catch (e: Exception) {
+        null
     }
 
     private fun deviceKey(): SecretKey {

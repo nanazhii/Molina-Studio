@@ -8,7 +8,10 @@ import android.graphics.Typeface
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.text.InputType
+import android.view.ActionMode
 import android.view.Gravity
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
@@ -141,6 +144,20 @@ class EntryUi(private val host: MainActivity) {
         inputType = flags
         imeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING or EditorInfo.IME_FLAG_NO_EXTRACT_UI
         importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
+        if (s.kind != Kind.TEXT) noClipboard(this)
+    }
+
+    // MOLINA-H1: kolom rahasia tidak boleh disalin, dipotong, atau ditempel lewat menu seleksi (clipboard bisa dibaca aplikasi latar di Android 8).
+    private fun noClipboard(e: EditText) {
+        val deny = object : ActionMode.Callback {
+            override fun onCreateActionMode(mode: ActionMode?, menu: Menu?): Boolean = false
+            override fun onPrepareActionMode(mode: ActionMode?, menu: Menu?): Boolean = false
+            override fun onActionItemClicked(mode: ActionMode?, item: MenuItem?): Boolean = false
+            override fun onDestroyActionMode(mode: ActionMode?) {}
+        }
+        e.customSelectionActionModeCallback = deny
+        e.customInsertionActionModeCallback = deny
+        e.setOnLongClickListener { true }
     }
 
     private fun utf8(chars: CharArray): ByteArray {
@@ -157,6 +174,9 @@ class EntryUi(private val host: MainActivity) {
         val specs = SPECS.getValue(type)
         screen {
             label(typeName(type), 22f, amber)
+            if (specs.any { it.kind == Kind.SECRET || it.kind == Kind.MULTI }) {
+                label("Salin dan tempel dimatikan di kolom rahasia agar tidak lewat clipboard. Ketik langsung atau impor dari berkas; jangan menempelkan rahasia dari aplikasi lain.", 12f)
+            }
             val titleField = EditText(context).apply {
                 hint = "Judul"
                 setHintTextColor(Color.GRAY)
@@ -513,6 +533,10 @@ class EntryUi(private val host: MainActivity) {
     }
 
     private fun reveal(tv: TextView, data: ByteArray) {
+        if (host.untrustedAccessibilityServices().isNotEmpty()) {
+            tv.text = "Diblokir: accessibility service non-sistem aktif."
+            return
+        }
         setChars(tv, data)
         host.ui.postDelayed({ tv.text = MASK }, REVEAL_MS)
     }

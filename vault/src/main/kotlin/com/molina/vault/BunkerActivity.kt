@@ -31,7 +31,7 @@ open class BunkerActivity : Activity() {
     }
 
     /** Paket accessibility service non-sistem yang aktif (potensi pembaca layar). */
-    protected fun untrustedAccessibilityServices(): List<String> {
+    internal fun untrustedAccessibilityServices(): List<String> {
         val am = getSystemService(ACCESSIBILITY_SERVICE) as AccessibilityManager
         return am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
             .filter { (it.resolveInfo.serviceInfo.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) == 0 }

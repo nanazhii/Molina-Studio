@@ -1,22 +1,43 @@
 package com.molina.vault.crypto
 
+// MOLINA-H1
 import android.content.Context
+import android.os.SystemClock
+import android.provider.Settings
 
-/** Backoff eksponensial setelah 5 gagal. Hanya penghambat; perlindungan utama tetap KDF. */
+/** Pembungkus Android untuk [AttemptLogic]: SharedPreferences + elapsedRealtime + BOOT_COUNT. */
 class AttemptLimiter(context: Context) {
-    private val sp = context.applicationContext
-        .getSharedPreferences("bunker_attempts", Context.MODE_PRIVATE)
+    private val logic = AttemptLogic(
+        PrefsAttemptStore(context.applicationContext),
+        { SystemClock.elapsedRealtime() },
+        { bootCount(context.applicationContext) },
+    )
 
-    fun remainingLockMs(now: Long = System.currentTimeMillis()): Long =
-        (sp.getLong("until", 0L) - now).coerceAtLeast(0L)
+    fun remainingLockMs(): Long = logic.remainingLockMs()
+    fun recordFailure() = logic.recordFailure()
+    fun recordSuccess() = logic.recordSuccess()
 
-    fun recordFailure(now: Long = System.currentTimeMillis()) {
-        val n = sp.getInt("fails", 0) + 1
-        val delay = if (n < 5) 0L else minOf(30_000L shl minOf(n - 5, 7), 3_600_000L)
-        sp.edit().putInt("fails", n).putLong("until", now + delay).commit()
+    private fun bootCount(c: Context): Long = try {
+        Settings.Global.getInt(c.contentResolver, Settings.Global.BOOT_COUNT, -1).toLong()
+    } catch (e: Exception) {
+        AttemptLogic.UNKNOWN_BOOT
+    }
+}
+
+private class PrefsAttemptStore(context: Context) : AttemptStore {
+    private val sp = context.getSharedPreferences("bunker_attempts", Context.MODE_PRIVATE)
+
+    override fun long(key: String, def: Long): Long = sp.getLong(key, def)
+    override fun int(key: String, def: Int): Int = sp.getInt(key, def)
+
+    override fun commit(longs: Map<String, Long>, ints: Map<String, Int>) {
+        val e = sp.edit()
+        for ((k, v) in longs) e.putLong(k, v)
+        for ((k, v) in ints) e.putInt(k, v)
+        e.commit()
     }
 
-    fun recordSuccess() {
+    override fun clear() {
         sp.edit().clear().commit()
     }
 }

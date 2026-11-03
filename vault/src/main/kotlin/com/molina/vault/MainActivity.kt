@@ -1,6 +1,7 @@
 package com.molina.vault
 
 // MOLINA-UI-v1
+// MOLINA-H1
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
@@ -126,8 +127,12 @@ class MainActivity : BunkerActivity() {
             msg.text = "Terkunci karena terlalu banyak percobaan: ${(ms + 999) / 1000} detik"
             ui.postDelayed({ tickLock(msg, btn) }, 1000)
         } else if (!btn.isEnabled && msg.text.startsWith("Terkunci")) {
-            btn.isEnabled = true
-            msg.text = ""
+            if (untrustedAccessibilityServices().isEmpty()) {
+                btn.isEnabled = true
+                msg.text = ""
+            } else {
+                msg.text = "Diblokir: accessibility service non-sistem aktif."
+            }
         }
     }
 
@@ -170,12 +175,19 @@ class MainActivity : BunkerActivity() {
         label("MOLINA VAULT", 26f, amber)
         val bad = untrustedAccessibilityServices()
         if (bad.isNotEmpty()) {
-            label("PERINGATAN: accessibility service non-sistem aktif (${bad.joinToString()}). Aplikasi itu bisa membaca layar. Nonaktifkan sebelum membuka vault.", 13f, red)
+            label("PERINGATAN: accessibility service non-sistem aktif (${bad.joinToString()}). Aplikasi itu bisa membaca layar. Tombol Buka diblokir selama layanan itu aktif; nonaktifkan lalu buka ulang Vault.", 13f, red)
         }
+        for (w in DeviceHealth.warnings()) label(w, 13f, amber)
         val p = field("Master password")
         val msg = messageView()
         val btn = button("Buka") { b ->
             val pw = take(p)
+            if (untrustedAccessibilityServices().isNotEmpty()) {
+                pw.fill(Char.MIN_VALUE)
+                msg.text = "Diblokir: accessibility service non-sistem aktif."
+                b.isEnabled = false
+                return@button
+            }
             if (limiter.remainingLockMs() > 0) { pw.fill(Char.MIN_VALUE); tickLock(msg, b); return@button }
             b.isEnabled = false
             msg.text = "Memproses…"
@@ -199,5 +211,9 @@ class MainActivity : BunkerActivity() {
             }
         }
         tickLock(msg, btn)
+        if (bad.isNotEmpty()) {
+            btn.isEnabled = false
+            if (limiter.remainingLockMs() <= 0) msg.text = "Diblokir: accessibility service non-sistem aktif."
+        }
     }
 }

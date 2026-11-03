@@ -32,6 +32,13 @@ Isi entri (keystore, password, rahasia), vaultKey, master password, metadata (ju
 | 18 | Master lemah | Kebijakan 14 karakter / 5 kata | Kelalaian pengguna |
 | 19 | Master atau perangkat hilang | Tanpa pemulihan (by design); cadangan terenkripsi (P3) | Pengguna lupa mencadangkan |
 | 20 | Rollback seluruh vault | Tidak ada penghitung monoton hardware di API 26 | Diterima |
+| 21 | Berkas .mvault disalin lalu diserang offline | Passphrase acak 120 bit atau buatan sendiri >= 24 karakter ASCII; PBKDF2 2.000.000 iterasi; HMAC trailer | PBKDF2 tidak memory-hard; passphrase buatan sendiri yang lemah |
+| 22 | Clipboard pada kolom rahasia dan multi-baris | Seleksi, salin, dan tempel dimatikan di kolom rahasia; peringatan di form | Keyboard pihak ketiga dan riwayat clipboard milik keyboard |
+| 23 | Ekspor plaintext ke penyimpanan bersama | Peringatan eksplisit sebelum ekspor | Aplikasi lain dengan izin storage (rencana: ekspor terenkripsi sebagai default) |
+| 24 | Limiter dikelabui lewat jam atau reboot | Jam monoton (elapsedRealtime) + BOOT_COUNT; reboot mengulang tunda penuh | Root menghapus data limiter |
+| 25 | Android 8 tanpa patch keamanan terbaru | Peringatan umur patch (> 365 hari) di layar unlock | Celah root publik; jangan simpan rahasia bernilai tertinggi di perangkat ini |
+| 26 | Kunci Keystore hanya perangkat lunak | Peringatan via KeyInfo.isInsideSecureHardware | Root dapat mengekstrak kunci; perlindungan bergantung pada master |
+| 27 | Accessibility service non-sistem | Unlock diblokir; dicek ulang saat rahasia ditampilkan | Layanan yang diaktifkan setelah rahasia tampil; keyboard jahat |
 
 ## Di luar cakupan
 Malware root aktif selama sesi terbuka; paksaan fisik terhadap pengguna.
