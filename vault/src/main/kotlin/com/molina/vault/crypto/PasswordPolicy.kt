@@ -1,10 +1,19 @@
 package com.molina.vault.crypto
 
+import java.util.BitSet
+
 object PasswordPolicy {
-    /** Master password: >= 14 karakter, atau >= 5 kata; minimal 8 karakter unik. */
+    /** >= 14 karakter, atau >= 5 kata (min 12 karakter); minimal 8 karakter unik. Tanpa membuat String. */
     fun isAcceptable(p: CharArray): Boolean {
-        val words = String(p).trim().split(Regex("\\s+")).size
+        var words = 0
+        var inWord = false
+        val seen = BitSet(65536)
+        for (ch in p) {
+            seen.set(ch.code)
+            if (ch.isWhitespace()) inWord = false
+            else if (!inWord) { inWord = true; words++ }
+        }
         val longEnough = p.size >= 14 || (words >= 5 && p.size >= 12)
-        return longEnough && p.toSet().size >= 8
+        return longEnough && seen.cardinality() >= 8
     }
 }
