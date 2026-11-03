@@ -120,7 +120,7 @@ internal class DebianArchive(context: Context) {
         }
         if (!out.stoppedEarly) {
             val ok = out.exit == 0 || (out.exit == 1 && (files + folders) > 0)
-            if (!ok) throw fail(SevenZipCommand.classify(out.exit, out.output, !password.isNullOrEmpty()))
+            if (!ok) throw fail(SevenZipCommand.classify(out.exit, out.output, !password.isNullOrEmpty()), out)
         }
         return FileOps.ZipListing(items, files, folders, total, enc, overflow || out.stoppedEarly)
     }
@@ -177,12 +177,12 @@ internal class DebianArchive(context: Context) {
             }
             val ms = (System.nanoTime() - started) / 1_000_000
             val pw = !password.isNullOrEmpty()
-            if (out.exit != 0 && out.exit != 1) throw fail(SevenZipCommand.classify(out.exit, out.output, pw))
+            if (out.exit != 0 && out.exit != 1) throw fail(SevenZipCommand.classify(out.exit, out.output, pw), out)
             if (ctl.cancelled()) throw IOException("Dibatalkan")
             if (last < 100) ctl.add((100 - last).toLong()) // 7z sering berhenti mencetak di 98-99%
 
             val audit = DebianArchiveStaging.audit(stage)
-            if (out.exit == 1 && audit.files == 0 && audit.dirs == 0) throw fail(SevenZipCommand.classify(out.exit, out.output, pw))
+            if (out.exit == 1 && audit.files == 0 && audit.dirs == 0) throw fail(SevenZipCommand.classify(out.exit, out.output, pw), out)
             if (!only.isNullOrEmpty() && audit.files == 0) throw IOException("Tidak ada entri terpilih yang cocok di arsip")
             AppLog.log(
                 "archive", LogLevel.Info, "7z",
@@ -277,7 +277,7 @@ internal class DebianArchive(context: Context) {
                 false
             }
             val ms = (System.nanoTime() - started) / 1_000_000
-            if (out.exit != 0) throw fail(SevenZipCommand.classifyCreate(out.exit, out.output, true))
+            if (out.exit != 0) throw fail(SevenZipCommand.classifyCreate(out.exit, out.output, true), out)
             if (ctl.cancelled()) throw IOException("Dibatalkan")
             if (last < 100) ctl.add((100 - last).toLong())
 
@@ -326,14 +326,25 @@ internal class DebianArchive(context: Context) {
 
     private fun isLink(f: File): Boolean = try { Files.isSymbolicLink(f.toPath()) } catch (e: Exception) { false }
 
-    private fun fail(f: SevenZipCommand.Failure): IOException = when (f) {
+    private fun fail(f: SevenZipCommand.Failure, out: Outcome? = null): IOException = when (f) {
         SevenZipCommand.Failure.NEED_PASSWORD -> FileOps.NeedPassword()
         SevenZipCommand.Failure.WRONG_PASSWORD -> FileOps.WrongPassword()
         SevenZipCommand.Failure.CANCELLED -> IOException("Dibatalkan")
+        SevenZipCommand.Failure.UNKNOWN -> IOException(if (out != null) describe(out) else f.hint)
         else -> IOException(f.hint)
     }
 
-    private class Outcome(val exit: Int, val output: String, val stoppedEarly: Boolean)
+    /** [7ZIP-DIAG] Galat tak dikenal: sertakan kode keluar, mode, dan baris terakhir keluaran (juga ke logcat "Molina/7z"). */
+    private fun describe(out: Outcome): String {
+        val last = out.output.lineSequence().map { it.replace(Regex("[\\u0008\\r]+"), " ").trim() }
+            .filter { it.isNotEmpty() }.toList().takeLast(3).joinToString(" | ").take(240)
+        val sig = if (out.exit > 128) " (sinyal ${out.exit - 128})" else ""
+        val mode = if (out.direct) "langsung" else "PRoot"
+        android.util.Log.w("Molina/7z", "exit=${out.exit} mode=$mode keluaran=$last")
+        return "7z gagal (kode ${out.exit}$sig, mode $mode)" + if (last.isNotEmpty()) ": $last" else ""
+    }
+
+    private class Outcome(val exit: Int, val output: String, val stoppedEarly: Boolean, val direct: Boolean = false)
 
     /** Ekor keluaran terbatas (cukup untuk klasifikasi galat; tidak menampung seluruh keluaran). */
     private class Tail(private val max: Int) {
@@ -503,7 +514,7 @@ internal class DebianArchive(context: Context) {
         if (stopEarly.get()) return Outcome(0, "", true)
         outError.get()?.let { throw IOException("Gagal membaca keluaran 7z: ${it.javaClass.simpleName}") }
         val exit = try { proc.exitValue() } catch (e: IllegalThreadStateException) { -1 }
-        return Outcome(exit, outTail.toString() + "\n" + errTail.toString(), false)
+        return Outcome(exit, outTail.toString() + "\n" + errTail.toString(), false, direct)
     }
 
     private companion object {
