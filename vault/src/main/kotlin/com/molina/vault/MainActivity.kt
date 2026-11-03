@@ -27,6 +27,7 @@ import com.molina.vault.crypto.InvalidVaultException
 import com.molina.vault.crypto.PasswordPolicy
 import com.molina.vault.crypto.SessionLock
 import com.molina.vault.crypto.WrongPasswordOrTamperedException
+import com.molina.vault.store.RecordType
 import com.molina.vault.store.VaultStore
 import java.util.concurrent.Executors
 
@@ -80,12 +81,17 @@ class MainActivity : BunkerActivity() {
 
     // ---- helpers UI ----
     internal fun screen(build: LinearLayout.() -> Unit) {
-        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(56, 120, 56, 56); build() }
-        setContentView(ScrollView(this).apply { setBackgroundColor(bg); addView(col) })
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(22f), dp(48f), dp(22f), dp(32f)); build() }
+        val root = ScrollView(this).apply { setBackgroundColor(bg); addView(col) }
+        setContentView(root)
+        window.statusBarColor = bg
+        window.navigationBarColor = bg
+        root.alpha = 0f
+        root.animate().alpha(1f).setDuration(140).start()
     }
 
     internal fun LinearLayout.label(t: String, size: Float = 15f, color: Int = Color.LTGRAY) =
-        addView(TextView(context).apply { text = t; textSize = size; setTextColor(color); setPadding(0, 16, 0, 16) })
+        addView(TextView(context).apply { text = t; textSize = size; setTextColor(color); setPadding(0, dp(6f), 0, dp(6f)); setLineSpacing(0f, 1.15f) })
 
     internal fun LinearLayout.field(hintText: String): EditText {
         val e = EditText(context).apply {
@@ -102,7 +108,11 @@ class MainActivity : BunkerActivity() {
     }
 
     // MOLINA-H5-FRAME: bingkai emas tipis untuk tombol, kolom, dan kartu. Warna tetap hitam-amber.
-    private val ghostLabels = setOf("Batal", "Kembali", "Kunci sekarang", "Tutup pratinjau")
+    private val ghostLabels = setOf(
+        "Batal", "Kembali", "Kunci sekarang", "Tutup pratinjau",
+        "Impor banyak berkas", "Cadangan terenkripsi", "Ganti master password", "Pulihkan dari cadangan",
+        "Ekspor file…", "Tampilkan 10 detik", "Pilih file…",
+    )
     private val dangerLabels = setOf("Hapus entri")
     private val surface = Color.parseColor("#141416")
     private val frameDim = Color.parseColor("#8A6A00")
@@ -118,15 +128,15 @@ class MainActivity : BunkerActivity() {
             setStroke(maxOf(1, dp(strokeDp)), stroke)
         }
 
-    private fun rippleMask(): Drawable = frameDrawable(Color.WHITE, Color.WHITE, 0f, 8f)
+    private fun rippleMask(): Drawable = frameDrawable(Color.WHITE, Color.WHITE, 0f, 12f)
 
     /** Kartu berbingkai dengan efek sentuh amber redup, untuk baris daftar dan chip filter. */
     internal fun cardDrawable(): Drawable =
-        RippleDrawable(ColorStateList.valueOf(Color.argb(60, 255, 179, 0)), frameDrawable(surface, cardLine, 1.2f, 8f), rippleMask())
+        RippleDrawable(ColorStateList.valueOf(Color.argb(60, 255, 179, 0)), frameDrawable(surface, cardLine, 1f, 12f), rippleMask())
 
     internal fun frameInput(e: EditText) {
         fun style(focused: Boolean) {
-            e.background = frameDrawable(surface, if (focused) amber else frameDim, if (focused) 1.8f else 1.2f, 8f)
+            e.background = frameDrawable(surface, if (focused) amber else frameDim, if (focused) 1.5f else 1f, 12f)
             e.setPadding(dp(14f), dp(12f), dp(14f), dp(12f))
         }
         style(false)
@@ -155,12 +165,12 @@ class MainActivity : BunkerActivity() {
         val face: Drawable
         if (ghost || danger) {
             b.setTextColor(tone)
-            face = frameDrawable(surface, tone, 1.5f, 8f)
+            face = frameDrawable(surface, tone, 1f, 12f)
         } else {
             b.setTextColor(Color.BLACK)
-            val inner = GradientDrawable().apply { setColor(amber); cornerRadius = 6f * resources.displayMetrics.density }
-            face = LayerDrawable(arrayOf<Drawable>(frameDrawable(Color.TRANSPARENT, amber, 1.5f, 9f), inner))
-                .also { it.setLayerInset(1, dp(4f), dp(4f), dp(4f), dp(4f)) }
+            val inner = GradientDrawable().apply { setColor(amber); cornerRadius = 9f * resources.displayMetrics.density }
+            face = LayerDrawable(arrayOf<Drawable>(frameDrawable(Color.TRANSPARENT, amber, 1f, 12f), inner))
+                .also { it.setLayerInset(1, dp(3f), dp(3f), dp(3f), dp(3f)) }
         }
         b.background = RippleDrawable(ColorStateList.valueOf(Color.argb(70, 255, 255, 255)), face, rippleMask())
         b.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
@@ -168,6 +178,40 @@ class MainActivity : BunkerActivity() {
         b.setOnClickListener { onClick(b) }
         addView(b)
         return b
+    }
+
+    // MOLINA-H7-DESIGN: judul merek, warna jenis entri, dan badge pil.
+    internal fun LinearLayout.brandHeader(subtitle: String = "Brankas offline \u00b7 terenkripsi") {
+        addView(TextView(context).apply {
+            text = "MOLINA VAULT"
+            textSize = 24f
+            setTextColor(amber)
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            letterSpacing = 0.18f
+        })
+        addView(View(context).apply {
+            background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(amber, Color.TRANSPARENT))
+            layoutParams = LinearLayout.LayoutParams(dp(120f), dp(2f)).apply { setMargins(0, dp(10f), 0, dp(8f)) }
+        })
+        addView(TextView(context).apply {
+            text = subtitle
+            textSize = 12f
+            setTextColor(Color.GRAY)
+            letterSpacing = 0.04f
+        })
+    }
+
+    internal fun typeColor(t: RecordType): Int = when (t) {
+        RecordType.PASSWORD -> Color.parseColor("#7FA3D6")
+        RecordType.NOTE -> Color.parseColor("#8DBF9A")
+        RecordType.KEYSTORE -> Color.parseColor("#D4A85F")
+        RecordType.SECRET -> Color.parseColor("#C48FB5")
+        RecordType.FILE -> Color.parseColor("#9AA0AA")
+    }
+
+    internal fun badgeDrawable(color: Int): GradientDrawable = GradientDrawable().apply {
+        cornerRadius = dp(10f).toFloat()
+        setColor(Color.argb(40, Color.red(color), Color.green(color), Color.blue(color)))
     }
 
     internal fun LinearLayout.messageView(): TextView {
@@ -203,7 +247,7 @@ class MainActivity : BunkerActivity() {
 
     // ---- layar ----
     private fun showSetup() = screen {
-        label("MOLINA VAULT", 26f, amber)
+        brandHeader()
         label("Buat vault baru. Tidak ada pemulihan: jika master password hilang atau ponsel di-reset, data tidak dapat dibuka. Minimal 14 karakter, atau 5 kata.")
         val p1 = field("Master password")
         val p2 = field("Ulangi master password")
@@ -237,7 +281,7 @@ class MainActivity : BunkerActivity() {
     }
 
     private fun showUnlock() = screen {
-        label("MOLINA VAULT", 26f, amber)
+        brandHeader()
         val bad = untrustedAccessibilityServices()
         if (bad.isNotEmpty()) {
             label("PERINGATAN: accessibility service non-sistem aktif (${bad.joinToString()}). Aplikasi itu bisa membaca layar. Tombol Buka diblokir selama layanan itu aktif; nonaktifkan lalu buka ulang Vault.", 13f, red)

@@ -8,6 +8,7 @@ import android.graphics.Typeface
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.text.InputType
+import android.text.TextUtils
 import android.text.TextWatcher
 import android.text.Editable
 import android.view.ActionMode
@@ -130,7 +131,7 @@ class EntryUi(private val host: MainActivity) {
 
     private fun showList(): Unit = host.run {
         screen {
-            label("MOLINA VAULT", 26f, amber)
+            brandHeader()
             button("Tambah entri") { showTypePick() }
             button("Impor banyak berkas") { pickMulti() }
             val listing = try { store.list() } catch (e: Exception) { null }
@@ -145,23 +146,29 @@ class EntryUi(private val host: MainActivity) {
                 val chip = TextView(context).apply {
                     textSize = 14f
                     setTextColor(amber)
+                    maxLines = 1
+                    ellipsize = TextUtils.TruncateAt.END
                     background = host.cardDrawable()
                     setPadding(host.dp(14f), host.dp(10f), host.dp(14f), host.dp(10f))
                     isClickable = true
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                        .apply { setMargins(0, host.dp(4f), 0, host.dp(12f)) }
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                        .apply { setMargins(0, host.dp(4f), host.dp(6f), host.dp(12f)) }
                 }
-                addView(chip)
+                val chipRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+                chipRow.addView(chip)
                 val folderChip = TextView(context).apply {
                     textSize = 14f
                     setTextColor(amber)
+                    maxLines = 1
+                    ellipsize = TextUtils.TruncateAt.END
                     background = host.cardDrawable()
                     setPadding(host.dp(14f), host.dp(10f), host.dp(14f), host.dp(10f))
                     isClickable = true
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                        .apply { setMargins(0, 0, 0, host.dp(12f)) }
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                        .apply { setMargins(host.dp(6f), host.dp(4f), 0, host.dp(12f)) }
                 }
-                addView(folderChip)
+                chipRow.addView(folderChip)
+                addView(chipRow)
                 val box = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
                 addView(box)
 
@@ -178,11 +185,11 @@ class EntryUi(private val host: MainActivity) {
                     }
                     val filtering = q.isNotEmpty() || filterType != null || filterFolder != null
                     countView.text = if (filtering) "${shown.size} dari ${listing.items.size} entri$extra" else "${listing.items.size} entri$extra"
-                    chip.text = "Jenis: ${filterType?.let { typeShort(it) } ?: "SEMUA"}  ▸ ketuk untuk ganti"
-                    folderChip.text = "Folder: ${filterFolder ?: "SEMUA"}  ▸ ketuk untuk ganti"
+                    chip.text = "Jenis: ${filterType?.let { typeShort(it) } ?: "SEMUA"} ▾"
+                    folderChip.text = "Folder: ${filterFolder ?: "SEMUA"} ▾"
                     if (shown.isEmpty()) {
                         box.addView(TextView(context).apply {
-                            text = if (listing.items.isEmpty()) "Belum ada entri. Ketuk Tambah entri atau Impor banyak berkas." else "Tidak ada entri yang cocok."
+                            text = if (listing.items.isEmpty()) "Vault masih kosong.\nKetuk Tambah entri atau Impor banyak berkas untuk mulai." else "Tidak ada entri yang cocok."
                             textSize = 14f
                             setTextColor(Color.GRAY)
                             setPadding(0, 24, 0, 24)
@@ -199,15 +206,31 @@ class EntryUi(private val host: MainActivity) {
                             setOnClickListener { openDetail(m) }
                         }
                         row.addView(TextView(context).apply { text = m.title; textSize = 16f; setTextColor(Color.WHITE) })
-                        row.addView(TextView(context).apply {
+                        // MOLINA-H7-DESIGN: badge jenis berwarna redup + folder dan tanggal
+                        val metaRow = LinearLayout(context).apply {
+                            orientation = LinearLayout.HORIZONTAL
+                            gravity = Gravity.CENTER_VERTICAL
+                            setPadding(0, host.dp(6f), 0, 0)
+                        }
+                        metaRow.addView(TextView(context).apply {
+                            text = typeShort(m.type)
+                            textSize = 10f
+                            typeface = Typeface.DEFAULT_BOLD
+                            letterSpacing = 0.08f
+                            setTextColor(host.typeColor(m.type))
+                            background = host.badgeDrawable(host.typeColor(m.type))
+                            setPadding(host.dp(8f), host.dp(2f), host.dp(8f), host.dp(2f))
+                        })
+                        metaRow.addView(TextView(context).apply {
                             text = buildString {
-                                append(typeShort(m.type))
-                                if (m.folder.isNotEmpty()) append(" · ").append(m.folder)
-                                append(" · ").append(dateFmt.format(Date(m.modifiedAt)))
+                                if (m.folder.isNotEmpty()) append(m.folder).append(" · ")
+                                append(dateFmt.format(Date(m.modifiedAt)))
                             }
                             textSize = 12f
                             setTextColor(Color.GRAY)
+                            setPadding(host.dp(10f), 0, 0, 0)
                         })
+                        row.addView(metaRow)
                         if (m.tags.isNotEmpty()) {
                             row.addView(TextView(context).apply {
                                 text = m.tags.joinToString("  ") { "#$it" }
@@ -550,7 +573,7 @@ class EntryUi(private val host: MainActivity) {
         val uri = restoreUri ?: return
         host.run {
             screen {
-                label("MOLINA VAULT", 26f, amber)
+                brandHeader()
                 label("Pulihkan: ${runCatching { displayName(uri) }.getOrNull() ?: "berkas .mvault"}", 15f, Color.WHITE)
                 label("Vault di perangkat ini kosong, jadi cadangan dipulihkan penuh (tanpa gabung). Masukkan passphrase cadangan (ketik persis, termasuk tanda hubung), lalu pilih master password BARU untuk perangkat ini.", 13f, Color.LTGRAY)
                 val pb = field("Passphrase cadangan")
