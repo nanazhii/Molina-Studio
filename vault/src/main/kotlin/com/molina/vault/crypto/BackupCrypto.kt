@@ -20,7 +20,7 @@ import javax.crypto.spec.SecretKeySpec
  */
 object BackupCrypto {
     const val MIN_ITERATIONS = 600_000
-    const val TARGET_ITERATIONS = 900_000
+    const val TARGET_ITERATIONS = 2_000_000
     const val MAX_ITERATIONS = 10_000_000
     const val MAX_RECORDS = 100_000
     const val MAX_RECORD_BYTES = 17 * 1024 * 1024

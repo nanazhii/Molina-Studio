@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.Typeface
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.text.InputType
@@ -13,7 +14,9 @@ import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
+import com.molina.vault.crypto.BackupPolicy
 import com.molina.vault.crypto.InvalidVaultException
+import com.molina.vault.crypto.PassphraseGenerator
 import com.molina.vault.crypto.PasswordPolicy
 import com.molina.vault.crypto.SessionLock
 import com.molina.vault.crypto.WrongPasswordOrTamperedException
@@ -207,7 +210,47 @@ class EntryUi(private val host: MainActivity) {
         clearSensitive()
         screen {
             label("Cadangan terenkripsi", 22f, amber)
-            label("Berkas .mvault dienkripsi dengan passphrase cadangan yang BERBEDA dari master password. Tanpa passphrase ini cadangan tidak bisa dibuka dan tidak ada pemulihan. Simpan di penyimpanan lokal atau media terpisah, jangan di tempat yang sama dengan catatan passphrase.", 13f, Color.LTGRAY)
+            label("Berkas .mvault dienkripsi dengan passphrase cadangan yang BERBEDA dari master password. Berkas ini bisa disalin lalu diserang offline, jadi kekuatan passphrase adalah satu-satunya pelindungnya. Tanpa passphrase, cadangan tidak bisa dibuka dan tidak ada pemulihan.", 13f, Color.LTGRAY)
+            button("Buat passphrase acak (disarankan)") { showGeneratedPassphrase() }
+            button("Saya pakai passphrase sendiri") { showCustomPassphrase() }
+            button("Batal") { show() }
+        }
+    }
+
+    private fun showGeneratedPassphrase(): Unit = host.run {
+        clearSensitive()
+        val gen = PassphraseGenerator.generate()
+        screen {
+            label("Passphrase cadangan Anda", 22f, amber)
+            label("Tulis di kertas dan simpan TERPISAH dari berkas .mvault. Jika hilang, cadangan tidak bisa dibuka. Layar ini tidak bisa di-screenshot. Ketik persis, termasuk tanda hubung.", 13f, Color.LTGRAY)
+            addView(TextView(context).apply {
+                setText(gen, 0, gen.size)
+                textSize = 20f
+                setTextColor(amber)
+                typeface = Typeface.MONOSPACE
+                setPadding(0, 24, 0, 24)
+            })
+            val confirm = field("Ketik ulang passphrase untuk konfirmasi")
+            val msg = messageView()
+            button("Lanjut dan pilih lokasi") { b ->
+                val typed = take(confirm)
+                val same = typed.contentEquals(gen)
+                typed.fill(Char.MIN_VALUE)
+                if (!same) { msg.text = "Tidak cocok. Ketik persis, termasuk tanda hubung."; return@button }
+                b.isEnabled = false
+                msg.text = "Memeriksa…"
+                proceedBackup(gen.copyOf()) { m -> msg.text = m; b.isEnabled = true }
+            }
+            button("Buat ulang") { gen.fill(Char.MIN_VALUE); showGeneratedPassphrase() }
+            button("Batal") { gen.fill(Char.MIN_VALUE); show() }
+        }
+    }
+
+    private fun showCustomPassphrase(): Unit = host.run {
+        clearSensitive()
+        screen {
+            label("Passphrase sendiri", 22f, amber)
+            label("Minimal 24 karakter, minimal 10 karakter unik, hanya ASCII. Passphrase buatan manusia jauh lebih mudah ditebak daripada yang acak; pilih passphrase acak jika ragu.", 13f, Color.LTGRAY)
             val p1 = field("Passphrase cadangan")
             val p2 = field("Ulangi passphrase cadangan")
             val msg = messageView()
@@ -218,33 +261,37 @@ class EntryUi(private val host: MainActivity) {
                 c.fill(Char.MIN_VALUE)
                 val problem = when {
                     !same -> "Passphrase tidak sama."
-                    !PasswordPolicy.isAcceptable(a) -> "Passphrase terlalu lemah."
+                    !BackupPolicy.isAcceptable(a) -> "Minimal 24 karakter, 10 karakter unik, hanya ASCII."
                     else -> null
                 }
                 if (problem != null) { a.fill(Char.MIN_VALUE); msg.text = problem; return@button }
                 b.isEnabled = false
                 msg.text = "Memeriksa…"
-                worker.execute {
-                    val sameAsMaster = store.matchesMaster(a)
-                    ui.post {
-                        if (sameAsMaster || !SessionLock.isUnlocked) {
-                            a.fill(Char.MIN_VALUE)
-                            msg.text = if (sameAsMaster) "Passphrase cadangan harus berbeda dari master password." else "Vault terkunci."
-                            b.isEnabled = true
-                        } else {
-                            wipeBackupPass()
-                            backupPass = a
-                            val stamp = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())
-                            launchExternal(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-                                addCategory(Intent.CATEGORY_OPENABLE)
-                                type = "application/octet-stream"
-                                putExtra(Intent.EXTRA_TITLE, "molina-vault-$stamp.mvault")
-                            }, REQ_BACKUP_EXPORT)
-                        }
-                    }
+                proceedBackup(a) { m -> msg.text = m; b.isEnabled = true }
+            }
+            button("Kembali") { showBackupForm() }
+        }
+    }
+
+    /** Memastikan passphrase berbeda dari master, lalu membuka pemilih lokasi. [pass] dimiliki fungsi ini. */
+    private fun proceedBackup(pass: CharArray, reject: (String) -> Unit) {
+        host.worker.execute {
+            val sameAsMaster = host.store.matchesMaster(pass)
+            host.ui.post {
+                if (sameAsMaster || !SessionLock.isUnlocked) {
+                    pass.fill(Char.MIN_VALUE)
+                    reject(if (sameAsMaster) "Passphrase cadangan harus berbeda dari master password." else "Vault terkunci.")
+                } else {
+                    wipeBackupPass()
+                    backupPass = pass
+                    val stamp = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())
+                    launchExternal(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        type = "application/octet-stream"
+                        putExtra(Intent.EXTRA_TITLE, "molina-vault-$stamp.mvault")
+                    }, REQ_BACKUP_EXPORT)
                 }
             }
-            button("Batal") { show() }
         }
     }
 
@@ -285,7 +332,7 @@ class EntryUi(private val host: MainActivity) {
             screen {
                 label("MOLINA VAULT", 26f, amber)
                 label("Pulihkan: ${runCatching { displayName(uri) }.getOrNull() ?: "berkas .mvault"}", 15f, Color.WHITE)
-                label("Vault di perangkat ini kosong, jadi cadangan dipulihkan penuh (tanpa gabung). Masukkan passphrase cadangan, lalu pilih master password BARU untuk perangkat ini.", 13f, Color.LTGRAY)
+                label("Vault di perangkat ini kosong, jadi cadangan dipulihkan penuh (tanpa gabung). Masukkan passphrase cadangan (ketik persis, termasuk tanda hubung), lalu pilih master password BARU untuk perangkat ini.", 13f, Color.LTGRAY)
                 val pb = field("Passphrase cadangan")
                 val m1 = field("Master password baru")
                 val m2 = field("Ulangi master password baru")

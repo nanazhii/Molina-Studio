@@ -9,7 +9,7 @@ record*     = id(36, ASCII UUID) | panjang(4) | isi rec_<id>.mvr apa adanya
 trailer(32) = HMAC-SHA256 atas semua byte sebelumnya; kunci = HMAC(vaultKey, "molina-vault/backup-mac/v1")
 ```
 
-- KDF: PBKDF2-HMAC-SHA256, target 900.000 iterasi; parser menolak <600.000 (anti-downgrade) dan >10.000.000 (anti-DoS).
+- KDF: PBKDF2-HMAC-SHA256, target 2.000.000 iterasi (cadangan lama dengan >=600.000 tetap bisa dipulihkan); parser menolak <600.000 (anti-downgrade) dan >10.000.000 (anti-DoS).
 - Tanpa lapisan Keystore, sehingga bisa dibuka di perangkat lain. Pertahanan = passphrase cadangan + KDF.
 - Record tidak dienkripsi ulang: sudah tersegel dengan subkunci HKDF dan AAD yang memuat id.
 - Trailer HMAC mendeteksi record dihapus, ditukar, ditambah, atau berkas terpotong (GCM per record saja tidak).
