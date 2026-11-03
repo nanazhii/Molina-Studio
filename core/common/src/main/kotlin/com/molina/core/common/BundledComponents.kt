@@ -96,7 +96,7 @@ object BundledComponents {
             "Biner prebuilt di jniLibs (arm64), hash dipin dan dicek CI. Tanpa PRoot, fitur berbasis Debian tidak jalan.", PIN_PROOT
         ),
         BundledComponent(
-            "sevenzip", "7-Zip", "26.05 (7zzs statis)", ComponentRole.Pendukung, ComponentOrigin.Apk, Assurance.Sha256,
+            "sevenzip", "7-Zip", "26.05 (7zzs statis, ditambal seccomp)", ComponentRole.Pendukung, ComponentOrigin.Apk, Assurance.Sha256,
             "ip7z/7zip rilis resmi (7-zip.org)", "LGPL-2.1-or-later / BSD / unRAR restriction", "Kompres dan ekstrak arsip di Penjelajah",
             "Biner statis arm64 di jniLibs (lib7zz.so), hash dipin dan dicek CI. Berjalan langsung (daftar isi/kompres); ekstrak di PRoot bila Debian ada. Tanpa apt install.", PIN_SEVENZIP
         ),
