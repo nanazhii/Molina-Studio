@@ -73,6 +73,7 @@ class EntryUi(private val host: MainActivity) {
     private var exportIndex = -1
     private var backupPass: CharArray? = null
     private var restoreUri: Uri? = null
+    private var editKeep: ByteArray? = null   // MOLINA-H2: isi file lama saat mengubah entri
 
     /** true jika berkas cadangan sudah dipilih dan menunggu passphrase serta master baru. */
     val hasPendingRestore: Boolean get() = restoreUri != null
@@ -85,6 +86,7 @@ class EntryUi(private val host: MainActivity) {
         detailFields.forEach { it.fill(0) }; detailFields = emptyList()
         detailMeta = null; nameField = null; fileInfo = null; exportIndex = -1
         backupPass?.fill(Char.MIN_VALUE); backupPass = null
+        editKeep?.fill(0); editKeep = null
     }
 
     private fun typeName(t: RecordType) = when (t) {
@@ -117,9 +119,69 @@ class EntryUi(private val host: MainActivity) {
                 }
             }
             button("Tambah entri") { showTypePick() }
+            button("Ganti master password") { showChangeMaster() }
             button("Cadangan terenkripsi") { showBackupForm() }
             button("Kunci sekarang") { SessionLock.lock(); render() }
         }
+    }
+
+    // MOLINA-H2
+    private fun showChangeMaster(): Unit = host.run {
+        clearSensitive()
+        screen {
+            label("Ganti master password", 22f, amber)
+            label("Hanya header vault yang dibungkus ulang; entri tidak diubah. Perhatian: kunci data (vaultKey) TIDAK dirotasi, jadi salinan lama vault atau cadangan .mvault tetap terbuka dengan master/passphrase lamanya. Jika master lama diduga bocor, buat vault baru lalu pindahkan entri.", 13f, Color.LTGRAY)
+            val cur = field("Master password saat ini")
+            val n1 = field("Master password baru")
+            val n2 = field("Ulangi master password baru")
+            val msg = messageView()
+            button("Ganti master") { b ->
+                val old = take(cur)
+                val a = take(n1)
+                val c = take(n2)
+                val same = a.contentEquals(c)
+                c.fill(Char.MIN_VALUE)
+                val problem = when {
+                    !same -> "Master baru tidak sama."
+                    old.contentEquals(a) -> "Master baru harus berbeda dari yang lama."
+                    !PasswordPolicy.isAcceptable(a) -> "Master baru terlalu lemah."
+                    else -> null
+                }
+                if (problem != null) {
+                    old.fill(Char.MIN_VALUE)
+                    a.fill(Char.MIN_VALUE)
+                    msg.text = problem
+                    return@button
+                }
+                b.isEnabled = false
+                msg.text = "Memproses…"
+                worker.execute {
+                    val err: String? = try {
+                        if (!store.matchesMaster(old)) "Master password saat ini salah."
+                        else { store.changeMaster(a); null }
+                    } catch (e: Exception) {
+                        e.message ?: "Gagal mengganti master"
+                    }
+                    old.fill(Char.MIN_VALUE)
+                    a.fill(Char.MIN_VALUE)
+                    ui.post {
+                        if (err == null) {
+                            Toast.makeText(host, "Master password diganti. Cadangan lama tetap memakai passphrase-nya sendiri.", Toast.LENGTH_LONG).show()
+                            if (SessionLock.isUnlocked) show()
+                        } else {
+                            msg.text = err
+                            b.isEnabled = true
+                        }
+                    }
+                }
+            }
+            button("Batal") { show() }
+        }
+    }
+
+    private fun showEdit(m: RecordMeta) {
+        val copy = detailFields.map { it.copyOf() }
+        showForm(m.type, m, copy)
     }
 
     private fun showTypePick(): Unit = host.run {
@@ -169,9 +231,10 @@ class EntryUi(private val host: MainActivity) {
         return out
     }
 
-    private fun showForm(type: RecordType): Unit = host.run {
+    private fun showForm(type: RecordType, editing: RecordMeta? = null, prefill: List<ByteArray>? = null): Unit = host.run {
         clearSensitive()
         val specs = SPECS.getValue(type)
+        editKeep = prefill?.getOrNull(specs.indexOfFirst { it.kind == Kind.FILE })
         screen {
             label(typeName(type), 22f, amber)
             if (specs.any { it.kind == Kind.SECRET || it.kind == Kind.MULTI }) {
@@ -184,10 +247,12 @@ class EntryUi(private val host: MainActivity) {
                 setSingleLine(true)
             }
             addView(titleField)
+            if (editing != null) titleField.setText(editing.title)
             val inputs = ArrayList<EditText?>()
             for (s in specs) {
                 if (s.kind == Kind.FILE) {
-                    val info = TextView(context).apply { text = "Belum ada file"; setTextColor(Color.LTGRAY); setPadding(0, 12, 0, 12) }
+                    val keep = editKeep
+                    val info = TextView(context).apply { text = if (keep != null) "File saat ini: ${keep.size} byte (pilih file baru untuk mengganti)" else "Belum ada file"; setTextColor(Color.LTGRAY); setPadding(0, 12, 0, 12) }
                     fileInfo = info
                     button("Pilih file…") { pickFile() }
                     addView(info)
@@ -196,23 +261,25 @@ class EntryUi(private val host: MainActivity) {
                     val e = makeInput(s)
                     addView(e)
                     inputs.add(e)
+                    prefill?.getOrNull(inputs.size - 1)?.let { setChars(e, it) }
                     if (s.label == "Nama file") nameField = e
                 }
             }
+            prefill?.forEachIndexed { i, a -> if (specs.getOrNull(i)?.kind != Kind.FILE) a.fill(0) }
             val msg = messageView()
             button("Simpan terenkripsi") { b ->
                 val t = titleField.text.toString().trim()
                 if (t.isEmpty()) { msg.text = "Judul wajib diisi."; return@button }
-                if (specs.any { it.kind == Kind.FILE } && pickedBytes == null) { msg.text = "Pilih file terlebih dulu."; return@button }
+                if (specs.any { it.kind == Kind.FILE } && pickedBytes == null && editKeep == null) { msg.text = "Pilih file terlebih dulu."; return@button }
                 val fields = ArrayList<ByteArray>()
                 for ((i, s) in specs.withIndex()) {
-                    if (s.kind == Kind.FILE) fields.add(pickedBytes!!.copyOf())
+                    if (s.kind == Kind.FILE) fields.add((pickedBytes ?: editKeep)!!.copyOf())
                     else fields.add(utf8(take(inputs[i]!!)))
                 }
                 b.isEnabled = false
                 msg.text = "Mengenkripsi…"
                 worker.execute {
-                    val err: String? = try { store.put(type, t, fields); null } catch (e: Exception) { e.message ?: "Gagal menyimpan" }
+                    val err: String? = try { if (editing != null) store.put(type, t, fields, editing.id) else store.put(type, t, fields); null } catch (e: Exception) { e.message ?: "Gagal menyimpan" }
                     fields.forEach { it.fill(0) }
                     ui.post {
                         if (err == null) show() else { msg.text = err; b.isEnabled = true }
@@ -565,6 +632,7 @@ class EntryUi(private val host: MainActivity) {
                     }
                 }
             }
+            button("Ubah entri") { showEdit(m) }
             button("Hapus entri") { confirmDelete(m) }
             button("Kembali") { show() }
         }
