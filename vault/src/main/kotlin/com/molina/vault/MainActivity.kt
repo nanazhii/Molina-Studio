@@ -10,6 +10,7 @@ import android.graphics.drawable.LayerDrawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.Typeface
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -34,6 +35,12 @@ import com.molina.vault.store.RecordType
 import com.molina.vault.store.VaultStore
 import java.util.concurrent.Executors
 
+// MOLINA-H13-INTENT: kontrak impor lintas aplikasi (lihat docs/VAULT_INTENT.md)
+internal const val ACTION_IMPORT = "com.molina.vault.action.IMPORT"
+internal const val EXTRA_SAVED_NAMES = "com.molina.vault.extra.SAVED_NAMES"
+internal const val EXTRA_SAVED_SHA256 = "com.molina.vault.extra.SAVED_SHA256"
+internal const val EXTRA_SAVED_SIZES = "com.molina.vault.extra.SAVED_SIZES"
+
 class MainActivity : BunkerActivity() {
     private val bg = Color.parseColor("#0E0E10")
     internal val amber = Color.parseColor("#FFB300")
@@ -43,6 +50,8 @@ class MainActivity : BunkerActivity() {
     internal lateinit var store: VaultStore
     private lateinit var limiter: AttemptLimiter
     private var started = false
+    /** MOLINA-H13-INTENT: URI content:// dari permintaan impor; hidup hanya selama satu kunjungan (dihapus saat onStop). */
+    internal var pendingImport: List<Uri> = emptyList()
     internal val entries by lazy { EntryUi(this) }
     private val autoLock = Runnable { SessionLock.lock(); render() }
 
@@ -50,12 +59,33 @@ class MainActivity : BunkerActivity() {
         super.onCreate(savedInstanceState)
         store = VaultStore(this)
         limiter = AttemptLimiter(this)
+        if (savedInstanceState == null) acceptImport(intent)   // MOLINA-H13-INTENT
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        acceptImport(intent)
+        if (started) render()
+    }
+
+    /** Hanya URI content:// (file:// ditolak). Pemanggil sudah disaring sistem lewat izin signature pada alias. */
+    private fun acceptImport(i: Intent?) {
+        if (i?.action != ACTION_IMPORT) return
+        val out = ArrayList<Uri>()
+        val clip = i.clipData
+        if (clip != null) {
+            for (k in 0 until clip.itemCount) clip.getItemAt(k).uri?.let { if (it.scheme == "content") out.add(it) }
+        }
+        pendingImport = out.take(500)
+        setIntent(Intent())
     }
 
     override fun onStart() { super.onStart(); started = true; if (!(entries.holdScreen && SessionLock.isUnlocked)) render() }
 
     override fun onStop() {
         started = false
+        pendingImport = emptyList()   // MOLINA-H13-INTENT: fail-closed, impor harus selesai dalam satu kunjungan
         ui.removeCallbacks(autoLock)
         super.onStop()
     }
@@ -78,7 +108,7 @@ class MainActivity : BunkerActivity() {
         when {
             !store.exists() -> if (entries.hasPendingRestore) entries.showRestoreForm() else showSetup()
             !SessionLock.isUnlocked -> showUnlock()
-            else -> { entries.show(); ui.postDelayed(autoLock, store.prefs.autoLockMs) }
+            else -> { if (pendingImport.isNotEmpty()) entries.showExternalImport() else entries.show(); ui.postDelayed(autoLock, store.prefs.autoLockMs) }
         }
     }
 

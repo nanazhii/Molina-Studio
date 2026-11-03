@@ -65,6 +65,9 @@ private class WipeableBuffer : ByteArrayOutputStream() {
     fun wipe() { buf.fill(0) }
 }
 
+/** MOLINA-H13-INTENT: berkas yang benar-benar tersimpan (untuk hasil ke pemanggil). */
+private class SavedItem(val name: String, val sha256: String, val size: Long)
+
 /** MOLINA-H12-STREAM: berkas melebihi ambang v2; pemanggil beralih ke jalur streaming. */
 private class TooLargeException : IOException("File lebih dari 1 MiB. Gunakan Impor banyak berkas untuk berkas besar.")
 
@@ -110,6 +113,8 @@ class EntryUi(private val host: MainActivity) {
     private var pickedBytes: ByteArray? = null
     private var detailBlob: BlobInfo? = null   // MOLINA-H12-STREAM: deskriptor blob bila entri v3
     @Volatile private var importCancelled = false
+    private var returnToCaller = false   // MOLINA-H13-INTENT: impor berasal dari aplikasi lain
+    private val savedItems = ArrayList<SavedItem>()
     private var nameField: EditText? = null
     private var fileInfo: TextView? = null
     private var detailFields: List<ByteArray> = emptyList()
@@ -834,6 +839,7 @@ class EntryUi(private val host: MainActivity) {
         val importFolder = filterFolder.orEmpty()
         val over = all.size - uris.size
         importCancelled = false
+        savedItems.clear()
         var status: TextView? = null
         host.run {
             screen {
@@ -866,6 +872,7 @@ class EntryUi(private val host: MainActivity) {
                     val progress: (Long) -> Unit = { done ->
                         host.ui.post {
                             status?.text = "(${i + 1}/${uris.size}) $name · ${fmtSize(done)}" + (if (size > 0) " / ${fmtSize(size)}" else "")
+                            host.onUserInteraction()   // MOLINA-H13: tunda kunci otomatis selama streaming panjang
                         }
                     }
                     if (size > VAULT_LARGE_THRESHOLD) {   // MOLINA-H12-STREAM
@@ -874,6 +881,7 @@ class EntryUi(private val host: MainActivity) {
                         try {
                             bytes = readLimited(uri)
                             host.store.put(RecordType.FILE, name, listOf(name.toByteArray(Charsets.UTF_8), bytes, ByteArray(0)), folder = importFolder)
+                            savedItems.add(SavedItem(name, sha256Hex(bytes), bytes.size.toLong()))   // MOLINA-H13-INTENT
                         } catch (e: TooLargeException) {
                             importLarge(uri, name, -1L, importFolder, progress)
                         }
@@ -890,6 +898,7 @@ class EntryUi(private val host: MainActivity) {
                 host.ui.post { host.onUserInteraction() }
             }
             host.ui.post {
+                if (returnToCaller) publishResult()   // MOLINA-H13-INTENT
                 if (!SessionLock.isUnlocked) host.render() else showImportResult(ok, skipped, failed, over)
             }
         }
@@ -905,8 +914,60 @@ class EntryUi(private val host: MainActivity) {
                 label("Gagal: ${failed.size}", 14f, red)
                 for (f in failed.take(10)) label(f, 12f, red)
             }
-            button("Selesai") { show() }
+            if (returnToCaller) label("Tekan Selesai untuk kembali. Hanya berkas yang tersimpan dilaporkan ke pemanggil.", 12f)
+            button("Selesai") { if (returnToCaller) { returnToCaller = false; host.finish() } else show() }
         }
+    }
+
+    // MOLINA-H13-INTENT: permintaan impor dari Penjelajah/Code. Selalu minta konfirmasi di layar Vault.
+    fun showExternalImport() {
+        val uris = host.pendingImport
+        if (uris.isEmpty()) { show(); return }
+        var details: TextView? = null
+        host.run {
+            screen {
+                label("Simpan ke Vault", 22f, amber)
+                label("Molina meminta menyimpan ${uris.size} berkas ke Vault. Berkas dienkripsi di dalam Vault; berkas asli tidak diubah.", 14f, Color.WHITE)
+                val d = TextView(context).apply { setTextColor(Color.LTGRAY); textSize = 13f; setPadding(0, 12, 0, 12); text = "Menghitung ukuran…" }
+                addView(d)
+                details = d
+                button("Simpan ke Vault") { b -> b.isEnabled = false; startExternalImport() }
+                button("Batal") { host.pendingImport = emptyList(); host.setResult(Activity.RESULT_CANCELED); host.finish() }
+            }
+        }
+        host.worker.execute {
+            var total = 0L
+            var unknown = 0
+            val sb = StringBuilder()
+            for ((i, u) in uris.withIndex()) {
+                val s = querySize(u)
+                if (s >= 0) total += s else unknown++
+                if (i < 5) sb.append("• ").append((displayName(u) ?: "berkas-${i + 1}").take(60)).append(if (s >= 0) " · ${fmtSize(s)}" else "").append('\n')
+            }
+            if (uris.size > 5) sb.append("… dan ${uris.size - 5} berkas lain\n")
+            sb.append("Total: ").append(fmtSize(total)).append(if (unknown > 0) " + $unknown berkas ukuran tidak diketahui" else "")
+            val free = try { host.store.freeBytes() } catch (e: Exception) { -1L }
+            if (free >= 0) sb.append("\nRuang kosong: ").append(fmtSize(free))
+            val text = sb.toString()
+            host.ui.post { details?.text = text }
+        }
+    }
+
+    private fun startExternalImport() {
+        val uris = host.pendingImport
+        host.pendingImport = emptyList()
+        returnToCaller = true
+        filterFolder = null
+        importMany(uris)
+    }
+
+    /** Hanya berkas yang benar-benar tersimpan; pemanggil memverifikasi SHA-256 sebelum menghapus asli. */
+    private fun publishResult() {
+        val r = Intent()
+            .putStringArrayListExtra(EXTRA_SAVED_NAMES, ArrayList(savedItems.map { it.name }))
+            .putStringArrayListExtra(EXTRA_SAVED_SHA256, ArrayList(savedItems.map { it.sha256 }))
+            .putExtra(EXTRA_SAVED_SIZES, savedItems.map { it.size }.toLongArray())
+        host.setResult(Activity.RESULT_OK, r)
     }
 
     private fun pickFile() {
@@ -1001,17 +1062,22 @@ class EntryUi(private val host: MainActivity) {
 
     private fun hexPrefix(sha: ByteArray): String = sha.take(8).joinToString("") { "%02x".format(it) }
 
+    private fun hexFull(b: ByteArray): String = b.joinToString("") { "%02x".format(it) }
+
+    private fun sha256Hex(data: ByteArray): String = hexFull(MessageDigest.getInstance("SHA-256").digest(data))
+
     /** Berkas > ambang v2: streaming ke record v3, memori O(64 KB). [size] = -1 bila tidak diketahui. */
     private fun importLarge(uri: Uri, name: String, size: Long, folder: String, onProgress: (Long) -> Unit) {
         if (size > StreamCrypto.MAX_STREAM_BYTES) throw IOException("Berkas lebih dari ${fmtSize(StreamCrypto.MAX_STREAM_BYTES)}")
         val raw = host.contentResolver.openInputStream(uri) ?: throw IOException("Tidak bisa membuka file")
-        ProgressInputStream(raw, { importCancelled }, onProgress).use { ins ->
+        val sf = ProgressInputStream(raw, { importCancelled }, onProgress).use { ins ->
             host.store.putFile(
                 RecordType.FILE, name,
                 listOf(name.toByteArray(Charsets.UTF_8), ByteArray(0), ByteArray(0)),
                 1, ins, folder = folder, expectedBytes = size,
             )
         }
+        savedItems.add(SavedItem(name, hexFull(sf.info.sha256), sf.info.size))   // MOLINA-H13-INTENT
     }
 
     /** Hasil ekspor yang gagal tidak boleh tertinggal sebagai plaintext parsial di tujuan SAF. */

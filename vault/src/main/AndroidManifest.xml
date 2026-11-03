@@ -8,6 +8,9 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" tools:node="remove" />
 
+    <!-- MOLINA-H13-INTENT: hanya aplikasi Molina bertanda tangan sama yang boleh meminta impor -->
+    <permission android:name="com.molina.vault.permission.IMPORT" android:protectionLevel="signature" />
+
     <application
         android:allowBackup="false"
         android:largeHeap="true"
@@ -33,5 +36,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- MOLINA-H13-INTENT: pintu impor. Izin signature ditegakkan sistem pada alias ini; peluncur biasa tetap lewat MainActivity. -->
+        <activity-alias
+            android:name=".ImportEntry"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:permission="com.molina.vault.permission.IMPORT">
+            <intent-filter>
+                <action android:name="com.molina.vault.action.IMPORT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
     </application>
 </manifest>
