@@ -5,7 +5,31 @@ import java.nio.ByteBuffer
 
 enum class RecordType { PASSWORD, NOTE, KEYSTORE, SECRET, FILE }
 
-data class RecordMeta(val id: String, val type: RecordType, val title: String, val modifiedAt: Long)
+// MOLINA-H6-FOLDER: folder (datar, satu level) dan tag bersifat opsional; record lama tanpa field ini tetap valid.
+data class RecordMeta(
+    val id: String,
+    val type: RecordType,
+    val title: String,
+    val modifiedAt: Long,
+    val folder: String = "",
+    val tags: List<String> = emptyList(),
+)
+
+object LabelPolicy {
+    const val MAX_FOLDER = 60
+    const val MAX_TAG = 30
+    const val MAX_TAGS = 10
+
+    fun cleanFolder(raw: String): String =
+        raw.trim().split(' ').filter { it.isNotEmpty() }.joinToString(" ").take(MAX_FOLDER)
+
+    fun parseTags(raw: String): List<String> =
+        raw.split(',', ';')
+            .map { it.trim().removePrefix("#").trim().take(MAX_TAG) }
+            .filter { it.isNotEmpty() }
+            .distinctBy { it.lowercase() }
+            .take(MAX_TAGS)
+}
 
 data class VaultListing(val items: List<RecordMeta>, val corrupt: Int)
 

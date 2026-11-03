@@ -5,6 +5,7 @@ import com.molina.vault.crypto.InvalidVaultException
 import com.molina.vault.crypto.PasswordPolicy
 import com.molina.vault.crypto.SessionLock
 import com.molina.vault.crypto.VaultCrypto
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.DataInputStream
 import java.io.File
@@ -65,16 +66,29 @@ class VaultStore(context: Context) {
         VaultListing(items.sortedBy { it.title.lowercase() }, bad)
     }
 
-    fun put(type: RecordType, title: String, fields: List<ByteArray>, id: String = UUID.randomUUID().toString()): RecordMeta {
+    fun put(
+        type: RecordType,
+        title: String,
+        fields: List<ByteArray>,
+        id: String = UUID.randomUUID().toString(),
+        folder: String = "",
+        tags: List<String> = emptyList(),
+    ): RecordMeta {
         require(validId(id)) { "ID tidak valid" }
         require(title.isNotBlank() && title.length <= 200) { "Judul tidak valid" }
+        // MOLINA-H6-FOLDER
+        val cleanFolder = LabelPolicy.cleanFolder(folder)
+        val cleanTags = tags.take(LabelPolicy.MAX_TAGS).map { it.take(LabelPolicy.MAX_TAG) }.filter { it.isNotEmpty() }
         val payload = PayloadCodec.pack(fields)
         try {
             require(payload.size <= MAX_PAYLOAD) { "Data terlalu besar (maks 16 MB)" }
             return SessionLock.use { key ->
                 val now = System.currentTimeMillis()
-                val metaJson = JSONObject().put("id", id).put("type", type.name)
-                    .put("title", title).put("ts", now).toString().toByteArray(Charsets.UTF_8)
+                val metaObj = JSONObject().put("id", id).put("type", type.name)
+                    .put("title", title).put("ts", now)
+                if (cleanFolder.isNotEmpty()) metaObj.put("folder", cleanFolder)
+                if (cleanTags.isNotEmpty()) metaObj.put("tags", JSONArray(cleanTags))
+                val metaJson = metaObj.toString().toByteArray(Charsets.UTF_8)
                 val sealedMeta = VaultCrypto.encryptRecord(key, metaJson, aad("meta", id))
                 metaJson.fill(0)
                 val sealedData = VaultCrypto.encryptRecord(key, payload, aad("data", id))
@@ -82,7 +96,7 @@ class VaultStore(context: Context) {
                     .put(REC_MAGIC).put(REC_VERSION).putInt(sealedMeta.size)
                     .put(sealedMeta).put(sealedData).array()
                 atomicWrite(recFile(id), out)
-                RecordMeta(id, type, title, now)
+                RecordMeta(id, type, title, now, cleanFolder, cleanTags)
             }
         } finally {
             payload.fill(0)
@@ -120,7 +134,16 @@ class VaultStore(context: Context) {
         try {
             val j = JSONObject(String(plain, Charsets.UTF_8))
             if (j.getString("id") != id) throw InvalidVaultException("ID tidak cocok")
-            return RecordMeta(id, RecordType.valueOf(j.getString("type")), j.getString("title"), j.getLong("ts"))
+            val arr = j.optJSONArray("tags")
+            val tags = ArrayList<String>()
+            if (arr != null) {
+                for (i in 0 until minOf(arr.length(), LabelPolicy.MAX_TAGS)) {
+                    val s = arr.optString(i, "")
+                    if (s.isNotEmpty()) tags.add(s.take(LabelPolicy.MAX_TAG))
+                }
+            }
+            val folder = j.optString("folder", "").take(LabelPolicy.MAX_FOLDER)
+            return RecordMeta(id, RecordType.valueOf(j.getString("type")), j.getString("title"), j.getLong("ts"), folder, tags)
         } finally {
             plain.fill(0)
         }

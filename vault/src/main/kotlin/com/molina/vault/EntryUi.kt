@@ -27,6 +27,7 @@ import com.molina.vault.crypto.PasswordPolicy
 import com.molina.vault.crypto.SessionLock
 import com.molina.vault.crypto.WrongPasswordOrTamperedException
 import com.molina.vault.store.BackupStore
+import com.molina.vault.store.LabelPolicy
 import com.molina.vault.store.RecordMeta
 import com.molina.vault.store.RecordType
 import java.io.ByteArrayOutputStream
@@ -85,6 +86,7 @@ class EntryUi(private val host: MainActivity) {
 
     private var filterText = ""
     private var filterType: RecordType? = null
+    private var filterFolder: String? = null   // MOLINA-H6-FOLDER: null = semua folder
     private val dateFmt = SimpleDateFormat("dd MMM yyyy HH:mm", Locale.getDefault())
 
     /** true jika berkas cadangan sudah dipilih dan menunggu passphrase serta master baru. */
@@ -138,7 +140,7 @@ class EntryUi(private val host: MainActivity) {
                 val extra = if (listing.corrupt > 0) " (${listing.corrupt} rusak/dimanipulasi)" else ""
                 val countView = TextView(context).apply { setTextColor(Color.WHITE); textSize = 16f; setPadding(0, 20, 0, 8) }
                 addView(countView)
-                val search = makeInput(Spec("Cari judul", Kind.TEXT)).apply { setSingleLine(true); setText(filterText) }
+                val search = makeInput(Spec("Cari judul atau tag", Kind.TEXT)).apply { setSingleLine(true); setText(filterText) }
                 addView(search)
                 val chip = TextView(context).apply {
                     textSize = 14f
@@ -150,18 +152,34 @@ class EntryUi(private val host: MainActivity) {
                         .apply { setMargins(0, host.dp(4f), 0, host.dp(12f)) }
                 }
                 addView(chip)
+                val folderChip = TextView(context).apply {
+                    textSize = 14f
+                    setTextColor(amber)
+                    background = host.cardDrawable()
+                    setPadding(host.dp(14f), host.dp(10f), host.dp(14f), host.dp(10f))
+                    isClickable = true
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                        .apply { setMargins(0, 0, 0, host.dp(12f)) }
+                }
+                addView(folderChip)
                 val box = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
                 addView(box)
 
                 fun fill() {
                     box.removeAllViews()
+                    val folderNames = listing.items.map { it.folder }.filter { it.isNotEmpty() }.distinct().sortedBy { it.lowercase() }
+                    val ff = filterFolder
+                    if (ff != null && ff !in folderNames) filterFolder = null
+                    folderChip.visibility = if (folderNames.isEmpty()) View.GONE else View.VISIBLE
                     val q = filterText.trim().lowercase()
                     val shown = listing.items.filter { m ->
-                        (filterType == null || m.type == filterType) && (q.isEmpty() || m.title.lowercase().contains(q))
+                        (filterType == null || m.type == filterType) && (filterFolder == null || m.folder == filterFolder) &&
+                            (q.isEmpty() || m.title.lowercase().contains(q) || m.tags.any { it.lowercase().contains(q) })
                     }
-                    val filtering = q.isNotEmpty() || filterType != null
+                    val filtering = q.isNotEmpty() || filterType != null || filterFolder != null
                     countView.text = if (filtering) "${shown.size} dari ${listing.items.size} entri$extra" else "${listing.items.size} entri$extra"
                     chip.text = "Jenis: ${filterType?.let { typeShort(it) } ?: "SEMUA"}  ▸ ketuk untuk ganti"
+                    folderChip.text = "Folder: ${filterFolder ?: "SEMUA"}  ▸ ketuk untuk ganti"
                     if (shown.isEmpty()) {
                         box.addView(TextView(context).apply {
                             text = if (listing.items.isEmpty()) "Belum ada entri. Ketuk Tambah entri atau Impor banyak berkas." else "Tidak ada entri yang cocok."
@@ -182,10 +200,21 @@ class EntryUi(private val host: MainActivity) {
                         }
                         row.addView(TextView(context).apply { text = m.title; textSize = 16f; setTextColor(Color.WHITE) })
                         row.addView(TextView(context).apply {
-                            text = "${typeShort(m.type)} · ${dateFmt.format(Date(m.modifiedAt))}"
+                            text = buildString {
+                                append(typeShort(m.type))
+                                if (m.folder.isNotEmpty()) append(" · ").append(m.folder)
+                                append(" · ").append(dateFmt.format(Date(m.modifiedAt)))
+                            }
                             textSize = 12f
                             setTextColor(Color.GRAY)
                         })
+                        if (m.tags.isNotEmpty()) {
+                            row.addView(TextView(context).apply {
+                                text = m.tags.joinToString("  ") { "#$it" }
+                                textSize = 12f
+                                setTextColor(amber)
+                            })
+                        }
                         box.addView(row)
                     }
                 }
@@ -194,6 +223,12 @@ class EntryUi(private val host: MainActivity) {
                     val all = RecordType.values()
                     val cur = filterType
                     filterType = if (cur == null) all.first() else all.getOrNull(cur.ordinal + 1)
+                    fill()
+                }
+                folderChip.setOnClickListener {
+                    val names = listing.items.map { it.folder }.filter { it.isNotEmpty() }.distinct().sortedBy { it.lowercase() }
+                    val cur = filterFolder
+                    filterFolder = if (cur == null) names.firstOrNull() else names.getOrNull(names.indexOf(cur) + 1)
                     fill()
                 }
                 search.addTextChangedListener(object : TextWatcher {
@@ -334,6 +369,16 @@ class EntryUi(private val host: MainActivity) {
             }
             addView(titleField)
             if (editing != null) titleField.setText(editing.title)
+            val folderField = makeInput(Spec("Folder (opsional)", Kind.TEXT)).apply {
+                setSingleLine(true)
+                setText(editing?.folder ?: filterFolder.orEmpty())
+            }
+            addView(folderField)
+            val tagsField = makeInput(Spec("Tag, pisahkan dengan koma (opsional)", Kind.TEXT)).apply {
+                setSingleLine(true)
+                setText(editing?.tags?.joinToString(", ").orEmpty())
+            }
+            addView(tagsField)
             val inputs = ArrayList<EditText?>()
             for (s in specs) {
                 if (s.kind == Kind.FILE) {
@@ -362,10 +407,12 @@ class EntryUi(private val host: MainActivity) {
                     if (s.kind == Kind.FILE) fields.add((pickedBytes ?: editKeep)!!.copyOf())
                     else fields.add(utf8(take(inputs[i]!!)))
                 }
+                val folderValue = LabelPolicy.cleanFolder(folderField.text.toString())
+                val tagValues = LabelPolicy.parseTags(tagsField.text.toString())
                 b.isEnabled = false
                 msg.text = "Mengenkripsi…"
                 worker.execute {
-                    val err: String? = try { if (editing != null) store.put(type, t, fields, editing.id) else store.put(type, t, fields); null } catch (e: Exception) { e.message ?: "Gagal menyimpan" }
+                    val err: String? = try { if (editing != null) store.put(type, t, fields, editing.id, folderValue, tagValues) else store.put(type, t, fields, folder = folderValue, tags = tagValues); null } catch (e: Exception) { e.message ?: "Gagal menyimpan" }
                     fields.forEach { it.fill(0) }
                     ui.post {
                         if (err == null) show() else { msg.text = err; b.isEnabled = true }
@@ -589,11 +636,13 @@ class EntryUi(private val host: MainActivity) {
 
     private fun importMany(all: List<Uri>) {
         val uris = all.take(MAX_BATCH)
+        val importFolder = filterFolder.orEmpty()
         val over = all.size - uris.size
         var status: TextView? = null
         host.run {
             screen {
                 label("Impor banyak berkas", 22f, amber)
+                if (importFolder.isNotEmpty()) label("Masuk ke folder: $importFolder", 13f)
                 val s = TextView(context).apply { setTextColor(Color.WHITE); textSize = 15f; setPadding(0, 16, 0, 16); text = "Menyiapkan…" }
                 addView(s)
                 status = s
@@ -613,7 +662,7 @@ class EntryUi(private val host: MainActivity) {
                 var bytes: ByteArray? = null
                 try {
                     bytes = readLimited(uri)
-                    host.store.put(RecordType.FILE, name, listOf(name.toByteArray(Charsets.UTF_8), bytes, ByteArray(0)))
+                    host.store.put(RecordType.FILE, name, listOf(name.toByteArray(Charsets.UTF_8), bytes, ByteArray(0)), folder = importFolder)
                     existing.add(name)
                     ok++
                 } catch (e: Exception) {
@@ -782,6 +831,8 @@ class EntryUi(private val host: MainActivity) {
         screen {
             label(typeName(m.type), 13f)
             label(m.title, 22f, amber)
+            if (m.folder.isNotEmpty()) label("Folder: ${m.folder}", 13f)
+            if (m.tags.isNotEmpty()) label(m.tags.joinToString("  ") { "#$it" }, 13f)
             for ((i, s) in SPECS.getValue(m.type).withIndex()) {
                 if (i >= detailFields.size) break
                 val data = detailFields[i]
