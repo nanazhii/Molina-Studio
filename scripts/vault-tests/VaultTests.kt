@@ -391,6 +391,7 @@ fun main() {
     backupTests()
     streamTests()
     stage2Tests()
+    storeTests()   // MOLINA-H11-GLUE
     println("Ringkasan: ${total - failures} lulus, $failures gagal dari $total uji")
     if (failures > 0) exitProcess(1)
 }

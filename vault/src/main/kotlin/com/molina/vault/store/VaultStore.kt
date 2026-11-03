@@ -5,6 +5,7 @@ import com.molina.vault.crypto.InvalidVaultException
 import com.molina.vault.crypto.WrongPasswordOrTamperedException
 import com.molina.vault.crypto.PasswordPolicy
 import com.molina.vault.crypto.SessionLock
+import com.molina.vault.crypto.StreamCrypto
 import com.molina.vault.crypto.VaultCrypto
 import org.json.JSONArray
 import org.json.JSONObject
@@ -13,12 +14,17 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
-import java.io.RandomAccessFile
+import java.io.InputStream
+import java.io.OutputStream
 import java.nio.ByteBuffer
 import java.util.UUID
 
 private val REC_MAGIC = byteArrayOf(0x4D, 0x56, 0x52, 0x43) // "MVRC"
 private const val REC_VERSION: Byte = 2
+private const val REC_VERSION_BLOB: Byte = 3   // MOLINA-H11-GLUE (lihat BlobRecord)
+/** Rekomendasi: blob <= 1 MiB tetap v2 (put), di atasnya v3 (putFile). Belum dikonfirmasi pengguna. */
+const val VAULT_LARGE_THRESHOLD = 1L * 1024 * 1024
+private const val SPACE_MARGIN = 8L * 1024 * 1024
 private const val HEAD = 4 + 1 + 4
 private const val MIN_SEALED = 29 // iv(12) + tag(16) + >=1 byte
 private const val MAX_PAYLOAD = 32 * 1024 * 1024
@@ -28,11 +34,22 @@ private const val ROTATE_COMMIT = "COMMIT"
 /** Rotasi sudah dikomit tetapi belum selesai dipindahkan; akan dituntaskan otomatis saat vault dibuka. */
 class RotationPendingException : Exception("Rotasi kunci tertunda dan vault dikunci. Buka kembali vault untuk menuntaskannya.")
 
+/** Record v3 (berkas besar) tidak boleh dimuat utuh lewat read(); pakai openLarge/exportBlob. */
+class LargeRecordException : Exception("Record berkas besar: gunakan openLarge dan exportBlob")
+
+/** Ruang kosong tidak cukup untuk impor/rotasi. */
+class InsufficientSpaceException(val needed: Long, val free: Long) : Exception("Ruang penyimpanan tidak cukup")
+
+/** Hasil penyimpanan berkas besar. */
+class StoredFile(val meta: RecordMeta, val info: BlobInfo)
+
 /** Penyimpanan privat: noBackupFilesDir/vault. Satu file per entri, metadata dan isi dienkripsi terpisah. */
 class VaultStore(context: Context) {
     internal val dir = File(context.applicationContext.noBackupFilesDir, "vault").apply { mkdirs() }
     internal val headerFile = File(dir, "vault.mvlt")
     internal val prefs = VaultPrefs(context)   // MOLINA-H7B
+    /** Diganti di uji. Android 8: File.getUsableSpace pada noBackupFilesDir. */
+    internal var freeSpace: () -> Long = { dir.usableSpace }
 
     fun exists(): Boolean = headerFile.exists()
 
@@ -70,6 +87,7 @@ class VaultStore(context: Context) {
                 try {
                     staging.deleteRecursively()
                     check(staging.mkdirs()) { "Gagal menyiapkan staging" }
+                    needSpace(rotationBytes() + SPACE_MARGIN)   // rotasi menggandakan ruang sementara
                     var rotated = 0
                     for (f in dir.listFiles().orEmpty().sortedBy { it.name }) {
                         if (!f.isFile || !f.name.startsWith("rec_") || !f.name.endsWith(".mvr")) continue
@@ -161,6 +179,7 @@ class VaultStore(context: Context) {
     /** Pemanggil wajib me-wipe setiap ByteArray hasil setelah selesai. */
     fun read(id: String): List<ByteArray> = SessionLock.use { key ->
         require(validId(id)) { "ID tidak valid" }
+        if (BlobRecord.isBlobRecord(recFile(id))) throw LargeRecordException()
         val raw = recFile(id).readBytes()
         val n = sealedMetaSize(raw)
         val plain = VaultCrypto.decryptRecord(key, raw.copyOfRange(HEAD + n, raw.size), aad("data", id))
@@ -177,7 +196,15 @@ class VaultStore(context: Context) {
         require(validId(id)) { "ID tidak valid" }
         val cleanFolder = LabelPolicy.cleanFolder(folder)
         SessionLock.use { key ->
-            val raw = recFile(id).readBytes()
+            val rf = recFile(id)
+            if (BlobRecord.isBlobRecord(rf)) {   // MOLINA-H11-GLUE: tanpa memuat blob
+                needSpace(rf.length() + SPACE_MARGIN)
+                val head = BlobRecord.readHead(rf)
+                BlobRecord.relabel(rf, relabeledMeta(key, head.sealedMeta, id, cleanFolder, tags))
+                prefs.noteChange()
+                return@use
+            }
+            val raw = rf.readBytes()
             try {
                 val n = sealedMetaSize(raw)
                 val plain = VaultCrypto.decryptRecord(key, raw.copyOfRange(HEAD, HEAD + n), aad("meta", id))
@@ -215,9 +242,74 @@ class VaultStore(context: Context) {
         return moved
     }
 
+    // ---- berkas besar, record v3 (MOLINA-H11-GLUE) ----
+
+    /**
+     * Menyimpan berkas besar secara streaming (memori O(64 KB)). [fields] berisi semua field; isi di [blobIndex]
+     * diabaikan dan diganti aliran [blob]. [expectedBytes] (jika diketahui) dipakai untuk cek ruang sebelum menulis.
+     * Gagal di tengah: .tmp dihapus, record lama (bila ada) utuh.
+     */
+    fun putFile(
+        type: RecordType,
+        title: String,
+        fields: List<ByteArray>,
+        blobIndex: Int,
+        blob: InputStream,
+        id: String = UUID.randomUUID().toString(),
+        folder: String = "",
+        tags: List<String> = emptyList(),
+        expectedBytes: Long = -1L,
+        maxBytes: Long = StreamCrypto.MAX_STREAM_BYTES,
+    ): StoredFile {
+        require(validId(id)) { "ID tidak valid" }
+        require(title.isNotBlank() && title.length <= 200) { "Judul tidak valid" }
+        require(expectedBytes <= maxBytes) { "Berkas terlalu besar" }
+        val cleanFolder = LabelPolicy.cleanFolder(folder)
+        val cleanTags = tags.take(LabelPolicy.MAX_TAGS).map { it.take(LabelPolicy.MAX_TAG) }.filter { it.isNotEmpty() }
+        needSpace((if (expectedBytes >= 0) StreamCrypto.encryptedSize(expectedBytes) else maxBytes) + SPACE_MARGIN)
+        return SessionLock.use { key ->
+            val now = System.currentTimeMillis()
+            val metaObj = JSONObject().put("id", id).put("type", type.name).put("title", title).put("ts", now)
+            if (cleanFolder.isNotEmpty()) metaObj.put("folder", cleanFolder)
+            if (cleanTags.isNotEmpty()) metaObj.put("tags", JSONArray(cleanTags))
+            val metaJson = metaObj.toString().toByteArray(Charsets.UTF_8)
+            try {
+                val info = BlobRecord.write(recFile(id), id, key, sealer(key), metaJson, fields, blobIndex, blob, maxBytes)
+                prefs.noteChange()
+                StoredFile(RecordMeta(id, type, title, now, cleanFolder, cleanTags), info)
+            } finally {
+                metaJson.fill(0)
+            }
+        }
+    }
+
+    fun isLarge(id: String): Boolean {
+        require(validId(id)) { "ID tidak valid" }
+        return BlobRecord.isBlobRecord(recFile(id))
+    }
+
+    /** Bagian kecil record v3 + deskriptor blob (ukuran, SHA-256) tanpa menyentuh blob. Pemanggil wajib me-wipe fields. */
+    fun openLarge(id: String): BlobOpened = SessionLock.use { key ->
+        require(validId(id)) { "ID tidak valid" }
+        BlobRecord.openSmall(recFile(id), id, sealer(key))
+    }
+
+    /**
+     * Mendekripsi blob ke [out] per chunk. Bila melempar exception, [out] bisa berisi bagian awal plaintext:
+     * pemanggil wajib membuang tujuan ekspor (SAF: DocumentsContract.deleteDocument).
+     */
+    fun exportBlob(id: String, out: OutputStream): StreamCrypto.Result = SessionLock.use { key ->
+        require(validId(id)) { "ID tidak valid" }
+        BlobRecord.exportBlob(recFile(id), id, key, sealer(key), out)
+    }
+
     // ---- rotasi (MOLINA-H8-ROTATE) ----
 
     private fun stageRotated(old: ByteArray, fresh: ByteArray, f: File, id: String, staging: File) {
+        if (BlobRecord.isBlobRecord(f)) {   // MOLINA-H11-GLUE: streaming, memori O(chunk)
+            BlobRecord.rotate(f, File(staging, "rec_$id.mvr"), id, old, sealer(old), fresh, sealer(fresh))
+            return
+        }
         val raw = f.readBytes()
         try {
             val n = sealedMetaSize(raw)
@@ -275,7 +367,8 @@ class VaultStore(context: Context) {
         val sealed = DataInputStream(FileInputStream(f).buffered()).use { d ->
             val magic = ByteArray(4)
             d.readFully(magic)
-            if (!magic.contentEquals(REC_MAGIC) || d.readByte() != REC_VERSION) throw InvalidVaultException("Record tidak valid")
+            val ver = d.readByte()
+            if (!magic.contentEquals(REC_MAGIC) || (ver != REC_VERSION && ver != REC_VERSION_BLOB)) throw InvalidVaultException("Record tidak valid")
             val n = d.readInt()
             if (n < MIN_SEALED || n > 65_536) throw InvalidVaultException("Record rusak")
             ByteArray(n).also { d.readFully(it) }
@@ -297,6 +390,34 @@ class VaultStore(context: Context) {
         } finally {
             plain.fill(0)
         }
+    }
+
+    private fun sealer(key: ByteArray): RecordSealer = object : RecordSealer {
+        override fun seal(kind: String, id: String, plain: ByteArray): ByteArray =
+            VaultCrypto.encryptRecord(key, plain, aad(kind, id))
+        override fun open(kind: String, id: String, sealed: ByteArray): ByteArray =
+            VaultCrypto.decryptRecord(key, sealed, aad(kind, id))
+    }
+
+    internal fun needSpace(bytes: Long) {
+        val free = freeSpace()
+        if (free < bytes) throw InsufficientSpaceException(bytes, free)
+    }
+
+    private fun rotationBytes(): Long =
+        dir.listFiles().orEmpty().filter { it.isFile && it.name.startsWith("rec_") && it.name.endsWith(".mvr") }.sumOf { it.length() }
+
+    private fun relabeledMeta(key: ByteArray, sealedMeta: ByteArray, id: String, folder: String, tags: List<String>?): ByteArray {
+        val plain = VaultCrypto.decryptRecord(key, sealedMeta, aad("meta", id))
+        val j = try { JSONObject(String(plain, Charsets.UTF_8)) } finally { plain.fill(0) }
+        if (j.getString("id") != id) throw InvalidVaultException("ID tidak cocok")
+        if (folder.isEmpty()) j.remove("folder") else j.put("folder", folder)
+        if (tags != null) {
+            val clean = tags.take(LabelPolicy.MAX_TAGS).map { it.take(LabelPolicy.MAX_TAG) }.filter { it.isNotEmpty() }
+            if (clean.isEmpty()) j.remove("tags") else j.put("tags", JSONArray(clean))
+        }
+        val metaJson = j.toString().toByteArray(Charsets.UTF_8)
+        try { return VaultCrypto.encryptRecord(key, metaJson, aad("meta", id)) } finally { metaJson.fill(0) }
     }
 
     private fun sealedMetaSize(raw: ByteArray): Int {
@@ -326,12 +447,6 @@ class VaultStore(context: Context) {
         }
     }
 
-    /** Menimpa nol lalu hapus. Di flash tidak dijamin; perlindungan sebenarnya adalah enkripsi. */
-    private fun secureDelete(f: File) {
-        if (!f.exists()) return
-        try {
-            RandomAccessFile(f, "rws").use { raf -> raf.write(ByteArray(f.length().toInt())) }
-        } catch (e: Exception) { /* tetap lanjut hapus */ }
-        f.delete()
-    }
+    /** MOLINA-H11-GLUE: per blok 64 KB (versi lama mengalokasikan ByteArray sebesar berkas). */
+    private fun secureDelete(f: File) = SecureWipe.overwriteAndDelete(f)
 }
