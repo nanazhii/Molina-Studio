@@ -33,6 +33,8 @@ import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.CharBuffer
+import java.nio.charset.CodingErrorAction
+import java.nio.charset.CharacterCodingException
 import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -45,6 +47,7 @@ private const val REQ_BACKUP_PICK = 4104
 private const val REQ_IMPORT_MULTI = 4105
 private const val MAX_BATCH = 100
 private const val MAX_FILE = 16 * 1024 * 1024
+private const val PREVIEW_MAX = 512 * 1024
 private const val MASK = "••••••••"
 private const val PICKER_TIMEOUT_MS = 60_000L
 private const val REVEAL_MS = 10_000L
@@ -776,6 +779,7 @@ class EntryUi(private val host: MainActivity) {
                 when (s.kind) {
                     Kind.FILE -> {
                         label("${data.size} byte · SHA-256 ${fingerprint(data)}", 14f, Color.WHITE)
+                        if (m.type == RecordType.FILE && canPreview(i)) button("Pratinjau di dalam Vault") { preview(m.title, i) }
                         button("Ekspor file…") { confirmExport(i) }
                     }
                     Kind.TEXT -> addView(valueView().also { setChars(it, data) })
@@ -784,12 +788,84 @@ class EntryUi(private val host: MainActivity) {
                         tv.text = MASK
                         addView(tv)
                         button("Tampilkan 10 detik") { reveal(tv, data) }
+                        if (m.type == RecordType.NOTE && canPreview(i)) button("Pratinjau markdown") { preview(m.title, i) }
                     }
                 }
             }
             button("Ubah entri") { showEdit(m) }
             button("Hapus entri") { confirmDelete(m) }
             button("Kembali") { show() }
+        }
+    }
+
+    // MOLINA-H4-PREVIEW
+    private fun canPreview(index: Int): Boolean {
+        val data = detailFields.getOrNull(index) ?: return false
+        if (data.size > PREVIEW_MAX) return false
+        val m = detailMeta ?: return false
+        if (m.type == RecordType.NOTE) return true
+        val name = detailFields.getOrNull(index - 1)?.let { String(it, Charsets.UTF_8).lowercase() } ?: return false
+        return name.endsWith(".md") || name.endsWith(".markdown") || name.endsWith(".txt")
+    }
+
+    private fun preview(title: String, index: Int) {
+        if (host.untrustedAccessibilityServices().isNotEmpty()) {
+            Toast.makeText(host, "Diblokir: accessibility service non-sistem aktif.", Toast.LENGTH_LONG).show()
+            return
+        }
+        val src = detailFields.getOrNull(index) ?: return
+        if (src.size > PREVIEW_MAX) return
+        val data = src.copyOf()
+        val plain = detailMeta?.type == RecordType.FILE &&
+            detailFields.getOrNull(index - 1)?.let { String(it, Charsets.UTF_8).lowercase().endsWith(".txt") } == true
+        host.worker.execute {
+            var rendered: CharSequence? = null
+            var err: String? = null
+            try {
+                val cb = Charsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .decode(ByteBuffer.wrap(data))
+                val chars = CharArray(cb.remaining())
+                cb.get(chars)
+                if (cb.hasArray()) cb.array().fill(Char.MIN_VALUE)
+                try {
+                    val s = String(chars)
+                    rendered = if (plain) s else MarkdownRender.render(s)
+                } finally {
+                    chars.fill(Char.MIN_VALUE)
+                }
+            } catch (e: CharacterCodingException) {
+                err = "Bukan teks UTF-8. Gunakan Ekspor untuk membukanya."
+            } catch (e: Exception) {
+                err = "Gagal memuat pratinjau"
+            } finally {
+                data.fill(0)
+            }
+            val body = rendered
+            val msg = err
+            host.ui.post { if (SessionLock.isUnlocked) showPreview(title, body, msg) }
+        }
+    }
+
+    private fun showPreview(title: String, body: CharSequence?, err: String?): Unit = host.run {
+        screen {
+            label(title, 18f, amber)
+            button("Tutup pratinjau") { showDetail() }
+            if (body == null) {
+                label(err ?: "Gagal memuat pratinjau", 14f, red)
+            } else {
+                addView(TextView(context).apply {
+                    text = body
+                    textSize = 15f
+                    setTextColor(Color.WHITE)
+                    setLineSpacing(8f, 1f)
+                    setPadding(0, 24, 0, 24)
+                    setTextIsSelectable(false)
+                    isLongClickable = false
+                })
+                button("Tutup pratinjau") { showDetail() }
+            }
         }
     }
 
