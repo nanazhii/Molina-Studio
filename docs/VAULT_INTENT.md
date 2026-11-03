@@ -26,3 +26,11 @@ Vault tetap **tanpa izin jaringan**. Pintu impor hanya untuk aplikasi Molina yan
 - `com.molina.vault.extra.SAVED_SIZES` : long[]
 Hanya berkas yang benar-benar tersimpan. Pemanggil **wajib** menghitung SHA-256 berkas aslinya dan mencocokkan
 sebelum menawarkan "hapus asli". Tanpa hasil atau tidak cocok: jangan hapus.
+
+## Pemanggil resmi: Molina Studio (MOLINA-H13-BRIDGE, tahap 5b)
+- `VaultBridge` (app/.../settings) dipakai menu Penjelajah > Alat > "Simpan ke Vault".
+- Sebelum mengirim: Vault harus terpasang, `checkSignatures` = SIGNATURE_MATCH, dan izin signature sudah diberikan.
+- URI lewat FileProvider Studio (`ClipData` + `FLAG_GRANT_READ_URI_PERMISSION`), komponen eksplisit `.ImportEntry`.
+- Hasil: Studio menghitung ulang SHA-256 berkas asli; hanya yang cocok (nama + ukuran + hash) ditawarkan untuk dihapus
+  lewat dialog "Hapus permanen" yang sudah ada. Tanpa hasil atau tidak cocok: tidak ada yang dihapus.
+- Berkas kunci/kredensial (SHARE-GUARD) sengaja BOLEH dikirim ke Vault karena tujuannya terenkripsi dan bertanda tangan sama.

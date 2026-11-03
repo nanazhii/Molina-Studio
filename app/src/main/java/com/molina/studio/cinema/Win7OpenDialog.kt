@@ -204,6 +204,8 @@ fun Win7OpenDialog(
     onPlay: (suspend (List<File>) -> Boolean)? = null,
     onOpenInCode: ((List<File>) -> Unit)? = null,
     onSendToScripts: ((File) -> Pair<Boolean, String>)? = null,
+    // MOLINA-H13-BRIDGE: (berkas, selesai(daftar asli yang boleh dihapus, pesan)); daftar kosong = jangan hapus apa pun
+    onSaveToVault: ((List<File>, (List<File>, String) -> Unit) -> Unit)? = null,
     startDir: File? = null
 ) {
     val ctx = LocalContext.current
@@ -610,6 +612,14 @@ fun Win7OpenDialog(
                         playedFirst = playedFirst, playedRefs = playedRefs, shown = shown,
                         onPlay = onPlay, onOpenInCode = onOpenInCode, onSendToScripts = onSendToScripts,
                         onOpenWith = onOpenWith, onShare = onShare, onCopyPath = onCopyPath,
+                        onSaveToVault = onSaveToVault?.let { fn ->
+                            { files: List<File> ->
+                                fn(files) { verified, msg ->
+                                    say(msg, verified.isNotEmpty())
+                                    if (verified.isNotEmpty()) sheet = W7Sheet.Delete(verified, true) // hapus asli: tetap lewat dialog konfirmasi
+                                }
+                            }
+                        },
                         onDismiss = { toolsOpen = false },
                         onClip = { clip = it }, onPlayedFirst = { playedFirst = it },
                         onSheet = { sheet = it }, onFavChanged = { favTick++ },

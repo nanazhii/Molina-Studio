@@ -36,7 +36,7 @@ import com.molina.studio.ui.MolinaTheme
 // tombol kisi drop-up (W7DropButton), pemisah (W7MenuDivider), dan batas tinggi popup (w7PopupMaxHeight).
 
 internal enum class W7Ico { PLAY, CODE, SCRIPT, COPY, CUT, PASTE, RENAME, ZIP, UNZIP, DELETE, NEWDIR, STAR, STAR_OUT, INFO, SHARE, OPEN_WITH,
-    REFRESH, SORT, SELECT, SELECT_ALL, CLEAR, MORE, SEARCH, NAV } // [W7-COMPACT-PORTRAIT]
+    REFRESH, SORT, SELECT, SELECT_ALL, CLEAR, MORE, SEARCH, NAV, LOCK } // [W7-COMPACT-PORTRAIT]
 
 /** [W7-COMPACT-PORTRAIT] Perintah bilah berupa ikon (tanpa teks) agar hemat lebar di ponsel potret. */
 @Composable
@@ -123,7 +123,7 @@ internal fun W7MenuItem(ico: W7Ico, label: String, enabled: Boolean, onClick: ()
 internal fun W7MenuIcon(ico: W7Ico, enabled: Boolean, sz: androidx.compose.ui.unit.Dp = 16.dp) {
     val c = if (!enabled) Win7.Line else when (ico) {
         W7Ico.DELETE -> Color(0xFFE57373)
-        W7Ico.STAR, W7Ico.STAR_OUT -> Color(0xFFE0A800)
+        W7Ico.STAR, W7Ico.STAR_OUT, W7Ico.LOCK -> Color(0xFFE0A800)
         else -> Win7.NavHeader
     }
     Canvas(Modifier.size(sz)) {
@@ -223,6 +223,13 @@ internal fun W7MenuIcon(ico: W7Ico, enabled: Boolean, sz: androidx.compose.ui.un
                 drawCircle(c, radius = 1.2f * u, center = Offset(8f * u, 12.5f * u))
             }
             W7Ico.NAV -> { line(2.5f, 4f, 13.5f, 4f); line(2.5f, 8f, 13.5f, 8f); line(2.5f, 12f, 13.5f, 12f) } // [DROP-HAMBURGER]
+            W7Ico.LOCK -> { // MOLINA-H13-BRIDGE: gembok amber untuk Vault
+                box(3.5f, 7f, 9f, 7f)
+                line(5f, 7f, 5f, 5.5f); line(11f, 7f, 11f, 5.5f)
+                drawArc(c, startAngle = 180f, sweepAngle = 180f, useCenter = false,
+                    topLeft = Offset(5f * u, 2.5f * u), size = Size(6f * u, 6f * u), style = st)
+                drawCircle(c, radius = 0.9f * u, center = Offset(8f * u, 10.5f * u))
+            }
             W7Ico.INFO -> {
                 drawCircle(c, radius = 6.2f * u, center = Offset(8f * u, 8f * u), style = st)
                 line(8f, 7f, 8f, 11.5f)

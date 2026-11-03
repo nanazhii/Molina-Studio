@@ -23,6 +23,7 @@ ALLOWED_PERMISSIONS = {
     "android.permission.WAKE_LOCK",
     "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",  # pemutaran latar belakang mpv (seperti upstream)
     "android.permission.FOREGROUND_SERVICE_DATA_SYNC",  # DownloadService (unduhan yt-dlp opt-in); izin normal, bukan telemetri
+    "com.molina.vault.permission.IMPORT",  # MOLINA-H13-BRIDGE: izin signature milik Molina Vault (jembatan lokal, tanpa jaringan)
 }
 FORBIDDEN_DEPS = [
     "firebase", "crashlytics", "google-services", "play-services-ads",

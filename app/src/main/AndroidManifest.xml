@@ -8,6 +8,12 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- MOLINA-H13-BRIDGE: izin signature milik Molina Vault; diberikan sistem hanya bila tanda tangan sama -->
+    <uses-permission android:name="com.molina.vault.permission.IMPORT" />
+
+    <queries>
+        <package android:name="com.molina.vault" />
+    </queries>
 
     <application
         android:name=".MolinaApp"

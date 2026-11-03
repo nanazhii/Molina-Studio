@@ -30,7 +30,7 @@ internal fun W7ToolsMenu(
     playedFirst: Boolean, playedRefs: List<String>, shown: List<W7Entry>?,
     onPlay: (suspend (List<File>) -> Boolean)?, onOpenInCode: ((List<File>) -> Unit)?,
     onSendToScripts: ((File) -> Pair<Boolean, String>)?, onOpenWith: ((File) -> Boolean)?,
-    onShare: ((List<File>) -> Boolean)?, onCopyPath: ((File) -> Unit)?,
+    onShare: ((List<File>) -> Boolean)?, onCopyPath: ((File) -> Unit)?, onSaveToVault: ((List<File>) -> Unit)?, // MOLINA-H13-BRIDGE
     onDismiss: () -> Unit, onClip: (W7Clip?) -> Unit, onPlayedFirst: (Boolean) -> Unit,
     onSheet: (W7Sheet) -> Unit, onFavChanged: () -> Unit,
     onSay: (String, Boolean) -> Unit,
@@ -117,6 +117,15 @@ internal fun W7ToolsMenu(
                 if (fn != null) {
                     val fs = tg.filter { it.isFile }
                     if (fs.size < tg.size) say("Folder dilewati; hanya berkas yang dibagikan.")
+                    fn(fs)
+                }
+            }
+            W7MenuItem(W7Ico.LOCK, "Simpan ke Vault", onSaveToVault != null && tg.any { it.isFile }) { // MOLINA-H13-BRIDGE
+                onDismiss()
+                val fn = onSaveToVault
+                if (fn != null) {
+                    val fs = tg.filter { it.isFile }
+                    if (fs.size < tg.size) say("Folder dilewati; hanya berkas yang disimpan ke Vault.")
                     fn(fs)
                 }
             }
