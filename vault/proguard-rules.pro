@@ -1,3 +1,3 @@
-# Molina Vault: aturan R8 (tambahkan rule SQLCipher saat ditambahkan)
+# Molina Vault: aturan R8 (strip android.util.Log di rilis)
 
 -assumenosideeffects class android.util.Log { *; }

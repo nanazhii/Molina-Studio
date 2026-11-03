@@ -75,7 +75,7 @@ class EntryUi(private val host: MainActivity) {
     }
 
     // ---------- daftar ----------
-    private fun showList() = host.run {
+    private fun showList(): Unit = host.run {
         screen {
             label("MOLINA VAULT", 26f, amber)
             val listing = try { store.list() } catch (e: Exception) { null }
@@ -100,7 +100,7 @@ class EntryUi(private val host: MainActivity) {
         }
     }
 
-    private fun showTypePick() = host.run {
+    private fun showTypePick(): Unit = host.run {
         screen {
             label("Jenis entri", 22f, amber)
             for (t in RecordType.values()) button(typeName(t)) { showForm(t) }
@@ -133,7 +133,7 @@ class EntryUi(private val host: MainActivity) {
         return out
     }
 
-    private fun showForm(type: RecordType) = host.run {
+    private fun showForm(type: RecordType): Unit = host.run {
         clearSensitive()
         val specs = SPECS.getValue(type)
         screen {
@@ -313,7 +313,7 @@ class EntryUi(private val host: MainActivity) {
         host.ui.postDelayed({ tv.text = MASK }, REVEAL_MS)
     }
 
-    private fun showDetail() = host.run {
+    private fun showDetail(): Unit = host.run {
         val m = detailMeta
         if (m == null) { showList(); return@run }
         screen {

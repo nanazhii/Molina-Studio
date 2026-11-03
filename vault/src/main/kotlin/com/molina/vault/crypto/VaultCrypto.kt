@@ -50,10 +50,10 @@ object VaultCrypto {
         val (salt, iter) = parseHeader(file)
         val header = file.copyOfRange(0, HEADER_SIZE)
         try {
-            val inner = open(deviceKey(), file.copyOfRange(HEADER_SIZE, file.size), header)
+            val inner = openGcm(deviceKey(), file.copyOfRange(HEADER_SIZE, file.size), header)
             val mk = derive(master, salt, iter)
             try {
-                return open(SecretKeySpec(mk, "AES"), inner, header)
+                return openGcm(SecretKeySpec(mk, "AES"), inner, header)
             } finally { mk.fill(0) }
         } catch (e: GeneralSecurityException) {
             throw WrongPasswordOrTamperedException()
@@ -84,12 +84,12 @@ object VaultCrypto {
 
     private fun sealSub(vaultKey: ByteArray, plain: ByteArray, aad: ByteArray): ByteArray {
         val sk = hkdf(vaultKey, aad)
-        try { return seal(SecretKeySpec(sk, "AES"), plain, aad, softwareKey = true) } finally { sk.fill(0) }
+        try { return sealGcm(SecretKeySpec(sk, "AES"), plain, aad, softwareKey = true) } finally { sk.fill(0) }
     }
 
     private fun openSub(vaultKey: ByteArray, blob: ByteArray, aad: ByteArray): ByteArray {
         val sk = hkdf(vaultKey, aad)
-        try { return open(SecretKeySpec(sk, "AES"), blob, aad) } finally { sk.fill(0) }
+        try { return openGcm(SecretKeySpec(sk, "AES"), blob, aad) } finally { sk.fill(0) }
     }
 
     private fun wrap(master: CharArray, vaultKey: ByteArray): ByteArray {
@@ -98,8 +98,8 @@ object VaultCrypto {
             .put(MAGIC).put(VERSION).putInt(TARGET_ITERATIONS).put(salt).array()
         val mk = derive(master, salt, TARGET_ITERATIONS)
         try {
-            val inner = seal(SecretKeySpec(mk, "AES"), vaultKey, header, softwareKey = true)
-            return header + seal(deviceKey(), inner, header, softwareKey = false)
+            val inner = sealGcm(SecretKeySpec(mk, "AES"), vaultKey, header, softwareKey = true)
+            return header + sealGcm(deviceKey(), inner, header, softwareKey = false)
         } finally { mk.fill(0) }
     }
 
@@ -137,7 +137,7 @@ object VaultCrypto {
         return gen.generateKey()
     }
 
-    private fun seal(key: SecretKey, plain: ByteArray, aad: ByteArray, softwareKey: Boolean): ByteArray {
+    private fun sealGcm(key: SecretKey, plain: ByteArray, aad: ByteArray, softwareKey: Boolean): ByteArray {
         val c = Cipher.getInstance("AES/GCM/NoPadding")
         if (softwareKey) {
             val iv = ByteArray(IV_SIZE).also(rng::nextBytes)
@@ -149,7 +149,7 @@ object VaultCrypto {
         return c.iv + c.doFinal(plain)
     }
 
-    private fun open(key: SecretKey, blob: ByteArray, aad: ByteArray): ByteArray {
+    private fun openGcm(key: SecretKey, blob: ByteArray, aad: ByteArray): ByteArray {
         val c = Cipher.getInstance("AES/GCM/NoPadding")
         c.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, blob.copyOfRange(0, IV_SIZE)))
         c.updateAAD(aad)

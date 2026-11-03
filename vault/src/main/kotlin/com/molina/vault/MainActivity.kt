@@ -199,18 +199,4 @@ class MainActivity : BunkerActivity() {
         }
         tickLock(msg, btn)
     }
-
-    private fun showVault() = screen {
-        label("MOLINA VAULT", 26f, amber)
-        label("Terbuka. Terkunci otomatis setelah 2 menit tanpa aktivitas atau saat keluar dari aplikasi.", 13f)
-        val listing = try { store.list() } catch (e: Exception) { null }
-        if (listing == null) {
-            label("Gagal membaca daftar entri.", 14f, red)
-        } else {
-            val extra = if (listing.corrupt > 0) " (${listing.corrupt} rusak/dimanipulasi)" else ""
-            label("${listing.items.size} entri$extra", 16f, Color.WHITE)
-            listing.items.forEach { label("${it.type.name} · ${it.title}", 15f, Color.WHITE) }
-        }
-        button("Kunci sekarang") { SessionLock.lock(); render() }
-    }
 }
