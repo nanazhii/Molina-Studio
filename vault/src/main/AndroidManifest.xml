@@ -10,6 +10,7 @@
 
     <application
         android:allowBackup="false"
+        android:largeHeap="true"
         android:fullBackupContent="false"
         android:label="Molina Vault"
         android:networkSecurityConfig="@xml/network_security_config"

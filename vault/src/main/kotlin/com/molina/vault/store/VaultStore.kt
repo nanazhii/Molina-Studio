@@ -21,7 +21,7 @@ private val REC_MAGIC = byteArrayOf(0x4D, 0x56, 0x52, 0x43) // "MVRC"
 private const val REC_VERSION: Byte = 2
 private const val HEAD = 4 + 1 + 4
 private const val MIN_SEALED = 29 // iv(12) + tag(16) + >=1 byte
-private const val MAX_PAYLOAD = 16 * 1024 * 1024
+private const val MAX_PAYLOAD = 32 * 1024 * 1024
 private const val ROTATE_DIR = "rotate.tmp"      // MOLINA-H8-ROTATE
 private const val ROTATE_COMMIT = "COMMIT"
 
@@ -135,7 +135,7 @@ class VaultStore(context: Context) {
         val cleanTags = tags.take(LabelPolicy.MAX_TAGS).map { it.take(LabelPolicy.MAX_TAG) }.filter { it.isNotEmpty() }
         val payload = PayloadCodec.pack(fields)
         try {
-            require(payload.size <= MAX_PAYLOAD) { "Data terlalu besar (maks 16 MB)" }
+            require(payload.size <= MAX_PAYLOAD) { "Data terlalu besar (maks 32 MB)" }
             return SessionLock.use { key ->
                 val now = System.currentTimeMillis()
                 val metaObj = JSONObject().put("id", id).put("type", type.name)

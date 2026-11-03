@@ -167,7 +167,12 @@ object VaultCrypto {
             c.init(Cipher.ENCRYPT_MODE, key) // Keystore membuat IV acak sendiri
         }
         c.updateAAD(aad)
-        return c.iv + c.doFinal(plain)
+        // MOLINA-H9-LARGE: tulis IV + ciphertext ke satu buffer (hemat satu salinan besar)
+        val iv = c.iv
+        val out = ByteArray(iv.size + c.getOutputSize(plain.size))
+        System.arraycopy(iv, 0, out, 0, iv.size)
+        val n = c.doFinal(plain, 0, plain.size, out, iv.size)
+        return if (iv.size + n == out.size) out else out.copyOf(iv.size + n)
     }
 
     private fun openGcm(key: SecretKey, blob: ByteArray, aad: ByteArray): ByteArray {

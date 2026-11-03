@@ -8,6 +8,6 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 V=vault/src/main/kotlin/com/molina/vault/crypto
 "$KC" -nowarn -d "$OUT" \
-  "$V/AttemptLogic.kt" "$V/SecurityPatch.kt" "$V/PassphraseGenerator.kt" "$V/BackupCrypto.kt" \
+  "$V/AttemptLogic.kt" "$V/SecurityPatch.kt" "$V/PassphraseGenerator.kt" "$V/BackupCrypto.kt" "$V/StreamCrypto.kt" \
   scripts/vault-tests/CryptoStubs.kt scripts/vault-tests/VaultTests.kt
-java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" VaultTestsKt
+java -Xmx64m -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" VaultTestsKt

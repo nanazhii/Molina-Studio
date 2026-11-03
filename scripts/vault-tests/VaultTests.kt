@@ -7,6 +7,7 @@ import com.molina.vault.crypto.BackupPolicy
 import com.molina.vault.crypto.InvalidVaultException
 import com.molina.vault.crypto.PassphraseGenerator
 import com.molina.vault.crypto.SecurityPatch
+import com.molina.vault.crypto.StreamCrypto
 import com.molina.vault.crypto.WrongPasswordOrTamperedException
 import java.nio.ByteBuffer
 import java.time.LocalDate
@@ -243,11 +244,152 @@ private fun backupTests() {
     }
 }
 
+// MOLINA-H10-STREAM
+private fun streamTests() {
+    val key = ByteArray(32) { (it * 7 + 3).toByte() }
+    val aad = "data|11111111-1111-1111-1111-111111111111".toByteArray()
+    val chunk = 1024
+
+    fun enc(data: ByteArray, k: ByteArray = key, a: ByteArray = aad, cs: Int = chunk): ByteArray {
+        val o = java.io.ByteArrayOutputStream()
+        StreamCrypto.encrypt(k, a, java.io.ByteArrayInputStream(data), o, cs)
+        return o.toByteArray()
+    }
+    fun dec(ct: ByteArray, k: ByteArray = key, a: ByteArray = aad): ByteArray {
+        val o = java.io.ByteArrayOutputStream()
+        StreamCrypto.decrypt(k, a, java.io.ByteArrayInputStream(ct), o)
+        return o.toByteArray()
+    }
+    fun expectRejected(msg: String, body: () -> Unit) {
+        try { body() } catch (e: Throwable) {
+            if (e is InvalidVaultException || e is WrongPasswordOrTamperedException) return
+            throw AssertionError("$msg: dapat ${e::class.simpleName}: ${e.message}")
+        }
+        throw AssertionError("$msg: tidak ditolak")
+    }
+    fun sample(n: Int) = ByteArray(n) { ((it * 31) xor (it ushr 8)).toByte() }
+
+    test("stream: bolak-balik untuk ukuran batas chunk") {
+        for (n in listOf(0, 1, chunk - 1, chunk, chunk + 1, 2 * chunk, 3 * chunk + 17, 10 * chunk)) {
+            val d = sample(n)
+            expect(dec(enc(d)).contentEquals(d), "isi berbeda untuk n=$n")
+        }
+    }
+    test("stream: encryptedSize cocok dengan ukuran nyata") {
+        for (n in listOf(0, 1, chunk, chunk + 1, 5 * chunk, 5 * chunk + 3)) {
+            expectEq(enc(sample(n)).size.toLong(), StreamCrypto.encryptedSize(n.toLong(), chunk), "ukuran n=$n")
+        }
+    }
+    test("stream: aliran kosong tetap punya satu chunk terakhir") {
+        expectEq(enc(ByteArray(0)).size, StreamCrypto.HEADER_SIZE + StreamCrypto.TAG_SIZE, "ukuran kosong")
+    }
+    test("stream: isi sama menghasilkan ciphertext berbeda") {
+        val d = sample(3000)
+        expect(!enc(d).contentEquals(enc(d)), "salt/prefiks harus acak")
+    }
+    test("stream: SHA-256 dan panjang dilaporkan benar di enkripsi dan dekripsi") {
+        val d = sample(5000)
+        val want = java.security.MessageDigest.getInstance("SHA-256").digest(d)
+        val o = java.io.ByteArrayOutputStream()
+        val r1 = StreamCrypto.encrypt(key, aad, java.io.ByteArrayInputStream(d), o, chunk)
+        val r2 = StreamCrypto.decrypt(key, aad, java.io.ByteArrayInputStream(o.toByteArray()), java.io.ByteArrayOutputStream())
+        expectEq(r1.plainBytes, 5000L, "panjang enkripsi")
+        expectEq(r2.plainBytes, 5000L, "panjang dekripsi")
+        expect(r1.sha256.contentEquals(want) && r2.sha256.contentEquals(want), "hash salah")
+    }
+    test("stream: mengubah SATU byte di posisi mana pun ditolak (uji menyeluruh)") {
+        val ct = enc(sample(2500))
+        for (i in ct.indices) {
+            val bad = ct.copyOf().also { it[i] = (it[i].toInt() xor 1).toByte() }
+            expectRejected("flip byte $i") { dec(bad) }
+        }
+    }
+    test("stream: pemotongan di panjang mana pun ditolak (uji menyeluruh)") {
+        val ct = enc(sample(2500))
+        for (n in 0 until ct.size) expectRejected("potong $n") { dec(ct.copyOf(n)) }
+    }
+    test("stream: potong tepat di batas chunk ditolak") {
+        val ct = enc(sample(4 * chunk))
+        val frame = chunk + StreamCrypto.TAG_SIZE
+        expectRejected("batas chunk") { dec(ct.copyOf(StreamCrypto.HEADER_SIZE + 2 * frame)) }
+    }
+    test("stream: tambahan byte di ujung ditolak") {
+        val ct = enc(sample(2500))
+        expectRejected("tambahan") { dec(ct + byteArrayOf(0)) }
+        expectRejected("tambahan chunk penuh") { dec(ct + ByteArray(chunk + StreamCrypto.TAG_SIZE)) }
+    }
+    test("stream: chunk ditukar atau digandakan ditolak") {
+        val ct = enc(sample(4 * chunk))
+        val frame = chunk + StreamCrypto.TAG_SIZE
+        val h = StreamCrypto.HEADER_SIZE
+        val swapped = ct.copyOf()
+        System.arraycopy(ct, h, swapped, h + frame, frame)
+        System.arraycopy(ct, h + frame, swapped, h, frame)
+        expectRejected("tukar") { dec(swapped) }
+        val dup = ct.copyOf()
+        System.arraycopy(ct, h, dup, h + frame, frame)
+        expectRejected("gandakan") { dec(dup) }
+    }
+    test("stream: kunci salah dan aad (id record) salah ditolak") {
+        val ct = enc(sample(3000))
+        expectRejected("kunci") { dec(ct, k = ByteArray(32)) }
+        expectRejected("aad") { dec(ct, a = "data|22222222-2222-2222-2222-222222222222".toByteArray()) }
+    }
+    test("stream: header tidak valid ditolak") {
+        val ct = enc(sample(3000))
+        expectRejected("magic") { dec(ct.copyOf().also { it[0] = 0 }) }
+        expectRejected("versi") { dec(ct.copyOf().also { it[4] = 9 }) }
+        expectRejected("ukuran chunk") { dec(ct.copyOf().also { it[5] = 0x7F }) }
+    }
+    test("stream: batas ukuran ditegakkan saat enkripsi dan dekripsi") {
+        expectRejected("enkripsi") {
+            StreamCrypto.encrypt(key, aad, java.io.ByteArrayInputStream(sample(3000)), java.io.ByteArrayOutputStream(), chunk, 2000L)
+        }
+        val ct = enc(sample(3000))
+        expectRejected("dekripsi") {
+            StreamCrypto.decrypt(key, aad, java.io.ByteArrayInputStream(ct), java.io.ByteArrayOutputStream(), 2000L)
+        }
+    }
+    test("stream: parameter tidak valid") {
+        expectThrows<IllegalArgumentException>("kunci 16 byte") { enc(sample(10), k = ByteArray(16)) }
+        expectThrows<IllegalArgumentException>("chunk terlalu kecil") { enc(sample(10), cs = 16) }
+    }
+    test("stream: 64 MiB mengalir dengan memori tetap (java -Xmx64m)") {
+        val total = 64L * 1024 * 1024
+        fun gen() = object : java.io.InputStream() {
+            var left = total
+            var x = 0
+            override fun read(): Int { if (left <= 0) return -1; left--; return (x++ * 13) and 0xFF }
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                if (left <= 0) return -1
+                val n = minOf(len.toLong(), left).toInt()
+                for (i in 0 until n) b[off + i] = ((x++ * 13) and 0xFF).toByte()
+                left -= n
+                return n
+            }
+        }
+        val tmp = java.io.File.createTempFile("mvst", ".bin")
+        try {
+            val r1 = java.io.FileOutputStream(tmp).use { StreamCrypto.encrypt(key, aad, gen(), it) }
+            expectEq(tmp.length(), StreamCrypto.encryptedSize(total), "ukuran berkas")
+            val sink = object : java.io.OutputStream() {
+                val md = java.security.MessageDigest.getInstance("SHA-256")
+                override fun write(b: Int) { md.update(b.toByte()) }
+                override fun write(b: ByteArray, off: Int, len: Int) { md.update(b, off, len) }
+            }
+            val r2 = java.io.FileInputStream(tmp).buffered().use { StreamCrypto.decrypt(key, aad, it, sink) }
+            expectEq(r2.plainBytes, total, "panjang")
+            expect(r1.sha256.contentEquals(r2.sha256) && sink.md.digest().contentEquals(r1.sha256), "hash berbeda")
+        } finally { tmp.delete() }
+    }
+}
+
 fun main() {
     attemptTests()
     patchTests()
     passphraseTests()
     backupTests()
+    streamTests()
     println("Ringkasan: ${total - failures} lulus, $failures gagal dari $total uji")
     if (failures > 0) exitProcess(1)
 }

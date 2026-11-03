@@ -48,7 +48,7 @@ private const val REQ_BACKUP_EXPORT = 4103
 private const val REQ_BACKUP_PICK = 4104
 private const val REQ_IMPORT_MULTI = 4105
 private const val MAX_BATCH = 100
-private const val MAX_FILE = 16 * 1024 * 1024
+private const val MAX_FILE = 32 * 1024 * 1024
 private const val PREVIEW_MAX = 512 * 1024
 private const val MASK = "••••••••"
 private const val PICKER_TIMEOUT_MS = 60_000L
@@ -915,7 +915,7 @@ class EntryUi(private val host: MainActivity) {
                     val n = it.read(buf)
                     if (n < 0) break
                     total += n
-                    if (total > MAX_FILE) throw IOException("File lebih dari 16 MB")
+                    if (total > MAX_FILE) throw IOException("File lebih dari 32 MB")
                     sink.write(buf, 0, n)
                 }
             }
