@@ -140,7 +140,15 @@ class EntryUi(private val host: MainActivity) {
                 addView(countView)
                 val search = makeInput(Spec("Cari judul", Kind.TEXT)).apply { setSingleLine(true); setText(filterText) }
                 addView(search)
-                val chip = TextView(context).apply { textSize = 14f; setTextColor(amber); setPadding(0, 16, 0, 16); isClickable = true }
+                val chip = TextView(context).apply {
+                    textSize = 14f
+                    setTextColor(amber)
+                    background = host.cardDrawable()
+                    setPadding(host.dp(14f), host.dp(10f), host.dp(14f), host.dp(10f))
+                    isClickable = true
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                        .apply { setMargins(0, host.dp(4f), 0, host.dp(12f)) }
+                }
                 addView(chip)
                 val box = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
                 addView(box)
@@ -165,7 +173,10 @@ class EntryUi(private val host: MainActivity) {
                     for (m in shown) {
                         val row = LinearLayout(context).apply {
                             orientation = LinearLayout.VERTICAL
-                            setPadding(0, 24, 0, 24)
+                            background = host.cardDrawable()
+                            setPadding(host.dp(14f), host.dp(12f), host.dp(14f), host.dp(12f))
+                            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                                .apply { setMargins(0, 0, 0, host.dp(8f)) }
                             isClickable = true
                             setOnClickListener { openDetail(m) }
                         }
@@ -176,10 +187,6 @@ class EntryUi(private val host: MainActivity) {
                             setTextColor(Color.GRAY)
                         })
                         box.addView(row)
-                        box.addView(View(context).apply {
-                            setBackgroundColor(Color.parseColor("#2A2A2E"))
-                            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 2)
-                        })
                     }
                 }
 
@@ -284,6 +291,7 @@ class EntryUi(private val host: MainActivity) {
         imeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING or EditorInfo.IME_FLAG_NO_EXTRACT_UI
         importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
         if (s.kind != Kind.TEXT) noClipboard(this)
+        host.frameInput(this)
     }
 
     // MOLINA-H1: kolom rahasia tidak boleh disalin, dipotong, atau ditempel lewat menu seleksi (clipboard bisa dibaca aplikasi latar di Android 8).
@@ -322,6 +330,7 @@ class EntryUi(private val host: MainActivity) {
                 setHintTextColor(Color.GRAY)
                 setTextColor(Color.WHITE)
                 setSingleLine(true)
+                host.frameInput(this)
             }
             addView(titleField)
             if (editing != null) titleField.setText(editing.title)
@@ -743,7 +752,8 @@ class EntryUi(private val host: MainActivity) {
     private fun valueView() = TextView(host).apply {
         textSize = 16f
         setTextColor(Color.WHITE)
-        setPadding(0, 8, 0, 16)
+        background = host.frameDrawable(Color.parseColor("#141416"), Color.parseColor("#4A3B00"), 1.2f, 8f)
+        setPadding(host.dp(14f), host.dp(10f), host.dp(14f), host.dp(10f))
         setTextIsSelectable(false)
         isLongClickable = false
     }

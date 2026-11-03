@@ -3,7 +3,13 @@ package com.molina.vault
 // MOLINA-UI-v1
 // MOLINA-H1
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.RippleDrawable
+import android.graphics.drawable.LayerDrawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.Drawable
+import android.graphics.Typeface
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -90,17 +96,76 @@ class MainActivity : BunkerActivity() {
             imeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING or EditorInfo.IME_FLAG_NO_EXTRACT_UI
             importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS
         }
+        frameInput(e)
         addView(e)
         return e
     }
 
-    internal fun LinearLayout.button(t: String, onClick: (Button) -> Unit): Button {
-        val b = Button(context).apply {
-            text = t
-            setTextColor(Color.BLACK)
-            setBackgroundColor(amber)
-            setOnClickListener { onClick(this) }
+    // MOLINA-H5-FRAME: bingkai emas tipis untuk tombol, kolom, dan kartu. Warna tetap hitam-amber.
+    private val ghostLabels = setOf("Batal", "Kembali", "Kunci sekarang", "Tutup pratinjau")
+    private val dangerLabels = setOf("Hapus entri")
+    private val surface = Color.parseColor("#141416")
+    private val frameDim = Color.parseColor("#8A6A00")
+    private val cardLine = Color.parseColor("#4A3B00")
+
+    internal fun dp(v: Float): Int = (v * resources.displayMetrics.density + 0.5f).toInt()
+
+    internal fun frameDrawable(fill: Int, stroke: Int, strokeDp: Float, radiusDp: Float): GradientDrawable =
+        GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = radiusDp * resources.displayMetrics.density
+            setColor(fill)
+            setStroke(maxOf(1, dp(strokeDp)), stroke)
         }
+
+    private fun rippleMask(): Drawable = frameDrawable(Color.WHITE, Color.WHITE, 0f, 8f)
+
+    /** Kartu berbingkai dengan efek sentuh amber redup, untuk baris daftar dan chip filter. */
+    internal fun cardDrawable(): Drawable =
+        RippleDrawable(ColorStateList.valueOf(Color.argb(60, 255, 179, 0)), frameDrawable(surface, cardLine, 1.2f, 8f), rippleMask())
+
+    internal fun frameInput(e: EditText) {
+        fun style(focused: Boolean) {
+            e.background = frameDrawable(surface, if (focused) amber else frameDim, if (focused) 1.8f else 1.2f, 8f)
+            e.setPadding(dp(14f), dp(12f), dp(14f), dp(12f))
+        }
+        style(false)
+        e.setOnFocusChangeListener { _, has -> style(has) }
+        e.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            .apply { setMargins(0, dp(8f), 0, dp(8f)) }
+    }
+
+    internal fun LinearLayout.button(t: String, onClick: (Button) -> Unit): Button {
+        val ghost = t in ghostLabels
+        val danger = t in dangerLabels
+        val tone = if (danger) red else amber
+        val b = object : Button(context) {
+            override fun setEnabled(enabled: Boolean) {
+                super.setEnabled(enabled)
+                alpha = if (enabled) 1f else 0.45f
+            }
+        }
+        b.text = t
+        b.typeface = Typeface.DEFAULT_BOLD
+        b.letterSpacing = 0.05f
+        b.minHeight = dp(48f)
+        b.minimumHeight = dp(48f)
+        b.setPadding(dp(16f), dp(12f), dp(16f), dp(12f))
+        b.stateListAnimator = null
+        val face: Drawable
+        if (ghost || danger) {
+            b.setTextColor(tone)
+            face = frameDrawable(surface, tone, 1.5f, 8f)
+        } else {
+            b.setTextColor(Color.BLACK)
+            val inner = GradientDrawable().apply { setColor(amber); cornerRadius = 6f * resources.displayMetrics.density }
+            face = LayerDrawable(arrayOf<Drawable>(frameDrawable(Color.TRANSPARENT, amber, 1.5f, 9f), inner))
+                .also { it.setLayerInset(1, dp(4f), dp(4f), dp(4f), dp(4f)) }
+        }
+        b.background = RippleDrawable(ColorStateList.valueOf(Color.argb(70, 255, 255, 255)), face, rippleMask())
+        b.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            .apply { setMargins(0, dp(8f), 0, dp(4f)) }
+        b.setOnClickListener { onClick(b) }
         addView(b)
         return b
     }
