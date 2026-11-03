@@ -15,4 +15,5 @@ dependencyResolutionManagement {
 }
 rootProject.name = "molina"
 include(":app", ":core:common", ":core:storage", ":terminal-emulator", ":terminal-view", ":feature:mpv", ":feature:code", ":engine:newpipe")
-\ninclude(":vault")\n
+
+include(":vault")
