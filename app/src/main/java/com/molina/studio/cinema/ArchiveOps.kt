@@ -24,7 +24,12 @@ internal object ArchiveOps {
      * [ARCHIVE6] Kompres: 7z bersandi lewat [DebianArchive.create]; semua format lain lewat [ArchiveEngine.compress]
      * (tidak berubah). Keputusan ada di [ArchiveRoute.compressViaDebian].
      */
-    fun compress(ctx: Context, files: List<File>, destDir: File, opt: CompressOptions, ctl: FileOps.Ctl): File =
-        if (ArchiveRoute.compressViaDebian(opt)) DebianArchive(ctx).create(files, destDir, opt, ctl)
+    fun compress(ctx: Context, files: List<File>, destDir: File, opt: CompressOptions, ctl: FileOps.Ctl): File {
+        opt.password?.takeIf { it.isNotEmpty() }?.let { // [ENC-POLICY] pagar terakhir, di luar UI
+            val v = com.molina.core.common.PasswordPolicy.evaluate(it)
+            if (!v.acceptable) throw java.io.IOException(v.message)
+        }
+        return if (ArchiveRoute.compressViaDebian(opt)) DebianArchive(ctx).create(files, destDir, opt, ctl)
         else ArchiveEngine.compress(files, destDir, opt, ctl)
+    }
 }

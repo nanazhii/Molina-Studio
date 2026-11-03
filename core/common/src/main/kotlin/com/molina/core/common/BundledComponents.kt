@@ -98,7 +98,7 @@ object BundledComponents {
         BundledComponent(
             "sevenzip", "7-Zip", "26.05 (7zzs statis)", ComponentRole.Pendukung, ComponentOrigin.Apk, Assurance.Sha256,
             "ip7z/7zip rilis resmi (7-zip.org)", "LGPL-2.1-or-later / BSD / unRAR restriction", "Kompres dan ekstrak arsip di Penjelajah",
-            "Biner statis arm64 di jniLibs (lib7zz.so), hash dipin dan dicek CI. Berjalan di Debian PRoot; tidak perlu apt install.", PIN_SEVENZIP
+            "Biner statis arm64 di jniLibs (lib7zz.so), hash dipin dan dicek CI. Berjalan langsung (daftar isi/kompres); ekstrak di PRoot bila Debian ada. Tanpa apt install.", PIN_SEVENZIP
         ),
         BundledComponent(
             "rootfs", "Debian rootfs", "trixie-slim arm64", ComponentRole.Pendukung, ComponentOrigin.Runtime, Assurance.Sha256,

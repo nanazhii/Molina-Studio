@@ -1,5 +1,6 @@
 package com.molina.studio.cinema
 
+import com.molina.core.common.PasswordPolicy
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -80,13 +81,14 @@ internal fun ArchiveCompressDialog(
     val level = fmt.clampLevel(levels[fmt] ?: fmt.defaultLevel)
     val nameErr = CompressNames.baseNameError(name, fmt)
     val pwOn = fmt.hasPassword && usePw
+    val pwVerdict = PasswordPolicy.evaluate(pw) // [ENC-POLICY]
     val pwHint = when {
         !pwOn -> ""
-        pw.isNotEmpty() && pw.length < 4 -> "Kata sandi minimal 4 karakter."
+        pw.isNotEmpty() && !pwVerdict.acceptable -> pwVerdict.message
         pw2.isNotEmpty() && pw != pw2 -> "Kata sandi tidak sama."
         else -> ""
     }
-    val pwOk = !pwOn || (pw.length >= 4 && pw == pw2)
+    val pwOk = !pwOn || (pwVerdict.acceptable && pw == pw2)
     val canGo = nameErr == null && pwOk
     fun go() { if (canGo) onCompress(CompressOptions(fmt, level, name, if (pwOn) pw else null, pwOn && fmt.hasNameEncryption && encNames)) }
 
@@ -114,6 +116,13 @@ internal fun ArchiveCompressDialog(
                 Spacer(Modifier.height(10.dp))
                 Text("Level kompresi", color = Win7.Ink, fontSize = 12.sp)
                 Spacer(Modifier.height(4.dp))
+                Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) { // [PRESET] Cepat / Seimbang / Maksimal
+                    ArcChip("Cepat", level == fmt.minLevel, Modifier.weight(1f)) { levels[fmt] = fmt.minLevel }
+                    Spacer(Modifier.width(6.dp))
+                    ArcChip("Seimbang", level == fmt.defaultLevel, Modifier.weight(1f)) { levels[fmt] = fmt.defaultLevel }
+                    Spacer(Modifier.width(6.dp))
+                    ArcChip("Maksimal", level == fmt.maxLevel, Modifier.weight(1f)) { levels[fmt] = fmt.maxLevel }
+                }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Win7Button("\u2212", Modifier.width(44.dp), enabled = level > fmt.minLevel, compact = true) { levels[fmt] = level - 1 }
                     Text(
@@ -166,6 +175,12 @@ internal fun ArchiveCompressDialog(
                 }
                 if (usePw) {
                     Text("Simpan kata sandinya: arsip tidak bisa dibuka tanpa itu.", color = Win7.TextDim, fontSize = 11.sp)
+                    if (fmt == CompressFormat.ZIP) {
+                        Text(
+                            "ZIP: nama berkas tetap terlihat. Untuk menyembunyikannya pilih format 7z.",
+                            color = Win7.TextDim, fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
                     if (fmt.hasNameEncryption) { // [ARCHIVE6] dua pilihan enkripsi 7z
                         Spacer(Modifier.height(6.dp))
                         Text("Yang dienkripsi", color = Win7.Ink, fontSize = 12.sp)
@@ -181,7 +196,7 @@ internal fun ArchiveCompressDialog(
                             color = Win7.TextDim, fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp)
                         )
                         Text(
-                            "Dibuat lewat 7z di Debian (Molina Terminal); paket 7zip harus terpasang.",
+                            "Dibuat dengan 7-Zip 26.05 bawaan Molina (AES-256).",
                             color = Win7.TextDim, fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp)
                         )
                     }
@@ -193,6 +208,18 @@ internal fun ArchiveCompressDialog(
                     Text("Ulangi kata sandi", color = Win7.Ink, fontSize = 12.sp)
                     Spacer(Modifier.height(4.dp))
                     W7SecretField(pw2, { pw2 = it }, show, Modifier) { go() }
+                    if (pw.isNotEmpty()) {
+                        Text(
+                            "Kekuatan: " + pwVerdict.strength.label,
+                            color = if (pwVerdict.acceptable) Win7.TextDim else Color(0xFFFF8A80),
+                            fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                    Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
+                        Win7Button("Buat acak", compact = true) {
+                            val g = PasswordPolicy.generate(); pw = g; pw2 = g; show = true
+                        }
+                    }
                     if (pwHint.isNotEmpty()) {
                         Text(pwHint, color = Color(0xFFFF8A80), fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
                     }

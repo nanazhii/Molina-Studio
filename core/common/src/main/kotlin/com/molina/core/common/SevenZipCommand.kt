@@ -171,6 +171,52 @@ object SevenZipCommand {
         addAll(args)
     }
 
+    // ------------------------------------------------------------ [7ZIP-DIRECT]
+
+    enum class Op { LIST, EXTRACT, CREATE }
+
+    /** Operasi dari argumen pertama 7z: `l`, `x`, `a`. Selain itu null (tidak pernah dijalankan langsung). */
+    fun opOf(args: List<String>): Op? = when (args.firstOrNull()) {
+        "l" -> Op.LIST
+        "x" -> Op.EXTRACT
+        "a" -> Op.CREATE
+        else -> null
+    }
+
+    /**
+     * Kebijakan mode proses. Langsung (lib7zz.so tanpa PRoot) untuk daftar isi dan kompres; ekstrak tetap di PRoot
+     * berlingkup bila Debian terpasang (arsip tak tepercaya hanya melihat folder arsip dan staging, [GUEST_SRC]/[GUEST_OUT]).
+     * Tanpa Debian, ekstrak berjalan langsung (hasil tetap diaudit di staging oleh pemanggil).
+     */
+    fun useDirect(op: Op?, bundledPresent: Boolean, rootfsInstalled: Boolean): Boolean =
+        bundledPresent && op != null && (op != Op.EXTRACT || !rootfsInstalled)
+
+    /**
+     * Petakan jalur guest di [args] ke jalur host memakai [binds] (host -> guest). Hanya argumen berawalan `/` dan `-o/...`
+     * yang dipetakan; sisanya (opsi, nama relatif setelah `--`) dibiarkan. Awalan terpanjang menang. Jalur di bawah
+     * [GUEST_SRC]/[GUEST_OUT]/[GUEST_IN] yang tak punya bind DITOLAK (fail-closed): tidak pernah diteruskan apa adanya ke 7z.
+     */
+    fun mapToHost(args: List<String>, binds: List<Pair<String, String>>): List<String> {
+        val ordered = binds.sortedByDescending { it.second.length }
+        fun scoped(s: String) = listOf(GUEST_SRC, GUEST_OUT, GUEST_IN).any { s == it || s.startsWith("$it/") }
+        fun map(path: String): String {
+            for ((host, guest) in ordered) {
+                if (path == guest) return host
+                if (path.startsWith("$guest/")) return host.trimEnd('/') + path.substring(guest.length)
+            }
+            require(!scoped(path)) { "Jalur guest tanpa bind: $path" }
+            return path
+        }
+        return args.mapIndexed { i, a ->
+            when {
+                i == 0 -> a
+                a.length > 2 && a.startsWith("-o/") -> "-o" + map(a.substring(2))
+                a.startsWith("/") -> map(a)
+                else -> a
+            }
+        }
+    }
+
     private fun requireGuestAbs(p: String) {
         require(p.startsWith("/")) { "Jalur guest harus absolut: $p" }
         require(p.indexOf('\u0000') < 0 && p.indexOf('\n') < 0 && p.indexOf('\r') < 0) { "Jalur tidak valid" }

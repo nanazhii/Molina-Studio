@@ -47,18 +47,21 @@ internal class DebianArchive(context: Context) {
 
     /** Siap bila Debian terpasang dan `7z` ada di dalamnya. Murah: hanya memeriksa berkas. */
     fun probe(): Probe {
+        // [7ZIP-BUNDLE] 7z bawaan APK didahulukan (versi dipin); 7z dari apt hanya cadangan.
+        // [7ZIP-DIRECT] Bawaan tidak butuh Debian: bisa dijalankan langsung tanpa PRoot.
+        if (bundledLib().isFile) return Probe.Ready(SevenZipCommand.GUEST_BUNDLED)
         val rootfs = RootfsManager.rootfsDir(app)
         if (!File(rootfs, "usr/bin/env").exists()) {
             return Probe.Missing("Debian belum terpasang. Buka Settings > Terminal untuk menyiapkannya.")
         }
-        // [7ZIP-BUNDLE] 7z bawaan APK didahulukan (versi dipin); 7z dari apt hanya cadangan.
-        if (bundledLib().isFile) return Probe.Ready(SevenZipCommand.GUEST_BUNDLED)
         val bin = SevenZipCommand.GUEST_BINARIES.firstOrNull { guestHas(rootfs, it) }
             ?: return Probe.Missing(SevenZipCommand.HINT_INSTALL)
         return Probe.Ready(bin)
     }
 
     private fun bundledLib(): File = File(app.applicationInfo.nativeLibraryDir, SevenZipCommand.BUNDLED_LIB)
+
+    private fun rootfsInstalled(rootfs: File): Boolean = File(rootfs, "usr/bin/env").exists()
 
     /** [7ZIP-BUNDLE] Bind lib7zz.so ke [SevenZipCommand.GUEST_BUNDLED] hanya bila biner itu yang dipakai. */
     private fun withBundledBind(binds: List<Pair<String, String>>, binary: String): List<Pair<String, String>> =
@@ -308,12 +311,14 @@ internal class DebianArchive(context: Context) {
 
     /** Titik mount harus ada di rootfs sebelum proot dijalankan (sama seperti StorageBinds). */
     private fun ensureMountPoints(rootfs: File) {
+        if (!rootfsInstalled(rootfs)) return // [7ZIP-DIRECT] tanpa Debian tidak ada titik mount (list/extract)
         for (g in listOf(SevenZipCommand.GUEST_SRC, SevenZipCommand.GUEST_OUT)) File(rootfs, g.removePrefix("/")).mkdirs()
         ensureBundledMountPoint(rootfs)
     }
 
     /** [ARCHIVE6] Titik mount kompres: satu `/mnt/molina-in/<i>` per folder sumber, plus [SevenZipCommand.GUEST_OUT]. */
     private fun ensureCreateMountPoints(rootfs: File, sourceDirs: Int) {
+        if (!rootfsInstalled(rootfs)) return // [7ZIP-DIRECT] tanpa Debian tidak ada titik mount (kompres)
         File(rootfs, SevenZipCommand.GUEST_OUT.removePrefix("/")).mkdirs()
         for (i in 0 until sourceDirs) File(rootfs, (SevenZipCommand.GUEST_IN + "/" + i).removePrefix("/")).mkdirs()
         ensureBundledMountPoint(rootfs)
@@ -371,28 +376,51 @@ internal class DebianArchive(context: Context) {
         timeoutMs: Long,
         consume: (Reader) -> Boolean,
     ): Outcome {
-        val argv = try {
-            SevenZipCommand.prootArgsScoped(rootfsDir.absolutePath, withBundledBind(binds, binary), binary, args)
-        } catch (e: IllegalArgumentException) {
-            throw IOException(e.message ?: "Argumen proot tidak valid")
-        }
         val nativeDir = app.applicationInfo.nativeLibraryDir
-        val tmp = File(app.cacheDir, "proot-tmp").apply { mkdirs() }
-        val pb = ProcessBuilder(YtdlpCommand.SH_WRAPPER + "$nativeDir/libproot.so" + argv).directory(app.filesDir)
-        pb.environment().apply {
-            clear()
-            put("PROOT_LOADER", "$nativeDir/libproot_loader.so")
-            put("PROOT_TMP_DIR", tmp.absolutePath)
-            put("TMPDIR", tmp.absolutePath)
-            put("PATH", "/system/bin")
-            put("HOME", app.filesDir.absolutePath)
-            System.getenv("ANDROID_ROOT")?.let { put("ANDROID_ROOT", it) }
-            System.getenv("ANDROID_DATA")?.let { put("ANDROID_DATA", it) }
+        val direct = SevenZipCommand.useDirect(
+            SevenZipCommand.opOf(args), binary == SevenZipCommand.GUEST_BUNDLED && bundledLib().isFile, rootfsInstalled(rootfsDir),
+        )
+        val pb: ProcessBuilder
+        if (direct) {
+            // [7ZIP-DIRECT] lib7zz.so langsung (tanpa PRoot): jalur guest dipetakan kembali ke jalur host dari [binds].
+            val hostArgs = try {
+                SevenZipCommand.mapToHost(args, binds)
+            } catch (e: IllegalArgumentException) {
+                throw IOException(e.message ?: "Argumen 7z tidak valid")
+            }
+            val tmp = File(app.cacheDir, "7z-tmp").apply { mkdirs() }
+            pb = ProcessBuilder(YtdlpCommand.SH_WRAPPER + bundledLib().absolutePath + hostArgs).directory(app.filesDir)
+            pb.environment().apply {
+                clear()
+                put("TMPDIR", tmp.absolutePath)
+                put("PATH", "/system/bin")
+                put("HOME", app.filesDir.absolutePath)
+                put("LANG", "C.UTF-8")
+                put("LC_ALL", "C.UTF-8")
+            }
+        } else {
+            val argv = try {
+                SevenZipCommand.prootArgsScoped(rootfsDir.absolutePath, withBundledBind(binds, binary), binary, args)
+            } catch (e: IllegalArgumentException) {
+                throw IOException(e.message ?: "Argumen proot tidak valid")
+            }
+            val tmp = File(app.cacheDir, "proot-tmp").apply { mkdirs() }
+            pb = ProcessBuilder(YtdlpCommand.SH_WRAPPER + "$nativeDir/libproot.so" + argv).directory(app.filesDir)
+            pb.environment().apply {
+                clear()
+                put("PROOT_LOADER", "$nativeDir/libproot_loader.so")
+                put("PROOT_TMP_DIR", tmp.absolutePath)
+                put("TMPDIR", tmp.absolutePath)
+                put("PATH", "/system/bin")
+                put("HOME", app.filesDir.absolutePath)
+                System.getenv("ANDROID_ROOT")?.let { put("ANDROID_ROOT", it) }
+                System.getenv("ANDROID_DATA")?.let { put("ANDROID_DATA", it) }
+            }
         }
         val proc = try {
             pb.start()
         } catch (e: Exception) {
-            throw IOException("Gagal memulai proot: ${e.javaClass.simpleName}")
+            throw IOException((if (direct) "Gagal memulai 7z: " else "Gagal memulai proot: ") + e.javaClass.simpleName)
         }
 
         if (stdin == null) {
