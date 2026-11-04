@@ -56,6 +56,7 @@ internal object HealthCheck {
             if (deep) {
                 add(debianRuns(app))
                 add(terminal())
+                add(cinema(app))
                 add(network())
             }
             add(storage(app))
@@ -189,6 +190,27 @@ internal object HealthCheck {
     private fun terminal(): CheckResult {
         val r = com.molina.terminal.PtyProbe.run(PTY_TIMEOUT_MS)
         return CheckResult("Terminal jalan", if (r.ok) CheckLevel.Ok else CheckLevel.Bad, r.detail)
+    }
+
+    /**
+     * [DIAG-CINEMA] Memuat libmpv dan libplayer lewat jalur yang sama dengan pemutar (init MPVLib), tanpa memanggil
+     * create(). Pemuatan hanya terjadi sekali per proses; pemutaran berikutnya memakai pustaka yang sudah termuat.
+     */
+    private fun cinema(ctx: Context): CheckResult {
+        val name = "Cinema siap"
+        if (missing(ctx.applicationInfo.nativeLibraryDir, "libmpv.so", "libplayer.so").isNotEmpty()) {
+            return CheckResult(name, CheckLevel.Warn, "dilewati: libmpv atau libplayer tidak ada")
+        }
+        val t0 = System.nanoTime()
+        return try {
+            Class.forName(com.molina.cinema.MPVLib::class.java.name)
+            CheckResult(name, CheckLevel.Ok, "libmpv dan libplayer termuat (${(System.nanoTime() - t0) / 1_000_000} ms)")
+        } catch (e: LinkageError) {
+            val why = (e.cause ?: e).message?.lineSequence()?.firstOrNull().orEmpty().take(100)
+            CheckResult(name, CheckLevel.Bad, "gagal dimuat (${e.javaClass.simpleName}): $why")
+        } catch (e: ClassNotFoundException) {
+            CheckResult(name, CheckLevel.Bad, "kelas pemutar tidak ditemukan")
+        }
     }
 
     private fun storage(ctx: Context): CheckResult {

@@ -10,6 +10,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,6 +45,11 @@ internal fun HubInfoPage(
     val pending by AptHistory.pending.collectAsState()
     val auto by AutoPrefs.state.collectAsState()
     val diag by HealthCheck.last.collectAsState() // [DIAG-BADGE]
+    val histTick by HealthHistory.changes.collectAsState() // [DIAG-LINE]
+    var diagLine by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(histTick, diag) {
+        diagLine = withContext(Dispatchers.IO) { runCatching { HealthHistory.problemPattern(HealthHistory.load(ctx)) }.getOrNull() }
+    }
     LaunchedEffect(Unit) { withContext(Dispatchers.IO) { runCatching { HealthCheck.run(ctx, deep = false) } } }
     val base = remember {
         val pi = runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0) }.getOrNull()
@@ -73,7 +80,8 @@ internal fun HubInfoPage(
     Spacer(Modifier.height(8.dp))
     Category("Diagnostik")
     Box {
-        W7Link({ W7IconLog() }, "Diagnostik dan laporan bug", "Salin info debug, ZIP diagnostik sekali klik, dan laporan bug (URL disamarkan) dalam satu tempat") { onDiagnostics() }
+        W7Link({ W7IconLog() }, "Diagnostik dan laporan bug", diagLine?.let { "$it \u00b7 ketuk untuk detail" }
+            ?: "Salin info debug, ZIP diagnostik sekali klik, dan laporan bug (URL disamarkan) dalam satu tempat") { onDiagnostics() }
         DiagBadge(diag, Modifier.align(Alignment.TopEnd))
     }
     W7Link({ W7IconLog() }, "Log", "Log aktivitas mpv, Terminal, dan sistem") { onLog() }

@@ -76,6 +76,29 @@ private tailrec fun Context.findActivity(): android.app.Activity? = when (this) 
     else -> null
 }
 
+/** [DIAG-ICON] Lencana kecil per baris pemeriksaan (ala ikon panel Windows 7), berwarna sesuai kondisi. */
+@Composable
+private fun RowBadge(name: String, color: Color) {
+    val label = when (name) {
+        "PRoot" -> "PR"
+        "Debian" -> "DEB"
+        "Debian jalan" -> "RUN"
+        "Terminal jalan" -> ">_"
+        "Cinema siap" -> "CIN"
+        "Jaringan" -> "NET"
+        "Penyimpanan" -> "SD"
+        "Ruang bebas" -> "GB"
+        "libmpv" -> "MPV"
+        else -> name.take(2).uppercase()
+    }
+    val shape = RoundedCornerShape(5.dp)
+    Box(
+        Modifier.size(width = 28.dp, height = 18.dp).clip(shape)
+            .background(color.copy(alpha = 0.18f), shape).border(1.dp, color.copy(alpha = 0.5f), shape),
+        Alignment.Center
+    ) { Text(label, color = color, fontSize = 9.sp, fontWeight = FontWeight.Bold) }
+}
+
 private val HISTORY_TIME = SimpleDateFormat("dd MMM HH:mm", Locale("id", "ID"))
 
 /** [DIAG-HISTORY] Lima pemeriksaan terakhir: titik berwarna, waktu, dan ringkasan. */
@@ -144,7 +167,11 @@ private fun HealthCard(checks: List<CheckResult>?, onAction: (CheckAction) -> Un
                     Box(Modifier.width(3.dp).fillMaxHeight().background(c))
                     Text(r.level.glyph, color = c, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 10.dp, top = 8.dp))
                     Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
-                        Text(r.name, color = MolinaTheme.OnBackground, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RowBadge(r.name, c)
+                            Spacer(Modifier.width(8.dp))
+                            Text(r.name, color = MolinaTheme.OnBackground, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        }
                         Text(r.detail, color = MolinaTheme.Muted, fontSize = 11.sp)
                         val act = r.action
                         if (act != null && r.level != CheckLevel.Ok) {

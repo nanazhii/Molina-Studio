@@ -1,6 +1,9 @@
 package com.molina.studio.settings
 
 import android.content.Context
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 internal class HistoryEntry(val time: Long, val level: CheckLevel, val summary: String)
 
@@ -12,6 +15,15 @@ internal object HealthHistory {
     private const val PREFS = "molina_diag"
     private const val KEY = "health_history"
     private const val MAX = 5
+
+    private val _changes = MutableStateFlow(0)
+
+    /** [DIAG-TICK] Naik setiap ada entri baru; dibaca halaman Info agar baris pola ikut diperbarui. */
+    val changes: StateFlow<Int> = _changes.asStateFlow()
+
+    /** Pola untuk halaman Info: hanya bila pemeriksaan terbaru bermasalah (kalau sehat, lencana sudah cukup). */
+    fun problemPattern(list: List<HistoryEntry>): String? =
+        if (list.firstOrNull()?.level == CheckLevel.Ok) null else pattern(list)
 
     private fun prefs(ctx: Context) = ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -44,5 +56,6 @@ internal object HealthHistory {
         val line = "${System.currentTimeMillis()}|${worst.ordinal}|$summary"
         val all = (listOf(line) + (prefs(ctx).getString(KEY, null) ?: "").lineSequence().filter { it.isNotBlank() }).take(MAX)
         prefs(ctx).edit().putString(KEY, all.joinToString("\n")).apply()
+        _changes.value += 1
     }
 }
