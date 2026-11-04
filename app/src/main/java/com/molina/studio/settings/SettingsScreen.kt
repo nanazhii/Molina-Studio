@@ -121,7 +121,7 @@ private val INDEX = listOf(
     Hit("Logcat Reporter", "Salurkan logcat aplikasi ke halaman Log", Page.Debugging),
     Hit("Terminal I/O", "Keyboard dan penyimpanan", Page.TerminalIO),
     Hit("Akses penyimpanan penuh", "Seluruh /sdcard terlihat di dalam Debian", Page.TerminalIO),
-    Hit("Terminal View", "Terminal Margin Adjustment", Page.TerminalView),
+    Hit("Terminal View", "Penyesuaian margin terminal (Terminal Margin Adjustment)", Page.TerminalView),
     Hit("Tampilan Molina", "Ukuran font dan tema warna prompt", Page.Tampilan),
     Hit("Log", "Log aktivitas mpv, Terminal, dan sistem", Page.Log),
     Hit("Pengunduh tambahan (yt-dlp)", "Untuk TikTok, Facebook, dan situs lain yang tidak dikenali pemutar (bawaan: mati)", Page.Stream),
@@ -384,11 +384,11 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                         onLicenses = { open(Page.Licenses) }
                     )
                     Page.Terminal -> {
-                        PackageStatusCard("Debugging", "Preferences for debugging", null, onClick = { page = Page.Debugging })
+                        PackageStatusCard("Debugging", "Log level, key logging, dan notifikasi crash", null, onClick = { page = Page.Debugging }) // [LOKAL-ID]
                         Spacer(Modifier.height(8.dp))
-                        PackageStatusCard("Terminal I/O", "Preferences for terminal I/O", null, onClick = { page = Page.TerminalIO })
+                        PackageStatusCard("Terminal I/O", "Keyboard layar dan akses penyimpanan", null, onClick = { page = Page.TerminalIO })
                         Spacer(Modifier.height(8.dp))
-                        PackageStatusCard("Terminal View", "Preferences for terminal view", null, onClick = { page = Page.TerminalView })
+                        PackageStatusCard("Terminal View", "Penyesuaian margin terminal", null, onClick = { page = Page.TerminalView })
                         Spacer(Modifier.height(8.dp))
                         PackageStatusCard("Tampilan Molina", "Ukuran font dan tema warna prompt", null, onClick = { page = Page.Tampilan })
                     }
@@ -455,22 +455,22 @@ private fun DebuggingPage(onOpenCrash: () -> Unit, onOpenLog: () -> Unit) {
     Spacer(Modifier.height(8.dp))
     PackageGroupCard {
         PackageSwitchRow(
-            "Terminal View Key Logging",
-            if (TerminalPrefs.keyLogging) "Logcat logs will have entries for terminal view keys."
-            else "Logs will not have entries for terminal view keys. (Default)",
+            "Key logging tampilan terminal",
+            if (TerminalPrefs.keyLogging) "Logcat mencatat tombol yang ditekan di tampilan terminal."
+            else "Logcat tidak mencatat tombol di tampilan terminal. (Default)",
             TerminalPrefs.keyLogging
         ) { TerminalPrefs.setKeyLogging(it) }
         PackageDivider()
         PackageSwitchRow(
-            "Plugin Error Notifications",
+            "Notifikasi error plugin",
             "Molina belum memiliki plugin; nilai disimpan untuk fase mpv dan Code.",
             TerminalPrefs.pluginErrorNotifications
         ) { TerminalPrefs.setPluginErrorNotifications(it) }
         PackageDivider()
         PackageSwitchRow(
-            "Crash Report Notifications",
-            if (TerminalPrefs.crashNotifications) "Show notifications for crash reports. (Default)"
-            else "Disable notifications for crash reports.",
+            "Notifikasi laporan crash",
+            if (TerminalPrefs.crashNotifications) "Tampilkan notifikasi saat ada laporan crash. (Default)"
+            else "Notifikasi laporan crash dimatikan.",
             TerminalPrefs.crashNotifications
         ) { TerminalPrefs.setCrashNotifications(it) }
     }
@@ -597,17 +597,17 @@ private fun TerminalIoPage() {
     PackageSectionHeader("Keyboard") // [TERMINAL-KARTU]
     PackageGroupCard {
         PackageSwitchRow(
-            "Soft Keyboard Enabled",
-            if (TerminalPrefs.softKeyboard) "Soft keyboard will be enabled. (Default)"
-            else "Soft keyboard will be disabled.",
+            "Keyboard layar aktif",
+            if (TerminalPrefs.softKeyboard) "Keyboard layar akan diaktifkan. (Default)"
+            else "Keyboard layar akan dimatikan.",
             TerminalPrefs.softKeyboard
         ) { TerminalPrefs.setSoftKeyboard(it) }
         PackageDivider()
         PackageSwitchRow(
-            "Soft Keyboard Only If No Hardware",
+            "Keyboard layar hanya tanpa keyboard fisik",
             if (TerminalPrefs.softKeyboardOnlyIfNoHardware)
-                "Soft keyboard will be enabled only if no hardware keyboard is connected."
-            else "Soft keyboard will be enabled even if hardware keyboard is connected. (Default)",
+                "Keyboard layar hanya aktif bila tidak ada keyboard fisik terhubung."
+            else "Keyboard layar tetap aktif walau keyboard fisik terhubung. (Default)",
             TerminalPrefs.softKeyboardOnlyIfNoHardware
         ) { TerminalPrefs.setSoftKeyboardOnlyIfNoHardware(it) }
     }
@@ -632,9 +632,9 @@ private fun TerminalViewPage() {
     PackageSectionHeader("View") // [TERMINAL-KARTU]
     PackageGroupCard {
         PackageSwitchRow(
-            "Terminal Margin Adjustment",
-            if (TerminalPrefs.marginAdjustment) "Terminal margin adjustment will be enabled. (Default)"
-            else "Terminal margin adjustment will be disabled.",
+            "Penyesuaian margin terminal",
+            if (TerminalPrefs.marginAdjustment) "Penyesuaian margin terminal akan diaktifkan. (Default)"
+            else "Penyesuaian margin terminal akan dimatikan.",
             TerminalPrefs.marginAdjustment
         ) { TerminalPrefs.setMarginAdjustment(it) }
     }
