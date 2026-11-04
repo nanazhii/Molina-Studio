@@ -41,6 +41,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
@@ -363,7 +366,7 @@ private fun ToolCard(
     onEdit: () -> Unit,
     onDrop: () -> Unit
 ) {
-    val shape = RoundedCornerShape(6.dp)
+    val shape = RoundedCornerShape(10.dp) // [PAKET-FRAME] sudut lebih lembut
     // [PAKET-SERAGAM2] baris seragam: "Versi terakhir: ... \u00B7 tanggal" / "Tidak terdeteksi \u00B7 tanggal" / "Belum diperiksa"
     val base = check?.takeIf { it.text.isNotBlank() }?.let {
         if (it.text.startsWith("Tidak terdeteksi")) "${it.text} \u00B7 ${stamp(it.at)}${if (it.auto) " \u00B7 otomatis" else ""}"
@@ -372,15 +375,16 @@ private fun ToolCard(
     val sub = if (checking) "memeriksa versi\u2026" else base
     Column(
         Modifier.fillMaxWidth().clip(shape).background(W7D.Card, shape)
-            .border(1.dp, if (expanded) W7D.SelLine else W7D.Hairline, shape)
+            .border(1.5.dp, if (expanded) com.molina.studio.ui.MolinaTheme.Gold.copy(alpha = 0.75f) else Color(0xFF454A55), shape)
     ) {
+        val detected = check?.text?.let { it.isNotBlank() && !it.startsWith("Tidak terdeteksi") } == true
+        val strip = statusStripColor(detected, checking, checked = check?.text?.isNotBlank() == true)
         Row(
-            Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(horizontal = 12.dp, vertical = 10.dp),
+            Modifier.fillMaxWidth()
+                .drawBehind { drawRect(strip, Offset.Zero, Size(3.dp.toPx(), size.height)) } // [PAKET-FRAME] strip status 3dp
+                .clickable(onClick = onToggle).padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val detected = check?.text?.let { it.isNotBlank() && !it.startsWith("Tidak terdeteksi") } == true
-            StatusDot(detected, checking, checked = check?.text?.isNotBlank() == true)
-            Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f).padding(end = 8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -411,10 +415,10 @@ private fun ToolCard(
             note?.let {
                 Text(it, color = Color(0xFFE8A35F), fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                ActionText(if (tool.nativeInstall) "PASANG / PERBARUI" else "PASANG", Blue) { onAction(ToolAction.Install) }
-                ActionText("VERSI", W7D.Ink) { onAction(ToolAction.Version) }
-                ActionText("HAPUS", Red) { onAction(ToolAction.Remove) }
+            Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                ActionChip(if (tool.nativeInstall) "PASANG / PERBARUI" else "PASANG", Blue) { onAction(ToolAction.Install) }
+                ActionChip("VERSI", W7D.Ink) { onAction(ToolAction.Version) }
+                ActionChip("HAPUS", Red) { onAction(ToolAction.Remove) }
             }
             if (!tool.builtin) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -489,6 +493,36 @@ private fun ToolField(
         cursorBrush = SolidColor(W7D.NavHeader),
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
         modifier = modifier.fillMaxWidth().clip(shape).background(W7D.Field, shape).border(1.dp, W7D.Line, shape).padding(10.dp)
+    )
+}
+
+/** [PAKET-FRAME] Warna strip status kartu: hijau = terdeteksi, abu = tidak/belum diperiksa, emas berdenyut = memeriksa. */
+@Composable
+private fun statusStripColor(detected: Boolean, checking: Boolean, checked: Boolean): Color {
+    if (checking) {
+        val transition = rememberInfiniteTransition()
+        val a by transition.animateFloat(
+            initialValue = 0.35f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse)
+        )
+        return com.molina.studio.ui.MolinaTheme.Gold.copy(alpha = a)
+    }
+    return when {
+        !checked -> Color(0xFF8A8F98).copy(alpha = 0.45f)
+        detected -> Color(0xFF5FB36B)
+        else -> Color(0xFF8A8F98)
+    }
+}
+
+/** [PAKET-FRAME] Tombol aksi berbentuk kapsul beroutline (PASANG biru, VERSI putih, HAPUS merah). */
+@Composable
+private fun ActionChip(label: String, color: Color, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(50)
+    Text(
+        label, color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1,
+        modifier = Modifier.clip(shape).border(1.dp, color.copy(alpha = 0.7f), shape)
+            .clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 6.dp)
     )
 }
 
