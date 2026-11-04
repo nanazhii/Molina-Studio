@@ -652,7 +652,9 @@ fun Win7OpenDialog(
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                         granted = granted, entries = shown, key = key, asc = asc, selected = selected,
                         compact = portrait,
-                        bottomInset = if (!browse) 0.dp else if (selected != null || (multi && picked.isNotEmpty())) 76.dp else 52.dp, // [FLOAT-INFO]
+                        bottomInset = androidx.compose.animation.core.animateDpAsState(
+                            if (!browse) 0.dp else if (selected != null || (multi && picked.isNotEmpty())) 76.dp else 52.dp
+                        ).value, // [FLOAT-INFO] [FLOAT-ANIM]
                         onScrollDir = { floatHidden = it }, // [FLOAT-INFO]
                         onSort = { k -> if (key == k) asc = !asc else { key = k; asc = true } },
                         multi = multi, picked = picked, recentRefs = playedRefs,
@@ -692,18 +694,33 @@ fun Win7OpenDialog(
                         Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 8.dp),
                         verticalAlignment = Alignment.Bottom
                     ) {
-                        if (selected != null || (multi && picked.isNotEmpty())) {
-                            val infoShape = RoundedCornerShape(10.dp)
-                            Box(Modifier.weight(1f).padding(end = 8.dp).clip(infoShape).border(1.dp, if (multi) MolinaTheme.Gold else Win7.BtnLine, infoShape)) { // [FLOAT-GOLD]
-                                W7BrowseInfo(
-                                    files = flFiles,
-                                    isDir = if (selected == null || multi) null else selected!!.isDir,
-                                    size = selected?.size ?: 0L,
-                                    modified = selected?.modified ?: 0L,
-                                    onCopyPath = { onCopyPath?.invoke(flTarget); say("Path disalin", true) }
-                                )
+                        val infoOn = selected != null || (multi && picked.isNotEmpty()) // [FLOAT-ANIM]
+                        val flSnap = remember { W7InfoSnap() }
+                        if (infoOn) { // bekukan isi terakhir agar animasi keluar tidak berkedip ke info folder
+                            flSnap.files = flFiles
+                            flSnap.isDir = if (selected == null || multi) null else selected!!.isDir
+                            flSnap.size = selected?.size ?: 0L
+                            flSnap.modified = selected?.modified ?: 0L
+                            flSnap.target = flTarget
+                        }
+                        Box(Modifier.weight(1f).padding(end = 8.dp)) {
+                            androidx.compose.animation.AnimatedVisibility(
+                                visible = infoOn,
+                                enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.expandVertically(expandFrom = Alignment.Bottom),
+                                exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.shrinkVertically(shrinkTowards = Alignment.Bottom)
+                            ) {
+                                val infoShape = RoundedCornerShape(10.dp)
+                                Box(Modifier.clip(infoShape).border(1.dp, if (multi) MolinaTheme.Gold else Win7.BtnLine, infoShape)) {
+                                    W7BrowseInfo(
+                                        files = flSnap.files,
+                                        isDir = flSnap.isDir,
+                                        size = flSnap.size,
+                                        modified = flSnap.modified,
+                                        onCopyPath = { onCopyPath?.invoke(flSnap.target ?: flTarget); say("Path disalin", true) }
+                                    )
+                                }
                             }
-                        } else Spacer(Modifier.weight(1f))
+                        }
                         Box {
                             androidx.compose.animation.AnimatedVisibility(
                                 visible = !floatHidden || menuOpen || sortOpen || toolsOpen,
@@ -1029,6 +1046,15 @@ private fun W7NavItem(label: String, active: Boolean, icon: @Composable () -> Un
         Spacer(Modifier.width(5.dp))
         Text(label, color = Win7.Ink, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
+}
+
+/** [FLOAT-ANIM] Salinan isi kartu info terakhir; dibekukan selama animasi keluar. */
+private class W7InfoSnap {
+    var files: List<File> = emptyList()
+    var isDir: Boolean? = null
+    var size: Long = 0L
+    var modified: Long = 0L
+    var target: File? = null
 }
 
 @Composable
