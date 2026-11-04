@@ -155,23 +155,34 @@ internal fun PackagesPage(
         color = W7D.TextDim, fontSize = 13.sp, modifier = Modifier.padding(bottom = 8.dp)
     )
     UpdateStatusSection(onApt)
-    Category("Program Debian")
+    Spacer(Modifier.height(16.dp)) // [PAKET-KARTU2]
+    PackageSectionHeader("Program Debian")
     DebianInfoRow(aptLast to aptPending) // [DEBIAN-INFO]
     // [PAKET-TERPUSAT] cek/perbarui dipindah ke bagian Pembaruan di atas
-    W7Link({ W7IconToolList() }, "Bersihkan sisa program yang tidak terpakai", "Hapus file unduhan lama dan program yang tidak lagi dibutuhkan agar ruang kosong bertambah") { onApt(AptJob.CleanUp) }
-    W7Link({ W7IconToolList() }, "Pasang paket dasar (Starter)", "Python, SSH, pengunduh video (yt-dlp), dan sertifikat keamanan sekali ketuk. Dari sumber resmi dan diperiksa keasliannya") { onApt(AptJob.InstallStarter) } // [TERM-STARTER1] [STARTER-YTDLP]
-    Spacer(Modifier.height(12.dp))
-    Category("Alat")
+    Spacer(Modifier.height(8.dp))
+    PackageStatusCard(
+        "Bersihkan sisa program yang tidak terpakai",
+        "Hapus file unduhan lama dan program yang tidak lagi dibutuhkan agar ruang kosong bertambah",
+        null, onClick = { onApt(AptJob.CleanUp) }
+    )
+    Spacer(Modifier.height(8.dp))
+    PackageStatusCard(
+        "Pasang paket dasar (Starter)",
+        "Python, SSH, pengunduh video (yt-dlp), dan sertifikat keamanan sekali ketuk. Dari sumber resmi dan diperiksa keasliannya",
+        null, onClick = { onApt(AptJob.InstallStarter) } // [TERM-STARTER1] [STARTER-YTDLP]
+    )
+    Spacer(Modifier.height(16.dp))
+    PackageSectionHeader("Alat")
     remember { com.molina.studio.automation.AutoPrefs.init(ctx) }
     val autoSt by com.molina.studio.automation.AutoPrefs.state.collectAsState()
-    BadgeOverlay(if (autoSt.ytdlpOutdated) "Baru" else null, true, gold = true) {
-        W7Link(
-            { W7IconYtdlp() }, "Pengunduh tambahan (yt-dlp)",
-            if (autoSt.ytdlpOutdated) "Pembaruan tersedia: ${autoSt.ytdlpInstalled} \u2192 ${autoSt.ytdlpLatest}"
-            else "Untuk TikTok, Facebook, dan situs lain yang tidak dikenali pemutar (bawaan: mati)",
-            onOpenYtdlp
-        )
-    }
+    PackageStatusCard(
+        "Pengunduh tambahan (yt-dlp)",
+        if (autoSt.ytdlpOutdated) "Pembaruan tersedia: ${autoSt.ytdlpInstalled} \u2192 ${autoSt.ytdlpLatest}"
+        else "Untuk TikTok, Facebook, dan situs lain yang tidak dikenali pemutar (bawaan: mati)",
+        if (autoSt.ytdlpOutdated) PkgState.Outdated else null,
+        badge = if (autoSt.ytdlpOutdated) "Baru" else null,
+        onClick = onOpenYtdlp
+    )
     Spacer(Modifier.height(12.dp))
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(
@@ -224,18 +235,20 @@ internal fun PackagesPage(
         }
     }
 
-    Category("Komponen bawaan Molina")
+    Spacer(Modifier.height(8.dp))
+    PackageSectionHeader("Komponen bawaan Molina")
     remember { com.molina.studio.automation.AutoPrefs.init(ctx) }
     val bundleSt by com.molina.studio.automation.AutoPrefs.state.collectAsState()
     val bundleAll = remember { com.molina.core.common.BundledComponents.all(com.molina.engine.newpipe.NewPipeInfo.VERSION) }
     val bundleRep = remember { com.molina.core.common.BundledComponents.securityReport(bundleAll) }
-    BadgeOverlay(if (bundleSt.newpipeOutdated || bundleSt.ytdlpOutdated) "Baru" else null, true, gold = true) {
-        W7Link(
-            { BundleLinkIcon(bundleRep.requiredVerified) }, "Komponen bawaan Molina",
-            "${bundleAll.size} komponen \u00b7 ${bundleRep.hashPinned} sudah diperiksa keasliannya \u00b7 ringkasan keamanan",
-            onOpenBundle
-        )
-    }
+    val bundleOutdated = bundleSt.newpipeOutdated || bundleSt.ytdlpOutdated
+    PackageStatusCard(
+        "Komponen bawaan Molina",
+        "${bundleAll.size} komponen \u00b7 ${bundleRep.hashPinned} sudah diperiksa keasliannya \u00b7 ringkasan keamanan",
+        if (bundleOutdated) PkgState.Outdated else if (bundleRep.requiredVerified) PkgState.Current else PkgState.Unchecked,
+        badge = if (bundleOutdated) "Baru" else null,
+        onClick = onOpenBundle
+    )
     Spacer(Modifier.height(8.dp))
 
     draft?.let { d ->

@@ -47,12 +47,13 @@ internal fun DebianInfoRow(refreshKey: Any?) {
         loaded = true
     }
     val i = info
-    SettingsItem(
+    PackageStatusCard( // [PAKET-KARTU2]
         "Rilis Debian",
         when {
             !loaded -> "Membaca\u2026"
             i == null -> "Rootfs Debian belum terpasang"
             else -> "Debian ${i.release} \u00B7 ${i.packages} paket terpasang"
-        }
-    ) {}
+        },
+        if (loaded && i != null) PkgState.Current else PkgState.Unchecked
+    )
 }

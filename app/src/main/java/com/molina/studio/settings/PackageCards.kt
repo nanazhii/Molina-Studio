@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -68,15 +69,24 @@ internal fun PackageSectionHeader(title: String, trailing: String? = null, state
     }
 }
 
-/** Kartu status satu komponen (Debian, yt-dlp, NewPipe): strip kiri menunjukkan keadaan. */
+/**
+ * Kartu status satu komponen (Debian, yt-dlp, NewPipe): strip kiri menunjukkan keadaan.
+ * [PAKET-KARTU2] [state] null = tanpa strip; [onClick] non-null = kartu aksi dengan chevron.
+ */
 @Composable
-internal fun PackageStatusCard(title: String, subtitle: String, state: PkgState, badge: String? = null) {
-    val strip = pkgStrip(state)
+internal fun PackageStatusCard(
+    title: String,
+    subtitle: String,
+    state: PkgState?,
+    badge: String? = null,
+    onClick: (() -> Unit)? = null
+) {
+    val strip = if (state == null) Color.Transparent else pkgStrip(state)
+    var rowMod = Modifier.fillMaxWidth().drawBehind { drawRect(strip, Offset.Zero, Size(3.dp.toPx(), size.height)) }
+    if (onClick != null) rowMod = rowMod.clickable(onClick = onClick)
     Column(Modifier.fillMaxWidth().clip(PkgShape).background(W7D.Card, PkgShape).border(1.5.dp, PkgBorder, PkgShape)) {
         Row(
-            Modifier.fillMaxWidth()
-                .drawBehind { drawRect(strip, Offset.Zero, Size(3.dp.toPx(), size.height)) }
-                .padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
+            rowMod.padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f).padding(end = 8.dp)) {
@@ -86,7 +96,11 @@ internal fun PackageStatusCard(title: String, subtitle: String, state: PkgState,
                 )
                 Text(subtitle, color = W7D.TextDim, fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
             }
-            if (badge != null) W7Badge(badge, aero = false, gold = true)
+            if (badge != null) {
+                W7Badge(badge, aero = false, gold = true)
+                Spacer(Modifier.width(8.dp))
+            }
+            if (onClick != null) Text("\u25B8", color = W7D.NavHeader, fontSize = 16.sp)
         }
     }
 }
