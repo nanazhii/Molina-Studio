@@ -653,7 +653,7 @@ fun Win7OpenDialog(
                         granted = granted, entries = shown, key = key, asc = asc, selected = selected,
                         compact = portrait,
                         bottomInset = androidx.compose.animation.core.animateDpAsState(
-                            if (!browse) 0.dp else if (selected != null || (multi && picked.isNotEmpty())) 76.dp else 52.dp
+                            if (!browse) 0.dp else if (!multi && selected != null) 76.dp else 52.dp
                         ).value, // [FLOAT-INFO] [FLOAT-ANIM]
                         onScrollDir = { floatHidden = it }, // [FLOAT-INFO]
                         onSort = { k -> if (key == k) asc = !asc else { key = k; asc = true } },
@@ -694,7 +694,7 @@ fun Win7OpenDialog(
                         Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 8.dp),
                         verticalAlignment = Alignment.Bottom
                     ) {
-                        val infoOn = selected != null || (multi && picked.isNotEmpty()) // [FLOAT-ANIM]
+                        val infoOn = !multi && selected != null // [FLOAT-ANIM] [NO-INFO-SELECT] Mode Pilih tanpa kartu info
                         val flSnap = remember { W7InfoSnap() }
                         if (infoOn) { // bekukan isi terakhir agar animasi keluar tidak berkedip ke info folder
                             flSnap.files = flFiles
