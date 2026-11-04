@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.molina.studio.packages.BuiltinTools
 import com.molina.studio.packages.ToolCheck
+import com.molina.studio.packages.ToolChecker
 import com.molina.studio.packages.ToolItem
 import com.molina.studio.packages.ToolPurge
 import com.molina.studio.packages.ToolStore
@@ -119,88 +120,19 @@ internal fun PackagesPage(
     val aptLast by AptHistory.last.collectAsState()
     val aptPending by AptHistory.pending.collectAsState()
 
-    // [PAKET-VERSI] satu-satunya tempat cek versi alat: antrean BERURUTAN (semua memakai satu PRoot Debian), hasil tampil di kartu
-    var checking by remember { mutableStateOf<String?>(null) }
-    var checkHandle by remember { mutableStateOf<com.molina.code.run.RunHandle?>(null) }
-    var queue by remember { mutableStateOf<List<String>>(emptyList()) }
-    var batchTotal by remember { mutableStateOf(0) }
-    var batchOk by remember { mutableStateOf(0) }
-    var batchNote by remember { mutableStateOf<String?>(null) }
-    var autoRun by remember { mutableStateOf(false) } // [PAKET-OTOMATIS] antrean aktif berasal dari cek otomatis
-    val notes = remember { androidx.compose.runtime.mutableStateMapOf<String, String>() }
-    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { queue = emptyList(); checkHandle?.cancel() } }
-
-    fun runNext() {
-        val tid = queue.firstOrNull()
-        if (tid == null) {
-            checking = null
-            checkHandle = null
-            if (batchTotal > 0) batchNote = "Selesai: $batchOk dari $batchTotal terdeteksi."
-            batchTotal = 0
-            return
-        }
-        queue = queue.drop(1)
-        val tool = (BuiltinTools.all + ToolStore.custom.value).firstOrNull { it.id == tid }
-        val script = if (tool != null) scriptOf(tool, ToolAction.Version) else ""
-        if (tool == null || script.isBlank()) {
-            notes[tid] = "Skrip versi belum diisi."
-            runNext()
-            return
-        }
-        checking = tid
-        notes.remove(tid)
-        val out = StringBuilder()
-        checkHandle = startShell(
-            ctx, ToolRun("${tool.name}: versi", script, ToolAction.Version.timeoutMs, "", false),
-            lane = com.molina.studio.code.ProotScriptExecutor.Lane.TOOLS, // [PAKET-LANE]
-            onChunk = { if (out.length < 20_000) out.append(it) },
-            onDone = { r ->
-                checkHandle = null
-                when {
-                    r.startError != null || r.timedOut -> { notes[tid] = describe(r) }
-                    r.cancelled -> { notes[tid] = "Pemeriksaan dihentikan." }
-                    else -> {
-                        if (r.exitCode == 0) batchOk += 1
-                        ToolStore.setCheck(tid, if (r.exitCode == 0) firstLine(out.toString()) else "Tidak terdeteksi (kode ${r.exitCode})", autoRun)
-                        if (tool.nativeInstall && r.exitCode == 0) syncYtdlp(ctx, firstLine(out.toString()))
-                    }
-                }
-                if (r.cancelled) {
-                    queue = emptyList()
-                    checking = null
-                    if (batchTotal > 0) batchNote = "Dihentikan: $batchOk dari $batchTotal terdeteksi."
-                    batchTotal = 0
-                } else {
-                    runNext()
-                }
-            }
-        )
+    // [PAKET-VERSI] [PAKET-CHECKER] cek versi dipegang ToolChecker (antrean berurutan, lane TOOLS); UI hanya mengamati
+    val chk by ToolChecker.state.collectAsState()
+    val checking = chk.checkingId
+    val notes = chk.notes
+    val batchTotal = chk.total
+    val queueLeft = chk.remaining
+    val batchNote = chk.note
+    fun begin(ids: List<String>, batch: Boolean) {
+        if (!ToolChecker.start(ctx, ids, batch)) toast(ctx, "Pemeriksaan lain sedang berjalan")
     }
 
-    fun begin(ids: List<String>, batch: Boolean, auto: Boolean = false) {
-        if (checking != null) {
-            toast(ctx, "Pemeriksaan lain sedang berjalan")
-            return
-        }
-        batchNote = null
-        autoRun = auto
-        batchOk = 0
-        batchTotal = if (batch) ids.size else 0
-        queue = ids
-        runNext()
-    }
-
-    // [PAKET-AUTOCEK] sekali per proses: periksa versi alat yang belum pernah dicek atau datanya lebih tua dari 24 jam (berurutan, tanpa catatan batch)
-    androidx.compose.runtime.LaunchedEffect(Unit) {
-        if (autoCheckDone) return@LaunchedEffect
-        autoCheckDone = true
-        val now = System.currentTimeMillis()
-        val stale = (BuiltinTools.all + ToolStore.custom.value)
-            .filter { it.version.isNotBlank() }
-            .filter { t -> ToolStore.checks.value[t.id]?.let { it.text.isBlank() || now - it.at > 24L * 60 * 60 * 1000 } ?: true }
-            .map { it.id }
-        if (stale.isNotEmpty() && checking == null) begin(stale, false, true)
-    }
+    // [PAKET-AUTOCEK] sekali per proses (penjaganya ada di ToolChecker)
+    androidx.compose.runtime.LaunchedEffect(Unit) { ToolChecker.requestStale(ctx) }
 
     Text(
         "Di sini Anda memperbarui program di dalam Debian, memasang atau menghapus alat tambahan, dan memeriksa versinya. Skrip biasa ada di menu Script execution.",
@@ -234,7 +166,7 @@ internal fun PackagesPage(
     }
     Spacer(Modifier.height(4.dp))
     if (checking != null) {
-        ActionText("MEMERIKSA" + (if (batchTotal > 0) " ${batchTotal - queue.size}/$batchTotal" else "") + "\u2026 KETUK UNTUK BERHENTI", W7D.Ink) { checkHandle?.cancel() }
+        ActionText("MEMERIKSA" + (if (batchTotal > 0) " ${batchTotal - queueLeft}/$batchTotal" else "") + "\u2026 KETUK UNTUK BERHENTI", W7D.Ink) { ToolChecker.cancel() }
     } else {
         ActionText("PERIKSA SEMUA VERSI", W7D.Ink) {
             begin((BuiltinTools.all + custom).filter { it.version.isNotBlank() }.map { it.id }, true)
@@ -387,9 +319,6 @@ internal fun PackagesPage(
 internal fun BundlePage(onOpenYtdlp: () -> Unit) {
     BundledComponentsSection(onOpenYtdlp = onOpenYtdlp)
 }
-
-/** [PAKET-AUTOCEK] cek otomatis hanya sekali per proses aplikasi, agar PRoot tidak dibebani tiap halaman dibuka. */
-private var autoCheckDone = false
 
 /** Titik status kartu alat: hijau = terdeteksi, abu = belum; berdenyut emas Molina saat sedang diperiksa [SETELAN-PUSAT]. */
 @Composable
@@ -568,11 +497,6 @@ private fun ytNote(s: YtdlpInstallState): String? = when (s) {
     is YtdlpInstallState.Working -> s.message
     is YtdlpInstallState.Done -> "Berhasil, versi ${s.version ?: "?"}."
     is YtdlpInstallState.Failed -> "Gagal: ${s.message}"
-}
-
-/** [PAKET-SERAGAM] Jaga lencana pembaruan tetap sinkron dengan hasil cek versi di kartu. */
-private fun syncYtdlp(ctx: Context, version: String) {
-    if (version.isNotBlank()) com.molina.studio.automation.AutoPrefs.setYtdlpInstalled(ctx, version)
 }
 
 private fun firstLine(out: String): String =
