@@ -36,6 +36,7 @@ internal class CheckResult(val name: String, val level: CheckLevel, val detail: 
 internal object HealthCheck {
     private const val DEBIAN_TIMEOUT_S = 8L
     private const val NET_TIMEOUT_S = 4L
+    private const val PTY_TIMEOUT_MS = 3000L
     private const val LOW_FREE_MB = 500L
     private const val CRITICAL_FREE_MB = 100L
     private const val DEEP_TTL_MS = 10 * 60 * 1000L
@@ -54,6 +55,7 @@ internal object HealthCheck {
             add(rootfs(app))
             if (deep) {
                 add(debianRuns(app))
+                add(terminal())
                 add(network())
             }
             add(storage(app))
@@ -181,6 +183,12 @@ internal object HealthCheck {
         } finally {
             ex.shutdownNow()
         }
+    }
+
+    /** [DIAG-PTY] Membuka PTY sesaat lewat libmolina_pty dan menjalankan echo di /system/bin/sh. Gagal berarti Terminal tidak bisa membuka sesi. */
+    private fun terminal(): CheckResult {
+        val r = com.molina.terminal.PtyProbe.run(PTY_TIMEOUT_MS)
+        return CheckResult("Terminal jalan", if (r.ok) CheckLevel.Ok else CheckLevel.Bad, r.detail)
     }
 
     private fun storage(ctx: Context): CheckResult {

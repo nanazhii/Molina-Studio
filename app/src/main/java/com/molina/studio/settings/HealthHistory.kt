@@ -25,6 +25,17 @@ internal object HealthHistory {
         }.toList()
     }
 
+    /** [DIAG-PATTERN] Apakah masalah pada pemeriksaan terbaru baru atau berulang di riwayat. Null bila tidak ada yang bisa disimpulkan. */
+    fun pattern(list: List<HistoryEntry>): String? {
+        val latest = list.firstOrNull() ?: return null
+        if (latest.level == CheckLevel.Ok) return "pemeriksaan terakhir sehat"
+        val culprit = latest.summary.substringAfter("; ", "")
+        if (culprit.isEmpty()) return null
+        val n = list.count { it.level != CheckLevel.Ok && it.summary.substringAfter("; ", "") == culprit }
+        return if (n <= 1) "$culprit bermasalah (baru, belum berulang di riwayat)"
+        else "$culprit bermasalah di $n dari ${list.size} pemeriksaan terakhir"
+    }
+
     fun add(ctx: Context, list: List<CheckResult>) = synchronized(this) {
         val worst = HealthCheck.worst(list)
         val ok = list.count { it.level == CheckLevel.Ok }

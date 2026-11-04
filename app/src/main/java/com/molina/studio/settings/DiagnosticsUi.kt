@@ -1,9 +1,12 @@
 package com.molina.studio.settings
 
+import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -64,6 +67,13 @@ private fun openAppSettings(ctx: Context) {
     } catch (e: Exception) {
         Toast.makeText(ctx, "Buka Setelan Android > Aplikasi > Molina > Izin", Toast.LENGTH_LONG).show()
     }
+}
+
+/** [DIAG-PERM] Activity pemilik dialog (Compose memberi ContextWrapper), untuk shouldShowRequestPermissionRationale. */
+private tailrec fun Context.findActivity(): android.app.Activity? = when (this) {
+    is android.app.Activity -> this
+    is android.content.ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
 
 private val HISTORY_TIME = SimpleDateFormat("dd MMM HH:mm", Locale("id", "ID"))
@@ -172,10 +182,16 @@ internal fun DiagnosticsDialog(onManageDebian: () -> Unit = {}, onDismiss: () ->
         checks = runChecks(ctx)
         history = withContext(Dispatchers.IO) { runCatching { HealthHistory.load(ctx) }.getOrDefault(emptyList()) }
     }
+    // [DIAG-PERM] Minta izin storage langsung. Bila Android menolak tanpa dialog (ditolak permanen), baru buka Setelan.
+    val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val canAsk = ctx.findActivity()?.shouldShowRequestPermissionRationale(Manifest.permission.WRITE_EXTERNAL_STORAGE) == true
+        if (!granted && !canAsk) openAppSettings(ctx)
+        scope.launch { refresh() }
+    }
     val onAction: (CheckAction) -> Unit = { a ->
         when (a) {
             CheckAction.ManageDebian -> onManageDebian()
-            CheckAction.GrantPermission -> openAppSettings(ctx)
+            CheckAction.GrantPermission -> permLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
         }
     }
     LaunchedEffect(Unit) { refresh() }

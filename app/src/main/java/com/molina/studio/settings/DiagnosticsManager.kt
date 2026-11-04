@@ -113,6 +113,13 @@ internal object DiagnosticsManager {
             appendLine()
             appendLine("--- Pemeriksaan ---")
             appendLine(HealthCheck.toText(checks))
+            val hist = runCatching { HealthHistory.load(ctx) }.getOrDefault(emptyList()) // [DIAG-HIST-SUM]
+            if (hist.isNotEmpty()) {
+                appendLine()
+                appendLine("--- Riwayat pemeriksaan (terbaru dulu) ---")
+                hist.forEach { appendLine("${DATE.format(Instant.ofEpochMilli(it.time))}  [${it.level.glyph}] ${it.summary}") }
+                HealthHistory.pattern(hist)?.let { appendLine("Pola: $it") }
+            }
             if (integrity.isNotEmpty()) {
                 appendLine()
                 appendLine("--- Integritas: SHA-256 isi berkas (hash ZIP ada di berkas .sha256 di samping ZIP) ---")
