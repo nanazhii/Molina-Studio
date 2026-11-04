@@ -236,6 +236,9 @@ internal fun PackagesPage(
                 check = checks[tool.id],
                 checking = checking == tool.id,
                 note = if (tool.nativeInstall) ytNote(ytInstall) ?: notes[tool.id] else notes[tool.id],
+                needs = tool.requires.mapNotNull { id -> BuiltinTools.all.firstOrNull { it.id == id } }
+                    .filter { d -> checks[d.id]?.text?.let { it.isNotBlank() && !it.startsWith("Tidak terdeteksi") } != true }
+                    .joinToString(", ") { it.name }.ifEmpty { null },
                 expanded = expandedId == tool.id,
                 onToggle = { expandedId = if (expandedId == tool.id) null else tool.id },
                 onAction = { a ->
@@ -392,6 +395,7 @@ private fun ToolCard(
     check: ToolCheck?,
     checking: Boolean,
     note: String?,
+    needs: String? = null, // [PAKET-CHIP] syarat yang belum terpenuhi, mis. "Python 3"
     expanded: Boolean,
     onToggle: () -> Unit,
     onAction: (ToolAction) -> Unit,
@@ -414,7 +418,22 @@ private fun ToolCard(
             StatusDot(detected, checking)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f).padding(end = 8.dp)) {
-                Text(tool.name, color = W7D.Ink, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        tool.name, color = W7D.Ink, fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (needs != null) {
+                        Spacer(Modifier.width(6.dp))
+                        val chip = RoundedCornerShape(8.dp)
+                        Text(
+                            "Butuh $needs", color = com.molina.studio.ui.MolinaTheme.Gold, fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold, maxLines = 1,
+                            modifier = Modifier.clip(chip).border(1.dp, com.molina.studio.ui.MolinaTheme.Gold, chip)
+                                .padding(horizontal = 6.dp, vertical = 1.dp)
+                        )
+                    }
+                }
                 Text(sub, color = W7D.TextDim, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Text(if (expanded) "\u25BE" else "\u25B8", color = W7D.NavHeader, fontSize = 16.sp)
