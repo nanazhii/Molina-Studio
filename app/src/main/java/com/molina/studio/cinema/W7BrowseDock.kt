@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -108,48 +109,65 @@ internal fun W7BrowseInfo(
 }
 
 /**
- * [FILES-DOCK] Panel bawah Penjelajah (mode jelajah): tinggi TETAP.
- * Baris 1: label Mode Pilih (kiri), bantuan, status Debian ringkas, lalu slot [menu] (ikon kisi drop-up) di ujung kanan.
- * Baris 2: aksi (Aksi cepat, Sisipkan, Terminal, Buka) dengan bobot sama, tanpa lebar minimum.
+ * [FILES-DOCK] Panel bawah Penjelajah (mode jelajah): tinggi TETAP, satu baris aksi
+ * (Aksi cepat, Sisipkan, Terminal, Buka) dengan bobot sama, tanpa lebar minimum.
+ * [FLOAT-DOCK] Status Debian dan menu kisi pindah ke pil melayang [W7BrowseFloat] agar daftar lebih luas.
  */
 @Composable
 internal fun W7BrowseDock(
-    debian: Boolean?,
     quickLabel: String,
     insertEnabled: Boolean,
     terminalEnabled: Boolean,
     onQuick: () -> Unit,
     onInsert: () -> Unit,
     onTerminal: () -> Unit,
-    onOpen: () -> Unit,
-    modeLabel: String? = null,
-    onHelp: (() -> Unit)? = null,
-    menu: @Composable () -> Unit = {}
+    onOpen: () -> Unit
 ) {
-    Column(Modifier.fillMaxWidth().padding(bottom = 2.dp)) {
-        Row(Modifier.fillMaxWidth().height(40.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(bottom = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        DockButton(quickLabel, Modifier.weight(1f), true, false, null, onQuick)
+        DockButton("Sisipkan", Modifier.weight(1f), insertEnabled, false, null, onInsert)
+        DockButton("Terminal", Modifier.weight(1.1f), terminalEnabled, false, MolinaTheme.Good, onTerminal)
+        DockButton("Buka", Modifier.weight(0.9f), true, true, MolinaTheme.Gold, onOpen)
+    }
+}
+
+/**
+ * [FLOAT-DOCK] Pil melayang di kanan bawah daftar: label Mode Pilih (bila ada), bantuan, status Debian,
+ * lalu slot [menu] (ikon kisi drop-up). Latar gelap semi-transparan (API 26 tanpa blur).
+ */
+@Composable
+internal fun W7BrowseFloat(
+    modifier: Modifier,
+    debian: Boolean?,
+    modeLabel: String?,
+    onHelp: (() -> Unit)?,
+    menu: @Composable () -> Unit
+) {
+    val shape = RoundedCornerShape(10.dp)
+    Row(
+        modifier.clip(shape).background(Color(0xE60B0B0F), shape).border(1.dp, Win7.BtnLine, shape)
+            .padding(start = 10.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (modeLabel != null && modeLabel.isNotEmpty()) {
             Text(
-                modeLabel.orEmpty(), color = Win7.NavHeader, fontSize = 12.sp, maxLines = 1,
-                overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
+                modeLabel, color = Win7.NavHeader, fontSize = 12.sp, maxLines = 1,
+                overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 120.dp)
             )
-            if (onHelp != null) W7HelpIcon(onHelp) // [HELP-PANEL]
-            if (debian != null) {
-                val tone = if (debian) MolinaTheme.Good else MolinaTheme.Warn
-                Spacer(Modifier.width(8.dp))
-                Box(Modifier.size(8.dp).background(tone, RoundedCornerShape(4.dp)))
-                Spacer(Modifier.width(4.dp))
-                Text(if (debian) "Debian" else "Luar", color = tone, fontSize = 10.sp, maxLines = 1)
-            }
-            Spacer(Modifier.width(10.dp))
-            menu()
+            Spacer(Modifier.width(6.dp))
         }
-        Spacer(Modifier.height(4.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            DockButton(quickLabel, Modifier.weight(1f), true, false, null, onQuick)
-            DockButton("Sisipkan", Modifier.weight(1f), insertEnabled, false, null, onInsert)
-            DockButton("Terminal", Modifier.weight(1.1f), terminalEnabled, false, MolinaTheme.Good, onTerminal)
-            DockButton("Buka", Modifier.weight(0.9f), true, true, MolinaTheme.Gold, onOpen)
+        if (onHelp != null) {
+            W7HelpIcon(onHelp) // [HELP-PANEL]
+            Spacer(Modifier.width(6.dp))
         }
+        if (debian != null) {
+            val tone = if (debian) MolinaTheme.Good else MolinaTheme.Warn
+            Box(Modifier.size(8.dp).background(tone, RoundedCornerShape(4.dp)))
+            Spacer(Modifier.width(4.dp))
+            Text(if (debian) "Debian" else "Luar", color = tone, fontSize = 10.sp, maxLines = 1)
+            Spacer(Modifier.width(8.dp))
+        }
+        menu()
     }
 }
 
