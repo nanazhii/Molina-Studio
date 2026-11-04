@@ -48,7 +48,7 @@ import java.util.Locale
 
 // [PILL-BAR] Bilah sesi berbentuk pil di bawah header Terminal: pil aktif emas + garis bawah emas + titik hijau
 // status Debian, tombol + untuk sesi baru, dan mini CPU/RAM di kanan (data dari SystemStats.shared).
-// Penutupan sesi tetap lewat drawer (dengan konfirmasi) agar tidak tertutup tak sengaja.
+// Pil aktif hijau [PILL-GREEN] dengan tombol ✕ di sebelah judul; tutup sesi selalu lewat dialog konfirmasi.
 
 private val PillBarHeight = 32.dp
 private val PillHeight = 24.dp
@@ -67,6 +67,7 @@ private fun PillBarContent() {
     val tick = TerminalSessions.titleTick
     val current = TerminalSessions.currentIndex
     val listState = rememberLazyListState()
+    var confirm by remember { mutableStateOf<Int?>(null) }
     LaunchedEffect(current, sessions.size) {
         if (current in sessions.indices) listState.animateScrollToItem(current)
     }
@@ -95,7 +96,7 @@ private fun PillBarContent() {
                 val title = remember(tick, s) {
                     TerminalSessions.labelOf(s) ?: s.title?.trim()?.takeIf { it.isNotEmpty() } ?: "Debian"
                 }
-                SessionPill(i, title, i == current) {
+                SessionPill(i, title, i == current, onClose = { confirm = i }) {
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     TerminalSessions.select(i)
                 }
@@ -115,24 +116,26 @@ private fun PillBarContent() {
         }
         PillStats()
     }
+
+    confirm?.let { i -> CloseSessionDialog(i) { confirm = null } }
 }
 
 @Composable
-private fun SessionPill(index: Int, title: String, selected: Boolean, onClick: () -> Unit) {
-    val gold = MolinaTheme.Gold
+private fun SessionPill(index: Int, title: String, selected: Boolean, onClose: () -> Unit, onClick: () -> Unit) {
+    val accent = MolinaTheme.Good // [PILL-GREEN]
     val shape = RoundedCornerShape(50)
     Row(
         Modifier
             .height(PillHeight)
             .widthIn(max = 150.dp)
             .clip(shape)
-            .background(if (selected) gold.copy(alpha = 0.12f) else MolinaTheme.CardBg, shape)
-            .border(1.dp, if (selected) gold.copy(alpha = 0.5f) else MolinaTheme.CardLine, shape)
+            .background(if (selected) accent.copy(alpha = 0.12f) else MolinaTheme.CardBg, shape)
+            .border(1.dp, if (selected) accent.copy(alpha = 0.5f) else MolinaTheme.CardLine, shape)
             .drawBehind {
                 if (selected) {
                     val h = 2.dp.toPx()
                     drawLine(
-                        gold,
+                        accent,
                         Offset(size.width * 0.2f, size.height - h / 2f),
                         Offset(size.width * 0.8f, size.height - h / 2f),
                         h, StrokeCap.Round
@@ -149,15 +152,26 @@ private fun SessionPill(index: Int, title: String, selected: Boolean, onClick: (
         }
         Text(
             "${index + 1} $title",
-            color = if (selected) gold else MolinaTheme.Muted,
+            color = if (selected) accent else MolinaTheme.Muted,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false)
         )
+        if (selected) {
+            Spacer(Modifier.width(4.dp))
+            Box(
+                Modifier.size(20.dp).clip(CircleShape).clickable(onClick = onClose),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("\u2715", color = MolinaTheme.Bad, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+        }
     }
 }
+
 
 @Composable
 private fun AddPill(enabledLook: Boolean, onClick: () -> Unit) {

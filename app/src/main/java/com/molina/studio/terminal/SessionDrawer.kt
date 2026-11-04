@@ -153,26 +153,7 @@ fun SessionDrawer(open: Boolean, onClose: () -> Unit, onOpenSettings: () -> Unit
         }
     }
 
-    confirm?.let { i ->
-        val last = TerminalSessions.sessions.size <= 1
-        AlertDialog(
-            onDismissRequest = { confirm = null },
-            title = { Text("Tutup sesi [${i + 1}]?") },
-            text = {
-                Text(
-                    if (last) "Ini sesi terakhir: proses di dalamnya dihentikan dan Molina keluar."
-                    else "Proses yang berjalan di sesi ini akan dihentikan."
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirm = null
-                    TerminalSessions.closeSession(i)
-                }) { Text("Tutup", color = CloseRed) }
-            },
-            dismissButton = { TextButton(onClick = { confirm = null }) { Text("Batal") } }
-        )
-    }
+    confirm?.let { i -> CloseSessionDialog(i) { confirm = null } }
 }
 
 @Composable
@@ -206,4 +187,27 @@ private fun toggleKeyboard(ctx: Context) {
     v.requestFocus()
     val imm = ctx.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
     imm.toggleSoftInput(InputMethodManager.SHOW_IMPLICIT, 0)
+}
+
+/** Dialog konfirmasi tutup sesi; dipakai drawer dan bilah pil. Sesi terakhir = Molina keluar. */
+@Composable
+internal fun CloseSessionDialog(index: Int, onDismiss: () -> Unit) {
+    val last = TerminalSessions.sessions.size <= 1
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Tutup sesi [${index + 1}]?") },
+        text = {
+            Text(
+                if (last) "Ini sesi terakhir: proses di dalamnya dihentikan dan Molina keluar."
+                else "Proses yang berjalan di sesi ini akan dihentikan."
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onDismiss()
+                TerminalSessions.closeSession(index)
+            }) { Text("Tutup", color = CloseRed) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Batal") } }
+    )
 }
