@@ -58,6 +58,8 @@ import com.molina.studio.packages.ToolPurge
 import com.molina.studio.packages.ToolStore
 import com.molina.studio.stream.YtdlpInstallState
 import com.molina.studio.stream.YtdlpInstaller
+import com.molina.studio.stream.YtdlpLocator
+import com.molina.studio.stream.YtdlpStatus
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -71,7 +73,11 @@ private enum class ToolAction(val label: String, val timeoutMs: Long, val confir
     Remove("Hapus", 15 * 60_000L, true)
 }
 
-private class PendingRun(val tool: ToolItem, val action: ToolAction, val backup: Boolean = false, val previewed: Boolean = false)
+private class PendingRun(
+    val tool: ToolItem, val action: ToolAction, val backup: Boolean = false, val previewed: Boolean = false,
+    /** [PAKET-DEPEN] alat yang dipasang otomatis setelah pemasangan ini sukses. */
+    val thenInstall: ToolItem? = null
+)
 
 private class ToolDraft(val id: String?, name: String, note: String, install: String, version: String, remove: String) {
     var name by mutableStateOf(name)
@@ -107,6 +113,7 @@ internal fun PackagesPage(
     var pending by remember { mutableStateOf<PendingRun?>(null) }
     var draft by remember { mutableStateOf<ToolDraft?>(null) }
     var toDrop by remember { mutableStateOf<ToolItem?>(null) }
+    var needPython by remember { mutableStateOf<ToolItem?>(null) } // [PAKET-DEPEN]
     var preview by remember { mutableStateOf<ToolItem?>(null) }
     remember { AptHistory.init(ctx) }
     val aptLast by AptHistory.last.collectAsState()
@@ -234,6 +241,7 @@ internal fun PackagesPage(
                 onAction = { a ->
                     if (tool.nativeInstall && a == ToolAction.Install) {
                         if (ytInstall is YtdlpInstallState.Working) toast(ctx, "Pemasangan yt-dlp sedang berjalan")
+                        else if (YtdlpLocator.status(ctx) == YtdlpStatus.NoPython && tool.requires.isNotEmpty()) needPython = tool
                         else { YtdlpInstaller.install(ctx); toast(ctx, "Memasang atau memperbarui yt-dlp di latar belakang\u2026") }
                     } else if (scriptOf(tool, a).isBlank()) {
                         toast(ctx, "Skrip ${a.label.lowercase()} belum diisi. Ubah alat untuk mengisinya.")
@@ -277,9 +285,25 @@ internal fun PackagesPage(
             onClose = { preview = null }
         )
     }
+    needPython?.let { t ->
+        val dep = BuiltinTools.all.firstOrNull { it.id == t.requires.firstOrNull() }
+        AlertDialog(
+            onDismissRequest = { needPython = null },
+            title = { Text("${t.name} butuh ${dep?.name ?: "alat lain"}") },
+            text = { Text("${t.name} membutuhkan ${dep?.name ?: "alat lain"} di Debian, dan belum terpasang. Pasang ${dep?.name ?: "alat itu"} dulu, lalu ${t.name} dipasang otomatis?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    needPython = null
+                    if (dep != null) pending = PendingRun(dep, ToolAction.Install, thenInstall = t)
+                }) { Text("PASANG KEDUANYA", color = Blue) }
+            },
+            dismissButton = { TextButton(onClick = { needPython = null }) { Text("BATAL") } }
+        )
+    }
     pending?.let { pr ->
         val note = when (pr.action) {
-            ToolAction.Install -> "Memasang ${pr.tool.name} di Debian. Butuh internet."
+            ToolAction.Install -> "Memasang ${pr.tool.name} di Debian. Butuh internet." +
+                (if (pr.thenInstall != null) " Setelah selesai, ${pr.thenInstall.name} dipasang otomatis." else "")
             ToolAction.Version -> "Memeriksa versi ${pr.tool.name}."
             ToolAction.Remove ->
                 if (pr.tool.nativeInstall) {
@@ -307,6 +331,11 @@ internal fun PackagesPage(
                 code == -1 -> {}
                 pr.action == ToolAction.Version ->
                     ToolStore.setCheck(pr.tool.id, if (code == 0) firstLine(out) else "Tidak terdeteksi (kode $code)")
+                pr.thenInstall != null && pr.action == ToolAction.Install && code == 0 -> {
+                    ToolStore.setCheck(pr.tool.id, "")
+                    YtdlpInstaller.install(ctx)
+                    toast(ctx, "${pr.tool.name} terpasang. Memasang ${pr.thenInstall.name} di latar belakang\u2026")
+                }
                 code == 0 -> {
                     ToolStore.setCheck(pr.tool.id, "")
                     if (pr.tool.nativeInstall) com.molina.studio.automation.AutoPrefs.clearYtdlp(ctx)

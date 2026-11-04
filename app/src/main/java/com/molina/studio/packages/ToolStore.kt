@@ -23,7 +23,9 @@ data class ToolItem(
     /** Berkas konfigurasi non-rahasia yang bisa dicadangkan sebelum HAPUS. */
     val backupPaths: List<String> = emptyList(),
     /** [PAKET-SERAGAM] True = pemasangan lewat kode Kotlin (unduh + verifikasi SHA-256), bukan skrip shell. */
-    val nativeInstall: Boolean = false
+    val nativeInstall: Boolean = false,
+    /** [PAKET-DEPEN] id alat bawaan yang harus ada lebih dulu (yt-dlp butuh b-python3). */
+    val requires: List<String> = emptyList()
 )
 
 /** Hasil pemeriksaan versi terakhir; [text] kosong = belum diperiksa. */
@@ -64,7 +66,7 @@ object BuiltinTools {
         ),
         ToolItem( // [PAKET-SERAGAM]
             "b-ytdlp", "yt-dlp", "Pengunduh tambahan untuk TikTok, Facebook, dan situs lain. Butuh Python 3. Pemasangan memverifikasi SHA-256 rilis resmi.",
-            "", "command -v yt-dlp >/dev/null && yt-dlp --version | head -n 1", YTDLP_REMOVE, true, emptyList(), emptyList(), true
+            "", "command -v yt-dlp >/dev/null && yt-dlp --version | head -n 1", YTDLP_REMOVE, true, emptyList(), emptyList(), true, listOf("b-python3")
         )
     )
 }
