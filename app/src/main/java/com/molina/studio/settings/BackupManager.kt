@@ -6,6 +6,7 @@ import com.molina.core.common.MolinaDir
 import com.molina.studio.AppPaths
 import com.molina.studio.code.ScriptStore
 import com.molina.studio.terminal.PromptTheme
+import com.molina.studio.terminal.TerminalLook
 import com.molina.studio.terminal.TerminalPrefs
 import com.molina.studio.terminal.TerminalSnippets
 import org.json.JSONArray
@@ -106,6 +107,7 @@ internal object BackupManager {
         return JSONObject()
             .put("font_sp", s.fontSp)
             .put("prompt_theme", s.promptTheme.id)
+            .put("terminal_look", s.look.id)
             .put("log_level", s.logLevel)
             .put("key_logging", s.keyLogging)
             .put("plugin_error_notifications", s.pluginErrorNotifications)
@@ -121,6 +123,7 @@ internal object BackupManager {
         var n = 0
         if (o.has("font_sp")) { TerminalPrefs.setFontSp(o.getInt("font_sp")); n++ }
         if (o.has("prompt_theme")) { TerminalPrefs.setPromptTheme(ctx, PromptTheme.fromId(o.getString("prompt_theme"))); n++ }
+        if (o.has("terminal_look")) { TerminalPrefs.setLook(TerminalLook.fromId(o.getString("terminal_look"))); n++ }
         if (o.has("log_level")) { TerminalPrefs.setLogLevel(o.getInt("log_level")); n++ }
         if (o.has("key_logging")) { TerminalPrefs.setKeyLogging(o.getBoolean("key_logging")); n++ }
         if (o.has("plugin_error_notifications")) { TerminalPrefs.setPluginErrorNotifications(o.getBoolean("plugin_error_notifications")); n++ }

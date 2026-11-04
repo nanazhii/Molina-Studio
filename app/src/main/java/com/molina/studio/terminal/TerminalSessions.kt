@@ -173,6 +173,7 @@ object TerminalSessions {
 
     private fun debianShell(ctx: Context, cwd: String? = null): TerminalSession {
         TerminalPrefs.init(ctx)
+        TerminalLooks.applyDefaults(TerminalPrefs.look) // [TERMINAL-LOOK] sebelum emulator dibuat
         val nativeDir = ctx.applicationInfo.nativeLibraryDir
         val rootfsDir = RootfsManager.rootfsDir(ctx)
         val rootfs = rootfsDir.absolutePath
@@ -223,6 +224,8 @@ object TerminalSessions {
             add("MOLINA_BRAND_SGR=${MolinaShell.BRAND_SGR}")
             add("MOLINA_PS_HOME=${TerminalPrefs.promptTheme.homeSgr}")
             add("MOLINA_PS_OTHER=${TerminalPrefs.promptTheme.otherSgr}")
+            add("MOLINA_PS_USER=${TerminalPrefs.promptTheme.userSgr}")
+            add("MOLINA_PS_BRANCH=${TerminalPrefs.promptTheme.branchSgr}")
         }
         val config = ProotConfig(
             rootfs = rootfs,

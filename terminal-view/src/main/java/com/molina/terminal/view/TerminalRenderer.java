@@ -18,6 +18,9 @@ import com.molina.terminal.WcWidth;
  */
 public final class TerminalRenderer {
 
+    /** [MOLINA-LINE-HEIGHT] Tinggi baris = ukuran font x ini; hanya memadatkan font yang alaminya lebih longgar. */
+    private static final float LINE_HEIGHT = 1.15f;
+
     final int mTextSize;
     final Typeface mTypeface;
     private final Paint mTextPaint = new Paint();
@@ -41,8 +44,15 @@ public final class TerminalRenderer {
         mTextPaint.setAntiAlias(true);
         mTextPaint.setTextSize(textSize);
 
-        mFontLineSpacing = (int) Math.ceil(mTextPaint.getFontSpacing());
-        mFontAscent = (int) Math.ceil(mTextPaint.ascent());
+        int spacing = (int) Math.ceil(mTextPaint.getFontSpacing());
+        int ascent = (int) Math.ceil(mTextPaint.ascent());
+        final int target = Math.round(textSize * LINE_HEIGHT);
+        if (target > 0 && target < spacing) { // pangkas sama rata atas-bawah agar glif tetap di tengah baris
+            ascent += (spacing - target) / 2;
+            spacing = target;
+        }
+        mFontLineSpacing = spacing;
+        mFontAscent = ascent;
         mFontLineSpacingAndAscent = mFontLineSpacing + mFontAscent;
         mFontWidth = mTextPaint.measureText("X");
 
@@ -66,8 +76,9 @@ public final class TerminalRenderer {
         final int[] palette = mEmulator.mColors.mCurrentColors;
         final int cursorShape = mEmulator.getCursorStyle();
 
-        if (reverseVideo)
-            canvas.drawColor(palette[TextStyle.COLOR_INDEX_FOREGROUND], PorterDuff.Mode.SRC);
+        // [MOLINA-BG] latar digambar dari palet (skema aktif), bukan warna jendela di belakang view.
+        canvas.drawColor(palette[reverseVideo ? TextStyle.COLOR_INDEX_FOREGROUND : TextStyle.COLOR_INDEX_BACKGROUND],
+            PorterDuff.Mode.SRC);
 
         float heightOffset = mFontLineSpacingAndAscent;
         for (int row = topRow; row < endRow; row++) {

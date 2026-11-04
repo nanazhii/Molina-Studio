@@ -49,6 +49,7 @@ import com.molina.studio.log.LogScreen
 import com.molina.studio.terminal.CrashReporter
 import com.molina.studio.terminal.LogcatReporter
 import com.molina.studio.terminal.PromptTheme
+import com.molina.studio.terminal.TerminalLook
 import com.molina.studio.terminal.TerminalPrefs
 import java.io.File
 import kotlin.math.roundToInt
@@ -605,6 +606,37 @@ private fun TampilanPage() {
     )
     Text(
         "Di terminal, cubit dua jari (pinch) juga mengubah ukuran ini, per 1sp.",
+        modifier = Modifier.padding(top = 6.dp),
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+        style = MaterialTheme.typography.bodySmall
+    )
+
+    Spacer(Modifier.height(12.dp))
+    Category("Skema warna terminal")
+    TerminalLook.entries.forEach { l ->
+        Row(
+            Modifier.fillMaxWidth().clickable { TerminalPrefs.setLook(l) }
+                .padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RadioButton(selected = l == TerminalPrefs.look, onClick = { TerminalPrefs.setLook(l) })
+            Column {
+                Text(l.label, color = MaterialTheme.colorScheme.onSurface)
+                Row {
+                    Text(
+                        "user@localhost:~ ", fontFamily = FontFamily.Monospace, fontSize = 11.sp,
+                        color = androidx.compose.ui.graphics.Color(l.fg)
+                    )
+                    Text(
+                        "\u2588", fontFamily = FontFamily.Monospace, fontSize = 11.sp,
+                        color = androidx.compose.ui.graphics.Color(l.cursor)
+                    )
+                }
+            }
+        }
+    }
+    Text(
+        "Skema warna berlaku langsung pada sesi yang terbuka.",
         modifier = Modifier.padding(top = 6.dp),
         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
         style = MaterialTheme.typography.bodySmall

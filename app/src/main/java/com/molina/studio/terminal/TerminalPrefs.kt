@@ -35,8 +35,16 @@ enum class PromptTheme(
     val homeSgr: String,
     val otherSgr: String,
     val homeColor: Color,
-    val otherColor: Color
+    val otherColor: Color,
+    val userSgr: String = "",   // warna "user" (kosong = format prompt lama)
+    val branchSgr: String = ""  // warna cabang git (kosong = tanpa cabang)
 ) {
+    Noir(
+        "molina_noir", "Molina Noir",
+        "1;${MolinaTheme.GOOD_SGR}", "1;38;2;255;138;128",
+        MolinaTheme.Good, MolinaTheme.Bad,
+        userSgr = "1;${MolinaTheme.GOLD_SGR}", branchSgr = "38;2;179;136;255"
+    ),
     CinemaGold(
         "cinema_gold", "Cinema Gold",
         "1;${MolinaTheme.GOLD_SGR}", "1;38;2;196;69;54",
@@ -50,18 +58,19 @@ enum class PromptTheme(
     Classic(
         "classic", "Molina Classic",
         "1;32", "1;31",
-        Color(0xFF00CD00), Color(0xFFCD0000)
+        MolinaTheme.Good, MolinaTheme.Bad
     );
 
     companion object {
-        fun fromId(id: String?): PromptTheme = entries.firstOrNull { it.id == id } ?: Classic
+        fun fromId(id: String?): PromptTheme = entries.firstOrNull { it.id == id } ?: Noir
     }
 }
 
 /** Snapshot immutable seluruh preferensi terminal (aman dibaca dari thread mana pun). */
 data class TerminalSettings(
     val fontSp: Int = TerminalPrefs.DEFAULT_FONT_SP,
-    val promptTheme: PromptTheme = PromptTheme.Classic,
+    val promptTheme: PromptTheme = PromptTheme.Noir,
+    val look: TerminalLook = TerminalLook.NoirGold,
     val logLevel: Int = TerminalPrefs.LOG_NORMAL,
     val keyLogging: Boolean = false,
     val pluginErrorNotifications: Boolean = true,
@@ -87,6 +96,7 @@ private val Context.terminalStore: DataStore<Preferences> by preferencesDataStor
 private object PrefKeys {
     val FONT_SP = intPreferencesKey("font_sp")
     val PROMPT_THEME = stringPreferencesKey("prompt_theme_v2")
+    val TERMINAL_LOOK = stringPreferencesKey("terminal_look")
     val LOG_LEVEL = intPreferencesKey("log_level")
     val KEY_LOGGING = booleanPreferencesKey("key_logging")
     val PLUGIN_ERRORS = booleanPreferencesKey("plugin_error_notifications")
@@ -106,6 +116,7 @@ private fun Preferences.toSettings(): TerminalSettings {
         fontSp = (this[PrefKeys.FONT_SP] ?: d.fontSp)
             .coerceIn(TerminalPrefs.MIN_FONT_SP, TerminalPrefs.MAX_FONT_SP),
         promptTheme = PromptTheme.fromId(this[PrefKeys.PROMPT_THEME]),
+        look = TerminalLook.fromId(this[PrefKeys.TERMINAL_LOOK]),
         logLevel = (this[PrefKeys.LOG_LEVEL] ?: d.logLevel)
             .coerceIn(TerminalPrefs.LOG_OFF, TerminalPrefs.LOG_VERBOSE),
         keyLogging = this[PrefKeys.KEY_LOGGING] ?: d.keyLogging,
@@ -124,6 +135,7 @@ private fun Preferences.toSettings(): TerminalSettings {
 private fun MutablePreferences.write(s: TerminalSettings) {
     this[PrefKeys.FONT_SP] = s.fontSp
     this[PrefKeys.PROMPT_THEME] = s.promptTheme.id
+    this[PrefKeys.TERMINAL_LOOK] = s.look.id
     this[PrefKeys.LOG_LEVEL] = s.logLevel
     this[PrefKeys.KEY_LOGGING] = s.keyLogging
     this[PrefKeys.PLUGIN_ERRORS] = s.pluginErrorNotifications
@@ -167,6 +179,7 @@ object TerminalPrefs {
 
     val fontSp: Int get() = ui.fontSp
     val promptTheme: PromptTheme get() = ui.promptTheme
+    val look: TerminalLook get() = ui.look
     val logLevel: Int get() = ui.logLevel
     val keyLogging: Boolean get() = ui.keyLogging
     val pluginErrorNotifications: Boolean get() = ui.pluginErrorNotifications
@@ -224,6 +237,12 @@ object TerminalPrefs {
                 if (dir.isDirectory) MolinaShell.writePromptEnv(dir, t)
             }
         }.apply { isDaemon = true; name = "molina-prompt-theme" }.start()
+    }
+
+    /** Simpan skema warna terminal, lalu terapkan langsung ke sesi yang terbuka. */
+    fun setLook(l: TerminalLook) {
+        update { copy(look = l) }
+        TerminalLooks.applyLive(l)
     }
 
     fun setLogLevel(v: Int) = update { copy(logLevel = v.coerceIn(LOG_OFF, LOG_VERBOSE)) }

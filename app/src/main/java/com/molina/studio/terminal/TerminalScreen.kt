@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Paint
-import android.graphics.Typeface
 import android.util.TypedValue
 import android.widget.Toast
 import android.view.KeyEvent
@@ -60,7 +59,7 @@ private fun spToPx(ctx: Context, sp: Int): Int =
 
 /** Lebar satu sel monospace pada ukuran font tertentu (sama seperti TerminalRenderer). */
 private fun cellWidthPx(ctx: Context, sp: Int): Float =
-    Paint().apply { typeface = Typeface.MONOSPACE; textSize = spToPx(ctx, sp).toFloat() }.measureText("X")
+    Paint().apply { typeface = MolinaFont.typeface(ctx); textSize = spToPx(ctx, sp).toFloat() }.measureText("X")
 
 @Composable
 fun TerminalScreen(modifier: Modifier = Modifier, onOpenSettings: () -> Unit = {}) {
@@ -162,7 +161,7 @@ private fun createTerminalView(ctx: Context, mods: TerminalModifiers): TerminalV
     view.setTerminalViewClient(MolinaViewClient(view, mods))
     view.tag = TerminalPrefs.fontSp
     view.setTextSize(spToPx(ctx, TerminalPrefs.fontSp))
-    view.setTypeface(Typeface.MONOSPACE)
+    view.setTypeface(MolinaFont.typeface(ctx))
     view.isFocusable = true
     view.isFocusableInTouchMode = true
     view.attachSession(session)

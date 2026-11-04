@@ -2,6 +2,34 @@
 [ -f /etc/profile ] && . /etc/profile
 [ -f "$HOME/.bashrc" ] && . "$HOME/.bashrc"
 
+# [NOIR-PROMPT] Cabang git di prompt (tema Molina Noir). Murni bash tanpa fork: membaca .git/HEAD langsung.
+# Hasil disimpan di MOLINA_BRANCH_FMT dan DIPERLUAS lewat ${...} di PS1 (tidak disisipkan ke teks PS1),
+# jadi nama cabang berisi $(...) atau backtick tidak pernah dieksekusi. \001 dan \002 = pembatas non-cetak readline.
+__molina_branch() {
+  MOLINA_BRANCH_FMT=""
+  local d="$PWD" h b
+  while [ -n "$d" ]; do
+    if [ -d "$d/.git" ]; then
+      h="$d/.git/HEAD"; break
+    elif [ -f "$d/.git" ]; then
+      read -r h < "$d/.git" 2>/dev/null || [ -n "$h" ] || return 0
+      h="${h#gitdir: }"
+      case "$h" in /*) ;; *) h="$d/$h" ;; esac
+      h="$h/HEAD"; break
+    fi
+    d="${d%/*}"
+  done
+  [ -n "$d" ] && [ -r "$h" ] || return 0
+  read -r b < "$h" 2>/dev/null || [ -n "$b" ] || return 0
+  case "$b" in
+    "ref: refs/heads/"*) b="${b#ref: refs/heads/}" ;;
+    *) b="${b:0:7}" ;;
+  esac
+  b="${b//[^[:print:]]/?}"
+  printf -v MOLINA_BRANCH_FMT ' \001\033[%sm\002(%s)\001\033[0m\002' "${MOLINA_PS_BRANCH:-0}" "${b:0:40}"
+}
+# [/NOIR-PROMPT]
+
 # [DIR-STATUS-COLOR v5]
 # Prompt: hijau + label [MOLINA] HANYA di home internal aplikasi (/sdcard/Molina dan isinya).
 # Hijau (tanpa label) juga di home ($HOME = ~) dan isinya: prompt user@localhost:~ default.
@@ -22,7 +50,13 @@ __molina_ps1() {
   case "$p" in
     /sdcard/Molina|/sdcard/Molina/*) sgr="$MOLINA_PS_HOME"; tag="[MOLINA] " ;;
   esac
-  PS1='\[\e['"$sgr"'m\]'"$tag"'user@localhost:\w $\[\e[0m\] '
+  if [ -n "$MOLINA_PS_USER" ]; then
+    # Molina Noir: tag+path+$ ikut warna status direktori, "user" emas, cabang git ungu.
+    __molina_branch
+    PS1='\[\e['"$sgr"'m\]'"$tag"'\[\e[0m\]\[\e['"$MOLINA_PS_USER"'m\]user\[\e[0m\]\[\e['"$sgr"'m\]@localhost:\w\[\e[0m\]${MOLINA_BRANCH_FMT} \[\e['"$sgr"'m\]$\[\e[0m\] '
+  else
+    PS1='\[\e['"$sgr"'m\]'"$tag"'user@localhost:\w $\[\e[0m\] '
+  fi
 }
 PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND;}__molina_ps1"
 

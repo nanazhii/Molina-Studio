@@ -40,7 +40,8 @@ object MolinaShell {
     /** Tulis warna prompt aktif; dibaca bashrc di setiap prompt (perubahan tema langsung berlaku). */
     fun writePromptEnv(rootfsDir: File, theme: PromptTheme) {
         val f = File(rootfsDir, "etc/molina/prompt.env")
-        val text = "MOLINA_PS_HOME='${theme.homeSgr}'\nMOLINA_PS_OTHER='${theme.otherSgr}'\n"
+        val text = "MOLINA_PS_HOME='${theme.homeSgr}'\nMOLINA_PS_OTHER='${theme.otherSgr}'\n" +
+            "MOLINA_PS_USER='${theme.userSgr}'\nMOLINA_PS_BRANCH='${theme.branchSgr}'\n"
         f.parentFile?.mkdirs()
         if (!f.isFile || f.readText() != text) f.writeText(text)
     }
