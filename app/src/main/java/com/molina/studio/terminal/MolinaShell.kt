@@ -39,21 +39,8 @@ object MolinaShell {
         ).joinToString("\r\n")
     }
 
-    // ---- Banner logo (BannerStyle.Logo): satu sumber kebenaran untuk sesi baru (lewat berkas) dan tombol CLEAR ----
-    private val LOGO = listOf(
-        "█▄ ▄█ █▀█ █   ▀█▀ █▄ █ ▄▀▄",
-        "█ ▀ █ █ █ █    █  █ ▀█ █▀█",
-        "▀   ▀ ▀▀▀ █▄▄ ▄█▄ ▀  ▀ ▀ ▀",
-    )
-    /** Gradasi emas per baris: terang, emas merek, pekat. */
-    private val LOGO_SGR = listOf("38;2;245;208;122", MolinaTheme.GOLD_SGR, "38;2;184;137;58")
+    // ---- Banner status (BannerStyle.Logo; id "logo" dipertahankan demi pref/cadangan lama): satu sumber kebenaran untuk sesi baru (lewat berkas) dan tombol CLEAR ----
     private const val MUTED_SGR = "38;2;154;160;166"
-    private val TIPS = listOf(
-        "molina-git-secure: amankan token git",
-        "CLEAR: bersihkan layar + banner",
-        "Banner bisa dimatikan di Setelan",
-        "molina: jembatan Debian ke aplikasi",
-    )
     private val ID = Locale("id", "ID")
     @Volatile private var rootfs: File? = null
 
@@ -61,16 +48,12 @@ object MolinaShell {
     fun compose(style: BannerStyle, nl: String): String = when (style) {
         BannerStyle.Off -> ""
         BannerStyle.Compact -> bannerFor(TerminalPrefs.promptTheme.homeSgr).replace("\r\n", nl)
-        BannerStyle.Logo -> logoBanner(nl)
+        BannerStyle.Logo -> statusBanner()
     }
 
-    private fun logoBanner(nl: String): String {
-        val r = "\u001b[0m"
-        val lines = LOGO.mapIndexed { i, row -> "\u001b[${LOGO_SGR[i]}m$row$r" }.toMutableList()
-        statusLine()?.let { lines += "\u001b[${MUTED_SGR}m$it$r" }
-        lines += "\u001b[2;${MUTED_SGR}mtip: ${TIPS.random()}$r"
-        return lines.joinToString(nl)
-    }
+    /** Banner status: satu baris Debian · RAM · penyimpanan (logo dan tip dihapus demi ruang). Kosong bila data tak ada. */
+    private fun statusBanner(): String =
+        statusLine()?.let { "\u001b[${MUTED_SGR}m$it\u001b[0m" } ?: ""
 
     private fun statusLine(): String? =
         listOfNotNull(debianLabel(), ramText(), storageText())
