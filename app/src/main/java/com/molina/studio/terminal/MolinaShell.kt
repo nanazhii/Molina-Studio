@@ -5,7 +5,6 @@ import com.molina.studio.log.LogBus
 import com.molina.studio.ui.MolinaTheme
 import android.content.Context
 import java.io.File
-import java.util.Locale
 
 /** Identitas visual shell Molina: banner di sini; warna prompt bersumber dari [PromptTheme]. */
 object MolinaShell {
@@ -38,49 +37,17 @@ object MolinaShell {
         ).joinToString("\r\n")
     }
 
-    // ---- Banner status (BannerStyle.Logo; id "logo" dipertahankan demi pref/cadangan lama): satu sumber kebenaran untuk sesi baru (lewat berkas) dan tombol CLEAR ----
-    private const val MUTED_SGR = "38;2;154;160;166"
-    private val ID = Locale("id", "ID")
-    @Volatile private var rootfs: File? = null
-
     /** Banner sesuai [style]; baris dipisah [nl] (\r\n ke emulator, \n ke berkas). Tanpa pemisah di ujung. */
     fun compose(style: BannerStyle, nl: String): String = when (style) {
         BannerStyle.Off -> ""
         BannerStyle.Compact -> bannerFor(TerminalPrefs.promptTheme.homeSgr).replace("\r\n", nl)
-        BannerStyle.Logo -> statusBanner()
     }
-
-    /** Banner status: satu baris Debian · RAM (logo dan tip dihapus demi ruang). Kosong bila data tak ada. */
-    private fun statusBanner(): String =
-        statusLine()?.let { "\u001b[${MUTED_SGR}m$it\u001b[0m" } ?: ""
-
-    private fun statusLine(): String? =
-        listOfNotNull(debianLabel(), ramText())
-            .takeIf { it.isNotEmpty() }?.joinToString(" \u00B7 ")
-
-    private fun debianLabel(): String? {
-        val root = rootfs ?: return null
-        val v = runCatching { File(root, "etc/debian_version").readText().trim() }.getOrNull()
-        return if (v.isNullOrEmpty()) "Debian" else "Debian $v"
-    }
-
-    private fun ramText(): String? = runCatching {
-        var total = 0L
-        var avail = 0L
-        File("/proc/meminfo").forEachLine { l ->
-            if (l.startsWith("MemTotal:")) total = l.filter(Char::isDigit).toLong()
-            else if (l.startsWith("MemAvailable:")) avail = l.filter(Char::isDigit).toLong()
-        }
-        if (total <= 0L) null
-        else String.format(ID, "RAM %.1f/%.1f GB", (total - avail) / 1048576.0, total / 1048576.0)
-    }.getOrNull()
 
     /**
      * Rakit banner sesi baru ke etc/molina/banner.txt; bashrc hanya menampilkan isinya (kosong = banner mati).
      * Hanya menulis bila isinya berbeda; gagal tulis dicatat, tidak menghentikan sesi.
      */
     fun writeBanner(rootfsDir: File) {
-        rootfs = rootfsDir
         val body = compose(TerminalPrefs.bannerStyle, "\n")
         val text = if (body.isEmpty()) "" else body + "\n"
         val f = File(rootfsDir, "etc/molina/banner.txt")

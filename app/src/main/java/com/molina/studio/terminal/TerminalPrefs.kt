@@ -71,7 +71,7 @@ data class TerminalSettings(
     val fontSp: Int = TerminalPrefs.DEFAULT_FONT_SP,
     val promptTheme: PromptTheme = PromptTheme.Noir,
     val look: TerminalLook = TerminalLook.NoirGold,
-    val banner: BannerStyle = BannerStyle.Logo,
+    val banner: BannerStyle = BannerStyle.Off,
     val logLevel: Int = TerminalPrefs.LOG_NORMAL,
     val keyLogging: Boolean = false,
     val pluginErrorNotifications: Boolean = true,
