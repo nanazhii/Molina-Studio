@@ -4,7 +4,6 @@ import com.molina.core.common.LogLevel
 import com.molina.studio.log.LogBus
 import com.molina.studio.ui.MolinaTheme
 import android.content.Context
-import android.os.Environment
 import java.io.File
 import java.util.Locale
 
@@ -51,12 +50,12 @@ object MolinaShell {
         BannerStyle.Logo -> statusBanner()
     }
 
-    /** Banner status: satu baris Debian · RAM · penyimpanan (logo dan tip dihapus demi ruang). Kosong bila data tak ada. */
+    /** Banner status: satu baris Debian · RAM (logo dan tip dihapus demi ruang). Kosong bila data tak ada. */
     private fun statusBanner(): String =
         statusLine()?.let { "\u001b[${MUTED_SGR}m$it\u001b[0m" } ?: ""
 
     private fun statusLine(): String? =
-        listOfNotNull(debianLabel(), ramText(), storageText())
+        listOfNotNull(debianLabel(), ramText())
             .takeIf { it.isNotEmpty() }?.joinToString(" \u00B7 ")
 
     private fun debianLabel(): String? {
@@ -74,10 +73,6 @@ object MolinaShell {
         }
         if (total <= 0L) null
         else String.format(ID, "RAM %.1f/%.1f GB", (total - avail) / 1048576.0, total / 1048576.0)
-    }.getOrNull()
-
-    private fun storageText(): String? = runCatching {
-        String.format(ID, "%.0f GB bebas", Environment.getExternalStorageDirectory().usableSpace / 1073741824.0)
     }.getOrNull()
 
     /**

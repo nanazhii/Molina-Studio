@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -182,17 +183,23 @@ private fun PillStats() {
     var snap by remember { mutableStateOf<StatsSnapshot?>(null) }
     LaunchedEffect(ctx) { SystemStats.shared(ctx).collect { snap = it } }
     val st = snap ?: return
-    Row(Modifier.padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            "CPU ${st.cpuPercent}%",
-            color = levelColor(st.cpuLevel), fontSize = 10.sp, fontFamily = FontFamily.Monospace, maxLines = 1
-        )
-        Spacer(Modifier.width(6.dp))
-        Text(
-            "RAM ${ramShort(st.ramMb)}",
-            color = levelColor(st.ramLevel), fontSize = 10.sp, fontFamily = FontFamily.Monospace, maxLines = 1
-        )
+    Column(Modifier.padding(horizontal = 8.dp), verticalArrangement = Arrangement.Center) {
+        Row {
+            StatText("CPU ${st.cpuPercent}%", levelColor(st.cpuLevel))
+            Spacer(Modifier.width(6.dp))
+            StatText("RAM ${ramShort(st.ramMb)}", levelColor(st.ramLevel))
+        }
+        Row {
+            StatText("\u2193${netShort(st.rxBps)}", MolinaTheme.NetDown)
+            Spacer(Modifier.width(6.dp))
+            StatText("\u2191${netShort(st.txBps)}", MolinaTheme.NetUp)
+        }
     }
+}
+
+@Composable
+private fun StatText(text: String, color: Color) {
+    Text(text, color = color, fontSize = 10.sp, lineHeight = 12.sp, fontFamily = FontFamily.Monospace, maxLines = 1)
 }
 
 private fun levelColor(l: Level): Color = when (l) {
@@ -203,3 +210,13 @@ private fun levelColor(l: Level): Color = when (l) {
 
 private fun ramShort(mb: Int): String =
     if (mb >= 1024) String.format(Locale.US, "%.1fG", mb / 1024.0) else "${mb}M"
+
+/** Kecepatan ringkas untuk bilah sempit: 0.0K/s, 12.3K/s, 350K/s, 1.2M/s. */
+private fun netShort(bps: Long): String {
+    val kb = bps / 1024.0
+    return when {
+        kb < 100.0 -> String.format(Locale.US, "%.1fK/s", kb)
+        kb < 1000.0 -> String.format(Locale.US, "%.0fK/s", kb)
+        else -> String.format(Locale.US, "%.1fM/s", kb / 1024.0)
+    }
+}

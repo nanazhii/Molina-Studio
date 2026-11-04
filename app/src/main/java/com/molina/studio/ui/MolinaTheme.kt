@@ -19,6 +19,9 @@ object MolinaTheme {
     val Bad = Color(0xFFFF8A80)
     /** Aksen Molina Cinema (ikon putar, penanda baris log mpv). */
     val Cinema = Color(0xFFB388FF)
+    /** Kecepatan jaringan di bilah sesi Terminal: unduh biru, unggah merah. */
+    val NetDown = Color(0xFF82B1FF)
+    val NetUp = Color(0xFFFF8A80)
     val Muted = Color(0xFF9AA0A6)
     val CardBg = Color(0xFF14161B)
     val CardLine = Color(0xFF2A2D35)
