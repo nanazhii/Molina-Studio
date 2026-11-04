@@ -73,7 +73,7 @@ fun main() {
     eq("overall queued", DownloadReducer.overallPercent(DownloadItemState(1)), 0.0)
     // fatal global + item tanpa Queue
     val f = DownloadReducer.reduce(DownloadSessionState(), DownloadEvent.Error(0, "no_ytdlp", "yt-dlp tidak ada"))
-    eq("fatal", f.fatalError, "yt-dlp belum terpasang. Buka Pengaturan > Mesin cadangan (yt-dlp) > Pasang.")
+    eq("fatal", f.fatalError, "yt-dlp belum terpasang. Buka Pengaturan > Paket > kartu yt-dlp > Pasang.")
     eq("fatal raw", f.fatalRaw, "yt-dlp tidak ada")
     val sslEv = DownloadReducer.reduce(DownloadSessionState(), DownloadEvent.Error(1, "ssl_cert", "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed"))
     check("ssl: pesan ramah tanpa istilah teknis", sslEv.items[0].errorMsg == DownloadErrorText.SSL && !sslEv.items[0].errorMsg!!.contains("CERTIFICATE"))

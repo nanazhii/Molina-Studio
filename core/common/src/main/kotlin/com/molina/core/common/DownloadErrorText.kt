@@ -16,8 +16,8 @@ object DownloadErrorText {
     const val NOT_FOUND = "Video tidak ditemukan atau sudah dihapus."
     const val UNSUPPORTED = "Situs atau tautan ini belum didukung."
     const val NO_SPACE = "Penyimpanan penuh. Kosongkan ruang lalu coba lagi."
-    const val NO_ENGINE = "yt-dlp belum terpasang. Buka Pengaturan > Mesin cadangan (yt-dlp) > Pasang."
-    const val ENGINE_FAIL = "Mesin unduhan tidak bisa dijalankan. Pasang ulang lewat Pengaturan > Mesin cadangan (yt-dlp)."
+    const val NO_ENGINE = "yt-dlp belum terpasang. Buka Pengaturan > Paket > kartu yt-dlp > Pasang."
+    const val ENGINE_FAIL = "Mesin unduhan tidak bisa dijalankan. Pasang ulang lewat Pengaturan > Paket > kartu yt-dlp."
     const val OUTDATED = "Mesin unduhan perlu diperbarui. Tekan Perbarui yt-dlp di halaman ini."
     const val STOPPED = "Unduhan terhenti di tengah jalan. Coba lagi; bila berulang, jalankan Periksa lingkungan di halaman ini."
     const val BLOCKED = "Tautan ini mengarah ke alamat jaringan lokal sehingga diblokir demi keamanan. " +

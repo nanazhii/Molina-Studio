@@ -16,7 +16,7 @@ object YtdlpCommand {
         "apt-get update && apt-get install -y --no-install-recommends python3-minimal ca-certificates"
     const val INSTALL_PYTHON_HINT = "Di Terminal jalankan: $INSTALL_PYTHON_CMD"
 
-    const val HINT_INSTALL = "yt-dlp belum terpasang. Buka Pengaturan > Mesin cadangan (yt-dlp) > Pasang."
+    const val HINT_INSTALL = "yt-dlp belum terpasang. Buka Pengaturan > Paket > kartu yt-dlp > Pasang."
 
     /**
      * URL video di dalam playlist (list= / playlist=) tetap satu video. Selain itu halaman daftar
