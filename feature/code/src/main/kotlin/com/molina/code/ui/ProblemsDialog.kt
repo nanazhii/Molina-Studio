@@ -52,7 +52,7 @@ internal fun ProblemsDialog(session: CodeSession, list: ProblemList, onDismiss: 
             BasicText(
                 text = list.label + " \u00B7 " + errors + " galat, " + warns + " peringatan, " + (list.items.size - errors - warns) + " info",
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
-                style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 12.sp)
+                style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 12.sp)
             )
             Box(Modifier.fillMaxWidth().height(CodeDimens.Hairline).background(CodeColors.Hairline))
             LazyColumn(Modifier.fillMaxWidth().heightIn(max = maxH)) {
@@ -61,7 +61,7 @@ internal fun ProblemsDialog(session: CodeSession, list: ProblemList, onDismiss: 
                     val tone = when (d.severity) {
                         Severity.ERROR -> CodeColors.Danger
                         Severity.WARNING -> CodeColors.Warning
-                        Severity.INFO -> CodeColors.SecondaryChampagne
+                        Severity.INFO -> CodeColors.SecondaryNeutral
                     }
                     Row(
                         Modifier
@@ -92,7 +92,7 @@ internal fun ProblemsDialog(session: CodeSession, list: ProblemList, onDismiss: 
                                     text = "Perbaikan: " + fixLabel,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 11.sp)
+                                    style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 11.sp)
                                 )
                             }
                         }

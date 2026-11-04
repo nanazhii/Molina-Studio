@@ -45,7 +45,7 @@ internal fun DefinitionDialog(session: CodeSession, choices: List<DefinitionChoi
             BasicText(
                 text = choices.size.toString() + " lokasi",
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
-                style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 12.sp)
+                style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 12.sp)
             )
             Box(Modifier.fillMaxWidth().height(CodeDimens.Hairline).background(CodeColors.Hairline))
             LazyColumn(Modifier.fillMaxWidth().heightIn(max = maxH)) {

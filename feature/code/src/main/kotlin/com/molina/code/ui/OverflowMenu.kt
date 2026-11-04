@@ -242,7 +242,7 @@ private fun MenuRow(e: MenuEntry) {
     }
 }
 
-/** Kotak centang: terisi emas dengan centang hitam bila aktif; border champagne 50% bila tidak. */
+/** Kotak centang: terisi mint dengan centang hitam bila aktif; border netral 50% bila tidak. */
 @Composable
 internal fun CheckMark(on: Boolean) {
     val shape = RoundedCornerShape(3.dp)

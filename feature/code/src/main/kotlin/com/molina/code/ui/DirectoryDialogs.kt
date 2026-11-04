@@ -205,7 +205,7 @@ internal fun ConfirmDialog(
             BasicText(message, style = TextStyle(color = CodeColors.TextPrimary, fontSize = 14.sp))
             Spacer(Modifier.height(16.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                DialogAction("BATAL", CodeColors.LabelChampagne, onCancel)
+                DialogAction("BATAL", CodeColors.LabelNeutral, onCancel)
                 DialogAction(confirmLabel, if (danger) CodeColors.Danger else CodeColors.Mint, onConfirm)
             }
         }
@@ -323,7 +323,7 @@ private fun CompactActionMenu(title: String, items: List<ActionItem>) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 6.dp),
-            style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 12.sp)
+            style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 12.sp)
         )
         items.forEach { item ->
             if (item.separatorBefore) {
@@ -399,7 +399,7 @@ private fun NameDialog(
             }
             Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                DialogAction("BATAL", CodeColors.LabelChampagne, onCancel)
+                DialogAction("BATAL", CodeColors.LabelNeutral, onCancel)
                 DialogAction(confirmLabel, CodeColors.Mint) { submit() }
             }
         }
@@ -486,7 +486,7 @@ internal fun PickerDialog(
             }
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                DialogAction("BATAL", CodeColors.LabelChampagne, onDismiss)
+                DialogAction("BATAL", CodeColors.LabelNeutral, onDismiss)
                 if (mode == PickMode.Folder) DialogAction("PILIH FOLDER INI", CodeColors.Mint) { onPick(cur) }
             }
         }

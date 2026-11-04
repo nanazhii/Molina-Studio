@@ -44,12 +44,12 @@ internal fun OutlineDialog(tab: EditorTab, onDismiss: () -> Unit) {
                 symbols == null -> BasicText(
                     text = "Jenis berkas ini belum didukung. Didukung: kt, kts, java, py, js/ts, sh, md.",
                     modifier = Modifier.padding(16.dp),
-                    style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 13.sp)
+                    style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 13.sp)
                 )
                 symbols.isEmpty() -> BasicText(
                     text = "Tidak ada simbol ditemukan.",
                     modifier = Modifier.padding(16.dp),
-                    style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 13.sp)
+                    style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 13.sp)
                 )
                 else -> LazyColumn(Modifier.fillMaxWidth().heightIn(max = maxH)) {
                     items(symbols) { s ->
@@ -77,7 +77,7 @@ internal fun OutlineDialog(tab: EditorTab, onDismiss: () -> Unit) {
                             )
                             BasicText(
                                 text = (s.line + 1).toString(),
-                                style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 11.sp)
+                                style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 11.sp)
                             )
                         }
                     }

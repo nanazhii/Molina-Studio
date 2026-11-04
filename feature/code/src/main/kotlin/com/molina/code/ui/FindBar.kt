@@ -100,7 +100,7 @@ internal fun FindBar(session: CodeSession, tab: EditorTab) {
                     text = counter,
                     modifier = Modifier.padding(horizontal = 8.dp),
                     style = TextStyle(
-                        color = if (bad) CodeColors.Danger else CodeColors.SecondaryChampagne,
+                        color = if (bad) CodeColors.Danger else CodeColors.SecondaryNeutral,
                         fontSize = 12.sp
                     )
                 )
@@ -304,7 +304,7 @@ private fun FindOptionsDialog(find: FindState, onDismiss: () -> Unit) {
                 BasicText(
                     text = "BATAL",
                     modifier = Modifier.clickable(onClick = onDismiss).padding(12.dp),
-                    style = TextStyle(color = CodeColors.LabelChampagne, fontSize = 14.sp)
+                    style = TextStyle(color = CodeColors.LabelNeutral, fontSize = 14.sp)
                 )
                 BasicText(
                     text = "TERAPKAN",
@@ -415,7 +415,7 @@ internal fun GotoLineDialog(tab: EditorTab, onDismiss: () -> Unit) {
                 BasicText(
                     text = "BATAL",
                     modifier = Modifier.clickable(onClick = onDismiss).padding(12.dp),
-                    style = TextStyle(color = CodeColors.LabelChampagne, fontSize = 14.sp)
+                    style = TextStyle(color = CodeColors.LabelNeutral, fontSize = 14.sp)
                 )
                 BasicText(
                     text = "PERGI",

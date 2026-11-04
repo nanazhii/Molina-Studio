@@ -137,7 +137,7 @@ internal fun SymbolDialog(session: CodeSession, onDismiss: () -> Unit) {
                     modifier = Modifier.weight(1f),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 12.sp)
+                    style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 12.sp)
                 )
             }
             Box(Modifier.fillMaxWidth().padding(top = 10.dp).height(CodeDimens.Hairline).background(CodeColors.Hairline))
@@ -149,7 +149,7 @@ internal fun SymbolDialog(session: CodeSession, onDismiss: () -> Unit) {
                         else -> "Tidak ada simbol untuk \"$q\". Didukung: kt, kts, java, py, js/ts, sh."
                     },
                     modifier = Modifier.padding(16.dp),
-                    style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 13.sp)
+                    style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 13.sp)
                 )
             } else {
                 LazyColumn(Modifier.fillMaxWidth().heightIn(max = maxH)) {
@@ -177,7 +177,7 @@ internal fun SymbolDialog(session: CodeSession, onDismiss: () -> Unit) {
                                         modifier = Modifier.weight(1f),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
-                                        style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 11.sp)
+                                        style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 11.sp)
                                     )
                                 }
                             }
@@ -186,7 +186,7 @@ internal fun SymbolDialog(session: CodeSession, onDismiss: () -> Unit) {
                                 modifier = Modifier.padding(start = 44.dp),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                             )
                         }
                     }

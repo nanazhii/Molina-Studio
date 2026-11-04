@@ -144,7 +144,7 @@ private fun DrawerHeader(session: CodeSession) {
                 text = dir.root.path,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 10.sp)
+                style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 10.sp)
             )
         }
         DirIconButton(DirIcon.NewFile) { session.fileDialog = FileDialog.NewFile(dir.root) }

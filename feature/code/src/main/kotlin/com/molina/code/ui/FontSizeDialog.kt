@@ -60,7 +60,7 @@ internal fun FontSizeDialog(session: CodeSession, onDismiss: () -> Unit) {
             Spacer(Modifier.height(6.dp))
             BasicText(
                 text = "Rentang ${FONT_MIN_SP}\u2013${FONT_MAX_SP}sp, berlaku untuk semua tab",
-                style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 12.sp)
+                style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 12.sp)
             )
             Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {

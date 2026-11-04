@@ -157,7 +157,7 @@ internal fun CommandPalette(session: CodeSession, onDismiss: () -> Unit) {
                 BasicText(
                     text = if (q.isEmpty()) "Tidak ada perintah." else "Tidak ada hasil untuk \"$q\".",
                     modifier = Modifier.padding(16.dp),
-                    style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 13.sp)
+                    style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 13.sp)
                 )
             } else {
                 LazyColumn(Modifier.fillMaxWidth().heightIn(max = maxH)) {
@@ -182,7 +182,7 @@ internal fun CommandPalette(session: CodeSession, onDismiss: () -> Unit) {
                                     modifier = Modifier.weight(1f),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 12.sp)
+                                    style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 12.sp)
                                 )
                             } else {
                                 Spacer(Modifier.weight(1f))

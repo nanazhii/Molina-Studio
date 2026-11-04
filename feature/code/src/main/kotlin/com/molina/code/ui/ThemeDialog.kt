@@ -39,7 +39,7 @@ internal fun ThemeDialog(session: CodeSession, onDismiss: () -> Unit) {
             Spacer(Modifier.height(4.dp))
             BasicText(
                 text = "Mengubah warna token saja; latar editor tetap hitam Molina",
-                style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 12.sp)
+                style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 12.sp)
             )
             Spacer(Modifier.height(14.dp))
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -76,7 +76,7 @@ internal fun ThemeDialog(session: CodeSession, onDismiss: () -> Unit) {
             Spacer(Modifier.height(6.dp))
             BasicText(
                 text = "Berkas di atas 400 ribu karakter dan bahasa tanpa grammar memakai lexer Molina",
-                style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 11.sp)
+                style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 11.sp)
             )
             Spacer(Modifier.height(12.dp))
             ChoiceChip(
@@ -86,7 +86,7 @@ internal fun ThemeDialog(session: CodeSession, onDismiss: () -> Unit) {
             Spacer(Modifier.height(6.dp))
             BasicText(
                 text = "Riwayat versi: latar hijau/merah lebih pekat dan tanda +/\u2212 tebal",
-                style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 11.sp)
+                style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 11.sp)
             )
             Spacer(Modifier.height(16.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {

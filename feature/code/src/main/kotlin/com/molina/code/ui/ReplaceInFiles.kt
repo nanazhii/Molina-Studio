@@ -304,7 +304,7 @@ internal fun ReplaceBar(
                     BasicText(
                         text = "Dilewati " + p.skipped.size + ": " + p.skipped.take(3).joinToString(", ") + (if (p.skipped.size > 3) ", \u2026" else ""),
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
-                        style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 12.sp)
+                        style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 12.sp)
                     )
                 }
                 Box(Modifier.fillMaxWidth().padding(top = 8.dp).height(CodeDimens.Hairline).background(CodeColors.Hairline))

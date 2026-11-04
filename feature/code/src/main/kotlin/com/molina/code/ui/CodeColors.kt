@@ -20,12 +20,12 @@ object CodeColors {
     val Hairline = Color(0xFF2A2D35)      // pembatas 1dp, border popup/dialog
 
     // Ikon
-    val IconDefault = Color(0xFFCDBFA3)   // champagne
+    val IconDefault = Color(0xFFC4CBD3)   // netral dingin
     val MenuText = Color(0xFFFFFFFF)      // [MENU-WHITE] teks dan ikon menu titik tiga: putih polos
     val MenuDanger = Color(0xFFFF5252)    // [MENU-WHITE] aksi Jalankan di Terminal: merah
     val InfoBlue = Color(0xFF4FC3F7)      // [STATUS-BLUE] info Ln/Kol dan jumlah karakter di bilah status
-    val IconDim = Color(0xFF7D7A72)
-    val IconDisabled = Color(0xFF4D4C48)
+    val IconDim = Color(0xFF767D86)
+    val IconDisabled = Color(0xFF474B52)
 
     // Aksen (maksimal dua di toolbar: Mint dan Danger)
     val Mint = Color(0xFF4FD1A5)
@@ -48,7 +48,7 @@ object CodeColors {
     val ActiveLineFlash = Color(0xFF5A2E1F)
     val TextPrimary = Color(0xFFE6E6E6)
     val TextSecondary = Color(0xFF9AA0A6)
-    val ButtonBrown = Color(0xFF8F5A2C)
+    val ButtonBrown = Color(0xFF1E7A5E)   // tombol panel direktori (dulu cokelat), kini mint tua
 
     // Garis penanda ikon berkas per ekstensi di panel direktori (blueprint bagian 5.3)
     val ExtKotlin = Color(0xFFB07CFF)
@@ -66,8 +66,8 @@ object CodeColors {
     val EditorSelection = Color(0x80D97757)   // blok/hasil aktif: terakota Claude 50%
     val SearchMatch = Color(0x47D97757)       // hasil lain: terakota Claude 28%
     val RailPeak = Mint.copy(alpha = 0.40f)       // puncak gradient rail mint toolbar
-    val LabelChampagne = IconDefault.copy(alpha = 0.70f)
-    val SecondaryChampagne = IconDefault.copy(alpha = 0.60f)
+    val LabelNeutral = IconDefault.copy(alpha = 0.70f)
+    val SecondaryNeutral = IconDefault.copy(alpha = 0.60f)
     val Caret = Mint
     val Scrim = Color.Black.copy(alpha = 0.55f)
 
@@ -76,16 +76,16 @@ object CodeColors {
     val PreviewText = Color(0xFFE6E6E6)
     val PreviewLink = Mint
     val PreviewCodeBg = Color(0xFF121212)
-    val PreviewQuoteBg = Color(0xFF0D0B09)
+    val PreviewQuoteBg = Color(0xFF0A0F0D)
 
     // Pratinjau native (blueprint bagian 21.3 dan 22) dan panel Keluaran skrip
-    val PreviewHairline = Color(0xFF3A2F22)
+    val PreviewHairline = Color(0xFF263530)
     val PreviewHeading = MintSoft
     val PreviewInlineCode = MintSoft
-    val PreviewInlineCodeBg = Color(0xFF1C1814)
+    val PreviewInlineCodeBg = Color(0xFF121A17)
     val PreviewQuoteText = IconDefault
     val PreviewQuoteBar = Mint.copy(alpha = 0.60f)
-    val PreviewTableHeadBg = Color(0xFF1C1814)
+    val PreviewTableHeadBg = Color(0xFF121A17)
     val JsonKey = Color(0xFFE3A987)
     val JsonString = Color(0xFF9DBE8A)
     val JsonNumber = Color(0xFFE5C07B)

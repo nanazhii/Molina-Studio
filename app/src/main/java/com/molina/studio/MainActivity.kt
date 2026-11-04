@@ -59,7 +59,7 @@ private enum class Tab(@StringRes val labelRes: Int, val glyph: String, val colo
     Mpv(R.string.tab_mpv, "\u25B6", Color(0xFFB388FF)),          // [NAV-SLIM] ungu pekat: bioskop
     Files(R.string.tab_files, "\u25A4", Color(0xFF5C9DFF)),       // biru pekat: penjelajah berkas (Terminal kini di Settings)
     Code(R.string.tab_editor, "< >", Color(0xFF4FD1A5)),             // mint: editor
-    Settings(R.string.tab_settings, "\u2699", Color(0xFFF2D9A0))  // champagne terang: pengaturan
+    Settings(R.string.tab_settings, "\u2699", Color(0xFFB8C2CC))  // abu dingin terang: pengaturan
 }
 
 /** True saat keyboard layar tampil. Dipakai agar nav bawah tidak makan ruang saat mengetik. */

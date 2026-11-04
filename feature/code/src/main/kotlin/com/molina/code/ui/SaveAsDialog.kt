@@ -261,7 +261,7 @@ internal fun SaveAsDialog(session: CodeSession, req: SaveAsRequest) {
                 BasicText(
                     text = "BATAL",
                     modifier = Modifier.clickable { session.cancelSaveAs() }.padding(12.dp),
-                    style = TextStyle(color = CodeColors.LabelChampagne, fontSize = 14.sp)
+                    style = TextStyle(color = CodeColors.LabelNeutral, fontSize = 14.sp)
                 )
                 BasicText(
                     text = if (confirmOverwrite) "TIMPA" else "SIMPAN",
@@ -292,7 +292,7 @@ internal fun SaveAsDialog(session: CodeSession, req: SaveAsRequest) {
 internal fun Label(text: String) {
     BasicText(
         text = text,
-        style = TextStyle(color = CodeColors.LabelChampagne, fontSize = 13.sp)
+        style = TextStyle(color = CodeColors.LabelNeutral, fontSize = 13.sp)
     )
 }
 

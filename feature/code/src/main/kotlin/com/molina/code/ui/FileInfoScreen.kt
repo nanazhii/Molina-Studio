@@ -145,7 +145,7 @@ internal fun FileInfoScreen(tab: EditorTab, onDismiss: () -> Unit) {
                     BasicText("Informasi berkas", style = TextStyle(color = CodeColors.MenuText, fontSize = 17.sp))
                     BasicText(
                         name, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 12.sp)
+                        style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 12.sp)
                     )
                 }
             }
@@ -200,7 +200,7 @@ private fun InfoRow(label: String, value: String, valueColor: Color = CodeColors
     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.Top) {
         BasicText(
             label, modifier = Modifier.width(132.dp),
-            style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 13.sp)
+            style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 13.sp)
         )
         BasicText(
             value, modifier = Modifier.weight(1f),

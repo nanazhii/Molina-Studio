@@ -234,7 +234,7 @@ internal fun FindInFilesDialog(session: CodeSession, onDismiss: () -> Unit) {
                     modifier = Modifier.weight(1f),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    style = TextStyle(color = if (badRegex) CodeColors.Danger else CodeColors.SecondaryChampagne, fontSize = 12.sp)
+                    style = TextStyle(color = if (badRegex) CodeColors.Danger else CodeColors.SecondaryNeutral, fontSize = 12.sp)
                 )
             }
             if (replaceOn) {
@@ -268,7 +268,7 @@ internal fun FindInFilesDialog(session: CodeSession, onDismiss: () -> Unit) {
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f),
-                                style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 11.sp)
+                                style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 11.sp)
                             )
                             BasicText(
                                 text = row.count.toString(),
@@ -297,7 +297,7 @@ internal fun FindInFilesDialog(session: CodeSession, onDismiss: () -> Unit) {
                                 text = m.line.toString(),
                                 modifier = Modifier.width(44.dp),
                                 maxLines = 1,
-                                style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                             )
                             BasicText(
                                 text = txt,

@@ -122,7 +122,7 @@ internal fun applyMolinaColors(s: EditorColorScheme) {
     s.setColor(EditorColorScheme.COMPLETION_WND_BACKGROUND, 0xFF111111.toInt())
     s.setColor(EditorColorScheme.COMPLETION_WND_CORNER, CodeColors.Hairline.toArgb())
     s.setColor(EditorColorScheme.COMPLETION_WND_TEXT_PRIMARY, CodeColors.TextPrimary.toArgb())
-    s.setColor(EditorColorScheme.COMPLETION_WND_TEXT_SECONDARY, CodeColors.SecondaryChampagne.toArgb())
+    s.setColor(EditorColorScheme.COMPLETION_WND_TEXT_SECONDARY, CodeColors.SecondaryNeutral.toArgb())
     s.setColor(EditorColorScheme.COMPLETION_WND_ITEM_CURRENT, CodeColors.Capsule.toArgb())
 }
 

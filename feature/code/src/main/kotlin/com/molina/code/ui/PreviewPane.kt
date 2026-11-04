@@ -104,7 +104,7 @@ internal fun PreviewPage(session: CodeSession, onJump: (Int, Int) -> Unit, modif
                     text = if (output && run.interpreter.isNotEmpty()) "$where \u00B7 ${run.interpreter}" else where,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = CodeDimens.PreviewSubtitleSize)
+                    style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = CodeDimens.PreviewSubtitleSize)
                 )
             }
             if (output) {

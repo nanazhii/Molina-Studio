@@ -146,7 +146,7 @@ private fun HistoryMessage(text: String) {
     BasicText(
         text = text,
         modifier = Modifier.padding(16.dp),
-        style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 13.sp)
+        style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 13.sp)
     )
 }
 
@@ -206,7 +206,7 @@ private fun HistoryListPane(
                         BasicText(
                             text = v.lines.toString() + " baris \u00B7 " + HistoryFormat.size(v.chars.toLong()),
                             maxLines = 1,
-                            style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 11.sp)
+                            style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 11.sp)
                         )
                     }
                     BasicText(
@@ -218,7 +218,7 @@ private fun HistoryListPane(
                         text = if (v.pinned) "\u2605" else "\u2606",
                         modifier = Modifier.clickable { onTogglePin(v) }.padding(horizontal = 14.dp, vertical = 8.dp),
                         style = TextStyle(
-                            color = if (v.pinned) CodeColors.Mint else CodeColors.SecondaryChampagne.copy(alpha = 0.55f),
+                            color = if (v.pinned) CodeColors.Mint else CodeColors.SecondaryNeutral.copy(alpha = 0.55f),
                             fontSize = 20.sp
                         )
                     )
@@ -231,7 +231,7 @@ private fun HistoryListPane(
             "Ketuk \u2606 untuk menyematkan versi penting (mis. sebelum refactor besar); versi bersemat tidak ikut dipangkas, maksimal " +
             HistoryStore.MAX_PINS + ".",
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        style = TextStyle(color = CodeColors.SecondaryChampagne.copy(alpha = 0.7f), fontSize = 11.sp)
+        style = TextStyle(color = CodeColors.SecondaryNeutral.copy(alpha = 0.7f), fontSize = 11.sp)
     )
     if ((versions?.size ?: 0) >= 2) {
         ChoiceChip(
@@ -275,7 +275,7 @@ private fun DiffBody(st: HistDiffState?, maxH: Dp, contrast: Boolean) {
                 BasicText(
                     text = "\u22EF " + row.skipped + " baris sama",
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 3.dp),
-                    style = TextStyle(color = CodeColors.SecondaryChampagne.copy(alpha = 0.6f), fontSize = 11.sp)
+                    style = TextStyle(color = CodeColors.SecondaryNeutral.copy(alpha = 0.6f), fontSize = 11.sp)
                 )
             } else {
                 val bg = when (ln.op) {
@@ -297,7 +297,7 @@ private fun DiffBody(st: HistDiffState?, maxH: Dp, contrast: Boolean) {
                         modifier = Modifier.width(40.dp),
                         maxLines = 1,
                         style = TextStyle(
-                            color = if (contrast && ln.op != DiffOp.SAME) CodeColors.TextPrimary else CodeColors.SecondaryChampagne,
+                            color = if (contrast && ln.op != DiffOp.SAME) CodeColors.TextPrimary else CodeColors.SecondaryNeutral,
                             fontSize = 11.sp, fontFamily = FontFamily.Monospace
                         )
                     )
@@ -365,12 +365,12 @@ private fun HistoryDiffPane(
     BasicText(
         text = summary,
         modifier = Modifier.padding(horizontal = 16.dp),
-        style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 12.sp)
+        style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 12.sp)
     )
     BasicText(
         text = "Merah: ada di versi ini. Hijau: ada di isi sekarang.",
         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 8.dp),
-        style = TextStyle(color = CodeColors.SecondaryChampagne.copy(alpha = 0.7f), fontSize = 11.sp)
+        style = TextStyle(color = CodeColors.SecondaryNeutral.copy(alpha = 0.7f), fontSize = 11.sp)
     )
     Box(Modifier.fillMaxWidth().height(CodeDimens.Hairline).background(CodeColors.Hairline))
     DiffBody(st, maxH, session.diffContrast)
@@ -426,12 +426,12 @@ private fun HistoryComparePane(
     BasicText(
         text = summary,
         modifier = Modifier.padding(horizontal = 16.dp),
-        style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 12.sp)
+        style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 12.sp)
     )
     BasicText(
         text = "Merah: hanya di versi lama. Hijau: hanya di versi baru.",
         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 8.dp),
-        style = TextStyle(color = CodeColors.SecondaryChampagne.copy(alpha = 0.7f), fontSize = 11.sp)
+        style = TextStyle(color = CodeColors.SecondaryNeutral.copy(alpha = 0.7f), fontSize = 11.sp)
     )
     Box(Modifier.fillMaxWidth().height(CodeDimens.Hairline).background(CodeColors.Hairline))
     DiffBody(st, maxH, session.diffContrast)

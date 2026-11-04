@@ -269,7 +269,7 @@ internal fun LiveTemplateDialog(session: CodeSession, onDismiss: () -> Unit) {
                     BasicText(
                         text = "Tidak ada template untuk jenis berkas ini.",
                         modifier = Modifier.padding(16.dp),
-                        style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 13.sp)
+                        style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 13.sp)
                     )
                 }
                 LazyColumn(Modifier.fillMaxWidth().heightIn(max = maxH)) {
@@ -302,7 +302,7 @@ internal fun LiveTemplateDialog(session: CodeSession, onDismiss: () -> Unit) {
                                     text = preview,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                    style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                                 )
                             }
                             if (!t.builtin) {
@@ -363,7 +363,7 @@ internal fun ScratchDialog(session: CodeSession, onDismiss: () -> Unit) {
                         )
                         BasicText(
                             text = "." + st.ext,
-                            style = TextStyle(color = CodeColors.SecondaryChampagne, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                            style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
                         )
                     }
                 }

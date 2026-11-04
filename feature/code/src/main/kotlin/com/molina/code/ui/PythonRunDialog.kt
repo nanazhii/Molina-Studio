@@ -127,7 +127,7 @@ internal fun PythonRunDialog(session: CodeSession, tab: EditorTab, onDismiss: ()
                     )
                 }
                 Box(Modifier.fillMaxWidth().padding(top = 4.dp).height(CodeDimens.FindUnderline).background(CodeColors.Mint))
-                if (hasSelection) PyNote("Seleksi diabaikan; seluruh isi tab ditulis ke berkas.", CodeColors.LabelChampagne)
+                if (hasSelection) PyNote("Seleksi diabaikan; seluruh isi tab ditulis ke berkas.", CodeColors.LabelNeutral)
                 parsed.error?.let { if (name.isNotBlank()) PyNote(it, CodeColors.Danger) }
                 if (overwrite) PyNote(parsed.name + " sudah ada dan akan ditimpa (bisa diurungkan).", CodeColors.Danger)
             }
@@ -157,7 +157,7 @@ internal fun PythonRunDialog(session: CodeSession, tab: EditorTab, onDismiss: ()
                 BasicText(
                     text = "BATAL",
                     modifier = Modifier.clickable(onClick = onDismiss).padding(12.dp),
-                    style = TextStyle(color = CodeColors.LabelChampagne, fontSize = 14.sp)
+                    style = TextStyle(color = CodeColors.LabelNeutral, fontSize = 14.sp)
                 )
                 BasicText(
                     text = if (overwrite) "TIMPA & JALANKAN" else "JALANKAN",
@@ -184,7 +184,7 @@ private fun PyOption(selected: Boolean, title: String, subtitle: String, onClick
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             BasicText(title, style = TextStyle(color = CodeColors.TextPrimary, fontSize = 14.sp))
-            BasicText(subtitle, style = TextStyle(color = CodeColors.LabelChampagne, fontSize = 12.sp))
+            BasicText(subtitle, style = TextStyle(color = CodeColors.LabelNeutral, fontSize = 12.sp))
         }
     }
 }
@@ -207,6 +207,6 @@ private fun PyCheck(on: Boolean, label: String, onClick: () -> Unit) {
             if (on) Box(Modifier.size(8.dp).background(CodeColors.Mint, RoundedCornerShape(2.dp)))
         }
         Spacer(Modifier.width(10.dp))
-        BasicText(label, style = TextStyle(color = CodeColors.LabelChampagne, fontSize = 12.sp))
+        BasicText(label, style = TextStyle(color = CodeColors.LabelNeutral, fontSize = 12.sp))
     }
 }
