@@ -45,7 +45,7 @@ import androidx.compose.ui.unit.sp
 import com.molina.studio.ui.SwipeDirection
 import com.molina.studio.ui.onHorizontalSwipe
 
-private val Gold = MolinaTheme.Gold
+private val Mint = MolinaTheme.Mint
 private val CloseRed = Color(0xFFFF8A80)
 private val DrawerWidth = 240.dp
 private val DrawerButtonWidth = 100.dp
@@ -87,7 +87,7 @@ fun SessionDrawer(open: Boolean, onClose: () -> Unit, onOpenSettings: () -> Unit
                 Box(
                     Modifier.size(44.dp).clickable { onClose(); onOpenSettings() },
                     contentAlignment = Alignment.Center
-                ) { Text("\u2699", fontSize = 22.sp, color = Gold) }
+                ) { Text("\u2699", fontSize = 22.sp, color = Mint) }
                 Spacer(Modifier.weight(1f))
                 Text(
                     "${TerminalSessions.sessions.size}/${TerminalSessions.MAX_SESSIONS}",
@@ -107,7 +107,7 @@ fun SessionDrawer(open: Boolean, onClose: () -> Unit, onOpenSettings: () -> Unit
                     }
                     Row(
                         Modifier.fillMaxWidth()
-                            .background(if (selected) Gold.copy(alpha = 0.16f) else Color.Transparent),
+                            .background(if (selected) Mint.copy(alpha = 0.16f) else Color.Transparent),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
@@ -115,7 +115,7 @@ fun SessionDrawer(open: Boolean, onClose: () -> Unit, onOpenSettings: () -> Unit
                             modifier = Modifier.weight(1f)
                                 .clickable { TerminalSessions.select(i); onClose() }
                                 .padding(horizontal = 16.dp, vertical = 14.dp),
-                            color = if (selected) Gold else MaterialTheme.colorScheme.onSurface,
+                            color = if (selected) Mint else MaterialTheme.colorScheme.onSurface,
                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                             fontFamily = FontFamily.Monospace,
                             maxLines = 1,
@@ -163,13 +163,13 @@ private fun DrawerButton(label: String, enabledLook: Boolean, modifier: Modifier
     Box(
         modifier
             .clip(shape)
-            .background(Gold.copy(alpha = 0.12f * a), shape)
-            .border(1.dp, Gold.copy(alpha = 0.6f * a), shape)
+            .background(Mint.copy(alpha = 0.12f * a), shape)
+            .border(1.dp, Mint.copy(alpha = 0.6f * a), shape)
             .clickable(onClick = onClick)
             .padding(vertical = 12.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(label, color = Gold.copy(alpha = a), fontSize = DrawerButtonTextSp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(label, color = Mint.copy(alpha = a), fontSize = DrawerButtonTextSp, fontWeight = FontWeight.Bold, maxLines = 1)
     }
 }
 

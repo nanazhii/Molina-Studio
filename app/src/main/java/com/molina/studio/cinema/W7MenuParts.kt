@@ -77,7 +77,7 @@ internal fun W7DropButton(active: Boolean, onClick: () -> Unit) {
             val cell = (size.width - gap) / 2f
             for (r in 0..1) for (c in 0..1) {
                 drawRoundRect(
-                    color = MolinaTheme.Gold,
+                    color = MolinaTheme.Mint,
                     topLeft = Offset(c * (cell + gap), r * (cell + gap)),
                     size = Size(cell, cell),
                     cornerRadius = CornerRadius(2.dp.toPx())
@@ -99,7 +99,7 @@ internal fun w7PopupMaxHeight(cap: androidx.compose.ui.unit.Dp = androidx.compos
 internal fun W7MenuDivider() {
     Box(
         Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 3.dp).height(1.dp)
-            .background(MolinaTheme.Gold.copy(alpha = 0.4f))
+            .background(MolinaTheme.Mint.copy(alpha = 0.4f))
     )
 }
 

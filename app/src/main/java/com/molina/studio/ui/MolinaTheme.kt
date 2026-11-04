@@ -4,11 +4,11 @@ import androidx.compose.ui.graphics.Color
 
 /** Token desain Molina: satu sumber warna merek dan status untuk seluruh UI dan shell. */
 object MolinaTheme {
-    // Emas merek, acuan visual #E6B450. Nilai ARGB dan SGR (ANSI truecolor) harus tetap sama.
-    const val GOLD_ARGB = 0xFFE6B450.toInt()
-    const val GOLD_SGR = "38;2;230;180;80"
+    // Mint merek, acuan visual #4FD1A5. Nilai ARGB dan SGR (ANSI truecolor) harus tetap sama.
+    const val MINT_ARGB = 0xFF4FD1A5.toInt()
+    const val MINT_SGR = "38;2;79;209;165"
 
-    val Gold = Color(GOLD_ARGB)
+    val Mint = Color(MINT_ARGB)
     val Background = Color(0xFF0A0A0F)
     val OnBackground = Color(0xFFEDEDED)
     // Hijau status/merek terminal (#69F0AE). Nilai ARGB dan SGR (ANSI truecolor) harus tetap sama.
@@ -26,7 +26,7 @@ object MolinaTheme {
     val CardBg = Color(0xFF14161B)
     val CardLine = Color(0xFF2A2D35)
 
-    /** Palet Penjelajah Molina Cinema (dulu token Win7). Garis tombol utama memakai emas merek. */
+    /** Palet Penjelajah Molina Cinema (dulu token Win7). Garis tombol utama memakai mint merek. */
     object Explorer {
         val FrameTop = Color(0xFF1B1B1B)
         val FrameBottom = Color(0xFF0A0A0A)
@@ -48,7 +48,7 @@ object MolinaTheme {
         val BtnTop = Color(0xFF202020)
         val BtnBottom = Color(0xFF111111)
         val BtnLine = Color(0xFF4D4D4D)
-        val DefaultLine = MolinaTheme.Gold
+        val DefaultLine = MolinaTheme.Mint
         val Input = Color(0xFF101010)
         val BarTop = Color(0xFF151515)
         val BarBottom = Color(0xFF060606)

@@ -190,7 +190,7 @@ internal fun FileInfoScreen(tab: EditorTab, onDismiss: () -> Unit) {
 private fun InfoSection(title: String) {
     BasicText(
         title, modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
-        style = TextStyle(color = CodeColors.Gold, fontSize = 13.sp)
+        style = TextStyle(color = CodeColors.Mint, fontSize = 13.sp)
     )
     Box(Modifier.fillMaxWidth().height(CodeDimens.Hairline).background(CodeColors.Hairline))
 }

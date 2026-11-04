@@ -174,7 +174,7 @@ private fun SessionPill(index: Int, title: String, selected: Boolean, onClose: (
 
 @Composable
 private fun AddPill(enabledLook: Boolean, onClick: () -> Unit) {
-    val gold = MolinaTheme.Gold
+    val gold = MolinaTheme.Mint
     val a = if (enabledLook) 1f else 0.4f
     val shape = RoundedCornerShape(50)
     Box(

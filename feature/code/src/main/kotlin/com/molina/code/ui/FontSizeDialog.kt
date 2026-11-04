@@ -73,13 +73,13 @@ internal fun FontSizeDialog(session: CodeSession, onDismiss: () -> Unit) {
                             .height(32.dp)
                             .clip(chip)
                             .background(if (on) CodeColors.Capsule else CodeColors.Surface2, chip)
-                            .border(CodeDimens.Hairline, if (on) CodeColors.Gold else CodeColors.Hairline, chip)
+                            .border(CodeDimens.Hairline, if (on) CodeColors.Mint else CodeColors.Hairline, chip)
                             .clickable { session.applyEditorFontSp(p) },
                         contentAlignment = Alignment.Center
                     ) {
                         BasicText(
                             text = p.toString(),
-                            style = TextStyle(color = if (on) CodeColors.Gold else CodeColors.MenuText, fontSize = 13.sp)
+                            style = TextStyle(color = if (on) CodeColors.Mint else CodeColors.MenuText, fontSize = 13.sp)
                         )
                     }
                 }
@@ -151,14 +151,14 @@ internal fun ChoiceChip(label: String, on: Boolean, modifier: Modifier, onClick:
             .height(34.dp)
             .clip(chip)
             .background(if (on) CodeColors.Capsule else CodeColors.Surface2, chip)
-            .border(CodeDimens.Hairline, if (on) CodeColors.Gold else CodeColors.Hairline, chip)
+            .border(CodeDimens.Hairline, if (on) CodeColors.Mint else CodeColors.Hairline, chip)
             .clickable(onClick = onClick)
             .padding(horizontal = 4.dp),
         contentAlignment = Alignment.Center
     ) {
         BasicText(
             text = label,
-            style = TextStyle(color = if (on) CodeColors.Gold else CodeColors.MenuText, fontSize = 11.sp)
+            style = TextStyle(color = if (on) CodeColors.Mint else CodeColors.MenuText, fontSize = 11.sp)
         )
     }
 }

@@ -42,12 +42,12 @@ internal fun BackPill(session: CodeSession, modifier: Modifier = Modifier) {
     Row(
         modifier
             .background(CodeColors.Surface2, shape)
-            .border(1.dp, CodeColors.Gold.copy(alpha = 0.55f), shape)
+            .border(1.dp, CodeColors.Mint.copy(alpha = 0.55f), shape)
             .clickable { session.jumpBack() }
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Canvas(Modifier.size(CodeDimens.MenuIconSize)) { drawMenuIcon(MenuIcon.Back, CodeColors.Gold) }
+        Canvas(Modifier.size(CodeDimens.MenuIconSize)) { drawMenuIcon(MenuIcon.Back, CodeColors.Mint) }
         Spacer(Modifier.width(8.dp))
         BasicText(
             "Kembali ke $hint",

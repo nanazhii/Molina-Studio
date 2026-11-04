@@ -70,7 +70,7 @@ internal fun W7Badge(text: String, aero: Boolean = false, gold: Boolean = false)
             .clip(shape)
             .background(
                 Brush.verticalGradient(
-                    if (gold) listOf(Color(0xFFFFDC85), com.molina.studio.ui.MolinaTheme.Gold)
+                    if (gold) listOf(Color(0xFFFFDC85), com.molina.studio.ui.MolinaTheme.Mint)
                     else if (aero) listOf(Color(0xFF7FC4FF), Color(0xFF1B6FC2))
                     else listOf(Color(0xFFFF8A80), Color(0xFFC4392B))
                 ),

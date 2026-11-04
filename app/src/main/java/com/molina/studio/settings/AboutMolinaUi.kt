@@ -61,7 +61,7 @@ internal fun AboutMolinaPage(onLicenses: () -> Unit) {
 @Composable
 private fun AboutSection(title: String, body: String) {
     Text(
-        title, color = MolinaTheme.Gold, style = MaterialTheme.typography.titleMedium,
+        title, color = MolinaTheme.Mint, style = MaterialTheme.typography.titleMedium,
         modifier = Modifier.padding(top = 14.dp, bottom = 4.dp)
     )
     Text(

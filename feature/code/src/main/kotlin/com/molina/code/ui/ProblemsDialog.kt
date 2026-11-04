@@ -60,7 +60,7 @@ internal fun ProblemsDialog(session: CodeSession, list: ProblemList, onDismiss: 
                     val fixLabel = CheckFix.label(d) // [CODE-CHECK-FIX]
                     val tone = when (d.severity) {
                         Severity.ERROR -> CodeColors.Danger
-                        Severity.WARNING -> CodeColors.Gold
+                        Severity.WARNING -> CodeColors.Warning
                         Severity.INFO -> CodeColors.SecondaryChampagne
                     }
                     Row(

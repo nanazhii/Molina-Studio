@@ -45,21 +45,21 @@ internal fun MolinaFrameDialog(
                     .background(MolinaTheme.CardBg)
                     .border(
                         1.dp,
-                        Brush.verticalGradient(listOf(MolinaTheme.Gold.copy(alpha = 0.6f), MolinaTheme.CardLine)),
+                        Brush.verticalGradient(listOf(MolinaTheme.Mint.copy(alpha = 0.6f), MolinaTheme.CardLine)),
                         shape
                     )
                     .padding(horizontal = 24.dp, vertical = 22.dp)
             ) {
                 Text(title, color = MolinaTheme.OnBackground, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(8.dp))
-                Box(Modifier.width(32.dp).height(2.dp).background(MolinaTheme.Gold, RoundedCornerShape(1.dp)))
+                Box(Modifier.width(32.dp).height(2.dp).background(MolinaTheme.Mint, RoundedCornerShape(1.dp)))
                 Spacer(Modifier.height(18.dp))
                 content()
                 Spacer(Modifier.height(20.dp))
                 Row(Modifier.fillMaxWidth(), Arrangement.End, Alignment.CenterVertically) {
                     TextButton(onDismiss) { Text(dismissLabel, color = MolinaTheme.Muted) }
                     Spacer(Modifier.width(8.dp))
-                    TextButton(onConfirm) { Text(confirmLabel, color = MolinaTheme.Gold, fontWeight = FontWeight.SemiBold) }
+                    TextButton(onConfirm) { Text(confirmLabel, color = MolinaTheme.Mint, fontWeight = FontWeight.SemiBold) }
                 }
             }
         }

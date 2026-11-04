@@ -35,7 +35,7 @@ internal fun liveBadge(state: LiveState, detail: String?): LiveBadge? = when (st
     // [CODE-BADGE] Emas hangat (keluarga Molina Cinema, sama dengan penanda aktif pemutar) = siap; redup = belum siap.
     LiveState.IDLE -> if (detail != null) LiveBadge("LSP RAM", CodeColors.ClaudeOrange) else LiveBadge("LSP siaga", CodeColors.TextSecondary)
     LiveState.STARTING -> LiveBadge("LSP memuat", CodeColors.TextSecondary)
-    LiveState.READY -> LiveBadge("LSP siap", CodeColors.Gold)
+    LiveState.READY -> LiveBadge("LSP siap", CodeColors.Mint)
     LiveState.SLEEPING -> LiveBadge("LSP tidur", CodeColors.TextSecondary)
     LiveState.ERROR -> LiveBadge("LSP galat", CodeColors.Danger)
 }

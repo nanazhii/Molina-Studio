@@ -710,7 +710,7 @@ fun Win7OpenDialog(
                                 exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.shrinkVertically(shrinkTowards = Alignment.Bottom)
                             ) {
                                 val infoShape = RoundedCornerShape(10.dp)
-                                Box(Modifier.clip(infoShape).border(1.dp, if (multi) MolinaTheme.Gold else Win7.BtnLine, infoShape)) {
+                                Box(Modifier.clip(infoShape).border(1.dp, if (multi) MolinaTheme.Mint else Win7.BtnLine, infoShape)) {
                                     W7BrowseInfo(
                                         files = flSnap.files,
                                         isDir = flSnap.isDir,
@@ -983,7 +983,7 @@ internal fun W7HelpPanel(
             items.forEach { (term, desc) ->
                 Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                     Text(
-                        term, color = MolinaTheme.Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                        term, color = MolinaTheme.Mint, fontSize = 12.sp, fontWeight = FontWeight.Bold,
                         modifier = Modifier.width(84.dp)
                     )
                     Text(desc, color = Win7.Ink, fontSize = 12.sp, modifier = Modifier.weight(1f))

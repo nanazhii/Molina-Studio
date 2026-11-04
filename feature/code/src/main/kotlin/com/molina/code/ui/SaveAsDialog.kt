@@ -131,7 +131,7 @@ internal fun SaveAsDialog(session: CodeSession, req: SaveAsRequest) {
         ) {
             BasicText(
                 text = "Simpan sebagai",
-                style = TextStyle(color = CodeColors.Gold, fontSize = CodeDimens.DialogTitleSize)
+                style = TextStyle(color = CodeColors.Mint, fontSize = CodeDimens.DialogTitleSize)
             )
             Spacer(Modifier.height(16.dp))
 
@@ -148,7 +148,7 @@ internal fun SaveAsDialog(session: CodeSession, req: SaveAsRequest) {
                 BasicText(
                     text = "UBAH",
                     modifier = Modifier.clickable { pickerOpen = true }.padding(start = 12.dp, top = 8.dp, bottom = 8.dp),
-                    style = TextStyle(color = CodeColors.Gold, fontSize = 13.sp)
+                    style = TextStyle(color = CodeColors.Mint, fontSize = 13.sp)
                 )
             }
             Spacer(Modifier.height(16.dp))
@@ -212,7 +212,7 @@ internal fun SaveAsDialog(session: CodeSession, req: SaveAsRequest) {
                         ) {
                             BasicText(
                                 text = buildAnnotatedString {
-                                    withStyle(SpanStyle(color = CodeColors.Gold)) { append(s.take(q.length)) }
+                                    withStyle(SpanStyle(color = CodeColors.Mint)) { append(s.take(q.length)) }
                                     withStyle(SpanStyle(color = CodeColors.IconDefault)) { append(s.drop(q.length)) }
                                 },
                                 style = TextStyle(fontSize = 14.sp)
@@ -252,7 +252,7 @@ internal fun SaveAsDialog(session: CodeSession, req: SaveAsRequest) {
                 Spacer(Modifier.height(4.dp))
                 BasicText(
                     text = "${FileStore.fullName(name, ext)} sudah ada. Timpa?",
-                    style = TextStyle(color = CodeColors.GoldSoft, fontSize = 13.sp)
+                    style = TextStyle(color = CodeColors.MintSoft, fontSize = 13.sp)
                 )
             }
 
@@ -266,7 +266,7 @@ internal fun SaveAsDialog(session: CodeSession, req: SaveAsRequest) {
                 BasicText(
                     text = if (confirmOverwrite) "TIMPA" else "SIMPAN",
                     modifier = Modifier.clickable { submit() }.padding(12.dp),
-                    style = TextStyle(color = CodeColors.Gold, fontSize = 14.sp)
+                    style = TextStyle(color = CodeColors.Mint, fontSize = 14.sp)
                 )
             }
         }
@@ -320,7 +320,7 @@ internal fun UnderlineField(
                 },
             singleLine = true,
             textStyle = TextStyle(color = CodeColors.TextPrimary, fontSize = CodeDimens.FindTextSize),
-            cursorBrush = SolidColor(CodeColors.Gold),
+            cursorBrush = SolidColor(CodeColors.Mint),
             keyboardOptions = KeyboardOptions(imeAction = imeAction),
             keyboardActions = KeyboardActions(onNext = { onAction() }, onDone = { onAction() }),
             decorationBox = { inner ->
@@ -340,7 +340,7 @@ internal fun UnderlineField(
                 .padding(top = 4.dp)
                 .fillMaxWidth()
                 .height(if (focused) CodeDimens.FindUnderline else CodeDimens.Hairline)
-                .background(if (focused) CodeColors.Gold else CodeColors.Hairline)
+                .background(if (focused) CodeColors.Mint else CodeColors.Hairline)
         )
     }
 }

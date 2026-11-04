@@ -51,13 +51,13 @@ internal class W7Glyph(val color: Color, val label: String?, val shape: W7Shape 
             put("log", W7Glyph(Color(0xFF90A4AE), "LOG"))
             put("csv", W7Glyph(Color(0xFF66BB6A), "CSV"))
             put("zip", W7Glyph(Color(0xFFFFB74D), "ZIP"))
-            put("7z", W7Glyph(MolinaTheme.Gold, "7Z")) // [ARCHIVE] jenis arsip langsung terbaca di daftar
-            put("tar", W7Glyph(MolinaTheme.Gold, "TAR"))
-            put("gz tgz", W7Glyph(MolinaTheme.Gold, "GZ"))
-            put("bz2 tbz2 tbz", W7Glyph(MolinaTheme.Gold, "BZ2"))
-            put("xz txz", W7Glyph(MolinaTheme.Gold, "XZ"))
-            put("rar", W7Glyph(MolinaTheme.Gold, "RAR"))
-            put("iso", W7Glyph(MolinaTheme.Gold, "ISO"))
+            put("7z", W7Glyph(MolinaTheme.Mint, "7Z")) // [ARCHIVE] jenis arsip langsung terbaca di daftar
+            put("tar", W7Glyph(MolinaTheme.Mint, "TAR"))
+            put("gz tgz", W7Glyph(MolinaTheme.Mint, "GZ"))
+            put("bz2 tbz2 tbz", W7Glyph(MolinaTheme.Mint, "BZ2"))
+            put("xz txz", W7Glyph(MolinaTheme.Mint, "XZ"))
+            put("rar", W7Glyph(MolinaTheme.Mint, "RAR"))
+            put("iso", W7Glyph(MolinaTheme.Mint, "ISO"))
             put("pdf", W7Glyph(Color(0xFFEF5350), "PDF"))
             put("doc docx odt rtf", W7Glyph(Color(0xFF42A5F5), "DOC"))
             put("xls xlsx ods", W7Glyph(Color(0xFF66BB6A), "XLS"))
@@ -69,7 +69,7 @@ internal class W7Glyph(val color: Color, val label: String?, val shape: W7Shape 
 
         fun of(ext: String): W7Glyph {
             val e = ext.lowercase()
-            return MAP[e] ?: W7Glyph(MolinaTheme.Gold, if (e.isEmpty()) null else e.uppercase().take(3))
+            return MAP[e] ?: W7Glyph(MolinaTheme.Mint, if (e.isEmpty()) null else e.uppercase().take(3))
         }
     }
 }

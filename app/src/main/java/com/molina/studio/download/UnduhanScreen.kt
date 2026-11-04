@@ -536,7 +536,7 @@ private fun UpdateCard(u: DownloadEvent.Update) {
 /** Warna bilah per status: biru (antre/mengunduh), emas (memproses), hijau (selesai). */
 private fun barColors(status: DownloadItemStatus): Pair<Color, Color> = when (status) {
     DownloadItemStatus.DONE -> Color(0xFF7BE87A) to Color(0xFF1E9E1A)
-    DownloadItemStatus.PROCESSING -> MolinaTheme.Gold to Color(0xFFB07F22)
+    DownloadItemStatus.PROCESSING -> MolinaTheme.Mint to Color(0xFFB07F22)
     else -> Color(0xFF8FC4EE) to Color(0xFF2D6DB5)
 }
 

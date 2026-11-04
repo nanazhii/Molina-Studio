@@ -135,7 +135,7 @@ internal fun CommandPalette(session: CodeSession, onDismiss: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().focusRequester(focus).padding(horizontal = 16.dp, vertical = 14.dp),
                 singleLine = true,
                 textStyle = TextStyle(color = CodeColors.TextPrimary, fontSize = CodeDimens.FindTextSize),
-                cursorBrush = SolidColor(CodeColors.Gold),
+                cursorBrush = SolidColor(CodeColors.Mint),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
                 keyboardActions = KeyboardActions(onGo = { shown.firstOrNull()?.let { go(it) } }),
                 decorationBox = { inner ->
@@ -191,7 +191,7 @@ internal fun CommandPalette(session: CodeSession, onDismiss: () -> Unit) {
                             BasicText(
                                 text = item.tag,
                                 maxLines = 1,
-                                style = TextStyle(color = CodeColors.Gold.copy(alpha = 0.7f), fontSize = 10.sp)
+                                style = TextStyle(color = CodeColors.Mint.copy(alpha = 0.7f), fontSize = 10.sp)
                             )
                         }
                     }

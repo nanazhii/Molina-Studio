@@ -28,7 +28,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 
 private val MolinaPurple = Color(0xFF6B4FBB)
-private val MolinaGold = Color(0xFFE8B84A)
+private val MolinaMint = Color(0xFF4FD1A5)
 private val MolinaSurface = Color(0xFF1C1B22)
 private val MolinaText = Color(0xFFE6E1EC)
 private val MolinaMuted = Color(0xFF8E8A99)
@@ -90,7 +90,7 @@ fun MolinaLinkSheet(
                 onValueChange = { query = it },
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = MolinaText),
-                cursorBrush = SolidColor(MolinaGold),
+                cursorBrush = SolidColor(MolinaMint),
                 keyboardOptions = KeyboardOptions(imeAction = if (isUrl) ImeAction.Go else ImeAction.Search),
                 keyboardActions = KeyboardActions(onGo = { submit() }, onSearch = { submit() }),
                 modifier = Modifier
@@ -170,9 +170,9 @@ fun MolinaLinkSheet(
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = fieldShape,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MolinaGold,
+                    containerColor = MolinaMint,
                     contentColor = Color(0xFF1A1400),
-                    disabledContainerColor = MolinaGold.copy(alpha = 0.25f),
+                    disabledContainerColor = MolinaMint.copy(alpha = 0.25f),
                     disabledContentColor = Color(0xFF1A1400).copy(alpha = 0.5f),
                 ),
             ) {

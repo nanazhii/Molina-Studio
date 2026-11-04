@@ -66,7 +66,7 @@ internal fun OutlineDialog(tab: EditorTab, onDismiss: () -> Unit) {
                                 text = s.kind,
                                 modifier = Modifier.width(44.dp),
                                 maxLines = 1,
-                                style = TextStyle(color = CodeColors.Gold.copy(alpha = 0.75f), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                style = TextStyle(color = CodeColors.Mint.copy(alpha = 0.75f), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                             )
                             BasicText(
                                 text = s.name,

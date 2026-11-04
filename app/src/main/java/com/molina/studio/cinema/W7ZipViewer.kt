@@ -297,7 +297,7 @@ internal fun W7ZipDialog(
                                 ch.label, color = if (ch.isDir) Win7.NavHeader else Win7.Ink, fontSize = 12.sp, maxLines = 1,
                                 overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
                             )
-                            if (opened[ch.full] != null && ch.full in dirty) Text("diubah", color = MolinaTheme.Gold, fontSize = 10.sp, modifier = Modifier.padding(start = 6.dp))
+                            if (opened[ch.full] != null && ch.full in dirty) Text("diubah", color = MolinaTheme.Mint, fontSize = 10.sp, modifier = Modifier.padding(start = 6.dp))
                             if (!ch.isDir) Text(FileOps.readable(ch.size), color = Win7.TextDim, fontSize = 11.sp, modifier = Modifier.padding(start = 8.dp))
                         }
                     }
@@ -318,7 +318,7 @@ internal fun W7ZipDialog(
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { // [ZIP-LAYOUT]
                     Text("Ketuk berkas untuk memilih, ketuk lagi untuk membuka.", color = Win7.TextDim, fontSize = 11.sp, modifier = Modifier.weight(1f))
                     Text(
-                        "Bantuan", color = MolinaTheme.Gold, fontSize = 12.sp,
+                        "Bantuan", color = MolinaTheme.Mint, fontSize = 12.sp,
                         modifier = Modifier.clickable { showHelp = true }.padding(start = 8.dp, top = 6.dp, bottom = 6.dp)
                     )
                 }
@@ -326,7 +326,7 @@ internal fun W7ZipDialog(
         }
         if (dirty.isNotEmpty()) {
             Spacer(Modifier.height(4.dp))
-            Text("Diubah: " + dirty.joinToString(", ") { it.substringAfterLast('/') } + ". Tekan Simpan untuk menulis ke ZIP.", color = MolinaTheme.Gold, fontSize = 11.sp)
+            Text("Diubah: " + dirty.joinToString(", ") { it.substringAfterLast('/') } + ". Tekan Simpan untuk menulis ke ZIP.", color = MolinaTheme.Mint, fontSize = 11.sp)
         }
         if (status.isNotEmpty()) {
             Spacer(Modifier.height(4.dp))
@@ -337,7 +337,7 @@ internal fun W7ZipDialog(
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             Win7Button("Buka", Modifier.weight(1f), isDefault = true, enabled = picked != null && !busy, compact = true) { picked?.let { openEntry(it, null) } }
             Win7Button("Terminal", Modifier.weight(1f), enabled = picked != null && !busy && onOpenTerminal != null, compact = true) { picked?.let { openEntry(it, null, true) } }
-            Win7Button("Simpan", Modifier.weight(1f), enabled = dirty.isNotEmpty() && !busy, accent = MolinaTheme.Gold, compact = true) { saveBack(null) }
+            Win7Button("Simpan", Modifier.weight(1f), enabled = dirty.isNotEmpty() && !busy, accent = MolinaTheme.Mint, compact = true) { saveBack(null) }
         }
         Spacer(Modifier.height(6.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {

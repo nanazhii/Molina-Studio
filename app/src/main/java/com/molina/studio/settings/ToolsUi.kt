@@ -146,7 +146,7 @@ internal fun PackagesPage(
         val pos = if (chk.size > 1) " ${chk.size - chk.remaining}/${chk.size}" else ""
         Text(
             "Memeriksa$pos" + (who?.let { " \u00B7 $it" } ?: "") + "\u2026",
-            color = com.molina.studio.ui.MolinaTheme.Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+            color = com.molina.studio.ui.MolinaTheme.Mint, fontSize = 12.sp, fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 6.dp)
         )
     }
@@ -346,7 +346,7 @@ private fun StatusDot(detected: Boolean, checking: Boolean, checked: Boolean = t
             targetValue = 1f,
             animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse)
         )
-        Box(Modifier.size(9.dp).clip(CircleShape).background(com.molina.studio.ui.MolinaTheme.Gold.copy(alpha = alpha)))
+        Box(Modifier.size(9.dp).clip(CircleShape).background(com.molina.studio.ui.MolinaTheme.Mint.copy(alpha = alpha)))
     } else {
         if (!checked) Box(Modifier.size(9.dp).clip(CircleShape).border(1.5.dp, Color(0xFF8A8F98), CircleShape))
         else Box(Modifier.size(9.dp).clip(CircleShape).background(if (detected) Color(0xFF5FB36B) else Color(0xFF8A8F98)))
@@ -375,7 +375,7 @@ private fun ToolCard(
     val sub = if (checking) "memeriksa versi\u2026" else base
     Column(
         Modifier.fillMaxWidth().clip(shape).background(W7D.Card, shape)
-            .border(1.5.dp, if (expanded) com.molina.studio.ui.MolinaTheme.Gold.copy(alpha = 0.75f) else Color(0xFF454A55), shape)
+            .border(1.5.dp, if (expanded) com.molina.studio.ui.MolinaTheme.Mint.copy(alpha = 0.75f) else Color(0xFF454A55), shape)
     ) {
         val detected = check?.text?.let { it.isNotBlank() && !it.startsWith("Tidak terdeteksi") } == true
         val strip = statusStripColor(detected, checking, checked = check?.text?.isNotBlank() == true)
@@ -395,9 +395,9 @@ private fun ToolCard(
                         Spacer(Modifier.width(6.dp))
                         val chip = RoundedCornerShape(8.dp)
                         Text(
-                            "Butuh $needs", color = com.molina.studio.ui.MolinaTheme.Gold, fontSize = 10.sp,
+                            "Butuh $needs", color = com.molina.studio.ui.MolinaTheme.Mint, fontSize = 10.sp,
                             fontWeight = FontWeight.Bold, maxLines = 1,
-                            modifier = Modifier.clip(chip).border(1.dp, com.molina.studio.ui.MolinaTheme.Gold, chip)
+                            modifier = Modifier.clip(chip).border(1.dp, com.molina.studio.ui.MolinaTheme.Mint, chip)
                                 .padding(horizontal = 6.dp, vertical = 1.dp)
                         )
                     }
@@ -506,7 +506,7 @@ private fun statusStripColor(detected: Boolean, checking: Boolean, checked: Bool
             targetValue = 1f,
             animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse)
         )
-        return com.molina.studio.ui.MolinaTheme.Gold.copy(alpha = a)
+        return com.molina.studio.ui.MolinaTheme.Mint.copy(alpha = a)
     }
     return when {
         !checked -> Color(0xFF8A8F98).copy(alpha = 0.45f)

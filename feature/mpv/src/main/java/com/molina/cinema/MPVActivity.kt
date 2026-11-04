@@ -1837,7 +1837,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         val hasA = a != null && a != "no"
         val hasB = b != null && b != "no"
         binding.abLoopBtn.text = if (hasA && !hasB) "A-" else "A-B"
-        binding.abLoopBtn.setTextColor(if (hasA && hasB) 0xFFFFB300.toInt() else 0xFFFFFFFF.toInt())
+        binding.abLoopBtn.setTextColor(if (hasA && hasB) 0xFF4FD1A5.toInt() else 0xFFFFFFFF.toInt())
         if (announce) {
             showToast(when {
                 hasA && hasB -> "Loop A-B aktif"

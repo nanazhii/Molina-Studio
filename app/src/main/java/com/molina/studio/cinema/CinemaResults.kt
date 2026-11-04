@@ -178,7 +178,7 @@ internal fun SearchResultsDialog(
                 .heightIn(max = 640.dp)
                 .border(
                     1.dp,
-                    Brush.verticalGradient(listOf(MolinaTheme.Gold.copy(alpha = 0.6f), MolinaTheme.CardLine)),
+                    Brush.verticalGradient(listOf(MolinaTheme.Mint.copy(alpha = 0.6f), MolinaTheme.CardLine)),
                     frame,
                 ),
             shape = frame,
@@ -261,9 +261,9 @@ internal fun SearchResultsDialog(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = MolinaTheme.OnBackground,
                         unfocusedTextColor = MolinaTheme.OnBackground,
-                        focusedBorderColor = MolinaTheme.Gold,
+                        focusedBorderColor = MolinaTheme.Mint,
                         unfocusedBorderColor = MolinaTheme.CardLine,
-                        cursorColor = MolinaTheme.Gold,
+                        cursorColor = MolinaTheme.Mint,
                         focusedPlaceholderColor = MolinaTheme.Muted,
                         unfocusedPlaceholderColor = MolinaTheme.Muted,
                     ),
@@ -308,7 +308,7 @@ internal fun SearchResultsDialog(
                     }
                     TvKey(R.drawable.ic_tv_download,
                         if (pickedItems.isNotEmpty()) "Unduh ${pickedItems.size}" else "Unduh semua",
-                        MolinaTheme.Gold, Modifier.weight(1f)) {
+                        MolinaTheme.Mint, Modifier.weight(1f)) {
                         if (pickedItems.isNotEmpty()) download(pickedItems)
                         else download(visible.map { it.item }, skipDone = true)
                     }
@@ -358,8 +358,8 @@ private fun ChannelRow(
         // [PICK-MANY] kotak centang (digambar, bukan glif emoji) hanya saat mode pilih aktif
         if (checked != null) Box(
             Modifier.padding(end = 8.dp).size(20.dp).clip(RoundedCornerShape(4.dp))
-                .background(if (checked) MolinaTheme.Gold else Color.Transparent)
-                .border(1.5.dp, MolinaTheme.Gold, RoundedCornerShape(4.dp)),
+                .background(if (checked) MolinaTheme.Mint else Color.Transparent)
+                .border(1.5.dp, MolinaTheme.Mint, RoundedCornerShape(4.dp)),
             contentAlignment = Alignment.Center,
         ) { if (checked) Text("\u2713", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
         Column(Modifier.weight(1f)) {
@@ -373,16 +373,16 @@ private fun ChannelRow(
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
             // [SEEN-BADGES] lencana hanya muncul bila ada; baris tanpa penanda tidak bertambah tinggi
             if (downloaded || played) Row(Modifier.padding(top = 3.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (downloaded) SeenBadge("\u2193 Diunduh", if (isSelected) Color.White else MolinaTheme.Gold)
+                if (downloaded) SeenBadge("\u2193 Diunduh", if (isSelected) Color.White else MolinaTheme.Mint)
                 if (played) SeenBadge("\u25B6 Pernah diputar", if (isSelected) Color.White else MolinaTheme.Muted)
             }
         }
         Box(
             Modifier.padding(start = 8.dp).size(36.dp).clip(RoundedCornerShape(18.dp))
-                .border(1.dp, MolinaTheme.Gold.copy(alpha = 0.7f), RoundedCornerShape(18.dp))
+                .border(1.dp, MolinaTheme.Mint.copy(alpha = 0.7f), RoundedCornerShape(18.dp))
                 .clickable(onClick = onDownload),
             contentAlignment = Alignment.Center,
-        ) { Text("\u2193", color = MolinaTheme.Gold, fontSize = 18.sp, fontWeight = FontWeight.Bold) }
+        ) { Text("\u2193", color = MolinaTheme.Mint, fontSize = 18.sp, fontWeight = FontWeight.Bold) }
     }
 }
 
@@ -419,8 +419,8 @@ private fun ResultChip(label: String, active: Boolean, onClick: () -> Unit) {
         fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
         fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
         modifier = Modifier.widthIn(max = 180.dp).clip(shape)
-            .background(if (active) MolinaTheme.Gold else Color(0x14FFFFFF))
-            .border(1.dp, if (active) MolinaTheme.Gold else RowLine, shape)
+            .background(if (active) MolinaTheme.Mint else Color(0x14FFFFFF))
+            .border(1.dp, if (active) MolinaTheme.Mint else RowLine, shape)
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 5.dp),
     )

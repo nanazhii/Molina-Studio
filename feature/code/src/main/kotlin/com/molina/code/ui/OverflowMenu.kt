@@ -249,10 +249,10 @@ internal fun CheckMark(on: Boolean) {
     Box(
         Modifier
             .size(CodeDimens.MenuIconSize)
-            .background(if (on) CodeColors.Gold else Color.Transparent, shape)
+            .background(if (on) CodeColors.Mint else Color.Transparent, shape)
             .border(
                 1.5.dp,
-                if (on) CodeColors.Gold else CodeColors.IconDefault.copy(alpha = 0.5f),
+                if (on) CodeColors.Mint else CodeColors.IconDefault.copy(alpha = 0.5f),
                 shape
             ),
         contentAlignment = Alignment.Center

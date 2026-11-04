@@ -27,16 +27,17 @@ object CodeColors {
     val IconDim = Color(0xFF7D7A72)
     val IconDisabled = Color(0xFF4D4C48)
 
-    // Aksen (maksimal dua di toolbar: Gold dan Danger)
-    val Gold = Color(0xFFFFB300)
-    val GoldSoft = Color(0xFFE9B949)
-    val FolderYellow = GoldSoft
+    // Aksen (maksimal dua di toolbar: Mint dan Danger)
+    val Mint = Color(0xFF4FD1A5)
+    val MintSoft = Color(0xFF7ED6B8)
+    val Warning = Color(0xFFFFB300)       // peringatan tetap amber, bukan aksen merek
+    val FolderYellow = Color(0xFFE9B949)
     val Danger = Color(0xFFE5484D)
     val Clean = Color(0xFF3FB950)               // indikator berkas sama dengan isi awal (hijau)
-    val Capsule = Color(0xFF4E3B14)       // kapsul aktif, sama dengan bottom nav
+    val Capsule = Color(0xFF123D31)       // kapsul aktif, sama dengan bottom nav
 
     // Editor
-    val ActiveLine = Color(0xFF38280F)
+    val ActiveLine = Color(0xFF0F2A22)
     // Nomor baris bernuansa Claude (terakota): redup untuk baris biasa, terang untuk baris kursor,
     // putih-persik + latar terakota sesaat saat Pergi ke baris / lompat hasil Cari.
     val ClaudeOrange = Color(0xFFD97757)
@@ -53,37 +54,37 @@ object CodeColors {
     val ExtKotlin = Color(0xFFB07CFF)
     val ExtPython = Color(0xFF4FA3E0)
     val ExtMarkdown = Color(0xFF7BC8A4)
-    val ExtJson = GoldSoft
+    val ExtJson = FolderYellow
     val ExtXml = Color(0xFFE08A4F)
     val ExtShell = Color(0xFF8BD35C)
     val ExtDefault = IconDim
 
     // Turunan beralfa (nilai alfa dari blueprint)
-    val Ripple = Gold.copy(alpha = 0.16f)
-    val SelectFill = Gold.copy(alpha = 0.18f)     // seleksi baris tree
-    val SelectBorder = Gold.copy(alpha = 0.45f)
+    val Ripple = Mint.copy(alpha = 0.16f)
+    val SelectFill = Mint.copy(alpha = 0.18f)     // seleksi baris tree
+    val SelectBorder = Mint.copy(alpha = 0.45f)
     val EditorSelection = Color(0x80D97757)   // blok/hasil aktif: terakota Claude 50%
     val SearchMatch = Color(0x47D97757)       // hasil lain: terakota Claude 28%
-    val RailPeak = Gold.copy(alpha = 0.40f)       // puncak gradient rail emas toolbar
+    val RailPeak = Mint.copy(alpha = 0.40f)       // puncak gradient rail mint toolbar
     val LabelChampagne = IconDefault.copy(alpha = 0.70f)
     val SecondaryChampagne = IconDefault.copy(alpha = 0.60f)
-    val Caret = Gold
+    val Caret = Mint
     val Scrim = Color.Black.copy(alpha = 0.55f)
 
     // Layar Tinjauan (mode gelap saja; toggle terang dihapus)
     val PreviewBg = Color(0xFF000000)
     val PreviewText = Color(0xFFE6E6E6)
-    val PreviewLink = Gold
+    val PreviewLink = Mint
     val PreviewCodeBg = Color(0xFF121212)
     val PreviewQuoteBg = Color(0xFF0D0B09)
 
     // Pratinjau native (blueprint bagian 21.3 dan 22) dan panel Keluaran skrip
     val PreviewHairline = Color(0xFF3A2F22)
-    val PreviewHeading = GoldSoft
-    val PreviewInlineCode = GoldSoft
+    val PreviewHeading = MintSoft
+    val PreviewInlineCode = MintSoft
     val PreviewInlineCodeBg = Color(0xFF1C1814)
     val PreviewQuoteText = IconDefault
-    val PreviewQuoteBar = Gold.copy(alpha = 0.60f)
+    val PreviewQuoteBar = Mint.copy(alpha = 0.60f)
     val PreviewTableHeadBg = Color(0xFF1C1814)
     val JsonKey = Color(0xFFE3A987)
     val JsonString = Color(0xFF9DBE8A)

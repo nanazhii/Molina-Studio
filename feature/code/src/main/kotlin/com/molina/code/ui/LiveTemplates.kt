@@ -238,7 +238,7 @@ internal fun LiveTemplateDialog(session: CodeSession, onDismiss: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().focusRequester(focus).padding(horizontal = 16.dp, vertical = 12.dp),
                 singleLine = true,
                 textStyle = TextStyle(color = CodeColors.TextPrimary, fontSize = CodeDimens.FindTextSize),
-                cursorBrush = SolidColor(CodeColors.Gold),
+                cursorBrush = SolidColor(CodeColors.Mint),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 decorationBox = { inner ->
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
@@ -289,7 +289,7 @@ internal fun LiveTemplateDialog(session: CodeSession, onDismiss: () -> Unit) {
                                 modifier = Modifier.width(76.dp),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                style = TextStyle(color = CodeColors.Gold, fontSize = 13.sp, fontFamily = FontFamily.Monospace)
+                                style = TextStyle(color = CodeColors.Mint, fontSize = 13.sp, fontFamily = FontFamily.Monospace)
                             )
                             Column(Modifier.weight(1f)) {
                                 BasicText(

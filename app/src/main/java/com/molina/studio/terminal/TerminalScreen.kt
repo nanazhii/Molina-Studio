@@ -168,7 +168,7 @@ private val KeyRed = Color(0xFFFF5252)    // ESC, CLEAR [TERM-KEYS-BOLD] lebih p
 private val KeyBlue = Color(0xFF448AFF)   // HOME, panah
 private val KeyGreen = Color(0xFF00E676)  // COPY, PASTE
 private val KeyFrame = Color(0xFF454A55)  // bingkai terluar panel extra keys
-private val KeyAmber = MolinaTheme.Gold  // TAB, menu, —
+private val KeyAmber = MolinaTheme.Mint  // TAB, menu, —
 private val KeyNeutral = MolinaTheme.OnBackground // CTRL, ALT (menyala emas saat aktif)
 
 private fun createTerminalView(ctx: Context, mods: TerminalModifiers): TerminalView {
@@ -213,7 +213,7 @@ private fun ExtraKeys(mods: TerminalModifiers, onOpenDrawer: () -> Unit) {
         Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp)
             .clip(shape)
             .background(Color.Black, shape) // [TERM-KEYS-BLACK] hitam pekat solid; bingkai hanya di sisi terluar
-            .border(2.dp, if (lit) MolinaTheme.Gold else KeyFrame, shape) // [TERM-KEYS-BOLD] bingkai 2dp
+            .border(2.dp, if (lit) MolinaTheme.Mint else KeyFrame, shape) // [TERM-KEYS-BOLD] bingkai 2dp
             .padding(3.dp)
     ) {
         Row(Modifier.fillMaxWidth()) {
@@ -296,7 +296,7 @@ private fun KeyButton(
 ) {
     val haptic = LocalHapticFeedback.current
     val base = if (tint == Color.Unspecified) MaterialTheme.colorScheme.onSurface else tint
-    val gold = MolinaTheme.Gold
+    val gold = MolinaTheme.Mint
     val shape = RoundedCornerShape(8.dp)
     val bg = when {
         locked -> gold.copy(alpha = 0.40f)

@@ -6,12 +6,12 @@ import com.molina.terminal.TextStyle
 
 /** Varian warna dasar terminal. Palet ANSI 0-15 (Molina Noir) sama untuk semua; beda di teks, latar, kursor. */
 enum class TerminalLook(val id: String, val label: String, val fg: Int, val bg: Int, val cursor: Int) {
-    NoirGold("noir_gold", "Noir Gold", 0xFFEDEDED.toInt(), 0xFF0A0A0F.toInt(), MolinaTheme.GOLD_ARGB),
+    NoirMint("noir_gold", "Noir Mint", 0xFFEDEDED.toInt(), 0xFF0A0A0F.toInt(), MolinaTheme.MINT_ARGB),
     CinemaViolet("cinema_violet", "Cinema Violet", 0xFFE6E0F5.toInt(), 0xFF0A0A0F.toInt(), 0xFFB388FF.toInt()),
     AmberCrt("amber_crt", "Amber CRT", 0xFFFFB74D.toInt(), 0xFF0D0A05.toInt(), 0xFFFFB74D.toInt());
 
     companion object {
-        fun fromId(id: String?): TerminalLook = entries.firstOrNull { it.id == id } ?: NoirGold
+        fun fromId(id: String?): TerminalLook = entries.firstOrNull { it.id == id } ?: NoirMint
     }
 }
 

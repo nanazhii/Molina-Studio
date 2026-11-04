@@ -109,7 +109,7 @@ internal fun CodeStatusBar(tab: EditorTab, live: LiveBadge? = null, library: Boo
     val stateColor: Color
     when {
         tab.loading -> { state = "Memuat"; stateColor = Win7Code.InkDim }
-        library -> { state = "Debian - hanya baca"; stateColor = CodeColors.GoldSoft } // [CODE-DEBLIB]
+        library -> { state = "Debian - hanya baca"; stateColor = CodeColors.MintSoft } // [CODE-DEBLIB]
         tab.dirty -> { state = "Diubah"; stateColor = CodeColors.Danger }
         tab.file != null -> { state = "Tersimpan"; stateColor = CodeColors.Clean }
         else -> { state = "Baru"; stateColor = Win7Code.InkDim }

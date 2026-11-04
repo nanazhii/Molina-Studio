@@ -120,13 +120,13 @@ internal fun FifToggle(label: String, on: Boolean, onClick: () -> Unit) {
     Box(
         Modifier
             .clip(shape)
-            .background(if (on) CodeColors.Gold.copy(alpha = 0.22f) else Color.Transparent)
-            .border(1.dp, if (on) CodeColors.Gold else CodeColors.IconDefault.copy(alpha = 0.4f), shape)
+            .background(if (on) CodeColors.Mint.copy(alpha = 0.22f) else Color.Transparent)
+            .border(1.dp, if (on) CodeColors.Mint else CodeColors.IconDefault.copy(alpha = 0.4f), shape)
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
-        BasicText(label, style = TextStyle(color = if (on) CodeColors.Gold else CodeColors.IconDefault, fontSize = 13.sp))
+        BasicText(label, style = TextStyle(color = if (on) CodeColors.Mint else CodeColors.IconDefault, fontSize = 13.sp))
     }
 }
 
@@ -208,7 +208,7 @@ internal fun FindInFilesDialog(session: CodeSession, onDismiss: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().focusRequester(focus).padding(horizontal = 16.dp, vertical = 12.dp),
                 singleLine = true,
                 textStyle = TextStyle(color = CodeColors.TextPrimary, fontSize = CodeDimens.FindTextSize),
-                cursorBrush = SolidColor(CodeColors.Gold),
+                cursorBrush = SolidColor(CodeColors.Mint),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 decorationBox = { inner ->
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
@@ -272,7 +272,7 @@ internal fun FindInFilesDialog(session: CodeSession, onDismiss: () -> Unit) {
                             )
                             BasicText(
                                 text = row.count.toString(),
-                                style = TextStyle(color = CodeColors.Gold, fontSize = 11.sp)
+                                style = TextStyle(color = CodeColors.Mint, fontSize = 11.sp)
                             )
                         }
                     } else {
@@ -281,7 +281,7 @@ internal fun FindInFilesDialog(session: CodeSession, onDismiss: () -> Unit) {
                                 append(m.text)
                                 val a = m.hs.coerceIn(0, m.text.length)
                                 val b = m.he.coerceIn(a, m.text.length)
-                                addStyle(SpanStyle(background = CodeColors.Gold.copy(alpha = 0.35f), color = CodeColors.TextPrimary), a, b)
+                                addStyle(SpanStyle(background = CodeColors.Mint.copy(alpha = 0.35f), color = CodeColors.TextPrimary), a, b)
                             }
                         }
                         Row(

@@ -115,7 +115,7 @@ internal fun applyMolinaColors(s: EditorColorScheme) {
     s.setColor(EditorColorScheme.CURRENT_LINE, CodeColors.ActiveLine.toArgb())
     s.setColor(EditorColorScheme.TEXT_NORMAL, CodeColors.TextPrimary.toArgb())
     s.setColor(EditorColorScheme.SELECTION_INSERT, CodeColors.Caret.toArgb())
-    s.setColor(EditorColorScheme.SELECTION_HANDLE, CodeColors.Gold.toArgb())
+    s.setColor(EditorColorScheme.SELECTION_HANDLE, CodeColors.Mint.toArgb())
     s.setColor(EditorColorScheme.SELECTED_TEXT_BACKGROUND, CodeColors.EditorSelection.toArgb())
     s.setColor(EditorColorScheme.MATCHED_TEXT_BACKGROUND, CodeColors.SearchMatch.toArgb())
     // [CODE-LSP5] jendela completion: latar #111111, border hairline Molina, item aktif kapsul emas gelap

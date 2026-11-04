@@ -2,7 +2,7 @@
 <resources>
     <item name="primary" type="color">#000000</item>
     <item name="primary_dark" type="color">#000000</item>
-    <item name="accent" type="color">#E6B450</item>
+    <item name="accent" type="color">#4FD1A5</item>
 
     <!-- Win7 Aero: pemilih file lama diseragamkan dengan Win7OpenDialog -->
     <color name="win7_folder">#F3CF6E</color>
@@ -17,7 +17,7 @@
     <color name="alpha12pct">#1e000000</color>
 
     <color name="tint_btn_bg_nofocus">#00000000</color>
-    <color name="tint_btn_bg_focused">#66E6B450</color>
+    <color name="tint_btn_bg_focused">#664FD1A5</color>
 
     <color name="tint_seekbar_bg">#8A8A8A</color>
 
@@ -33,5 +33,5 @@
     <color name="alpha12pct_light">#1fffffff</color>
     <color name="alpha24pct_light">#3dffffff</color>
     <!-- Item playlist yang sedang diputar -->
-    <color name="player_playlist_active">#E6B450</color>
+    <color name="player_playlist_active">#4FD1A5</color>
 </resources>
