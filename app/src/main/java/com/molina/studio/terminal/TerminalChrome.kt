@@ -154,13 +154,7 @@ internal fun TerminalHeader(onOpenSettings: () -> Unit) {
         Spacer(Modifier.weight(1f))
         // [HDR-STATS] Monitor CPU/RAM/jaringan (dulu di bilah pil). Ukuran font tetap lewat cubit dan Pengaturan.
         PillStats()
-        HdrBtn(if (keepOn) "\u2600" else "\u263E") {
-            TerminalUi.setKeepScreenOn(ctx, !keepOn)
-            Toast.makeText(
-                ctx, if (!keepOn) "Layar tetap menyala: aktif" else "Layar tetap menyala: nonaktif",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
+        // [HDR-KEEPON-MENU] saklar layar tetap menyala dipindah ke menu titik tiga; ruang header untuk monitor
         Box {
             HdrBtn("\u22EE") { menu = true }
             if (snippets) SnippetDialog { snippets = false }
@@ -218,6 +212,17 @@ internal fun TerminalHeader(onOpenSettings: () -> Unit) {
                 DropdownMenuItem(
                     text = { Text("Tautan di layar") },
                     onClick = { menu = false; links = true }
+                )
+                DropdownMenuItem(
+                    text = { Text(if (keepOn) "\u2611 Layar tetap menyala" else "\u2610 Layar tetap menyala") },
+                    onClick = {
+                        menu = false
+                        TerminalUi.setKeepScreenOn(ctx, !keepOn)
+                        Toast.makeText(
+                            ctx, if (!keepOn) "Layar tetap menyala: aktif" else "Layar tetap menyala: nonaktif",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 )
                 DropdownMenuItem(
                     text = { Text("Pengaturan") },
