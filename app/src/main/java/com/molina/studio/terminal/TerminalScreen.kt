@@ -100,7 +100,7 @@ private fun TerminalContent(modifier: Modifier, onOpenSettings: () -> Unit) {
         flash.snapTo(1f)
         flash.animateTo(0f, tween(700))
     }
-    val frameColor = lerp(Color(0xFF3A3A3A), if (CommandFlash.ok) MolinaTheme.Good else MolinaTheme.Bad, flash.value)
+    val frameColor = lerp(Color(0xFF454A55), if (CommandFlash.ok) MolinaTheme.Good else MolinaTheme.Bad, flash.value)
 
     Box(modifier) {
     Column(Modifier.fillMaxSize()) {
@@ -119,7 +119,7 @@ private fun TerminalContent(modifier: Modifier, onOpenSettings: () -> Unit) {
                 // Terminal Margin Adjustment: pusatkan kolom penuh, sisa lebar dibagi dua sisi.
                 val cell = remember(fontSp) { cellWidthPx(context, fontSp) }
                 val marginDp = if (TerminalPrefs.marginAdjustment && cell > 0f) {
-                    val w = constraints.maxWidth.toFloat() - 2f * with(density) { 6.dp.toPx() } // bingkai viewport 4dp + 1dp + 1dp
+                    val w = constraints.maxWidth.toFloat() - 2f * with(density) { 6.dp.toPx() } // [FRAME-BOLD] bingkai viewport: 4dp luar + 2dp dalam (garis 2dp digambar di dalam batas)
                     val rest = w - floor(w / cell) * cell
                     with(density) { (rest / 2f).toDp() }
                 } else 0.dp
@@ -127,8 +127,8 @@ private fun TerminalContent(modifier: Modifier, onOpenSettings: () -> Unit) {
                     modifier = Modifier.fillMaxSize()
                         .padding(4.dp)
                         .clip(RoundedCornerShape(6.dp))
-                        .border(if (flash.value > 0f) 2.dp else 1.dp, frameColor, RoundedCornerShape(6.dp))
-                        .padding(1.dp)
+                        .border(if (flash.value > 0f) 3.dp else 2.dp, frameColor, RoundedCornerShape(6.dp)) // [FRAME-BOLD]
+                        .padding(2.dp)
                         .padding(horizontal = marginDp),
                     factory = { ctx -> createTerminalView(ctx, mods) },
                     update = { v ->

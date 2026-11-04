@@ -529,7 +529,7 @@ fun Win7OpenDialog(
             (if (asScreen) screenModifier.fillMaxSize().padding(4.dp) else Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 24.dp))
                 .clip(frame)
                 .background(Brush.verticalGradient(listOf(Win7.FrameTop, Win7.FrameBottom)), frame)
-                .border(1.dp, Win7.FrameLine, frame)
+                .border(if (asScreen) 2.dp else 1.dp, if (asScreen) Color(0xFF454A55) else Win7.FrameLine, frame) // [FRAME-BOLD] mode tab Berkas: bingkai 2dp
                 .padding(start = 6.dp, end = 6.dp, bottom = 6.dp)
         ) {
             if (!asScreen) Row(Modifier.fillMaxWidth().height(26.dp), verticalAlignment = Alignment.Top) {
