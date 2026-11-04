@@ -680,6 +680,12 @@ fun Win7OpenDialog(
                 }
                 if (browse) { // [FLOAT-DOCK] [FLOAT-INFO] baris melayang bawah: kartu info (kiri) + pil Debian/menu (kanan)
                     LaunchedEffect(dir.path) { floatHidden = false }
+                    val flHaptic = androidx.compose.ui.platform.LocalHapticFeedback.current // [FLOAT-HAPTIC]
+                    val flHapticReady = remember { booleanArrayOf(false) }
+                    LaunchedEffect(floatHidden) { // tick ringan saat pil muncul/hilang; lewati komposisi pertama
+                        if (flHapticReady[0]) flHaptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                        flHapticReady[0] = true
+                    }
                     val flTarget = selected?.file ?: dir
                     val flFiles = if (multi && picked.isNotEmpty()) picked.map { File(it) } else listOf(flTarget)
                     Row(
