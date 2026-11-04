@@ -113,7 +113,7 @@ private val HdrBottom = Color(0xFF111111)
 private val HdrDim = Color(0xFFC8C8C8)
 
 /**
- * Header ala Windows 7 Aero di atas viewport Terminal: titik status sesi, nomor sesi, zoom font A-/A+,
+ * Header ala Windows 7 Aero di atas viewport Terminal: titik status sesi, nomor sesi, monitor CPU/RAM/jaringan,
  * saklar layar tetap menyala, dan menu utilitas (Ctrl+C, Ctrl+R, simpan transkrip, pengaturan).
  * Extra keys di bawah tidak diubah.
  */
@@ -123,8 +123,6 @@ internal fun TerminalHeader(onOpenSettings: () -> Unit) {
     remember(ctx) { TerminalUi.load(ctx) }
     val total = TerminalSessions.sessions.size
     val idx = TerminalSessions.currentIndex
-    val label = TerminalSessions.labelOf(TerminalSessions.active)
-    val fontSp = TerminalPrefs.fontSp
     val keepOn = TerminalUi.keepScreenOn
     var menu by remember { mutableStateOf(false) }
     var snippets by remember { mutableStateOf(false) }
@@ -153,16 +151,9 @@ internal fun TerminalHeader(onOpenSettings: () -> Unit) {
             "[" + (idx + 1) + "/" + total + "]",
             color = HdrDim, fontSize = 12.sp, fontFamily = FontFamily.Monospace
         )
-        if (label != null) {
-            Spacer(Modifier.width(6.dp))
-            Text(
-                label, color = HdrDim, fontSize = 11.sp, maxLines = 1,
-                overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false)
-            )
-        }
         Spacer(Modifier.weight(1f))
-        HdrBtn("A\u2212", enabled = fontSp > TerminalPrefs.MIN_FONT_SP) { TerminalPrefs.setFontSp(fontSp - 1) }
-        HdrBtn("A+", enabled = fontSp < TerminalPrefs.MAX_FONT_SP) { TerminalPrefs.setFontSp(fontSp + 1) }
+        // [HDR-STATS] Monitor CPU/RAM/jaringan (dulu di bilah pil). Ukuran font tetap lewat cubit dan Pengaturan.
+        PillStats()
         HdrBtn(if (keepOn) "\u2600" else "\u263E") {
             TerminalUi.setKeepScreenOn(ctx, !keepOn)
             Toast.makeText(

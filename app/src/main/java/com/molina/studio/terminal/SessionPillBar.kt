@@ -47,7 +47,7 @@ import com.molina.studio.ui.MolinaTheme
 import java.util.Locale
 
 // [PILL-BAR] Bilah sesi berbentuk pil di bawah header Terminal: pil aktif emas + garis bawah emas + titik hijau
-// status Debian, tombol + untuk sesi baru, dan mini CPU/RAM di kanan (data dari SystemStats.shared).
+// status Debian dan tombol + untuk sesi baru. Mini CPU/RAM/jaringan (PillStats) kini di header [HDR-STATS].
 // Pil aktif hijau [PILL-GREEN] dengan tombol ✕ di sebelah judul; tutup sesi selalu lewat dialog konfirmasi.
 
 private val PillBarHeight = 32.dp
@@ -114,7 +114,6 @@ private fun PillBarContent() {
                 }
             }
         }
-        PillStats()
     }
 
     confirm?.let { i -> CloseSessionDialog(i) { confirm = null } }
@@ -192,7 +191,7 @@ private fun AddPill(enabledLook: Boolean, onClick: () -> Unit) {
 
 /** Mini CPU/RAM; dipisah agar pembaruan tiap detik tidak ikut menyusun ulang daftar pil. */
 @Composable
-private fun PillStats() {
+internal fun PillStats() {
     val ctx = LocalContext.current
     var snap by remember { mutableStateOf<StatsSnapshot?>(null) }
     LaunchedEffect(ctx) { SystemStats.shared(ctx).collect { snap = it } }
