@@ -28,7 +28,7 @@ internal fun AboutMolinaPage(onLicenses: () -> Unit) {
     )
     AboutSection(
         "Molina Terminal",
-        "Terminal dengan lingkungan Debian Linux. Pasang alat seperti Python, JDK, dan FFmpeg, jalankan skrip, lalu edit " +
+        "Terminal dengan lingkungan Debian Linux. Pasang alat seperti Python, open JDK21, Lint dan FFmpeg, juga lainya, jalankan skrip, lalu edit " +
             "kode di editor bawaan (Code) yang punya sorotan sintaks dan pratinjau HTML. Tersedia juga cadangan setelan, " +
             "Recycle Bin, dan penjelajah berkas."
     )
