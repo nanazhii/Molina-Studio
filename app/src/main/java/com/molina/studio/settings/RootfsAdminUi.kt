@@ -48,7 +48,7 @@ private sealed interface Pending {
     data object Reset : Pending
 }
 
-/** [TERM-ROOTFS3] Monogram "M" emas Molina (MolinaTheme.Brand), sama dengan emas Terminal dan Cinema. */
+/** [TERM-ROOTFS3] Monogram "M" hijau Molina (MolinaTheme.Brand), sama dengan hijau Terminal dan Cinema. */
 @Composable
 internal fun W7IconRootfs() {
     val shape = RoundedCornerShape(7.dp)

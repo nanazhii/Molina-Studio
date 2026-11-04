@@ -68,7 +68,7 @@ import java.util.Date
 import java.util.Locale
 
 private val BundleBlue = com.molina.studio.ui.MolinaTheme.Link // [TOKEN-PUSAT]
-private val BundleGreen = Color(0xFF7BC77E)
+private val BundleGreen = com.molina.studio.ui.MolinaTheme.Good // [OK-GOOD]
 private val BundleAmber = Color(0xFFE0B04A)
 
 /** id komponen Debian -> id alat bawaan di Paket (BuiltinTools). */

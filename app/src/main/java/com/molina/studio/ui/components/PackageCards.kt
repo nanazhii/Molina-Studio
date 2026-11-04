@@ -46,7 +46,7 @@ internal enum class PkgState { Unchecked, Current, Outdated, Checking }
 
 private val PkgShape = RoundedCornerShape(10.dp)
 private val PkgBorder = MolinaTheme.PanelBorder // [TOKEN-PUSAT]
-private val PkgGood = MolinaTheme.Detected // sama dengan strip "terdeteksi" pada ToolCard
+private val PkgGood = MolinaTheme.Good // [OK-GOOD] semua indikator OK memakai Good
 private val PkgBlue = MolinaTheme.Link
 
 @Composable
@@ -165,7 +165,7 @@ internal fun PackageActionsBlock(
     }
 }
 
-/** [PAKET-FRAME] Warna strip status kartu: hijau = terdeteksi, abu = tidak/belum diperiksa, emas berdenyut = memeriksa. */
+/** [PAKET-FRAME] Warna strip status kartu: hijau = terdeteksi, abu = tidak/belum diperiksa, hijau Brand berdenyut = memeriksa. */
 @Composable
 internal fun statusStripColor(detected: Boolean, checking: Boolean, checked: Boolean): Color {
     if (checking) {
@@ -179,7 +179,7 @@ internal fun statusStripColor(detected: Boolean, checking: Boolean, checked: Boo
     }
     return when {
         !checked -> MolinaTheme.Idle.copy(alpha = 0.45f)
-        detected -> MolinaTheme.Detected
+        detected -> MolinaTheme.Good
         else -> MolinaTheme.Idle
     }
 }

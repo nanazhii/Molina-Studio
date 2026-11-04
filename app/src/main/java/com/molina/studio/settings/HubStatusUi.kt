@@ -39,7 +39,7 @@ internal class HubRow(
 )
 
 private fun hubToneColor(t: HubTone): Color = when (t) {
-    HubTone.Ok -> Color(0xFF4CC38A)
+    HubTone.Ok -> com.molina.studio.ui.MolinaTheme.Good // [OK-GOOD]
     HubTone.Warn -> Color(0xFFE5A93C)
     HubTone.Bad -> Color(0xFFE5645A)
     HubTone.Idle -> W7D.TextDim

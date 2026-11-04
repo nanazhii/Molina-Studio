@@ -367,7 +367,7 @@ private fun StatusDot(detected: Boolean, checking: Boolean, checked: Boolean = t
         Box(Modifier.size(9.dp).clip(CircleShape).background(com.molina.studio.ui.MolinaTheme.Brand.copy(alpha = alpha)))
     } else {
         if (!checked) Box(Modifier.size(9.dp).clip(CircleShape).border(1.5.dp, com.molina.studio.ui.MolinaTheme.Idle, CircleShape))
-        else Box(Modifier.size(9.dp).clip(CircleShape).background(if (detected) com.molina.studio.ui.MolinaTheme.Detected else com.molina.studio.ui.MolinaTheme.Idle))
+        else Box(Modifier.size(9.dp).clip(CircleShape).background(if (detected) com.molina.studio.ui.MolinaTheme.Good else com.molina.studio.ui.MolinaTheme.Idle))
     }
 }
 
