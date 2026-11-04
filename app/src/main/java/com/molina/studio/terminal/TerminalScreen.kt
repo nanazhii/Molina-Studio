@@ -211,7 +211,7 @@ private fun ExtraKeys(mods: TerminalModifiers, onOpenDrawer: () -> Unit) {
     Column(
         Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp)
             .clip(shape)
-            .background(Color(0xE60B0B0F), shape) // [FLOAT-KEYS] sama dengan pil melayang Penjelajah
+            .background(Color.Black, shape) // [TERM-KEYS-BLACK] hitam pekat solid; bingkai hanya di sisi terluar
             .border(1.dp, if (lit) MolinaTheme.Gold else MolinaTheme.CardLine, shape)
             .padding(3.dp)
     ) {
@@ -300,7 +300,7 @@ private fun KeyButton(
     val bg = when {
         locked -> gold.copy(alpha = 0.40f)
         active -> gold.copy(alpha = 0.22f)
-        else -> Color.White.copy(alpha = 0.05f)
+        else -> Color.Transparent // [TERM-KEYS-BLACK] tombol diam tanpa tile abu-abu
     }
     Box(
         modifier = Modifier
