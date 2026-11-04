@@ -50,9 +50,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.molina.studio.ui.MolinaTheme
 
-private val DotIdle = Color(0xFF4CAF50)
-private val DotBusy = Color(0xFFFFC107)
+private val DotIdle = MolinaTheme.Good
+private val DotBusy = MolinaTheme.Warn
 
 /** Ikon ↻ di bilah judul Pengaturan; titik hijau = bersih, kuning = ada proses aktif. */
 @Composable

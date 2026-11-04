@@ -43,6 +43,7 @@ import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.molina.studio.ui.MolinaTheme
 
 /** Ikon Recycle Bin gaya Win7: tong kaca abu-abu dengan tutup dan celah. */
 @Composable
@@ -147,7 +148,7 @@ internal fun W7BinDialog(volumes: List<File>, onDismiss: () -> Unit, onChanged: 
         }
         Spacer(Modifier.height(8.dp))
         if (msg.isNotEmpty()) {
-            Text(msg, color = if (ok) Color(0xFF4CAF50) else Color(0xFFFF8A80), fontSize = 12.sp)
+            Text(msg, color = if (ok) MolinaTheme.Good else MolinaTheme.Bad, fontSize = 12.sp)
             Spacer(Modifier.height(8.dp))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -173,7 +174,7 @@ internal fun W7BinDialog(volumes: List<File>, onDismiss: () -> Unit, onChanged: 
                 color = Win7.Ink, fontSize = 13.sp
             )
             Spacer(Modifier.height(8.dp))
-            Text("Tidak dapat dibatalkan.", color = Color(0xFFFF8A80), fontSize = 12.sp)
+            Text("Tidak dapat dibatalkan.", color = MolinaTheme.Bad, fontSize = 12.sp)
             Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                 Win7Button("Hapus permanen", isDefault = true) {

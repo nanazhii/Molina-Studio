@@ -34,6 +34,7 @@ import java.io.File
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.molina.studio.ui.MolinaTheme
 
 /** [ARCHIVE] Satu baris isi arsip pada satu level folder: [key] = kunci seleksi (folder berakhiran "/"). */
 internal class ArcChild(val key: String, val label: String, val isDir: Boolean, val size: Long)
@@ -123,7 +124,7 @@ internal fun ArchiveExtractDialog(
         Spacer(Modifier.height(2.dp))
         when {
             err != null -> {
-                Text(err ?: "", color = Color(0xFFFF8A80), fontSize = 12.sp)
+                Text(err ?: "", color = MolinaTheme.Bad, fontSize = 12.sp)
                 Spacer(Modifier.height(12.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { Win7Button("Tutup", onClick = onClose) }
             }

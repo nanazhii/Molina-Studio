@@ -26,6 +26,7 @@ import com.molina.studio.terminal.SystemStats
 import java.util.Locale
 import kotlin.math.ln
 import com.molina.studio.terminal.Level as LoadLevel
+import com.molina.studio.ui.MolinaTheme
 
 private val MonLocale: Locale = Locale("id", "ID")
 private const val HISTORY_POINTS = 60
@@ -46,7 +47,7 @@ private fun MonitorMeter(label: String, value: String, fraction: Float, top: Col
 private fun levelColors(l: LoadLevel): Pair<Color, Color> = when (l) {
     LoadLevel.Normal -> Color(0xFF7BE87A) to Color(0xFF1E9E1A)
     LoadLevel.Warn -> Color(0xFFFFE680) to Color(0xFFE0A800)
-    LoadLevel.High -> Color(0xFFFF8A80) to Color(0xFFC4392B)
+    LoadLevel.High -> MolinaTheme.Bad to Color(0xFFC4392B)
 }
 
 /** Skala logaritmik: 1 KB/s ~ 6%, 1 MB/s ~ 60%, 100 MB/s = penuh. */

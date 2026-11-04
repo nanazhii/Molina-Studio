@@ -263,7 +263,7 @@ internal fun TvBrowser(
                                 )
                                 Text(
                                     if (confirmClear) "Ketuk lagi untuk hapus" else "Hapus riwayat",
-                                    color = if (confirmClear) Color(0xFFFF8A80) else Win7.TextDim, fontSize = 12.sp,
+                                    color = if (confirmClear) MolinaTheme.Bad else Win7.TextDim, fontSize = 12.sp,
                                     modifier = Modifier.clip(RoundedCornerShape(10.dp))
                                         .clickable {
                                             if (confirmClear) { confirmClear = false; focus = null; onClearRecent() } else confirmClear = true
@@ -426,7 +426,7 @@ private fun TvInfoPanel(
             Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     ops.message + (if (ops.busy) ops.progress?.let { " " + (it * 100).toInt() + "%" }.orEmpty() else ""),
-                    color = if (ops.ok) MolinaTheme.Brand else Color(0xFFFF8A80), fontSize = 12.sp,
+                    color = if (ops.ok) MolinaTheme.Brand else MolinaTheme.Bad, fontSize = 12.sp,
                     modifier = Modifier.weight(1f), maxLines = 3, overflow = TextOverflow.Ellipsis
                 )
                 if (ops.busy) {
@@ -496,7 +496,7 @@ private fun TvInfoPanel(
 
 @Composable
 private fun TvAction(label: String, danger: Boolean = false, onClick: () -> Unit) {
-    val c = if (danger) Color(0xFFFF8A80) else Win7.Ink
+    val c = if (danger) MolinaTheme.Bad else Win7.Ink
     Text(
         label, color = c, fontSize = 11.sp, maxLines = 1,
         modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(Color(0x14FFFFFF))

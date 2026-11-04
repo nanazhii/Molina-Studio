@@ -17,6 +17,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.molina.studio.cinema.Win7
+import com.molina.studio.ui.MolinaTheme
 
 internal enum class RunState { Running, Ok, Failed, Stopped }
 
@@ -81,7 +82,7 @@ internal fun RunProgressPanel(phase: String, fraction: Float?, state: RunState, 
     val (top, bottom, accent) = when (state) {
         RunState.Running -> Triple(Color(0xFF8FC4EE), Color(0xFF2D6DB5), Color(0xFF3C7FB1))
         RunState.Ok -> Triple(Color(0xFF7BE87A), Color(0xFF1E9E1A), Color(0xFF1E9E1A))
-        RunState.Failed -> Triple(Color(0xFFFF8A80), Color(0xFFC4392B), Color(0xFFC4392B))
+        RunState.Failed -> Triple(MolinaTheme.Bad, Color(0xFFC4392B), Color(0xFFC4392B))
         RunState.Stopped -> Triple(Color(0xFFFFE680), Color(0xFFE0A800), Color(0xFFE0A800))
     }
     val bar = if (state == RunState.Running) fraction else 1f

@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.molina.studio.ui.MolinaTheme
 
 /**
  * Kotak klik dengan bingkai tipis ala Windows 7: bingkai abu tipis saat diam; saat ditekan atau
@@ -72,7 +73,7 @@ internal fun W7Badge(text: String, aero: Boolean = false, gold: Boolean = false)
                 Brush.verticalGradient(
                     if (gold) listOf(Color(0xFFFFDC85), com.molina.studio.ui.MolinaTheme.Brand)
                     else if (aero) listOf(Color(0xFF7FC4FF), Color(0xFF1B6FC2))
-                    else listOf(Color(0xFFFF8A80), Color(0xFFC4392B))
+                    else listOf(MolinaTheme.Bad, Color(0xFFC4392B))
                 ),
                 shape
             )

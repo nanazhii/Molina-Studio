@@ -249,7 +249,7 @@ internal fun W7ZipDialog(
         val l = listing
         val e = err
         when {
-            e != null -> Text(e, color = Color(0xFFFF8A80), fontSize = 12.sp)
+            e != null -> Text(e, color = MolinaTheme.Bad, fontSize = 12.sp)
             l == null -> Text("Membaca isi ZIP\u2026", color = Win7.TextDim, fontSize = 12.sp)
             else -> {
                 Text(
@@ -330,7 +330,7 @@ internal fun W7ZipDialog(
         }
         if (status.isNotEmpty()) {
             Spacer(Modifier.height(4.dp))
-            Text(status, color = if (statusOk) Win7.NavHeader else Color(0xFFFF8A80), fontSize = 12.sp)
+            Text(status, color = if (statusOk) Win7.NavHeader else MolinaTheme.Bad, fontSize = 12.sp)
         }
         Spacer(Modifier.height(10.dp))
         // [ZIP-LAYOUT-BTN] dua baris, tiap tombol berbobot sama: label tidak lagi terpotong
@@ -342,7 +342,7 @@ internal fun W7ZipDialog(
         Spacer(Modifier.height(6.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             Win7Button("Tempel", Modifier.weight(1f), enabled = listing != null && !busy, compact = true) { addFromClip(null) }
-            Win7Button(if (delArm != null) "Yakin?" else "Hapus", Modifier.weight(1f), enabled = listing != null && !busy && (picked != null || cwd.isNotEmpty()), accent = if (delArm != null) Color(0xFFFF8A80) else null, compact = true) { deleteTarget() }
+            Win7Button(if (delArm != null) "Yakin?" else "Hapus", Modifier.weight(1f), enabled = listing != null && !busy && (picked != null || cwd.isNotEmpty()), accent = if (delArm != null) MolinaTheme.Bad else null, compact = true) { deleteTarget() }
             Win7Button("Ekstrak", Modifier.weight(1f), enabled = listing != null && !busy, compact = true) { onExtract() }
             Win7Button("Tutup", Modifier.weight(1f), compact = true) { tryClose() }
         }

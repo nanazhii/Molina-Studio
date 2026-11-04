@@ -34,7 +34,7 @@ Kontras dihitung terhadap `Background` (`#0A0A0F`); target minimal 4,5:1 untuk t
 |---|---|---|
 | `Brand` | `#2ECC71` | Kursor, tautan, seleksi, tombol aktif, rail toolbar |
 | `BrandSoft` | `#7BDCA0` | Judul pratinjau, kode inline, lencana tab |
-| `Warning` | `#FFB300` | Peringatan di Problems (bukan aksen merek) |
+| `Warning` | `#FFD54F` | Peringatan di Problems (= `MolinaTheme.Warn`, bukan aksen merek) |
 | `Danger` | `#E5484D` | Kesalahan, aksi destruktif |
 | `Clean` | `#3FB950` | Indikator berkas belum berubah |
 | `FolderYellow` | `#E9B949` | Folder dan penanda JSON (kuning konvensional) |
@@ -88,7 +88,7 @@ Warna sintaks (`Json*`, `Ext*`) dan nomor baris terakota adalah identitas editor
 
 ## Utang desain yang diketahui
 
-- Dua amber berbeda: `MolinaTheme.Warn` `#FFD54F` dan `CodeColors.Warning` `#FFB300`.
-- Tiga merah berbeda: `Bad` `#FF8A80`, `Danger` `#E5484D`, `MenuDanger` `#FF5252`.
+- Merah punya dua peran yang disengaja: `Bad` `#FF8A80` (teks/ikon status, app) dan `Danger` `#E5484D` (aksi destruktif, editor). `MenuDanger` dan `KeyRed` (`#FF5252`) masih terpisah; satukan ke `Danger` bila tampilan menu dan tombol boleh disesuaikan.
+- Hijau status di luar token: `CodeColors.Clean` `#3FB950` (indikator berkas) dan `KeyGreen` `#00E676` (tombol COPY/PASTE).
 - `vault` memakai amber `#FFB300` sendiri (khusus peringatan) dan belum memakai token ini.
 - Aksen biru `Accent` privat di `CinemaResults.kt` dan `W7D.Accent` belum dipetakan ke token.

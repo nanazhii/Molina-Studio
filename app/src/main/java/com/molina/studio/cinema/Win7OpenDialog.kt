@@ -942,7 +942,7 @@ private fun W7Toast(
     modifier: Modifier = Modifier
 ) {
     val shape = RoundedCornerShape(6.dp)
-    val tone = if (ok) Color(0xFF4CAF50) else Color(0xFFFF8A80)
+    val tone = if (ok) MolinaTheme.Good else MolinaTheme.Bad
     Row(
         modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp)
             .clip(shape).background(Color(0xF2202830), shape).border(1.dp, tone.copy(alpha = 0.6f), shape)

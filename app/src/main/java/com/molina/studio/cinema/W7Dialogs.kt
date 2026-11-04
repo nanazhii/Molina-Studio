@@ -48,6 +48,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import com.molina.core.common.TrashBin
+import com.molina.studio.ui.MolinaTheme
 
 // [SPLIT-DIALOGS] Dialog kecil Penjelajah: nama, kata sandi, konfirmasi hapus, info, plus tapToFocus; dipecah dari Win7OpenDialog.kt.
 
@@ -133,7 +134,7 @@ internal fun W7PasswordDialog(
         }
         if (hint.isNotEmpty()) {
             Spacer(Modifier.height(6.dp))
-            Text(hint, color = Color(0xFFFF8A80), fontSize = 12.sp)
+            Text(hint, color = MolinaTheme.Bad, fontSize = 12.sp)
         }
         Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth().clickable { show = !show }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -166,7 +167,7 @@ internal fun W7ConfirmDialog(files: List<File>, permanent: Boolean, onCancel: ()
             if (files.size > 4) Text("\u2022 \u2026 dan " + (files.size - 4) + " lainnya", color = Win7.TextDim, fontSize = 12.sp)
         }
         Spacer(Modifier.height(8.dp))
-        if (permanent) Text("Penghapusan permanen tidak dapat dibatalkan.", color = Color(0xFFFF8A80), fontSize = 12.sp)
+        if (permanent) Text("Penghapusan permanen tidak dapat dibatalkan.", color = MolinaTheme.Bad, fontSize = 12.sp)
         else Text("Bisa dipulihkan dari Recycle Bin selama " + TrashBin.RETAIN_DAYS + " hari.", color = Win7.TextDim, fontSize = 12.sp)
         Spacer(Modifier.height(12.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
@@ -232,7 +233,7 @@ internal fun W7InfoDialog(files: List<File>, debian: Boolean?, onDismiss: () -> 
                         }
                     } else {
                         Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                            if (shaErr.isNotEmpty()) Text(shaErr, color = Color(0xFFFF8A80), fontSize = 11.sp, modifier = Modifier.weight(1f))
+                            if (shaErr.isNotEmpty()) Text(shaErr, color = MolinaTheme.Bad, fontSize = 11.sp, modifier = Modifier.weight(1f))
                             Win7Button(
                                 if (shaBusy) "Menghitung " + (shaPct * 100).toInt() + "%" else "Hitung SHA-256",
                                 enabled = !shaBusy

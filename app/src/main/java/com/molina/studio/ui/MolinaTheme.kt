@@ -1,6 +1,7 @@
 package com.molina.studio.ui
 
 import androidx.compose.ui.graphics.Color
+import com.molina.studio.ui.MolinaTheme
 
 /** Token desain Molina: satu sumber warna merek dan status untuk seluruh UI dan shell. */
 object MolinaTheme {
@@ -21,7 +22,7 @@ object MolinaTheme {
     val Cinema = Color(0xFFB388FF)
     /** Kecepatan jaringan di bilah sesi Terminal: unduh biru, unggah merah. */
     val NetDown = Color(0xFF82B1FF)
-    val NetUp = Color(0xFFFF8A80)
+    val NetUp = Bad
     val Muted = Color(0xFF9AA0A6)
     val CardBg = Color(0xFF14161B)
     val CardLine = Color(0xFF2A2D35)

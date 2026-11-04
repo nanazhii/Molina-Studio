@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.io.File
+import com.molina.studio.ui.MolinaTheme
 
 /** [ARCHIVE2] Tombol pilihan format: terpilih = warna seleksi Win7. */
 @Composable
@@ -159,7 +160,7 @@ internal fun ArchiveCompressDialog(
                 Text(fmt.ext, color = Win7.TextDim, fontSize = 13.sp, maxLines = 1)
             }
             if (nameErr != null) {
-                Text(nameErr, color = Color(0xFFFF8A80), fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp))
+                Text(nameErr, color = MolinaTheme.Bad, fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp))
             } else {
                 Text("Bila nama sudah ada, hasil diberi nomor (1), (2), \u2026", color = Win7.TextDim, fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp))
             }
@@ -211,7 +212,7 @@ internal fun ArchiveCompressDialog(
                     if (pw.isNotEmpty()) {
                         Text(
                             "Kekuatan: " + pwVerdict.strength.label,
-                            color = if (pwVerdict.acceptable) Win7.TextDim else Color(0xFFFF8A80),
+                            color = if (pwVerdict.acceptable) Win7.TextDim else MolinaTheme.Bad,
                             fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp)
                         )
                     }
@@ -221,7 +222,7 @@ internal fun ArchiveCompressDialog(
                         }
                     }
                     if (pwHint.isNotEmpty()) {
-                        Text(pwHint, color = Color(0xFFFF8A80), fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+                        Text(pwHint, color = MolinaTheme.Bad, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
                     }
                     Row(Modifier.fillMaxWidth().clickable { show = !show }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(if (show) "[x]" else "[  ]", color = Win7.Ink, fontSize = 12.sp)

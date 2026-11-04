@@ -1,6 +1,7 @@
 package com.molina.code.ui
 
 import androidx.compose.ui.graphics.Color
+import com.molina.studio.ui.MolinaTheme
 
 /**
  * Token warna Code Editor "Molina Cinema". Satu-satunya sumber warna untuk layar Code.
@@ -30,7 +31,7 @@ object CodeColors {
     // Aksen (maksimal dua di toolbar: Brand dan Danger)
     val Brand = Color(0xFF2ECC71)
     val BrandSoft = Color(0xFF7BDCA0)
-    val Warning = Color(0xFFFFB300)       // peringatan tetap amber, bukan aksen merek
+    val Warning = Color(0xFFFFD54F)       // = MolinaTheme.Warn; peringatan tetap amber, bukan aksen merek
     val FolderYellow = Color(0xFFE9B949)
     val Danger = Color(0xFFE5484D)
     val Clean = Color(0xFF3FB950)               // indikator berkas sama dengan isi awal (hijau)

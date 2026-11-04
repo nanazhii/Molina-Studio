@@ -46,7 +46,7 @@ import com.molina.studio.ui.SwipeDirection
 import com.molina.studio.ui.onHorizontalSwipe
 
 private val Brand = MolinaTheme.Brand
-private val CloseRed = Color(0xFFFF8A80)
+private val CloseRed = MolinaTheme.Bad
 private val DrawerWidth = 240.dp
 private val DrawerButtonWidth = 100.dp
 private val DrawerButtonTextSp = 8.sp
