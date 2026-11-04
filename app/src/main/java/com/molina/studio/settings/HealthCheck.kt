@@ -20,7 +20,10 @@ import java.util.concurrent.TimeUnit
 /** [DIAG-CHECK] Tingkat hasil pemeriksaan; urutan ordinal dipakai untuk mencari yang terburuk. */
 internal enum class CheckLevel(val glyph: String) { Ok("\u2713"), Warn("\u26A0"), Bad("\u2717") }
 
-internal class CheckResult(val name: String, val level: CheckLevel, val detail: String)
+/** [DIAG-ACTION] Tindakan perbaikan yang bisa ditawarkan di samping hasil bermasalah. */
+internal enum class CheckAction { ManageDebian, GrantPermission }
+
+internal class CheckResult(val name: String, val level: CheckLevel, val detail: String, val action: CheckAction? = null)
 
 /**
  * Pemeriksaan nyata (bukan sekadar pengumpulan data): PRoot, rootfs Debian, Debian benar-benar bisa dijalankan,
@@ -31,6 +34,7 @@ internal class CheckResult(val name: String, val level: CheckLevel, val detail: 
  */
 internal object HealthCheck {
     private const val DEBIAN_TIMEOUT_S = 8L
+    private const val NET_TIMEOUT_S = 4L
     private const val LOW_FREE_MB = 500L
     private const val CRITICAL_FREE_MB = 100L
     private const val DEEP_TTL_MS = 10 * 60 * 1000L
@@ -47,7 +51,10 @@ internal object HealthCheck {
         val list = buildList {
             add(proot(app))
             add(rootfs(app))
-            if (deep) add(debianRuns(app))
+            if (deep) {
+                add(debianRuns(app))
+                add(network())
+            }
             add(storage(app))
             add(freeSpace(app))
             add(mpv(app))
@@ -89,9 +96,9 @@ internal object HealthCheck {
                 if (File(RootfsManager.rootfsDir(ctx), "usr/bin").isDirectory)
                     CheckResult("Debian", CheckLevel.Ok, "rootfs siap, isi lengkap")
                 else
-                    CheckResult("Debian", CheckLevel.Bad, "penanda siap, tetapi usr/bin tidak ada; pulihkan atau pasang ulang")
-            RootfsState.Missing -> CheckResult("Debian", CheckLevel.Warn, "belum terpasang")
-            is RootfsState.Failed -> CheckResult("Debian", CheckLevel.Bad, "gagal: ${st.message.take(120)}")
+                    CheckResult("Debian", CheckLevel.Bad, "penanda siap, tetapi usr/bin tidak ada; pulihkan atau pasang ulang", CheckAction.ManageDebian)
+            RootfsState.Missing -> CheckResult("Debian", CheckLevel.Warn, "belum terpasang", CheckAction.ManageDebian)
+            is RootfsState.Failed -> CheckResult("Debian", CheckLevel.Bad, "gagal: ${st.message.take(120)}", CheckAction.ManageDebian)
             else -> CheckResult("Debian", CheckLevel.Warn, "sedang diproses atau dikelola")
         }
     }
@@ -122,7 +129,7 @@ internal object HealthCheck {
         val proc = try {
             pb.start()
         } catch (e: Exception) {
-            return CheckResult(name, CheckLevel.Bad, "gagal memulai proot: ${e.javaClass.simpleName}")
+            return CheckResult(name, CheckLevel.Bad, "gagal memulai proot: ${e.javaClass.simpleName}", CheckAction.ManageDebian)
         }
         try { proc.outputStream.close() } catch (e: Exception) { }
         val out = StringBuilder()
@@ -144,7 +151,7 @@ internal object HealthCheck {
         val ms = (System.nanoTime() - t0) / 1_000_000
         if (!done) {
             proc.destroyForcibly()
-            return CheckResult(name, CheckLevel.Bad, "proot tidak merespons dalam $DEBIAN_TIMEOUT_S dtk (dihentikan)")
+            return CheckResult(name, CheckLevel.Bad, "proot tidak merespons dalam $DEBIAN_TIMEOUT_S dtk (dihentikan)", CheckAction.ManageDebian)
         }
         reader.join(500)
         val text = synchronized(out) { out.toString() }
@@ -153,13 +160,31 @@ internal object HealthCheck {
         return if (code == 0 && rest.contains("molina-ok")) {
             CheckResult(name, CheckLevel.Ok, "proot menjalankan /bin/sh ($ms ms)")
         } else {
-            CheckResult(name, CheckLevel.Bad, "keluar kode $code: ${rest.trim().lineSequence().firstOrNull().orEmpty().take(100)}")
+            CheckResult(name, CheckLevel.Bad, "keluar kode $code: ${rest.trim().lineSequence().firstOrNull().orEmpty().take(100)}", CheckAction.ManageDebian)
+        }
+    }
+
+    /** [DIAG-NET] Pemetaan DNS host unduhan yt-dlp (tanpa koneksi data). Gagal hanya memberi peringatan: bisa saja offline. */
+    private fun network(): CheckResult {
+        val name = "Jaringan"
+        val host = runCatching { java.net.URI(YtdlpCommand.BASE).host }.getOrNull() ?: "github.com"
+        val ex = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "molina-health-dns").apply { isDaemon = true } }
+        val t0 = System.nanoTime()
+        return try {
+            ex.submit<Boolean> { java.net.InetAddress.getByName(host); true }.get(NET_TIMEOUT_S, TimeUnit.SECONDS)
+            CheckResult(name, CheckLevel.Ok, "DNS $host berhasil (${(System.nanoTime() - t0) / 1_000_000} ms)")
+        } catch (e: java.util.concurrent.TimeoutException) {
+            CheckResult(name, CheckLevel.Warn, "DNS $host lambat (lebih dari $NET_TIMEOUT_S dtk)")
+        } catch (e: Exception) {
+            CheckResult(name, CheckLevel.Warn, "tidak bisa memetakan $host (offline?)")
+        } finally {
+            ex.shutdownNow()
         }
     }
 
     private fun storage(ctx: Context): CheckResult {
         val granted = ctx.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
-        if (!granted) return CheckResult("Penyimpanan", CheckLevel.Bad, "izin penyimpanan belum diberikan")
+        if (!granted) return CheckResult("Penyimpanan", CheckLevel.Bad, "izin penyimpanan belum diberikan", CheckAction.GrantPermission)
         val root = AppPaths.get(ctx).appRoot
         return when {
             !root.isDirectory -> CheckResult("Penyimpanan", CheckLevel.Warn, "${root.path} belum dibuat")

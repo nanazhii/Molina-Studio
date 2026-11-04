@@ -6,6 +6,7 @@ import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -35,6 +36,9 @@ import com.molina.studio.ui.MolinaTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 private fun levelColor(l: CheckLevel): Color = when (l) {
     CheckLevel.Ok -> MolinaTheme.Good // mint #69F0AE
@@ -43,7 +47,47 @@ private fun levelColor(l: CheckLevel): Color = when (l) {
 }
 
 private suspend fun runChecks(ctx: Context): List<CheckResult> =
-    withContext(Dispatchers.IO) { runCatching { HealthCheck.run(ctx) }.getOrDefault(emptyList()) }
+    withContext(Dispatchers.IO) {
+        runCatching { HealthCheck.run(ctx) }.getOrDefault(emptyList())
+            .also { if (it.isNotEmpty()) runCatching { HealthHistory.add(ctx, it) } }
+    }
+
+/** [DIAG-ACTION] Buka layar izin aplikasi di Setelan Android (satu-satunya tempat izin storage bisa diberikan ulang). */
+private fun openAppSettings(ctx: Context) {
+    try {
+        ctx.startActivity(
+            android.content.Intent(
+                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                android.net.Uri.fromParts("package", ctx.packageName, null)
+            ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+    } catch (e: Exception) {
+        Toast.makeText(ctx, "Buka Setelan Android > Aplikasi > Molina > Izin", Toast.LENGTH_LONG).show()
+    }
+}
+
+private val HISTORY_TIME = SimpleDateFormat("dd MMM HH:mm", Locale("id", "ID"))
+
+/** [DIAG-HISTORY] Lima pemeriksaan terakhir: titik berwarna, waktu, dan ringkasan. */
+@Composable
+private fun HistoryCard(history: List<HistoryEntry>) {
+    val shape = RoundedCornerShape(10.dp)
+    Column(
+        Modifier.fillMaxWidth().clip(shape).background(MolinaTheme.CardBg).border(1.dp, MolinaTheme.CardLine, shape)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    ) {
+        if (history.isEmpty()) Text("Belum ada riwayat.", color = MolinaTheme.Muted, fontSize = 11.sp)
+        history.forEach { h ->
+            Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(7.dp).clip(CircleShape).background(levelColor(h.level)))
+                Spacer(Modifier.width(8.dp))
+                Text(HISTORY_TIME.format(Date(h.time)), color = MolinaTheme.Muted, fontSize = 11.sp)
+                Spacer(Modifier.width(8.dp))
+                Text(h.summary, color = MolinaTheme.OnBackground, fontSize = 11.sp)
+            }
+        }
+    }
+}
 
 /** [DIAG-BADGE] Lencana kecil di tautan Diagnostik (halaman Info): mint = sehat, kuning = perlu dicek, merah = bermasalah. */
 @Composable
@@ -68,7 +112,7 @@ internal fun DiagBadge(level: CheckLevel?, modifier: Modifier = Modifier) {
 
 /** [DIAG-CARD] Kartu hasil pemeriksaan: header berwarna sesuai kondisi terburuk, baris dengan penanda warna di kiri. */
 @Composable
-private fun HealthCard(checks: List<CheckResult>?) {
+private fun HealthCard(checks: List<CheckResult>?, onAction: (CheckAction) -> Unit = {}) {
     val shape = RoundedCornerShape(10.dp)
     val overall = checks?.takeIf { it.isNotEmpty() }?.let { HealthCheck.worst(it) }
     val head = overall?.let { levelColor(it) } ?: MolinaTheme.Muted
@@ -92,6 +136,14 @@ private fun HealthCard(checks: List<CheckResult>?) {
                     Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
                         Text(r.name, color = MolinaTheme.OnBackground, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                         Text(r.detail, color = MolinaTheme.Muted, fontSize = 11.sp)
+                        val act = r.action
+                        if (act != null && r.level != CheckLevel.Ok) {
+                            Text(
+                                if (act == CheckAction.ManageDebian) "Kelola Debian" else "Beri izin",
+                                color = c, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                                modifier = Modifier.clickable { onAction(act) }.padding(top = 6.dp, bottom = 2.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -105,22 +157,35 @@ private fun HealthCard(checks: List<CheckResult>?) {
  * BugReport): salin info debug, laporan bug (.txt), dan ZIP diagnostik sekali klik. Semuanya memuat ID laporan.
  */
 @Composable
-internal fun DiagnosticsDialog(onDismiss: () -> Unit) {
+internal fun DiagnosticsDialog(onManageDebian: () -> Unit = {}, onDismiss: () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf(false) }
     var last by remember { mutableStateOf<String?>(null) }
     var lastHash by remember { mutableStateOf<String?>(null) }
     var checks by remember { mutableStateOf<List<CheckResult>?>(null) }
+    var history by remember { mutableStateOf<List<HistoryEntry>>(emptyList()) }
+    var showHistory by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) { checks = runChecks(ctx) }
+    val refresh: suspend () -> Unit = {
+        checks = null
+        checks = runChecks(ctx)
+        history = withContext(Dispatchers.IO) { runCatching { HealthHistory.load(ctx) }.getOrDefault(emptyList()) }
+    }
+    val onAction: (CheckAction) -> Unit = { a ->
+        when (a) {
+            CheckAction.ManageDebian -> onManageDebian()
+            CheckAction.GrantPermission -> openAppSettings(ctx)
+        }
+    }
+    LaunchedEffect(Unit) { refresh() }
 
     AlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
         title = { Text("Diagnostik dan laporan bug") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                HealthCard(checks)
+                HealthCard(checks, onAction)
                 Spacer(Modifier.height(8.dp))
                 Text(
                     "URL hanya memuat skema dan host, token disamarkan. Setiap laporan punya ID (MOL-tanggal-jam-kode) " +
@@ -130,8 +195,13 @@ internal fun DiagnosticsDialog(onDismiss: () -> Unit) {
                 TextButton(
                     enabled = !busy,
                     modifier = Modifier.fillMaxWidth(),
-                    onClick = { scope.launch { checks = null; checks = runChecks(ctx) } }
+                    onClick = { scope.launch { refresh() } }
                 ) { Text("Periksa ulang") }
+                TextButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { showHistory = !showHistory }
+                ) { Text(if (showHistory) "Sembunyikan riwayat" else "Riwayat pemeriksaan (${history.size})") }
+                if (showHistory) HistoryCard(history)
                 TextButton(
                     enabled = !busy,
                     modifier = Modifier.fillMaxWidth(),
