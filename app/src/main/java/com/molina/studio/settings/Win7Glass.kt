@@ -50,19 +50,20 @@ import com.molina.studio.cinema.Win7
 import com.molina.studio.ui.MolinaTheme
 import kotlin.math.hypot
 
-/** Pilihan tampilan kaca/RGB (SharedPreferences molina_ui). Animasi RGB bisa dimatikan untuk hemat baterai. */
+/** Pilihan tampilan kaca/RGB (SharedPreferences molina_ui). Animasi RGB mati secara bawaan (hemat baterai); pengguna bisa menyalakannya. */
 internal object GlassPrefs {
     private const val PREFS = "molina_ui"
     private const val KEY_RGB = "rgb_anim"
+    private const val DEFAULT_RGB = false // [RGB-DEFAULT-OFF] nilai tersimpan milik pengguna tidak diubah
     private var loaded = false
 
-    var rgb by mutableStateOf(true)
+    var rgb by mutableStateOf(DEFAULT_RGB)
         private set
 
     fun load(ctx: Context) {
         if (loaded) return
         loaded = true
-        rgb = ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_RGB, true)
+        rgb = ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_RGB, DEFAULT_RGB)
     }
 
     fun setRgb(ctx: Context, v: Boolean) {

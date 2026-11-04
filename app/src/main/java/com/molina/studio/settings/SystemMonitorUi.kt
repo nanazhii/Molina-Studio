@@ -106,7 +106,7 @@ internal fun SystemMonitorPage() {
     Spacer(Modifier.height(10.dp))
     SwitchRow(
         "Animasi frame RGB",
-        "Matikan untuk menghemat baterai; bingkai menjadi emas-biru statis. Berlaku juga di halaman Unduhan.",
+        "Bingkai berwarna yang bergerak. Mati (bawaan) lebih hemat baterai, bingkai menjadi emas-biru statis. Berlaku juga di halaman Unduhan dan beranda Cinema.",
         GlassPrefs.rgb
     ) { GlassPrefs.setRgb(ctx, it) }
     Text(
