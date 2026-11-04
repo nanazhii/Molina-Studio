@@ -1,5 +1,12 @@
 package com.molina.studio.settings
 
+import com.molina.studio.ui.components.PackageDivider
+import com.molina.studio.ui.components.PackageGroupCard
+import com.molina.studio.ui.components.PackageInfoRow
+import com.molina.studio.ui.components.PackageSectionHeader
+import com.molina.studio.ui.components.PackageStatusCard
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import android.os.Environment
 import android.os.StatFs
 import androidx.compose.foundation.layout.Column
@@ -101,17 +108,6 @@ private fun cleanAppCache(ctx: android.content.Context): Long {
     return before
 }
 
-@Composable
-private fun StorageRow(title: String, value: String) {
-    Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
-        Text(title, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium)
-        Text(
-            value, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-            style = MaterialTheme.typography.bodySmall
-        )
-    }
-}
-
 /** Halaman Penyimpanan: ukuran Debian, cache, Recycle Bin, folder kerja, dan pembersihan aman. */
 @Composable
 internal fun StoragePage(onOpenPackages: () -> Unit) {
@@ -127,42 +123,59 @@ internal fun StoragePage(onOpenPackages: () -> Unit) {
         info = withContext(Dispatchers.IO) { measure(ctx) { !isActive } }
     }
     val i = info
-    Category("Ruang penyimpanan")
-    if (i == null) {
-        StorageRow("Menghitung ukuran...", "Debian berukuran besar, mohon tunggu beberapa detik.")
-    } else {
-        StorageRow("Penyimpanan internal tersisa", fmtBytes(i.free) + " dari " + fmtBytes(i.total))
-        StorageRow("Sistem Debian (rootfs)", fmtBytes(i.rootfs))
-        StorageRow("File unduhan program Debian (cache apt)", fmtBytes(i.aptCache))
-        StorageRow("Cache aplikasi", fmtBytes(i.appCache))
-        StorageRow("Folder Molina (/sdcard/" + TerminalSessions.WORKSPACE_DIR + ")", fmtBytes(i.workspace))
-        StorageRow("Recycle Bin", fmtBytes(i.trash))
-    }
-    Category("Bersihkan")
-    SettingsItem(
-        "Pusat Pembersihan Cerdas",
-        "Pilih kategori, lihat estimasi ruang, lalu bersihkan sekaligus: cache, sisa unduhan, laporan lama, file sementara."
-    ) { showCenter = true }
-    // [CACHE-APT-PAKET] cache apt dibersihkan dari Paket > Debian (apt); di sini hanya tautan
-    SettingsItem(
-        "Sisa program Debian yang tidak terpakai",
-        "Dibersihkan dari Paket > Program Debian. Juga ikut dibersihkan di Pusat Pembersihan Cerdas."
-    ) { onOpenPackages() }
-    SettingsItem(
-        "Bersihkan cache aplikasi",
-        "Hapus berkas sementara aplikasi. Sesi Terminal yang berjalan tidak terganggu."
-    ) {
-        scope.launch {
-            val freed = withContext(Dispatchers.IO) { cleanAppCache(ctx) }
-            msg = "Cache aplikasi dibersihkan: " + fmtBytes(freed) + " dibebaskan."
-            tick++
+    PackageSectionHeader("Ruang penyimpanan") // [STORAGE-KARTU]
+    PackageGroupCard {
+        if (i == null) {
+            PackageInfoRow("Menghitung ukuran...", "Debian berukuran besar, mohon tunggu beberapa detik.")
+        } else {
+            PackageInfoRow("Penyimpanan internal tersisa", fmtBytes(i.free) + " dari " + fmtBytes(i.total))
+            PackageDivider()
+            PackageInfoRow("Sistem Debian (rootfs)", fmtBytes(i.rootfs))
+            PackageDivider()
+            PackageInfoRow("File unduhan program Debian (cache apt)", fmtBytes(i.aptCache))
+            PackageDivider()
+            PackageInfoRow("Cache aplikasi", fmtBytes(i.appCache))
+            PackageDivider()
+            PackageInfoRow("Folder Molina (/sdcard/" + TerminalSessions.WORKSPACE_DIR + ")", fmtBytes(i.workspace))
+            PackageDivider()
+            PackageInfoRow("Recycle Bin", fmtBytes(i.trash))
         }
     }
-    SettingsItem(
+    Spacer(Modifier.height(16.dp))
+    PackageSectionHeader("Bersihkan")
+    PackageStatusCard(
+        "Pusat Pembersihan Cerdas",
+        "Pilih kategori, lihat estimasi ruang, lalu bersihkan sekaligus: cache, sisa unduhan, laporan lama, file sementara.",
+        null, onClick = { showCenter = true }
+    )
+    Spacer(Modifier.height(8.dp))
+    // [CACHE-APT-PAKET] cache apt dibersihkan dari Paket > Debian (apt); di sini hanya tautan
+    PackageStatusCard(
+        "Sisa program Debian yang tidak terpakai",
+        "Dibersihkan dari Paket > Program Debian. Juga ikut dibersihkan di Pusat Pembersihan Cerdas.",
+        null, onClick = { onOpenPackages() }
+    )
+    Spacer(Modifier.height(8.dp))
+    PackageStatusCard(
+        "Bersihkan cache aplikasi",
+        "Hapus berkas sementara aplikasi. Sesi Terminal yang berjalan tidak terganggu.",
+        null,
+        onClick = {
+            scope.launch {
+                val freed = withContext(Dispatchers.IO) { cleanAppCache(ctx) }
+                msg = "Cache aplikasi dibersihkan: " + fmtBytes(freed) + " dibebaskan."
+                tick++
+            }
+        }
+    )
+    Spacer(Modifier.height(8.dp))
+    PackageStatusCard(
         "Kosongkan Recycle Bin",
-        "Hapus permanen semua item di Recycle Bin (internal, kartu SD, dan Debian). Tidak bisa dibatalkan."
-    ) { confirmBin = true }
-    SettingsItem("Hitung ulang", "Segarkan ukuran di atas") { tick++ }
+        "Hapus permanen semua item di Recycle Bin (internal, kartu SD, dan Debian). Tidak bisa dibatalkan.",
+        null, onClick = { confirmBin = true }
+    )
+    Spacer(Modifier.height(8.dp))
+    PackageStatusCard("Hitung ulang", "Segarkan ukuran di atas", null, onClick = { tick++ })
     if (confirmBin) {
         AlertDialog(
             onDismissRequest = { confirmBin = false },

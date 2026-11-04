@@ -126,6 +126,15 @@ internal fun PackageDivider() {
     Box(Modifier.fillMaxWidth().height(1.dp).background(MolinaTheme.Explorer.Hairline))
 }
 
+/** Baris informasi baca-saja di dalam [PackageGroupCard]: judul tebal, nilai redup. [STORAGE-KARTU] */
+@Composable
+internal fun PackageInfoRow(title: String, value: String) {
+    Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp)) {
+        Text(title, color = MolinaTheme.Explorer.Ink, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        Text(value, color = MolinaTheme.Explorer.TextDim, fontSize = 12.sp)
+    }
+}
+
 @Composable
 internal fun PackageSwitchRow(title: String, summary: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(
