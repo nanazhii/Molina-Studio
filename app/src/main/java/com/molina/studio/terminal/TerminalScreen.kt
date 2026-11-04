@@ -33,6 +33,8 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -44,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -90,6 +93,14 @@ private fun TerminalContent(modifier: Modifier, onOpenSettings: () -> Unit) {
     remember(context) { RootfsManager.refresh(context) }
     val rootfsState by RootfsManager.state.collectAsState()
     var drawerOpen by remember { mutableStateOf(false) }
+    // [CMD-MARK] Kilatan tepi bingkai: p 1 -> 0 dalam 700 ms; hijau = berhasil, merah = gagal (Ctrl+C tidak berkilat).
+    val flash = remember { Animatable(0f) }
+    LaunchedEffect(CommandFlash.seq) {
+        if (CommandFlash.seq == 0) return@LaunchedEffect
+        flash.snapTo(1f)
+        flash.animateTo(0f, tween(700))
+    }
+    val frameColor = lerp(Color(0xFF3A3A3A), if (CommandFlash.ok) MolinaTheme.Good else MolinaTheme.Bad, flash.value)
 
     Box(modifier) {
     Column(Modifier.fillMaxSize()) {
@@ -116,7 +127,7 @@ private fun TerminalContent(modifier: Modifier, onOpenSettings: () -> Unit) {
                     modifier = Modifier.fillMaxSize()
                         .padding(4.dp)
                         .clip(RoundedCornerShape(6.dp))
-                        .border(1.dp, Color(0xFF3A3A3A), RoundedCornerShape(6.dp))
+                        .border(if (flash.value > 0f) 2.dp else 1.dp, frameColor, RoundedCornerShape(6.dp))
                         .padding(1.dp)
                         .padding(horizontal = marginDp),
                     factory = { ctx -> createTerminalView(ctx, mods) },

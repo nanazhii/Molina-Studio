@@ -2018,6 +2018,19 @@ public final class TerminalEmulator {
                 mColors.reset(TextStyle.COLOR_INDEX_FOREGROUND + (value - 110));
                 mSession.onColorsChanged();
                 break;
+            case 133: // [CMD-MARK] OSC 133 (FinalTerm): "C" = perintah mulai, "D;kode" = selesai.
+                if (textParameter.equals("C")) {
+                    mSession.onCommandMark(true, 0);
+                } else if (textParameter.equals("D") || textParameter.startsWith("D;")) {
+                    int exitCode = 0;
+                    try {
+                        exitCode = Integer.parseInt(textParameter.substring(textParameter.indexOf(';') + 1));
+                    } catch (NumberFormatException e) {
+                        // "D" tanpa kode: dianggap berhasil.
+                    }
+                    mSession.onCommandMark(false, exitCode);
+                }
+                break;
             case 119: // Reset highlight color.
                 break;
             default:

@@ -60,6 +60,13 @@ __molina_ps1() {
 }
 PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND;}__molina_ps1"
 
+# [CMD-MARK] OSC 133 untuk kilatan tepi Terminal: C = perintah mulai (PS0), D;kode = selesai. __molina_done harus
+# paling depan di PROMPT_COMMAND agar $? masih milik perintah terakhir. Hanya printf bawaan bash, tanpa fork.
+PS0=$'\e]133;C\a'"${PS0-}"
+__molina_done() { local ec=$?; printf '\e]133;D;%d\a' "$ec"; return "$ec"; }
+PROMPT_COMMAND="__molina_done${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
+# [/CMD-MARK]
+
 # Tombol CLEAR aplikasi mengirim ESC [ 9 9 ~ agar prompt digambar ulang setelah layar dibersihkan.
 bind '"\e[99~": redraw-current-line' 2>/dev/null
 

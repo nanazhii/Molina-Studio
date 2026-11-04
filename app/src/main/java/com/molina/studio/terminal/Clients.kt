@@ -35,6 +35,9 @@ class TerminalModifiers {
 }
 
 class MolinaSessionClient : TerminalSessionClient {
+    /** [CMD-MARK] Sesi yang sedang menjalankan perintah (C sudah masuk, D belum). Mencegah kilat palsu di prompt awal. */
+    private val running = java.util.Collections.newSetFromMap(java.util.IdentityHashMap<TerminalSession, Boolean>())
+
     @Volatile var view: TerminalView? = null
 
     private fun clipboard(): ClipboardManager? =
@@ -45,6 +48,7 @@ class MolinaSessionClient : TerminalSessionClient {
     }
     override fun onTitleChanged(changedSession: TerminalSession) { TerminalSessions.titleChanged() }
     override fun onSessionFinished(finishedSession: TerminalSession) {
+        running.remove(finishedSession)
         TerminalSessions.onSessionFinished(finishedSession)
     }
     override fun onCopyTextToClipboard(session: TerminalSession, text: String) {
@@ -57,6 +61,13 @@ class MolinaSessionClient : TerminalSessionClient {
         if (!text.isNullOrEmpty()) PasteGuard.pasteGuarded(ctx, text) { session?.emulator?.paste(it) }
     }
     override fun onBell(session: TerminalSession) {}
+    override fun onCommandMark(session: TerminalSession, started: Boolean, exitCode: Int) {
+        if (started) { running.add(session); return }
+        if (!running.remove(session)) return
+        // Kode 130 = Ctrl+C (batal sengaja), bukan kegagalan. Hanya sesi aktif yang berkilat.
+        if (session !== TerminalSessions.currentSession || exitCode == 130) return
+        CommandFlash.fire(exitCode == 0)
+    }
     override fun onColorsChanged(session: TerminalSession) { view?.onScreenUpdated() }
     override fun onTerminalCursorStateChange(state: Boolean) {}
     override fun getTerminalCursorStyle(): Int? = null

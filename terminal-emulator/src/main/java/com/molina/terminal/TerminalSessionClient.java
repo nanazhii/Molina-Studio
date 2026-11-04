@@ -21,6 +21,9 @@ public interface TerminalSessionClient {
 
     void onColorsChanged(TerminalSession session);
 
+    /** [CMD-MARK] OSC 133 dari shell: perintah mulai atau selesai (dengan kode keluar). */
+    default void onCommandMark(TerminalSession session, boolean started, int exitCode) {}
+
     void onTerminalCursorStateChange(boolean state);
 
 

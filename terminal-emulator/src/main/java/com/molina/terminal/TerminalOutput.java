@@ -29,4 +29,7 @@ public abstract class TerminalOutput {
 
     public abstract void onColorsChanged();
 
+    /** [CMD-MARK] OSC 133: perintah shell mulai ({@code started}) atau selesai dengan kode keluar {@code exitCode}. */
+    public void onCommandMark(boolean started, int exitCode) {}
+
 }

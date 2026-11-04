@@ -295,6 +295,11 @@ public final class TerminalSession extends TerminalOutput {
         mClient.onColorsChanged(this);
     }
 
+    @Override
+    public void onCommandMark(boolean started, int exitCode) {
+        mClient.onCommandMark(this, started, exitCode);
+    }
+
     public int getPid() {
         return mShellPid;
     }
