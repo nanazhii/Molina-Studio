@@ -375,7 +375,7 @@ internal fun BundlePage(onOpenYtdlp: () -> Unit) {
 
 /** Titik status kartu alat: hijau = terdeteksi, abu = belum; berdenyut emas Molina saat sedang diperiksa [SETELAN-PUSAT]. */
 @Composable
-private fun StatusDot(detected: Boolean, checking: Boolean) {
+private fun StatusDot(detected: Boolean, checking: Boolean, checked: Boolean = true) { // [PAKET-SERAGAM2] belum diperiksa = cincin kosong
     if (checking) {
         val transition = rememberInfiniteTransition()
         val alpha by transition.animateFloat(
@@ -385,7 +385,8 @@ private fun StatusDot(detected: Boolean, checking: Boolean) {
         )
         Box(Modifier.size(9.dp).clip(CircleShape).background(com.molina.studio.ui.MolinaTheme.Gold.copy(alpha = alpha)))
     } else {
-        Box(Modifier.size(9.dp).clip(CircleShape).background(if (detected) Color(0xFF4CAF50) else Color(0xFF8A8F98)))
+        if (!checked) Box(Modifier.size(9.dp).clip(CircleShape).border(1.5.dp, Color(0xFF8A8F98), CircleShape))
+        else Box(Modifier.size(9.dp).clip(CircleShape).background(if (detected) Color(0xFF4CAF50) else Color(0xFF8A8F98)))
     }
 }
 
@@ -403,8 +404,11 @@ private fun ToolCard(
     onDrop: () -> Unit
 ) {
     val shape = RoundedCornerShape(6.dp)
-    val base = check?.takeIf { it.text.isNotBlank() }?.let { "${it.text} \u00B7 ${stamp(it.at)}" }
-        ?: tool.note.ifBlank { "Pasang, versi, hapus" }
+    // [PAKET-SERAGAM2] baris seragam: "Versi terakhir: ... \u00B7 tanggal" / "Tidak terdeteksi \u00B7 tanggal" / "Belum diperiksa"
+    val base = check?.takeIf { it.text.isNotBlank() }?.let {
+        if (it.text.startsWith("Tidak terdeteksi")) "${it.text} \u00B7 ${stamp(it.at)}"
+        else "Versi terakhir: ${it.text} \u00B7 ${stamp(it.at)}"
+    } ?: "Belum diperiksa"
     val sub = if (checking) "memeriksa versi\u2026" else base
     Column(
         Modifier.fillMaxWidth().clip(shape).background(W7D.Card, shape)
@@ -415,7 +419,7 @@ private fun ToolCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             val detected = check?.text?.let { it.isNotBlank() && !it.startsWith("Tidak terdeteksi") } == true
-            StatusDot(detected, checking)
+            StatusDot(detected, checking, checked = check?.text?.isNotBlank() == true)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f).padding(end = 8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
