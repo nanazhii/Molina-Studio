@@ -1,12 +1,19 @@
 package com.molina.studio.settings
 
+import com.molina.studio.ui.components.PackageChoiceRow
+import com.molina.studio.ui.components.PackageDivider
+import com.molina.studio.ui.components.PackageGroupCard
+import com.molina.studio.ui.components.PackageNote
+import com.molina.studio.ui.components.PackageSectionHeader
+import com.molina.studio.ui.components.PackageSliderRow
+import com.molina.studio.ui.components.PackageStatusCard
+import com.molina.studio.ui.components.PackageSwitchRow
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,11 +27,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,7 +46,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.molina.studio.log.LogScreen
@@ -406,52 +409,68 @@ private val LOG_LEVELS = listOf("Off", "Normal", "Debug", "Verbose")
 @Composable
 private fun DebuggingPage(onOpenCrash: () -> Unit, onOpenLog: () -> Unit) {
     var showLevel by remember { mutableStateOf(false) }
-    Category("Logging")
-    SettingsItem("Log Level", LOG_LEVELS[TerminalPrefs.logLevel]) { showLevel = true }
-    SwitchRow(
-        "Terminal View Key Logging",
-        if (TerminalPrefs.keyLogging) "Logcat logs will have entries for terminal view keys."
-        else "Logs will not have entries for terminal view keys. (Default)",
-        TerminalPrefs.keyLogging
-    ) { TerminalPrefs.setKeyLogging(it) }
-    SwitchRow(
-        "Plugin Error Notifications",
-        "Molina belum memiliki plugin; nilai disimpan untuk fase mpv dan Code.",
-        TerminalPrefs.pluginErrorNotifications
-    ) { TerminalPrefs.setPluginErrorNotifications(it) }
-    SwitchRow(
-        "Crash Report Notifications",
-        if (TerminalPrefs.crashNotifications) "Show notifications for crash reports. (Default)"
-        else "Disable notifications for crash reports.",
-        TerminalPrefs.crashNotifications
-    ) { TerminalPrefs.setCrashNotifications(it) }
-
-    Category("Molina CLI")
-    SwitchRow(
-        "Akses clipboard dari CLI",
-        "Izinkan perintah molina clip membaca dan menulis clipboard. Semua program di Debian bisa memakainya; biarkan mati bila tidak perlu.",
-        TerminalPrefs.cliClipboard
-    ) { TerminalPrefs.setCliClipboard(it) }
-
-    Category("Transkrip Terminal")
-    SwitchRow(
-        "Samarkan token saat menyimpan transkrip",
-        if (TerminalPrefs.redactTranscript) "URL hanya menyisakan skema dan host; token=, password=, dan sejenisnya diganti ***."
-        else "Transkrip disimpan apa adanya (URL dan token tetap utuh). Folder /sdcard/Molina terbaca aplikasi lain. (Default)",
-        TerminalPrefs.redactTranscript
-    ) { TerminalPrefs.setRedactTranscript(it) }
-
-    Category("Molina Reporter")
-    SettingsItem("Crash Reporter", "Lihat, salin, atau hapus laporan crash", onOpenCrash)
-    SwitchRow(
-        "Logcat Reporter",
-        "Salurkan logcat aplikasi ke halaman Log (sumber: logcat), digabung oleh LogGrouping.",
-        TerminalPrefs.logcatReporter
-    ) {
-        TerminalPrefs.setLogcatReporter(it)
-        LogcatReporter.setEnabled(it)
+    PackageSectionHeader("Logging") // [TERMINAL-KARTU]
+    PackageStatusCard("Log Level", LOG_LEVELS[TerminalPrefs.logLevel], null, onClick = { showLevel = true })
+    Spacer(Modifier.height(8.dp))
+    PackageGroupCard {
+        PackageSwitchRow(
+            "Terminal View Key Logging",
+            if (TerminalPrefs.keyLogging) "Logcat logs will have entries for terminal view keys."
+            else "Logs will not have entries for terminal view keys. (Default)",
+            TerminalPrefs.keyLogging
+        ) { TerminalPrefs.setKeyLogging(it) }
+        PackageDivider()
+        PackageSwitchRow(
+            "Plugin Error Notifications",
+            "Molina belum memiliki plugin; nilai disimpan untuk fase mpv dan Code.",
+            TerminalPrefs.pluginErrorNotifications
+        ) { TerminalPrefs.setPluginErrorNotifications(it) }
+        PackageDivider()
+        PackageSwitchRow(
+            "Crash Report Notifications",
+            if (TerminalPrefs.crashNotifications) "Show notifications for crash reports. (Default)"
+            else "Disable notifications for crash reports.",
+            TerminalPrefs.crashNotifications
+        ) { TerminalPrefs.setCrashNotifications(it) }
     }
-    SettingsItem("Buka Log", "Tampilkan log terkumpul", onOpenLog)
+
+    Spacer(Modifier.height(16.dp))
+    PackageSectionHeader("Molina CLI")
+    PackageGroupCard {
+        PackageSwitchRow(
+            "Akses clipboard dari CLI",
+            "Izinkan perintah molina clip membaca dan menulis clipboard. Semua program di Debian bisa memakainya; biarkan mati bila tidak perlu.",
+            TerminalPrefs.cliClipboard
+        ) { TerminalPrefs.setCliClipboard(it) }
+    }
+
+    Spacer(Modifier.height(16.dp))
+    PackageSectionHeader("Transkrip Terminal")
+    PackageGroupCard {
+        PackageSwitchRow(
+            "Samarkan token saat menyimpan transkrip",
+            if (TerminalPrefs.redactTranscript) "URL hanya menyisakan skema dan host; token=, password=, dan sejenisnya diganti ***."
+            else "Transkrip disimpan apa adanya (URL dan token tetap utuh). Folder /sdcard/Molina terbaca aplikasi lain. (Default)",
+            TerminalPrefs.redactTranscript
+        ) { TerminalPrefs.setRedactTranscript(it) }
+    }
+
+    Spacer(Modifier.height(16.dp))
+    PackageSectionHeader("Molina Reporter")
+    PackageStatusCard("Crash Reporter", "Lihat, salin, atau hapus laporan crash", null, onClick = onOpenCrash)
+    Spacer(Modifier.height(8.dp))
+    PackageGroupCard {
+        PackageSwitchRow(
+            "Logcat Reporter",
+            "Salurkan logcat aplikasi ke halaman Log (sumber: logcat), digabung oleh LogGrouping.",
+            TerminalPrefs.logcatReporter
+        ) {
+            TerminalPrefs.setLogcatReporter(it)
+            LogcatReporter.setEnabled(it)
+        }
+    }
+    Spacer(Modifier.height(8.dp))
+    PackageStatusCard("Buka Log", "Tampilkan log terkumpul", null, onClick = onOpenLog)
 
     if (showLevel) {
         AlertDialog(
@@ -486,15 +505,14 @@ private fun CrashReportsPage() {
     var open by remember { mutableStateOf<File?>(null) }
 
     if (files.isEmpty()) {
-        Text(
-            "Belum ada laporan crash.", modifier = Modifier.padding(vertical = 16.dp),
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-        )
+        PackageNote("Belum ada laporan crash.")
     }
-    files.forEach { f ->
-        SettingsItem(CrashReporter.title(f), "${f.length()} byte") { open = f }
+    files.forEachIndexed { idx, f ->
+        if (idx > 0) Spacer(Modifier.height(8.dp))
+        PackageStatusCard(CrashReporter.title(f), "${f.length()} byte", null, onClick = { open = f })
     }
     if (files.isNotEmpty()) {
+        Spacer(Modifier.height(8.dp))
         TextButton(onClick = { CrashReporter.clearAll(ctx); files = emptyList() }) {
             Text("Hapus semua")
         }
@@ -535,164 +553,144 @@ private fun copyText(ctx: Context, text: String) {
 
 @Composable
 private fun TerminalIoPage() {
-    Category("Keyboard")
-    SwitchRow(
-        "Soft Keyboard Enabled",
-        if (TerminalPrefs.softKeyboard) "Soft keyboard will be enabled. (Default)"
-        else "Soft keyboard will be disabled.",
-        TerminalPrefs.softKeyboard
-    ) { TerminalPrefs.setSoftKeyboard(it) }
-    SwitchRow(
-        "Soft Keyboard Only If No Hardware",
-        if (TerminalPrefs.softKeyboardOnlyIfNoHardware)
-            "Soft keyboard will be enabled only if no hardware keyboard is connected."
-        else "Soft keyboard will be enabled even if hardware keyboard is connected. (Default)",
-        TerminalPrefs.softKeyboardOnlyIfNoHardware
-    ) { TerminalPrefs.setSoftKeyboardOnlyIfNoHardware(it) }
+    PackageSectionHeader("Keyboard") // [TERMINAL-KARTU]
+    PackageGroupCard {
+        PackageSwitchRow(
+            "Soft Keyboard Enabled",
+            if (TerminalPrefs.softKeyboard) "Soft keyboard will be enabled. (Default)"
+            else "Soft keyboard will be disabled.",
+            TerminalPrefs.softKeyboard
+        ) { TerminalPrefs.setSoftKeyboard(it) }
+        PackageDivider()
+        PackageSwitchRow(
+            "Soft Keyboard Only If No Hardware",
+            if (TerminalPrefs.softKeyboardOnlyIfNoHardware)
+                "Soft keyboard will be enabled only if no hardware keyboard is connected."
+            else "Soft keyboard will be enabled even if hardware keyboard is connected. (Default)",
+            TerminalPrefs.softKeyboardOnlyIfNoHardware
+        ) { TerminalPrefs.setSoftKeyboardOnlyIfNoHardware(it) }
+    }
 
-    Category("Penyimpanan")
-    SwitchRow(
-        "Akses penyimpanan penuh",
-        if (TerminalPrefs.fullStorageAccess)
-            "Seluruh /sdcard terlihat di dalam Debian. Berlaku di sesi baru."
-        else "Hanya /sdcard/Molina yang terlihat di dalam Debian. (Default) Berlaku di sesi baru.",
-        TerminalPrefs.fullStorageAccess
-    ) { TerminalPrefs.setFullStorageAccess(it) }
+    Spacer(Modifier.height(16.dp))
+    PackageSectionHeader("Penyimpanan")
+    PackageGroupCard {
+        PackageSwitchRow(
+            "Akses penyimpanan penuh",
+            if (TerminalPrefs.fullStorageAccess)
+                "Seluruh /sdcard terlihat di dalam Debian. Berlaku di sesi baru."
+            else "Hanya /sdcard/Molina yang terlihat di dalam Debian. (Default) Berlaku di sesi baru.",
+            TerminalPrefs.fullStorageAccess
+        ) { TerminalPrefs.setFullStorageAccess(it) }
+    }
 }
 
 // ---------- Terminal View ----------
 
 @Composable
 private fun TerminalViewPage() {
-    Category("View")
-    SwitchRow(
-        "Terminal Margin Adjustment",
-        if (TerminalPrefs.marginAdjustment) "Terminal margin adjustment will be enabled. (Default)"
-        else "Terminal margin adjustment will be disabled.",
-        TerminalPrefs.marginAdjustment
-    ) { TerminalPrefs.setMarginAdjustment(it) }
+    PackageSectionHeader("View") // [TERMINAL-KARTU]
+    PackageGroupCard {
+        PackageSwitchRow(
+            "Terminal Margin Adjustment",
+            if (TerminalPrefs.marginAdjustment) "Terminal margin adjustment will be enabled. (Default)"
+            else "Terminal margin adjustment will be disabled.",
+            TerminalPrefs.marginAdjustment
+        ) { TerminalPrefs.setMarginAdjustment(it) }
+    }
 }
 
 // ---------- Tampilan Molina ----------
 
-@OptIn(ExperimentalMaterial3Api::class) // [SLIDER-THUMB] parameter thumb Slider masih eksperimental
 @Composable
 private fun TampilanPage() {
     val ctx = LocalContext.current
     val theme = TerminalPrefs.promptTheme
     val sp = TerminalPrefs.fontSp
 
-    Category("Ukuran font")
-    Text(
-        "${sp}sp  (${TerminalPrefs.MIN_FONT_SP}\u2013${TerminalPrefs.MAX_FONT_SP}sp)",
-        color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium
-    )
-    // [SLIDER-THUMB] thumb bawaan M3 setinggi 44dp (garis kuning terlalu panjang); dipendekkan jadi 24dp
-    val thumbInteraction = remember { MutableInteractionSource() }
-    Slider(
-        value = sp.toFloat(),
-        onValueChange = { TerminalPrefs.setFontSp(it.roundToInt()) },
-        valueRange = TerminalPrefs.MIN_FONT_SP.toFloat()..TerminalPrefs.MAX_FONT_SP.toFloat(),
-        steps = TerminalPrefs.MAX_FONT_SP - TerminalPrefs.MIN_FONT_SP - 1,
-        interactionSource = thumbInteraction,
-        thumb = {
-            SliderDefaults.Thumb(
-                interactionSource = thumbInteraction,
-                thumbSize = DpSize(4.dp, 24.dp)
+    PackageSectionHeader("Ukuran font") // [TERMINAL-KARTU]
+    PackageGroupCard {
+        PackageSliderRow(
+            title = "Ukuran",
+            valueText = "${sp}sp  (${TerminalPrefs.MIN_FONT_SP}\u2013${TerminalPrefs.MAX_FONT_SP}sp)",
+            value = sp.toFloat(),
+            onValueChange = { TerminalPrefs.setFontSp(it.roundToInt()) },
+            valueRange = TerminalPrefs.MIN_FONT_SP.toFloat()..TerminalPrefs.MAX_FONT_SP.toFloat(),
+            steps = TerminalPrefs.MAX_FONT_SP - TerminalPrefs.MIN_FONT_SP - 1,
+            footer = {
+                Text(
+                    "user@localhost:~ $", fontFamily = FontFamily.Monospace, fontSize = sp.sp,
+                    fontWeight = FontWeight.Bold, color = theme.homeColor
+                )
+            }
+        )
+    }
+    PackageNote("Di terminal, cubit dua jari (pinch) juga mengubah ukuran ini, per 1sp.")
+
+    Spacer(Modifier.height(16.dp))
+    PackageSectionHeader("Skema warna terminal")
+    PackageGroupCard {
+        TerminalLook.entries.forEachIndexed { i, l ->
+            if (i > 0) PackageDivider()
+            PackageChoiceRow(
+                title = l.label,
+                selected = l == TerminalPrefs.look,
+                onSelect = { TerminalPrefs.setLook(l) },
+                preview = {
+                    Row {
+                        Text(
+                            "user@localhost:~ ", fontFamily = FontFamily.Monospace, fontSize = 11.sp,
+                            color = androidx.compose.ui.graphics.Color(l.fg)
+                        )
+                        Text(
+                            "\u2588", fontFamily = FontFamily.Monospace, fontSize = 11.sp,
+                            color = androidx.compose.ui.graphics.Color(l.cursor)
+                        )
+                    }
+                }
             )
         }
-    )
-    Text(
-        "user@localhost:~ $", fontFamily = FontFamily.Monospace, fontSize = sp.sp,
-        fontWeight = FontWeight.Bold, color = theme.homeColor
-    )
-    Text(
-        "Di terminal, cubit dua jari (pinch) juga mengubah ukuran ini, per 1sp.",
-        modifier = Modifier.padding(top = 6.dp),
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-        style = MaterialTheme.typography.bodySmall
-    )
+    }
+    PackageNote("Skema warna berlaku langsung pada sesi yang terbuka.")
 
-    Spacer(Modifier.height(12.dp))
-    Category("Skema warna terminal")
-    TerminalLook.entries.forEach { l ->
-        Row(
-            Modifier.fillMaxWidth().clickable { TerminalPrefs.setLook(l) }
-                .padding(vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            RadioButton(selected = l == TerminalPrefs.look, onClick = { TerminalPrefs.setLook(l) })
-            Column {
-                Text(l.label, color = MaterialTheme.colorScheme.onSurface)
-                Row {
-                    Text(
-                        "user@localhost:~ ", fontFamily = FontFamily.Monospace, fontSize = 11.sp,
-                        color = androidx.compose.ui.graphics.Color(l.fg)
-                    )
-                    Text(
-                        "\u2588", fontFamily = FontFamily.Monospace, fontSize = 11.sp,
-                        color = androidx.compose.ui.graphics.Color(l.cursor)
-                    )
+    Spacer(Modifier.height(16.dp))
+    PackageSectionHeader("Banner sesi")
+    PackageGroupCard {
+        BannerStyle.entries.forEachIndexed { i, b ->
+            if (i > 0) PackageDivider()
+            PackageChoiceRow(
+                title = b.label,
+                selected = b == TerminalPrefs.bannerStyle,
+                onSelect = { TerminalPrefs.setBannerStyle(b) }
+            )
+        }
+    }
+    PackageNote("Tampil di sesi baru dan saat tombol CLEAR. Mati = sesi langsung ke prompt.")
+
+    Spacer(Modifier.height(16.dp))
+    PackageSectionHeader("Tema warna prompt")
+    PackageGroupCard {
+        PromptTheme.entries.forEachIndexed { i, pt ->
+            if (i > 0) PackageDivider()
+            PackageChoiceRow(
+                title = pt.label,
+                selected = pt == theme,
+                onSelect = { TerminalPrefs.setPromptTheme(ctx, pt) },
+                preview = {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            "user@localhost:~ $", fontFamily = FontFamily.Monospace, fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold, color = pt.homeColor
+                        )
+                        Text(
+                            "user@localhost:/etc $", fontFamily = FontFamily.Monospace, fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold, color = pt.otherColor
+                        )
+                    }
                 }
-            }
+            )
         }
     }
-    Text(
-        "Skema warna berlaku langsung pada sesi yang terbuka.",
-        modifier = Modifier.padding(top = 6.dp),
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-        style = MaterialTheme.typography.bodySmall
-    )
-
-    Spacer(Modifier.height(12.dp))
-    Category("Banner sesi")
-    BannerStyle.entries.forEach { b ->
-        Row(
-            Modifier.fillMaxWidth().clickable { TerminalPrefs.setBannerStyle(b) }
-                .padding(vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            RadioButton(selected = b == TerminalPrefs.bannerStyle, onClick = { TerminalPrefs.setBannerStyle(b) })
-            Text(b.label, color = MaterialTheme.colorScheme.onSurface)
-        }
-    }
-    Text(
-        "Tampil di sesi baru dan saat tombol CLEAR. Mati = sesi langsung ke prompt.",
-        modifier = Modifier.padding(top = 6.dp),
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-        style = MaterialTheme.typography.bodySmall
-    )
-
-    Spacer(Modifier.height(12.dp))
-    Category("Tema warna prompt")
-    PromptTheme.entries.forEach { t ->
-        Row(
-            Modifier.fillMaxWidth().clickable { TerminalPrefs.setPromptTheme(ctx, t) }
-                .padding(vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            RadioButton(selected = t == theme, onClick = { TerminalPrefs.setPromptTheme(ctx, t) })
-            Column {
-                Text(t.label, color = MaterialTheme.colorScheme.onSurface)
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        "user@localhost:~ $", fontFamily = FontFamily.Monospace, fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold, color = t.homeColor
-                    )
-                    Text(
-                        "user@localhost:/etc $", fontFamily = FontFamily.Monospace, fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold, color = t.otherColor
-                    )
-                }
-            }
-        }
-    }
-    Text(
-        "Warna baru tampil pada prompt berikutnya (tekan Enter di terminal).",
-        modifier = Modifier.padding(top = 6.dp),
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-        style = MaterialTheme.typography.bodySmall
-    )
+    PackageNote("Warna baru tampil pada prompt berikutnya (tekan Enter di terminal).")
 }
 
 // ---------- About: lihat AboutUi.kt ----------
