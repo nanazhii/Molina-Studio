@@ -220,21 +220,6 @@ internal fun W7Heading(text: String) {
     )
 }
 
-/** Satu entri daftar ala Panel Kontrol: ikon, judul tautan biru, keterangan abu-abu. */
-@Composable
-internal fun W7Link(icon: @Composable () -> Unit, title: String, summary: String, onClick: () -> Unit) {
-    Win7FrameBox(selected = false, onClick = onClick, modifier = Modifier.padding(vertical = 2.dp)) {
-        Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            icon()
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(title, color = W7LinkColor, fontSize = 15.sp)
-                Text(summary, color = W7D.TextDim, fontSize = 12.sp)
-            }
-        }
-    }
-}
-
 /** Ubin kategori beranda Settings. [selected] = kategori terakhir dibuka: bingkai biru tipis ala Windows 7. */
 @Composable
 internal fun W7CategoryTile(

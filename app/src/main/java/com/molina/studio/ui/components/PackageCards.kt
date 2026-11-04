@@ -96,7 +96,8 @@ internal fun PackageStatusCard(
     state: PkgState?,
     badge: String? = null,
     onClick: (() -> Unit)? = null,
-    subtitleMaxLines: Int = 3
+    subtitleMaxLines: Int = 3,
+    icon: (@Composable () -> Unit)? = null // [KARTU-IKON] ikon opsional di kiri judul
 ) {
     val strip = if (state == null) Color.Transparent else pkgStrip(state)
     var rowMod = Modifier.fillMaxWidth().drawBehind { drawRect(strip, Offset.Zero, Size(3.dp.toPx(), size.height)) }
@@ -106,6 +107,10 @@ internal fun PackageStatusCard(
             rowMod.padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            if (icon != null) {
+                icon()
+                Spacer(Modifier.width(12.dp))
+            }
             Column(Modifier.weight(1f).padding(end = 8.dp)) {
                 Text(
                     title, color = MolinaTheme.Explorer.Ink, fontSize = 15.sp, fontWeight = FontWeight.Bold,

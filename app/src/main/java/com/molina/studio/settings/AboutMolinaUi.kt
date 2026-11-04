@@ -1,5 +1,6 @@
 package com.molina.studio.settings
 
+import com.molina.studio.ui.components.PackageStatusCard
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -55,7 +56,10 @@ internal fun AboutMolinaPage(onLicenses: () -> Unit) {
         "Dikembangkan oleh Molina Studio (nanazhii). Perangkat lunak bebas di bawah GPL-3.0-or-later, tanpa jaminan apa pun."
     )
     Spacer(Modifier.height(10.dp))
-    W7Link({ W7IconToolList() }, "Lisensi dan atribusi", "Lisensi Molina dan komponen pihak ketiga, bisa dibaca tanpa internet") { onLicenses() }
+    PackageStatusCard( // [ABOUT-KARTU]
+        "Lisensi dan atribusi", "Lisensi Molina dan komponen pihak ketiga, bisa dibaca tanpa internet", null,
+        onClick = onLicenses, icon = { W7IconToolList() }
+    )
 }
 
 @Composable

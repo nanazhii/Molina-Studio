@@ -1,5 +1,6 @@
 package com.molina.studio.settings
 
+import com.molina.studio.ui.components.PackageInfoRow
 import com.molina.studio.ui.components.PkgState
 import com.molina.studio.ui.components.PackageSectionHeader
 import com.molina.studio.ui.components.PackageStatusCard
@@ -134,14 +135,17 @@ internal fun AutoBackupRows() {
     val ctx = LocalContext.current
     remember { AutoPrefs.init(ctx) }
     val st by AutoPrefs.state.collectAsState()
-    SwitchRow(
-        "Cadangan gabungan harian",
-        "Menyimpan penanda video, snippet Terminal, dan setelan ke folder Backup sekali per hari. " +
-            "Salinan sebelumnya dijaga sebagai molina-backup.prev.json.",
-        st.autoBackup
-    ) {
-        AutoPrefs.setAutoBackup(ctx, it)
-        AutoWork.sync(ctx)
+    PackageGroupCard { // [BERANDA-KARTU]
+        PackageSwitchRow(
+            "Cadangan gabungan harian",
+            "Menyimpan penanda video, snippet Terminal, dan setelan ke folder Backup sekali per hari. " +
+                "Salinan sebelumnya dijaga sebagai molina-backup.prev.json.",
+            st.autoBackup
+        ) {
+            AutoPrefs.setAutoBackup(ctx, it)
+            AutoWork.sync(ctx)
+        }
+        PackageDivider()
+        PackageInfoRow("Cadangan otomatis terakhir", whenText(st.lastBackup, "belum pernah"))
     }
-    SettingsItem("Cadangan otomatis terakhir", whenText(st.lastBackup, "belum pernah")) {}
 }

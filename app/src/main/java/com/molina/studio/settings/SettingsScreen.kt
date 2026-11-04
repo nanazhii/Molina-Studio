@@ -327,17 +327,51 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                         )
                     }
                     Page.System -> {
-                        W7Link({ W7IconInfo() }, "Info", "Kondisi Molina, versi aplikasi, info HP, dan pemeriksaan masalah") { open(Page.Info) } // [INFO-PAGE]
-                        W7Link({ W7IconTerminal() }, "Pengaturan Terminal", "Atur tampilan dan perilaku Molina Terminal") { open(Page.Terminal) }
-                        W7Link({ W7IconTerminal() }, "Editor Code", "Cara menampilkan pratinjau halaman web saat Anda mengedit kode") { open(Page.Code) }
-                        W7Link({ W7IconShield() }, "Keamanan dan privasi", "Atur tautan yang boleh dibuka, akses jaringan rumah, dan layar privat") { open(Page.Network) }
-                        W7Link({ W7IconToolList() }, "Penyimpanan", "Lihat pemakaian ruang dan bersihkan file yang tidak perlu") { open(Page.Storage) }
-                        Category("Cadangan dan profil") // [SETELAN-PUSAT]
-                        W7Link({ W7IconToolList() }, "Cadangan dan pemulihan", "Simpan dan pulihkan penanda video, potongan perintah, dan setelan dalam satu file") { showBackup = true }
+                        PackageStatusCard( // [BERANDA-KARTU]
+                            "Info", "Kondisi Molina, versi aplikasi, info HP, dan pemeriksaan masalah", null,
+                            onClick = { open(Page.Info) }, icon = { W7IconInfo() } // [INFO-PAGE]
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        PackageStatusCard(
+                            "Pengaturan Terminal", "Atur tampilan dan perilaku Molina Terminal", null,
+                            onClick = { open(Page.Terminal) }, icon = { W7IconTerminal() }
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        PackageStatusCard(
+                            "Editor Code", "Cara menampilkan pratinjau halaman web saat Anda mengedit kode", null,
+                            onClick = { open(Page.Code) }, icon = { W7IconTerminal() }
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        PackageStatusCard(
+                            "Keamanan dan privasi", "Atur tautan yang boleh dibuka, akses jaringan rumah, dan layar privat", null,
+                            onClick = { open(Page.Network) }, icon = { W7IconShield() }
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        PackageStatusCard(
+                            "Penyimpanan", "Lihat pemakaian ruang dan bersihkan file yang tidak perlu", null,
+                            onClick = { open(Page.Storage) }, icon = { W7IconToolList() }
+                        )
+
+                        Spacer(Modifier.height(16.dp))
+                        PackageSectionHeader("Cadangan dan profil") // [SETELAN-PUSAT]
+                        PackageStatusCard(
+                            "Cadangan dan pemulihan", "Simpan dan pulihkan penanda video, potongan perintah, dan setelan dalam satu file", null,
+                            onClick = { showBackup = true }, icon = { W7IconToolList() }
+                        )
+                        Spacer(Modifier.height(8.dp))
                         AutoBackupRows()
-                        W7Link({ W7IconToolList() }, "Profil setelan", "Simpan dan ganti kumpulan setelan dengan satu ketukan") { showProfiles = true }
-                        Category("Linux Debian di Molina")
-                        W7Link({ W7IconRootfs() }, "Kelola Debian (Linux di Molina)", "Cadangkan, pulihkan, atau atur ulang Debian di Paket > Program Debian") { open(Page.Packages) } // [DEBIAN-PUSAT]
+                        Spacer(Modifier.height(8.dp))
+                        PackageStatusCard(
+                            "Profil setelan", "Simpan dan ganti kumpulan setelan dengan satu ketukan", null,
+                            onClick = { showProfiles = true }, icon = { W7IconToolList() }
+                        )
+
+                        Spacer(Modifier.height(16.dp))
+                        PackageSectionHeader("Linux Debian di Molina")
+                        PackageStatusCard(
+                            "Kelola Debian (Linux di Molina)", "Cadangkan, pulihkan, atau atur ulang Debian di Paket > Program Debian", null,
+                            onClick = { open(Page.Packages) }, icon = { W7IconRootfs() } // [DEBIAN-PUSAT]
+                        )
                     }
                     Page.Info -> HubInfoPage( // [INFO-PAGE] rumah informasi diagnostik; gabungan About lama
                         onSystem = { open(Page.System) },
@@ -350,10 +384,13 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                         onLicenses = { open(Page.Licenses) }
                     )
                     Page.Terminal -> {
-                        SettingsItem("Debugging", "Preferences for debugging") { page = Page.Debugging }
-                        SettingsItem("Terminal I/O", "Preferences for terminal I/O") { page = Page.TerminalIO }
-                        SettingsItem("Terminal View", "Preferences for terminal view") { page = Page.TerminalView }
-                        SettingsItem("Tampilan Molina", "Ukuran font dan tema warna prompt") { page = Page.Tampilan }
+                        PackageStatusCard("Debugging", "Preferences for debugging", null, onClick = { page = Page.Debugging })
+                        Spacer(Modifier.height(8.dp))
+                        PackageStatusCard("Terminal I/O", "Preferences for terminal I/O", null, onClick = { page = Page.TerminalIO })
+                        Spacer(Modifier.height(8.dp))
+                        PackageStatusCard("Terminal View", "Preferences for terminal view", null, onClick = { page = Page.TerminalView })
+                        Spacer(Modifier.height(8.dp))
+                        PackageStatusCard("Tampilan Molina", "Ukuran font dan tema warna prompt", null, onClick = { page = Page.Tampilan })
                     }
                     Page.Debugging -> DebuggingPage(
                         onOpenCrash = { page = Page.CrashReports },
@@ -397,7 +434,11 @@ private fun SearchResults(query: String, onOpen: (Page) -> Unit) {
         W7Heading(if (hits.isEmpty()) "Tidak ada hasil untuk \"$q\"" else "Hasil pencarian: ${hits.size}")
         hits.forEach { h ->
             val path = trailOf(h.page).joinToString(" \u203A ") { titleOf(it) }
-            W7Link({ W7IconHit() }, h.title, h.summary + "\n" + path) { onOpen(h.page) }
+            PackageStatusCard(
+                h.title, h.summary + "\n" + path, null,
+                onClick = { onOpen(h.page) }, subtitleMaxLines = 4, icon = { W7IconHit() }
+            )
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
@@ -696,28 +737,6 @@ private fun TampilanPage() {
 // ---------- About: lihat AboutUi.kt ----------
 
 // ---------- Komponen bersama ----------
-
-@Composable
-internal fun Category(title: String) {
-    Text(
-        title, modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
-        color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge
-    )
-}
-
-@Composable
-internal fun SettingsItem(title: String, subtitle: String, onClick: () -> Unit) {
-    Column(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 14.dp)) {
-        Text(
-            title, color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.titleMedium
-        )
-        Text(
-            subtitle, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-            style = MaterialTheme.typography.bodySmall
-        )
-    }
-}
 
 @Composable
 internal fun SwitchRow(title: String, summary: String, checked: Boolean, onChange: (Boolean) -> Unit) {

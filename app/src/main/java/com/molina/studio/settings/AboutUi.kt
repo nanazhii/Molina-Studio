@@ -87,23 +87,24 @@ internal fun HubInfoPage(
             "Diagnostik dan laporan bug",
             diagLine?.let { "$it \u00b7 ketuk untuk detail" }
                 ?: "Salin info debug, ZIP diagnostik sekali klik, dan laporan bug (URL disamarkan) dalam satu tempat",
-            null, onClick = onDiagnostics
+            null, onClick = onDiagnostics,
+            icon = { W7IconLog() } // [INFO-IKON]
         )
         DiagBadge(diag, Modifier.align(Alignment.TopEnd).padding(end = 20.dp))
     }
     Spacer(Modifier.height(8.dp))
-    PackageStatusCard("Log", "Log aktivitas mpv, Terminal, dan sistem", null, onClick = onLog)
+    PackageStatusCard("Log", "Log aktivitas mpv, Terminal, dan sistem", null, onClick = onLog, icon = { W7IconLog() })
     Spacer(Modifier.height(8.dp))
-    PackageStatusCard("Monitor Sistem", "Unduh, unggah, CPU, dan RAM secara langsung", null, onClick = onMonitor)
+    PackageStatusCard("Monitor Sistem", "Unduh, unggah, CPU, dan RAM secara langsung", null, onClick = onMonitor, icon = { W7IconMonitor(32.dp) })
 
     Spacer(Modifier.height(16.dp))
     PackageSectionHeader("Tentang")
-    PackageStatusCard("Tentang Molina", "Apa itu Molina, fitur, privasi, dan kebutuhan sistem", null, onClick = onAbout)
+    PackageStatusCard("Tentang Molina", "Apa itu Molina, fitur, privasi, dan kebutuhan sistem", null, onClick = onAbout, icon = { W7IconInfo() })
     Spacer(Modifier.height(8.dp))
     PackageStatusCard(
         "Lisensi dan atribusi",
         "GPL-3.0-or-later \u00b7 teks lisensi komponen pihak ketiga, bisa dibaca tanpa internet",
-        null, onClick = onLicenses
+        null, onClick = onLicenses, icon = { W7IconToolList() }
     )
 }
 
