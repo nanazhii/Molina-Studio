@@ -152,6 +152,7 @@ internal fun PackagesPage(
         val out = StringBuilder()
         checkHandle = startShell(
             ctx, ToolRun("${tool.name}: versi", script, ToolAction.Version.timeoutMs, "", false),
+            lane = com.molina.studio.code.ProotScriptExecutor.Lane.TOOLS, // [PAKET-LANE]
             onChunk = { if (out.length < 20_000) out.append(it) },
             onDone = { r ->
                 checkHandle = null

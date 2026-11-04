@@ -177,7 +177,10 @@ internal fun ToolRunDialog(run: ToolRun, onClose: () -> Unit, onResult: (Int, St
     }
 }
 
-internal fun startShell(ctx: Context, run: ToolRun, onChunk: (String) -> Unit, onDone: (RunResult) -> Unit): RunHandle {
+internal fun startShell(
+    ctx: Context, run: ToolRun, onChunk: (String) -> Unit, onDone: (RunResult) -> Unit,
+    lane: ProotScriptExecutor.Lane = ProotScriptExecutor.Lane.CODE // [PAKET-LANE]
+): RunHandle {
     val main = Handler(Looper.getMainLooper())
     val req = RunRequest(
         name = "tool",
@@ -186,7 +189,7 @@ internal fun startShell(ctx: Context, run: ToolRun, onChunk: (String) -> Unit, o
         hostDir = null,
         timeoutMs = run.timeoutMs
     )
-    return ProotScriptExecutor(ctx.applicationContext).start(req, object : RunListener {
+    return ProotScriptExecutor(ctx.applicationContext, lane).start(req, object : RunListener {
         override fun onOutput(text: String, isError: Boolean) { main.post { onChunk(text) } }
         override fun onFinished(result: RunResult) { main.post { onDone(result) } }
     })
