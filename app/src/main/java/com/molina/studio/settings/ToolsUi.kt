@@ -175,12 +175,12 @@ internal fun PackagesPage(
     PackageSectionHeader("Alat")
     remember { com.molina.studio.automation.AutoPrefs.init(ctx) }
     val autoSt by com.molina.studio.automation.AutoPrefs.state.collectAsState()
+    val cYtdlp = ManagedComponents.ytdlp(autoSt, running = false) // [KOMPONEN-PUSAT]
     PackageStatusCard(
         "Pengunduh tambahan (yt-dlp)",
-        if (autoSt.ytdlpOutdated) "Pembaruan tersedia: ${autoSt.ytdlpInstalled} \u2192 ${autoSt.ytdlpLatest}"
+        if (autoSt.ytdlpOutdated) cYtdlp.subtitle
         else "Untuk TikTok, Facebook, dan situs lain yang tidak dikenali pemutar (bawaan: mati)",
-        if (autoSt.ytdlpOutdated) PkgState.Outdated else null,
-        badge = if (autoSt.ytdlpOutdated) "Baru" else null,
+        cYtdlp.state, badge = cYtdlp.badge,
         onClick = onOpenYtdlp
     )
     Spacer(Modifier.height(12.dp))
@@ -241,12 +241,9 @@ internal fun PackagesPage(
     val bundleSt by com.molina.studio.automation.AutoPrefs.state.collectAsState()
     val bundleAll = remember { com.molina.core.common.BundledComponents.all(com.molina.engine.newpipe.NewPipeInfo.VERSION) }
     val bundleRep = remember { com.molina.core.common.BundledComponents.securityReport(bundleAll) }
-    val bundleOutdated = bundleSt.newpipeOutdated || bundleSt.ytdlpOutdated
+    val cBundle = ManagedComponents.bundle(bundleSt, bundleAll.size, bundleRep.hashPinned, bundleRep.requiredVerified) // [KOMPONEN-PUSAT]
     PackageStatusCard(
-        "Komponen bawaan Molina",
-        "${bundleAll.size} komponen \u00b7 ${bundleRep.hashPinned} sudah diperiksa keasliannya \u00b7 ringkasan keamanan",
-        if (bundleOutdated) PkgState.Outdated else if (bundleRep.requiredVerified) PkgState.Current else PkgState.Unchecked,
-        badge = if (bundleOutdated) "Baru" else null,
+        cBundle.title, cBundle.subtitle, cBundle.state, badge = cBundle.badge,
         onClick = onOpenBundle
     )
     Spacer(Modifier.height(8.dp))

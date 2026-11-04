@@ -41,22 +41,6 @@ internal fun BadgeOverlay(badge: String?, aero: Boolean, gold: Boolean = false, 
 private fun whenText(at: Long, never: String): String =
     if (at <= 0L) never else SimpleDateFormat("d MMM HH.mm", Locale("id", "ID")).format(Date(at))
 
-private fun ytdlpText(s: AutoState): String = when {
-    s.ytdlpInstalled.isEmpty() && s.ytdlpLatest.isEmpty() -> "Belum dicek, atau yt-dlp belum terpasang"
-    s.ytdlpOutdated -> "Pembaruan tersedia: ${s.ytdlpInstalled} \u2192 ${s.ytdlpLatest}"
-    s.ytdlpInstalled.isNotEmpty() -> "Terbaru (${s.ytdlpInstalled})"
-    else -> "Rilis terbaru: ${s.ytdlpLatest}"
-}
-
-private fun newpipeText(s: AutoState): String {
-    val cur = com.molina.engine.newpipe.NewPipeInfo.VERSION
-    return when {
-        s.newpipeOutdated -> "Pembaruan tersedia: $cur \u2192 ${s.newpipeLatest}. Sudah menyatu di aplikasi, jadi baru terbarui lewat versi Molina yang baru."
-        s.newpipeLatest.isNotEmpty() -> "Terbaru ($cur)"
-        else -> "Dibundel $cur. Belum diperiksa."
-    }
-}
-
 /** Jumlah komponen yang punya pembaruan (apt dihitung 1 bila ada paket tertunda). */
 internal fun updateCount(s: AutoState, aptPending: Int): Int =
     (if (aptPending > 0) 1 else 0) + (if (s.ytdlpOutdated) 1 else 0) + (if (s.newpipeOutdated) 1 else 0)
@@ -86,39 +70,18 @@ internal fun UpdateStatusSection(onApt: (AptJob) -> Unit) { // [PAKET-TERPUSAT]
             else -> PkgState.Current
         }
     )
-    PackageStatusCard(
-        "Program Debian", AptHistory.checkSubtitle(pending),
-        when {
-            running -> PkgState.Checking
-            pending > 0 -> PkgState.Outdated
-            pending == 0 -> PkgState.Current
-            else -> PkgState.Unchecked
-        },
-        badge = if (pending > 0) pending.toString() else null
-    )
+    val cDebian = ManagedComponents.debian(pending, running) // [KOMPONEN-PUSAT]
+    val cYtdlp = ManagedComponents.ytdlp(st, running)
+    val cNewpipe = ManagedComponents.newpipe(st, running)
+    PackageStatusCard(cDebian.title, cDebian.subtitle, cDebian.state, badge = cDebian.badge)
     Spacer(Modifier.height(8.dp))
     PackageStatusCard(
-        "yt-dlp (pengunduh tambahan)",
-        ytdlpText(st) + if (st.ytdlpOutdated) ". Ikut diperbarui lewat Perbarui semua." else "",
-        when {
-            running -> PkgState.Checking
-            st.ytdlpOutdated -> PkgState.Outdated
-            st.ytdlpInstalled.isNotEmpty() -> PkgState.Current
-            else -> PkgState.Unchecked
-        },
-        badge = if (st.ytdlpOutdated) "Baru" else null
+        cYtdlp.title,
+        cYtdlp.subtitle + if (st.ytdlpOutdated) ". Ikut diperbarui lewat Perbarui semua." else "",
+        cYtdlp.state, badge = cYtdlp.badge
     )
     Spacer(Modifier.height(8.dp))
-    PackageStatusCard(
-        "NewPipeExtractor (pencari video)", newpipeText(st),
-        when {
-            running -> PkgState.Checking
-            st.newpipeOutdated -> PkgState.Outdated
-            st.newpipeLatest.isNotEmpty() -> PkgState.Current
-            else -> PkgState.Unchecked
-        },
-        badge = if (st.newpipeOutdated) "Baru" else null
-    )
+    PackageStatusCard(cNewpipe.title, cNewpipe.subtitle, cNewpipe.state, badge = cNewpipe.badge)
 
     Spacer(Modifier.height(16.dp))
     PackageSectionHeader("Pemeriksaan otomatis") // [PAKET-BRAND] [PAKET-SAKELAR]
