@@ -173,14 +173,11 @@ internal fun PackagesPage(
     )
     Spacer(Modifier.height(16.dp))
     PackageSectionHeader("Alat")
-    remember { com.molina.studio.automation.AutoPrefs.init(ctx) }
-    val autoSt by com.molina.studio.automation.AutoPrefs.state.collectAsState()
-    val cYtdlp = ManagedComponents.ytdlp(autoSt, running = false) // [KOMPONEN-PUSAT]
+    // [YTDLP-PUSAT] status dan pasang/versi/hapus yt-dlp hanya di kartu "Alat tambahan di Debian"; kartu ini tautan ke sakelar
     PackageStatusCard(
-        "Pengunduh tambahan (yt-dlp)",
-        if (autoSt.ytdlpOutdated) cYtdlp.subtitle
-        else "Untuk TikTok, Facebook, dan situs lain yang tidak dikenali pemutar (bawaan: mati)",
-        cYtdlp.state, badge = cYtdlp.badge,
+        "Pengaturan pengunduh tambahan (yt-dlp)",
+        "Sakelar aktif/mati. Pasang, versi, dan hapus ada di kartu yt-dlp di bawah",
+        null,
         onClick = onOpenYtdlp
     )
     Spacer(Modifier.height(12.dp))
@@ -342,8 +339,8 @@ internal fun PackagesPage(
  * terakhir yang tercatat). [PAKET-VERSI] Cek versi alat dipindah ke Paket > Alat.
  */
 @Composable
-internal fun BundlePage(onOpenYtdlp: () -> Unit) {
-    BundledComponentsSection(onOpenYtdlp = onOpenYtdlp)
+internal fun BundlePage(onOpenPackages: () -> Unit) {
+    BundledComponentsSection(onOpenPackages = onOpenPackages)
 }
 
 /** Titik status kartu alat: hijau = terdeteksi, abu = belum; berdenyut emas Molina saat sedang diperiksa [SETELAN-PUSAT]. */

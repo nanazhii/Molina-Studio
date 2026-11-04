@@ -373,7 +373,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                         onOpenBundle = { open(Page.Bundle) },
                         onApt = { apt = it }
                     )
-                    Page.Bundle -> BundlePage(onOpenYtdlp = { open(Page.Stream) })
+                    Page.Bundle -> BundlePage(onOpenPackages = { open(Page.Packages) })
                     Page.Storage -> StoragePage(onOpenPackages = { open(Page.Packages) })
                     Page.Monitor -> SystemMonitorPage()
                     Page.Licenses -> LicensesPage()

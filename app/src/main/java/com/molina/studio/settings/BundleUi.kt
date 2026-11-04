@@ -98,7 +98,7 @@ private fun updateNote(c: BundledComponent, s: AutoState): String? = when {
     c.id == "newpipe" && s.newpipeOutdated ->
         "Pembaruan tersedia: ${NewPipeInfo.VERSION} \u2192 ${s.newpipeLatest}. Naikkan pin lewat workflow bump-newpipe, tinjau PR-nya, lalu rilis."
     c.id == "ytdlp" && s.ytdlpOutdated ->
-        "Pembaruan tersedia: ${s.ytdlpInstalled} \u2192 ${s.ytdlpLatest}. Perbarui di halaman yt-dlp."
+        ManagedComponents.ytdlp(s, running = false).subtitle + ". Perbarui di Paket > Alat." // [YTDLP-PUSAT]
     else -> null
 }
 
@@ -228,7 +228,7 @@ private fun DetailLine(label: String, value: String) {
  */
 @Composable
 internal fun BundledComponentsSection(
-    onOpenYtdlp: () -> Unit
+    onOpenPackages: () -> Unit
 ) {
     val ctx = LocalContext.current
     remember { AutoPrefs.init(ctx) }
@@ -365,7 +365,7 @@ internal fun BundledComponentsSection(
                     }
                     // [PAKET-VERSI] catatan cek versi dihapus
                     Text(c.note, color = W7D.TextDim, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
-                    if (c.id == "ytdlp") BundleAction("BUKA HALAMAN YT-DLP", onOpenYtdlp)
+                    if (c.id == "ytdlp") BundleAction("BUKA PAKET > ALAT", onOpenPackages)
                     if (c.id == "newpipe" && update != null && NewPipeBump.isValidTag(st.newpipeLatest)) {
                         BundleAction(if (copied == "tag") "DISALIN \u2713" else "SALIN VERSI BARU") {
                             copyText(ctx, "versi NewPipe", st.newpipeLatest); copied = "tag"

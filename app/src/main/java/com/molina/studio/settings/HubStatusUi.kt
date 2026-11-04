@@ -44,6 +44,13 @@ private fun hubToneColor(t: HubTone): Color = when (t) {
     HubTone.Idle -> W7D.TextDim
 }
 
+/** [KOMPONEN-PUSAT] Nada Hub diturunkan dari PkgState registry, bukan dihitung ulang. */
+private fun PkgState.toHubTone(): HubTone = when (this) {
+    PkgState.Current -> HubTone.Ok
+    PkgState.Outdated -> HubTone.Warn
+    PkgState.Unchecked, PkgState.Checking -> HubTone.Idle
+}
+
 internal fun hubTime(ms: Long): String =
     if (ms <= 0L) "belum pernah"
     else SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date(ms))
@@ -67,16 +74,23 @@ internal fun hubStatusRows(
         is RootfsState.Failed -> Pair("Gagal dipasang", HubTone.Bad)
         is RootfsState.Maintenance -> Pair("Sedang dikelola", HubTone.Idle)
     }
-    val apt = when {
-        aptPending < 0 -> Pair("Belum diperiksa", HubTone.Idle)
-        aptPending == 0 -> Pair("Semua terbaru", HubTone.Ok)
-        else -> Pair("$aptPending pembaruan tersedia", HubTone.Warn)
-    }
-    val yt = when {
-        auto.ytdlpInstalled.isEmpty() -> Pair("Belum terpasang atau belum diketahui", HubTone.Idle)
-        auto.ytdlpOutdated -> Pair("${auto.ytdlpInstalled} (terbaru ${auto.ytdlpLatest})", HubTone.Warn)
-        else -> Pair(auto.ytdlpInstalled, HubTone.Ok)
-    }
+    // [KOMPONEN-PUSAT] nada dari registry; teks ringkas tetap khusus Hub
+    val apt = Pair(
+        when {
+            aptPending < 0 -> "Belum diperiksa"
+            aptPending == 0 -> "Semua terbaru"
+            else -> "$aptPending pembaruan tersedia"
+        },
+        ManagedComponents.debian(aptPending, running = false).state.toHubTone()
+    )
+    val yt = Pair(
+        when {
+            auto.ytdlpInstalled.isEmpty() -> "Belum terpasang atau belum diketahui"
+            auto.ytdlpOutdated -> "${auto.ytdlpInstalled} (terbaru ${auto.ytdlpLatest})"
+            else -> auto.ytdlpInstalled
+        },
+        ManagedComponents.ytdlp(auto, running = false).state.toHubTone()
+    )
     val backup =
         if (backupMs <= 0L) Pair("Belum ada cadangan", HubTone.Warn) else Pair(hubTime(backupMs), HubTone.Ok)
     val autoRow =
