@@ -384,13 +384,13 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                         onLicenses = { open(Page.Licenses) }
                     )
                     Page.Terminal -> {
-                        PackageStatusCard("Debugging", "Log level, key logging, dan notifikasi crash", null, onClick = { page = Page.Debugging }) // [LOKAL-ID]
+                        PackageStatusCard("Debugging", "Log level, key logging, dan notifikasi crash", null, onClick = { page = Page.Debugging }, icon = { W7IconDebug() }) // [LOKAL-ID]
                         Spacer(Modifier.height(8.dp))
-                        PackageStatusCard("Terminal I/O", "Keyboard layar dan akses penyimpanan", null, onClick = { page = Page.TerminalIO })
+                        PackageStatusCard("Terminal I/O", "Keyboard layar dan akses penyimpanan", null, onClick = { page = Page.TerminalIO }, icon = { W7IconIo() })
                         Spacer(Modifier.height(8.dp))
-                        PackageStatusCard("Terminal View", "Penyesuaian margin terminal", null, onClick = { page = Page.TerminalView })
+                        PackageStatusCard("Terminal View", "Penyesuaian margin terminal", null, onClick = { page = Page.TerminalView }, icon = { W7IconTerminal() })
                         Spacer(Modifier.height(8.dp))
-                        PackageStatusCard("Tampilan Molina", "Ukuran font dan tema warna prompt", null, onClick = { page = Page.Tampilan })
+                        PackageStatusCard("Tampilan Molina", "Ukuran font dan tema warna prompt", null, onClick = { page = Page.Tampilan }, icon = { W7IconAa() })
                     }
                     Page.Debugging -> DebuggingPage(
                         onOpenCrash = { page = Page.CrashReports },
@@ -447,11 +447,19 @@ private fun SearchResults(query: String, onOpen: (Page) -> Unit) {
 
 private val LOG_LEVELS = listOf("Off", "Normal", "Debug", "Verbose")
 
+// [LOG-LEVEL-DESKRIPSI] sesuai MolinaLog: e/w/i di Normal, d di Debug, v di Verbose
+private val LOG_LEVEL_DESC = listOf(
+    "Tidak ada log terminal ke logcat",
+    "Error, peringatan, dan info (Default)",
+    "Normal ditambah pesan debug",
+    "Debug ditambah pesan terperinci (paling banyak)"
+)
+
 @Composable
 private fun DebuggingPage(onOpenCrash: () -> Unit, onOpenLog: () -> Unit) {
     var showLevel by remember { mutableStateOf(false) }
     PackageSectionHeader("Logging") // [TERMINAL-KARTU]
-    PackageStatusCard("Log Level", LOG_LEVELS[TerminalPrefs.logLevel], null, onClick = { showLevel = true })
+    PackageStatusCard("Log Level", LOG_LEVELS[TerminalPrefs.logLevel] + " \u2013 " + LOG_LEVEL_DESC[TerminalPrefs.logLevel], null, onClick = { showLevel = true })
     Spacer(Modifier.height(8.dp))
     PackageGroupCard {
         PackageSwitchRow(
@@ -530,7 +538,13 @@ private fun DebuggingPage(onOpenCrash: () -> Unit, onOpenLog: () -> Unit) {
                             RadioButton(selected = TerminalPrefs.logLevel == i, onClick = {
                                 TerminalPrefs.setLogLevel(i); showLevel = false
                             })
-                            Text(name)
+                            Column {
+                                Text(name)
+                                Text(
+                                    LOG_LEVEL_DESC[i], color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
                         }
                     }
                 }

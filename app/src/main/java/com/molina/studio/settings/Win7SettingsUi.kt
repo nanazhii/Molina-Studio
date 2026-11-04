@@ -302,6 +302,16 @@ private fun W7Badge(top: Color, bottom: Color, label: String) {
 @Composable internal fun W7IconInfo() = W7Badge(Color(0xFF7FC57A), Color(0xFF3F8F3A), "i")
 @Composable internal fun W7IconHit() = W7Badge(Color(0xFF8FC4EE), Color(0xFF2D6DB5), "\u203A")
 
+// [IKON-TERMINAL] lencana halaman Terminal; warna dari token MolinaTheme (panduan-warna.md)
+@Composable private fun W7Tinted(base: Color, label: String) = W7Badge(
+    androidx.compose.ui.graphics.lerp(base, Color.Black, 0.15f),
+    androidx.compose.ui.graphics.lerp(base, Color.Black, 0.55f),
+    label
+)
+@Composable internal fun W7IconDebug() = W7Tinted(MolinaTheme.Link, "dbg")
+@Composable internal fun W7IconIo() = W7Tinted(MolinaTheme.Muted, "I/O")
+@Composable internal fun W7IconAa() = W7Tinted(MolinaTheme.Muted, "Aa")
+
 @Composable
 internal fun W7IconShield() {
     Canvas(Modifier.size(34.dp)) {
