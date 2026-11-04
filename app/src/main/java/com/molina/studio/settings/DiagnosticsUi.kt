@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -43,6 +44,27 @@ private fun levelColor(l: CheckLevel): Color = when (l) {
 
 private suspend fun runChecks(ctx: Context): List<CheckResult> =
     withContext(Dispatchers.IO) { runCatching { HealthCheck.run(ctx) }.getOrDefault(emptyList()) }
+
+/** [DIAG-BADGE] Lencana kecil di tautan Diagnostik (halaman Info): mint = sehat, kuning = perlu dicek, merah = bermasalah. */
+@Composable
+internal fun DiagBadge(level: CheckLevel?, modifier: Modifier = Modifier) {
+    if (level == null) return
+    val c = levelColor(level)
+    val label = when (level) {
+        CheckLevel.Ok -> "Sehat"
+        CheckLevel.Warn -> "Perlu dicek"
+        CheckLevel.Bad -> "Bermasalah"
+    }
+    Row(
+        modifier.padding(top = 10.dp, end = 12.dp).clip(RoundedCornerShape(10.dp))
+            .background(c.copy(alpha = 0.16f)).padding(horizontal = 8.dp, vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.size(7.dp).clip(CircleShape).background(c))
+        Spacer(Modifier.width(5.dp))
+        Text(label, color = c, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
 
 /** [DIAG-CARD] Kartu hasil pemeriksaan: header berwarna sesuai kondisi terburuk, baris dengan penanda warna di kiri. */
 @Composable
