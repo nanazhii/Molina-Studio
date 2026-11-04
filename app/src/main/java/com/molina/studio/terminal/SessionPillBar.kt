@@ -121,7 +121,7 @@ private fun PillBarContent() {
 
 @Composable
 private fun SessionPill(index: Int, title: String, selected: Boolean, onClose: () -> Unit, onClick: () -> Unit) {
-    val accent = MolinaTheme.Good // [PILL-GREEN]
+    val accent = MolinaTheme.Brand // [PILL-GREEN]
     val shape = RoundedCornerShape(50)
     Row(
         Modifier

@@ -415,7 +415,7 @@ private fun levelAccent(level: LogLevel): Color = when (level) {
 
 private fun sourceColor(source: String): Color = when (source) {
     "cinema", "mpv" -> MolinaTheme.Cinema
-    "terminal" -> MolinaTheme.Good
+    "terminal" -> MolinaTheme.Brand
     "sistem" -> Color(0xFF6CB4FF)
     "crash" -> MolinaTheme.Bad
     else -> MolinaTheme.Muted

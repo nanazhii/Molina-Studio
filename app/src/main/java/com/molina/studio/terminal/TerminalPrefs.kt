@@ -41,9 +41,9 @@ enum class PromptTheme(
 ) {
     Noir(
         "molina_noir", "Molina Noir",
-        "1;${MolinaTheme.GOOD_SGR}", "1;38;2;255;138;128",
-        MolinaTheme.Good, MolinaTheme.Bad,
-        userSgr = "1;${MolinaTheme.BRAND_SGR}", branchSgr = "38;2;179;136;255"
+        "1;${MolinaTheme.BRAND_SGR}", "1;38;2;255;138;128",
+        MolinaTheme.Brand, MolinaTheme.Bad,
+        userSgr = "1;38;2;237;237;237", branchSgr = "38;2;179;136;255"
     ),
     CinemaBrand(
         "cinema_gold", "Cinema Emerald",

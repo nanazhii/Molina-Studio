@@ -10,7 +10,7 @@ import java.io.File
 object MolinaShell {
     const val BRAND = "Welcome Molina Terminal"
     /** Cadangan warna banner (hijau Molina, tebal) bila warna tema prompt belum tersedia (prompt.env belum ada). */
-    const val BRAND_SGR = "1;${MolinaTheme.GOOD_SGR}"
+    const val BRAND_SGR = "1;${MolinaTheme.BRAND_SGR}"
     /** Akar data aplikasi di dalam Debian (bind appRoot; lihat StorageBinds). */
     const val APP_ROOT = "/sdcard/Molina"
     /** Folder kerja terminal = akar Molina; dipakai bashrc untuk warna prompt (MOLINA_HOME). */

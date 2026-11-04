@@ -47,7 +47,7 @@ import java.util.Date
 import java.util.Locale
 
 private fun levelColor(l: CheckLevel): Color = when (l) {
-    CheckLevel.Ok -> MolinaTheme.Good // mint #69F0AE
+    CheckLevel.Ok -> MolinaTheme.Good // hijau status
     CheckLevel.Warn -> MolinaTheme.Warn
     CheckLevel.Bad -> MolinaTheme.Bad
 }

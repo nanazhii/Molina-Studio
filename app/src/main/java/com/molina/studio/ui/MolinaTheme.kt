@@ -11,10 +11,10 @@ object MolinaTheme {
     val Brand = Color(BRAND_ARGB)
     val Background = Color(0xFF0A0A0F)
     val OnBackground = Color(0xFFEDEDED)
-    // Hijau status/merek terminal (#69F0AE). Nilai ARGB dan SGR (ANSI truecolor) harus tetap sama.
-    const val GOOD_ARGB = 0xFF69F0AE.toInt()
-    const val GOOD_SGR = "38;2;105;240;174"
-    val Good = Color(0xFF69F0AE)
+    // Hijau status (#9BE564), sengaja beda hue dari Brand (zamrud). Nilai ARGB dan SGR (ANSI truecolor) harus tetap sama.
+    const val GOOD_ARGB = 0xFF9BE564.toInt()
+    const val GOOD_SGR = "38;2;155;229;100"
+    val Good = Color(GOOD_ARGB)
     val Warn = Color(0xFFFFD54F)
     val Bad = Color(0xFFFF8A80)
     /** Aksen Molina Cinema (ikon putar, penanda baris log mpv). */
