@@ -12,6 +12,7 @@ import java.util.concurrent.TimeUnit
 object AutoWork {
     private const val UPDATE = "molina-auto-update"
     private const val BACKUP = "molina-auto-backup"
+    private const val TOOLS = "molina-tool-check" // [PAKET-WORKER2]
 
     fun sync(ctx: Context) {
         val app = ctx.applicationContext
@@ -44,5 +45,13 @@ object AutoWork {
         } else {
             wm.cancelUniqueWork(BACKUP)
         }
+
+        // [PAKET-WORKER2] cek versi alat Paket: lokal tanpa jaringan, tidak bergantung pada autoUpdate; hanya baterai tidak lemah
+        val tc = Constraints.Builder().setRequiresBatteryNotLow(true).build()
+        val treq = PeriodicWorkRequestBuilder<ToolCheckWorker>(24, TimeUnit.HOURS)
+            .setConstraints(tc)
+            .setInitialDelay(20, TimeUnit.MINUTES)
+            .build()
+        wm.enqueueUniquePeriodicWork(TOOLS, ExistingPeriodicWorkPolicy.KEEP, treq)
     }
 }

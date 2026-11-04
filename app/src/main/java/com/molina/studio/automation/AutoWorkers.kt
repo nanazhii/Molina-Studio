@@ -29,7 +29,7 @@ private const val TOOLS_WAIT_MS = 4 * 60_000L
 private suspend fun checkTools(app: Context) {
     try {
         val rootfsReady = withContext(Dispatchers.IO) { YtdlpLocator.status(app) != YtdlpStatus.NoRootfs }
-        if (!rootfsReady || !ToolChecker.requestStale(app)) return
+        if (!rootfsReady || !ToolChecker.requestStale(app, force = true)) return
         val done = withTimeoutOrNull(TOOLS_WAIT_MS) { ToolChecker.state.first { it.checkingId == null } }
         if (done == null) {
             ToolChecker.cancel()
@@ -52,7 +52,6 @@ class UpdateCheckWorker(ctx: Context, params: WorkerParameters) : CoroutineWorke
         AutoPrefs.init(app)
         val st = AutoPrefs.state.value
         if (!st.autoUpdate) return Result.success()
-        checkTools(app) // [PAKET-WORKER] sebelum jeda 23 jam: staleIds() sudah membatasi alat yang diperiksa
         if (System.currentTimeMillis() - st.lastCheck < DAY_MS) return Result.success()
         try {
             UpdateChecker.checkAll(app)
@@ -61,6 +60,14 @@ class UpdateCheckWorker(ctx: Context, params: WorkerParameters) : CoroutineWorke
         } catch (e: Exception) {
             AppLog.log("system", LogLevel.Warn, "auto", "periksa otomatis gagal: ${e.javaClass.simpleName}")
         }
+        return Result.success()
+    }
+}
+
+/** [PAKET-WORKER2] Cek versi alat Paket tiap ~24 jam. Lokal (tanpa jaringan) dan tidak bergantung pada "pembaruan otomatis". */
+class ToolCheckWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
+    override suspend fun doWork(): Result {
+        checkTools(applicationContext)
         return Result.success()
     }
 }

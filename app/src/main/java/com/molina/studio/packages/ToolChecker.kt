@@ -81,8 +81,8 @@ object ToolChecker {
 
     /** [PAKET-AUTOCEK] Cek otomatis hanya sekali per proses aplikasi, agar PRoot tidak dibebani berulang. */
     @Synchronized
-    fun requestStale(ctx: Context): Boolean {
-        if (autoDone) return false
+    fun requestStale(ctx: Context, force: Boolean = false): Boolean { // [PAKET-WORKER2] force = dipanggil worker harian, abaikan penjaga per proses
+        if (autoDone && !force) return false
         ToolStore.init(ctx)
         val ids = staleIds()
         if (ids.isEmpty()) {
