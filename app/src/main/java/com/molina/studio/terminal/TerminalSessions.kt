@@ -186,6 +186,7 @@ object TerminalSessions {
         MolinaShell.installAptConf(rootfsDir)
         MolinaShell.installCli(ctx, rootfsDir)
         MolinaShell.writePromptEnv(rootfsDir, TerminalPrefs.promptTheme)
+        MolinaShell.writeBanner(rootfsDir) // [BANNER]
         MolinaDns.writeResolvConf(ctx, rootfsDir)
 
         // Lingkup storage: default hanya folder kerja Molina; "Akses penuh" membuka seluruh storage.

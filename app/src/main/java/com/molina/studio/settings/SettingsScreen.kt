@@ -49,6 +49,7 @@ import com.molina.studio.log.LogScreen
 import com.molina.studio.terminal.CrashReporter
 import com.molina.studio.terminal.LogcatReporter
 import com.molina.studio.terminal.PromptTheme
+import com.molina.studio.terminal.BannerStyle
 import com.molina.studio.terminal.TerminalLook
 import com.molina.studio.terminal.TerminalPrefs
 import java.io.File
@@ -637,6 +638,25 @@ private fun TampilanPage() {
     }
     Text(
         "Skema warna berlaku langsung pada sesi yang terbuka.",
+        modifier = Modifier.padding(top = 6.dp),
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+        style = MaterialTheme.typography.bodySmall
+    )
+
+    Spacer(Modifier.height(12.dp))
+    Category("Banner sesi")
+    BannerStyle.entries.forEach { b ->
+        Row(
+            Modifier.fillMaxWidth().clickable { TerminalPrefs.setBannerStyle(b) }
+                .padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RadioButton(selected = b == TerminalPrefs.bannerStyle, onClick = { TerminalPrefs.setBannerStyle(b) })
+            Text(b.label, color = MaterialTheme.colorScheme.onSurface)
+        }
+    }
+    Text(
+        "Tampil di sesi baru dan saat tombol CLEAR. Mati = sesi langsung ke prompt.",
         modifier = Modifier.padding(top = 6.dp),
         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
         style = MaterialTheme.typography.bodySmall

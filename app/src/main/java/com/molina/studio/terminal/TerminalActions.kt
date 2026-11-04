@@ -82,7 +82,8 @@ object TerminalActions {
         val session = TerminalSessions.currentSession ?: return false
         val em = session.emulator ?: return false
         if (em.isAlternateBufferActive) return false
-        val seq = ("\u001b[3J\u001b[H\u001b[2J" + MolinaShell.banner + "\r\n").toByteArray()
+        val banner = MolinaShell.banner // [BANNER] gaya Mati = tanpa banner dan tanpa baris kosong
+        val seq = ("\u001b[3J\u001b[H\u001b[2J" + (if (banner.isEmpty()) "" else banner + "\r\n")).toByteArray()
         em.append(seq, seq.size)
         send(MolinaShell.REDRAW_SEQ)
         TerminalSessions.client.view?.onScreenUpdated()

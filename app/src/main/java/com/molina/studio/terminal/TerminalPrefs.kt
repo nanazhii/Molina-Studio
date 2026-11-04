@@ -71,6 +71,7 @@ data class TerminalSettings(
     val fontSp: Int = TerminalPrefs.DEFAULT_FONT_SP,
     val promptTheme: PromptTheme = PromptTheme.Noir,
     val look: TerminalLook = TerminalLook.NoirGold,
+    val banner: BannerStyle = BannerStyle.Logo,
     val logLevel: Int = TerminalPrefs.LOG_NORMAL,
     val keyLogging: Boolean = false,
     val pluginErrorNotifications: Boolean = true,
@@ -97,6 +98,7 @@ private object PrefKeys {
     val FONT_SP = intPreferencesKey("font_sp")
     val PROMPT_THEME = stringPreferencesKey("prompt_theme_v2")
     val TERMINAL_LOOK = stringPreferencesKey("terminal_look")
+    val BANNER_STYLE = stringPreferencesKey("banner_style")
     val LOG_LEVEL = intPreferencesKey("log_level")
     val KEY_LOGGING = booleanPreferencesKey("key_logging")
     val PLUGIN_ERRORS = booleanPreferencesKey("plugin_error_notifications")
@@ -117,6 +119,7 @@ private fun Preferences.toSettings(): TerminalSettings {
             .coerceIn(TerminalPrefs.MIN_FONT_SP, TerminalPrefs.MAX_FONT_SP),
         promptTheme = PromptTheme.fromId(this[PrefKeys.PROMPT_THEME]),
         look = TerminalLook.fromId(this[PrefKeys.TERMINAL_LOOK]),
+        banner = BannerStyle.fromId(this[PrefKeys.BANNER_STYLE]),
         logLevel = (this[PrefKeys.LOG_LEVEL] ?: d.logLevel)
             .coerceIn(TerminalPrefs.LOG_OFF, TerminalPrefs.LOG_VERBOSE),
         keyLogging = this[PrefKeys.KEY_LOGGING] ?: d.keyLogging,
@@ -136,6 +139,7 @@ private fun MutablePreferences.write(s: TerminalSettings) {
     this[PrefKeys.FONT_SP] = s.fontSp
     this[PrefKeys.PROMPT_THEME] = s.promptTheme.id
     this[PrefKeys.TERMINAL_LOOK] = s.look.id
+    this[PrefKeys.BANNER_STYLE] = s.banner.id
     this[PrefKeys.LOG_LEVEL] = s.logLevel
     this[PrefKeys.KEY_LOGGING] = s.keyLogging
     this[PrefKeys.PLUGIN_ERRORS] = s.pluginErrorNotifications
@@ -180,6 +184,7 @@ object TerminalPrefs {
     val fontSp: Int get() = ui.fontSp
     val promptTheme: PromptTheme get() = ui.promptTheme
     val look: TerminalLook get() = ui.look
+    val bannerStyle: BannerStyle get() = ui.banner
     val logLevel: Int get() = ui.logLevel
     val keyLogging: Boolean get() = ui.keyLogging
     val pluginErrorNotifications: Boolean get() = ui.pluginErrorNotifications
@@ -244,6 +249,9 @@ object TerminalPrefs {
         update { copy(look = l) }
         TerminalLooks.applyLive(l)
     }
+
+    /** Gaya banner berlaku di sesi baru dan tombol CLEAR. */
+    fun setBannerStyle(b: BannerStyle) = update { copy(banner = b) }
 
     fun setLogLevel(v: Int) = update { copy(logLevel = v.coerceIn(LOG_OFF, LOG_VERBOSE)) }
     fun setKeyLogging(v: Boolean) = update { copy(keyLogging = v) }
