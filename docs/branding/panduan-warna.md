@@ -92,3 +92,4 @@ Warna sintaks (`Json*`, `Ext*`) dan nomor baris terakota adalah identitas editor
 - Hijau status di luar token: `CodeColors.Clean` `#3FB950` (indikator berkas) dan `KeyGreen` `#00E676` (tombol COPY/PASTE).
 - `vault` memakai amber `#FFB300` sendiri (khusus peringatan) dan belum memakai token ini.
 - Aksen biru `Accent` privat di `CinemaResults.kt` dan `W7D.Accent` belum dipetakan ke token.
+- Lencana ikon lama di `Win7SettingsUi.kt` (`W7IconLog`, `W7IconYtdlp`, `W7IconInfo`, `W7IconHit`) dan sparkline `SystemMonitorUi` masih memakai hex langsung; petakan ke token bila tampilannya boleh disesuaikan. Lencana baru (`W7IconDebug`, `W7IconIo`, `W7IconAa`) sudah memakai token. [LENCANA-HEX]
