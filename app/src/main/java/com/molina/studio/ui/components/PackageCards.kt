@@ -86,7 +86,8 @@ internal fun PackageStatusCard(
     subtitle: String,
     state: PkgState?,
     badge: String? = null,
-    onClick: (() -> Unit)? = null
+    onClick: (() -> Unit)? = null,
+    subtitleMaxLines: Int = 3
 ) {
     val strip = if (state == null) Color.Transparent else pkgStrip(state)
     var rowMod = Modifier.fillMaxWidth().drawBehind { drawRect(strip, Offset.Zero, Size(3.dp.toPx(), size.height)) }
@@ -101,7 +102,7 @@ internal fun PackageStatusCard(
                     title, color = MolinaTheme.Explorer.Ink, fontSize = 15.sp, fontWeight = FontWeight.Bold,
                     maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
-                Text(subtitle, color = MolinaTheme.Explorer.TextDim, fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                Text(subtitle, color = MolinaTheme.Explorer.TextDim, fontSize = 12.sp, maxLines = subtitleMaxLines, overflow = TextOverflow.Ellipsis)
             }
             if (badge != null) {
                 MolinaBadge(badge, aero = false, gold = true)

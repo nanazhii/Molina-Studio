@@ -1,5 +1,15 @@
 package com.molina.studio.settings
 
+import com.molina.studio.ui.components.PackageDivider
+import com.molina.studio.ui.components.PackageGroupCard
+import com.molina.studio.ui.components.PackageInfoRow
+import com.molina.studio.ui.components.PackageSectionHeader
+import com.molina.studio.ui.components.PackageStatusCard
+import com.molina.studio.ui.components.PackageSwitchRow
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -31,68 +41,88 @@ internal fun NetworkSecurityPage() {
             blocked = blocked.toInt(), fingerprint = sig.sha256,
         )
     )
-    Category("Ringkasan perlindungan")
-    SettingsItem(sum.title, sum.body) { // [SHIELD-REPORT]
-        val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-        cm?.setPrimaryClip(android.content.ClipData.newPlainText("Molina Shield", sum.report))
-        android.widget.Toast.makeText(ctx, "Laporan perlindungan disalin", android.widget.Toast.LENGTH_SHORT).show()
-    }
-    Category("Molina Shield")
-    SwitchRow(
-        "Aktifkan Molina Shield",
-        "Semua lalu lintas http/https pemutar lewat filter lokal: redirect, segmen HLS, dan playlist ke alamat " +
-            "privat atau loopback diblokir, termasuk DNS yang diarahkan ke alamat privat. Perubahan berlaku penuh " +
-            "setelah Refresh Pemutar atau membuka ulang pemutar. Tidak mencakup rtmp/rtsp. Unduhan yt-dlp hanya diperiksa pada URL awal (redirect tidak tercakup).",
-        shieldOn
-    ) { ShieldPrefs.setEnabled(it) }
-    SwitchRow(
-        "Blokir pelacak dan iklan",
-        "Menolak domain iklan, analitik, dan telemetri yang dipanggil oleh stream atau playlist.",
-        trackersOn
-    ) { ShieldPrefs.setBlockTrackers(it) }
-    SwitchRow(
-        "Hapus header Referer",
-        "Mencegah server mengetahui halaman asal. Matikan bila channel IPTV tertentu menolak diputar.",
-        refererOff
-    ) { ShieldPrefs.setStripReferer(it) }
-    SwitchRow(
-        "Blokir rtmp di dalam playlist",
-        "Playlist (m3u) tidak bisa menyuruh pemutar membuka rtmp ke alamat lain. Tautan rtmp yang Anda buka " +
-            "langsung tetap jalan. Kanal rtmp di dalam daftar IPTV akan gagal diputar. rtsp belum tercakup. " +
-            "Berlaku setelah Refresh Pemutar atau membuka ulang pemutar.",
-        blockPl
-    ) { StreamEnginePrefs.setBlockPlaylistStreams(it) } // [PL-STREAM-GUARD]
-    SettingsItem(
-        "Diblokir sesi ini: $blocked",
-        if (recent.isEmpty()) "Belum ada permintaan yang diblokir. Hanya host dan alasan yang dicatat, tidak pernah URL lengkap."
-        else recent.joinToString("\n") {
-            java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(it.atMs)) +
-                "  " + it.host + " - " + it.reason
+    PackageSectionHeader("Ringkasan perlindungan") // [KEAMANAN-KARTU]
+    PackageStatusCard(
+        sum.title, sum.body, null, subtitleMaxLines = Int.MAX_VALUE,
+        onClick = { // [SHIELD-REPORT]
+            val cm = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+            cm?.setPrimaryClip(android.content.ClipData.newPlainText("Molina Shield", sum.report))
+            android.widget.Toast.makeText(ctx, "Laporan perlindungan disalin", android.widget.Toast.LENGTH_SHORT).show()
         }
-    ) {}
-    Category("Kebijakan URL")
-    SettingsItem(
-        "Daftar putih skema",
-        "Hanya http, https, rtmp(s), rtsp, dan berkas lokal. concat:, edl://, fd://, data: dan sejenisnya " +
-            "selalu ditolak, begitu pula alamat perangkat sendiri (127.x) dan metadata cloud (169.254.x)."
-    ) {}
-    SwitchRow(
-        "Izinkan jaringan lokal (LAN)",
-        "Untuk NAS, Jellyfin, DLNA (192.168.x.x, 10.x.x.x, nama .local). Default mati supaya tautan " +
-            "jahat tidak bisa memakai aplikasi untuk memindai jaringan rumah Anda.",
-        lan
-    ) { StreamEnginePrefs.enableLan(it) }
-    Category("Privasi layar")
-    SwitchRow(
-        "Layar privat (Terminal dan Pengaturan)",
-        "Menyembunyikan isi layar dari tangkapan layar, perekam layar, dan daftar aplikasi terbaru, " +
-            "serta menolak sentuhan saat tertutup overlay aplikasi lain. Matikan bila Anda perlu " +
-            "screenshot atau memakai aplikasi filter cahaya biru. Pemutar video tidak terpengaruh.",
-        secure
-    ) { PrivacyPrefs.setSecureScreen(it) }
-    Category("Catatan")
-    SettingsItem(
-        "Tautan http dan rtmp tidak terenkripsi",
-        "Isinya bisa dibaca atau diubah siapa pun di jaringan yang sama. Gunakan https bila tersedia."
-    ) {}
+    )
+    Spacer(Modifier.height(16.dp))
+    PackageSectionHeader("Molina Shield")
+    PackageGroupCard {
+        PackageSwitchRow(
+            "Aktifkan Molina Shield",
+            "Semua lalu lintas http/https pemutar lewat filter lokal: redirect, segmen HLS, dan playlist ke alamat " +
+                "privat atau loopback diblokir, termasuk DNS yang diarahkan ke alamat privat. Perubahan berlaku penuh " +
+                "setelah Refresh Pemutar atau membuka ulang pemutar. Tidak mencakup rtmp/rtsp. Unduhan yt-dlp hanya diperiksa pada URL awal (redirect tidak tercakup).",
+            shieldOn
+        ) { ShieldPrefs.setEnabled(it) }
+        PackageDivider()
+        PackageSwitchRow(
+            "Blokir pelacak dan iklan",
+            "Menolak domain iklan, analitik, dan telemetri yang dipanggil oleh stream atau playlist.",
+            trackersOn
+        ) { ShieldPrefs.setBlockTrackers(it) }
+        PackageDivider()
+        PackageSwitchRow(
+            "Hapus header Referer",
+            "Mencegah server mengetahui halaman asal. Matikan bila channel IPTV tertentu menolak diputar.",
+            refererOff
+        ) { ShieldPrefs.setStripReferer(it) }
+        PackageDivider()
+        PackageSwitchRow(
+            "Blokir rtmp di dalam playlist",
+            "Playlist (m3u) tidak bisa menyuruh pemutar membuka rtmp ke alamat lain. Tautan rtmp yang Anda buka " +
+                "langsung tetap jalan. Kanal rtmp di dalam daftar IPTV akan gagal diputar. rtsp belum tercakup. " +
+                "Berlaku setelah Refresh Pemutar atau membuka ulang pemutar.",
+            blockPl
+        ) { StreamEnginePrefs.setBlockPlaylistStreams(it) } // [PL-STREAM-GUARD]
+        PackageDivider()
+        PackageInfoRow(
+            "Diblokir sesi ini: $blocked",
+            if (recent.isEmpty()) "Belum ada permintaan yang diblokir. Hanya host dan alasan yang dicatat, tidak pernah URL lengkap."
+            else recent.joinToString("\n") {
+                java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(it.atMs)) +
+                    "  " + it.host + " - " + it.reason
+            }
+        )
+    }
+    Spacer(Modifier.height(16.dp))
+    PackageSectionHeader("Kebijakan URL")
+    PackageGroupCard {
+        PackageInfoRow(
+            "Daftar putih skema",
+            "Hanya http, https, rtmp(s), rtsp, dan berkas lokal. concat:, edl://, fd://, data: dan sejenisnya " +
+                "selalu ditolak, begitu pula alamat perangkat sendiri (127.x) dan metadata cloud (169.254.x)."
+        )
+        PackageDivider()
+        PackageSwitchRow(
+            "Izinkan jaringan lokal (LAN)",
+            "Untuk NAS, Jellyfin, DLNA (192.168.x.x, 10.x.x.x, nama .local). Default mati supaya tautan " +
+                "jahat tidak bisa memakai aplikasi untuk memindai jaringan rumah Anda.",
+            lan
+        ) { StreamEnginePrefs.enableLan(it) }
+    }
+    Spacer(Modifier.height(16.dp))
+    PackageSectionHeader("Privasi layar")
+    PackageGroupCard {
+        PackageSwitchRow(
+            "Layar privat (Terminal dan Pengaturan)",
+            "Menyembunyikan isi layar dari tangkapan layar, perekam layar, dan daftar aplikasi terbaru, " +
+                "serta menolak sentuhan saat tertutup overlay aplikasi lain. Matikan bila Anda perlu " +
+                "screenshot atau memakai aplikasi filter cahaya biru. Pemutar video tidak terpengaruh.",
+            secure
+        ) { PrivacyPrefs.setSecureScreen(it) }
+    }
+    Spacer(Modifier.height(16.dp))
+    PackageSectionHeader("Catatan")
+    PackageGroupCard {
+        PackageInfoRow(
+            "Tautan http dan rtmp tidak terenkripsi",
+            "Isinya bisa dibaca atau diubah siapa pun di jaringan yang sama. Gunakan https bila tersedia."
+        )
+    }
 }
