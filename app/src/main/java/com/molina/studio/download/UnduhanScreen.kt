@@ -75,6 +75,7 @@ import com.molina.studio.settings.W7IconDownloadBig
 import com.molina.studio.settings.GlossBar
 import com.molina.studio.settings.Win7GlassWindow
 import com.molina.studio.settings.RgbFrame
+import com.molina.studio.settings.RgbSpot
 import com.molina.studio.settings.MolinaExplorer
 import com.molina.studio.ui.MolinaTheme
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -187,7 +188,7 @@ fun UnduhanScreen(modifier: Modifier = Modifier) {
         item { Box(Modifier.height(4.dp)) }
         // [win7-form] formulir dalam jendela kaca Aero; frame RGB berputar hanya saat unduhan berjalan.
         item {
-            RgbFrame(Modifier.fillMaxWidth(), animate = run.running) {
+            RgbFrame(Modifier.fillMaxWidth(), animate = run.running, spot = RgbSpot.Unduhan) {
                 Win7GlassWindow("Unduh dari tautan", icon = { W7IconDownloadBig(18.dp) }) {
                     OutlinedTextField(
                         value = urls,

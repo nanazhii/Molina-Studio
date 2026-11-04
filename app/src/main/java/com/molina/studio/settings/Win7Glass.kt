@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -71,6 +72,32 @@ internal object GlassPrefs {
         rgb = v
         ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_RGB, v).apply()
     }
+
+    // [RGB-PER-HALAMAN] sakelar per lokasi; bawaan menyala, tetap butuh sakelar utama [rgb]
+    private var spotsLoaded = false
+    private val spots = mutableStateMapOf<RgbSpot, Boolean>()
+
+    fun loadSpots(ctx: Context) {
+        if (spotsLoaded) return
+        spotsLoaded = true
+        val sp = ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        RgbSpot.entries.forEach { spots[it] = sp.getBoolean(it.key, true) }
+    }
+
+    fun spotOn(s: RgbSpot): Boolean = spots[s] ?: true
+
+    fun setSpot(ctx: Context, s: RgbSpot, v: Boolean) {
+        loadSpots(ctx)
+        spots[s] = v
+        ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(s.key, v).apply()
+    }
+}
+
+/** [RGB-PER-HALAMAN] Lokasi bingkai RGB. Tiap lokasi punya sakelar sendiri di bawah sakelar utama. */
+internal enum class RgbSpot(val key: String, val label: String) {
+    Cinema("rgb_spot_cinema", "Beranda Cinema"),
+    Unduhan("rgb_spot_unduhan", "Halaman Unduhan"),
+    Monitor("rgb_spot_monitor", "Monitor Sistem")
 }
 
 private val RgbColors = listOf(
@@ -88,11 +115,11 @@ private val GlassBottom = Color(0xFF101010)
  * ulang, tanpa recomposition). Selain itu bingkai statis emas-biru Molina tanpa animasi sama sekali.
  */
 @Composable
-internal fun RgbFrame(modifier: Modifier = Modifier, animate: Boolean = true, content: @Composable () -> Unit) {
+internal fun RgbFrame(modifier: Modifier = Modifier, animate: Boolean = true, spot: RgbSpot? = null, content: @Composable () -> Unit) {
     val ctx = LocalContext.current
-    remember(ctx) { GlassPrefs.load(ctx) }
+    remember(ctx) { GlassPrefs.load(ctx); GlassPrefs.loadSpots(ctx) }
     val shape = RoundedCornerShape(11.dp)
-    if (animate && GlassPrefs.rgb) {
+    if (animate && GlassPrefs.rgb && (spot == null || GlassPrefs.spotOn(spot))) {
         val transition = rememberInfiniteTransition()
         val angle by transition.animateFloat(
             initialValue = 0f,

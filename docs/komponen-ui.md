@@ -47,5 +47,6 @@ menghasilkan `ManagedComponent(id, title, subtitle, state, badge)`. Dipakai oleh
 - Ikon dan lencana baru memakai token `MolinaTheme`; jangan menambah hex baru.
 - Dikecualikan dari kartu: `SystemMonitorUi` (gaya kaca dengan meter; `SwitchRow` lama tetap untuk sakelar RGB) dan
   beranda Settings (`W7CategoryTile`). Keduanya identitas sengaja, bukan utang.
-- Animasi RGB: `RgbFrame(animate = ...)` bergerak hanya bila `animate` dan sakelar `GlassPrefs.rgb` sama-sama aktif
-  (bawaan mati). Cinema memakai `live || busy`, Unduhan memakai `run.running`.
+- Animasi RGB: `RgbFrame(animate, spot)` bergerak hanya bila `animate`, sakelar utama `GlassPrefs.rgb` (bawaan mati), dan
+  sakelar lokasi `GlassPrefs.spotOn(spot)` (bawaan menyala) aktif. Lokasi: `RgbSpot.Cinema` (animate = `live || busy`),
+  `Unduhan` (`run.running`), `Monitor`. Sakelar ada di Sistem > Monitor; kunci `rgb_spot_*` ikut cadangan gabungan.

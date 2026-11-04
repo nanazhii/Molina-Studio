@@ -31,7 +31,7 @@ internal object BackupManager {
     }
 
     private fun specs(ctx: Context) = listOf(
-        Spec("molina_ui", only = setOf("rgb_anim", "term_keep_on")),
+        Spec("molina_ui", only = setOf("rgb_anim", "rgb_spot_cinema", "rgb_spot_unduhan", "rgb_spot_monitor", "term_keep_on")),
         Spec("molina_code"),
         Spec("molina_shield"),
         Spec("molina_privacy"),

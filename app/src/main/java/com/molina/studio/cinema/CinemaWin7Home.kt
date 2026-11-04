@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.molina.studio.settings.GlossBar
 import com.molina.studio.settings.RgbFrame
+import com.molina.studio.settings.RgbSpot
 import com.molina.studio.settings.Win7GlassWindow
 import androidx.compose.ui.res.painterResource
 import com.molina.studio.R
@@ -73,7 +74,7 @@ internal fun CinemaWin7Body(
     val ctx = LocalContext.current
     val recents = remember(CinemaRecent.version) { CinemaRecent.load(ctx) }
     Column(modifier.background(MolinaTheme.Background).padding(12.dp)) {
-        RgbFrame(modifier = Modifier.weight(1f).fillMaxWidth(), animate = live || busy) {
+        RgbFrame(modifier = Modifier.weight(1f).fillMaxWidth(), animate = live || busy, spot = RgbSpot.Cinema) {
             Win7GlassWindow(
                 title = "Molina Cinema \u2013 Home Theater",
                 icon = { TitleOrb() },

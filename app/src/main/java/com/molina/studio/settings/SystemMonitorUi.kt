@@ -88,7 +88,7 @@ internal fun SystemMonitorPage() {
     val ramFraction = if (stats.totalRamMb > 0) stats.ramMb.toFloat() / stats.totalRamMb else 0f
 
     Spacer(Modifier.height(4.dp))
-    RgbFrame(Modifier.fillMaxWidth()) {
+    RgbFrame(Modifier.fillMaxWidth(), spot = RgbSpot.Monitor) {
         Win7GlassWindow("Monitor Sistem", icon = { W7IconMonitor(18.dp) }) {
             MonitorMeter("\u2193 Unduh", stats.rxText, netFraction(stats.rxBps), Color(0xFF8FC4EE), Color(0xFF2D6DB5))
             MonitorMeter("\u2191 Unggah", stats.txText, netFraction(stats.txBps), Color(0xFFE8776B), Color(0xFFB3261E))
@@ -106,9 +106,18 @@ internal fun SystemMonitorPage() {
     Spacer(Modifier.height(10.dp))
     SwitchRow(
         "Animasi frame RGB",
-        "Bingkai berwarna yang bergerak. Mati (bawaan) lebih hemat baterai, bingkai menjadi emas-biru statis. Berlaku juga di halaman Unduhan dan beranda Cinema.",
+        "Bingkai berwarna yang bergerak. Mati (bawaan) lebih hemat baterai, bingkai menjadi emas-biru statis. Saat menyala, tiap halaman bisa dimatikan sendiri di bawah.",
         GlassPrefs.rgb
     ) { GlassPrefs.setRgb(ctx, it) }
+    if (GlassPrefs.rgb) { // [RGB-PER-HALAMAN]
+        RgbSpot.entries.forEach { s ->
+            SwitchRow(
+                "Frame RGB: ${s.label}",
+                "Bingkai di ${s.label} boleh bergerak. Mati = emas-biru statis di sini saja.",
+                GlassPrefs.spotOn(s)
+            ) { GlassPrefs.setSpot(ctx, s, it) }
+        }
+    }
     Text(
         "Mengukur seluruh proses aplikasi (termasuk Debian PRoot). Berhenti saat aplikasi di latar belakang. " +
             "Bilah jaringan memakai skala logaritmik. Kuning = lonjakan, merah = tinggi.",
