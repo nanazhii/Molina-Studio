@@ -1,5 +1,6 @@
 package com.molina.studio.settings
 
+import com.molina.studio.ui.components.MolinaBadge
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -340,7 +341,7 @@ internal fun BundledComponentsSection(
                     Text(sub, color = W7D.TextDim, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 if (update != null) {
-                    W7Badge("Baru", true, gold = true)
+                    MolinaBadge("Baru", true, gold = true)
                     Spacer(Modifier.width(6.dp))
                 }
                 RolePill(c.role)

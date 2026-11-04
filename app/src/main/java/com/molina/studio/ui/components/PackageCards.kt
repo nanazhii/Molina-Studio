@@ -1,4 +1,4 @@
-package com.molina.studio.settings
+package com.molina.studio.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -28,6 +28,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.Brush
 import com.molina.studio.ui.MolinaTheme
 
 /**
@@ -54,14 +61,14 @@ private fun pkgStrip(state: PkgState): Color = when (state) {
 @Composable
 internal fun PackageSectionHeader(title: String, trailing: String? = null, state: PkgState = PkgState.Unchecked) {
     Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, color = W7D.NavHeader, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+        Text(title, color = MolinaTheme.Explorer.NavHeader, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
         if (trailing != null) {
             Text(
                 trailing,
                 color = when (state) {
                     PkgState.Outdated -> MolinaTheme.Warn
                     PkgState.Current -> PkgGood
-                    else -> W7D.TextDim
+                    else -> MolinaTheme.Explorer.TextDim
                 },
                 fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis
             )
@@ -84,23 +91,23 @@ internal fun PackageStatusCard(
     val strip = if (state == null) Color.Transparent else pkgStrip(state)
     var rowMod = Modifier.fillMaxWidth().drawBehind { drawRect(strip, Offset.Zero, Size(3.dp.toPx(), size.height)) }
     if (onClick != null) rowMod = rowMod.clickable(onClick = onClick)
-    Column(Modifier.fillMaxWidth().clip(PkgShape).background(W7D.Card, PkgShape).border(1.5.dp, PkgBorder, PkgShape)) {
+    Column(Modifier.fillMaxWidth().clip(PkgShape).background(MolinaTheme.Explorer.Card, PkgShape).border(1.5.dp, PkgBorder, PkgShape)) {
         Row(
             rowMod.padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f).padding(end = 8.dp)) {
                 Text(
-                    title, color = W7D.Ink, fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                    title, color = MolinaTheme.Explorer.Ink, fontSize = 15.sp, fontWeight = FontWeight.Bold,
                     maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
-                Text(subtitle, color = W7D.TextDim, fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                Text(subtitle, color = MolinaTheme.Explorer.TextDim, fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
             }
             if (badge != null) {
-                W7Badge(badge, aero = false, gold = true)
+                MolinaBadge(badge, aero = false, gold = true)
                 Spacer(Modifier.width(8.dp))
             }
-            if (onClick != null) Text("\u25B8", color = W7D.NavHeader, fontSize = 16.sp)
+            if (onClick != null) Text("\u25B8", color = MolinaTheme.Explorer.NavHeader, fontSize = 16.sp)
         }
     }
 }
@@ -109,14 +116,14 @@ internal fun PackageStatusCard(
 @Composable
 internal fun PackageGroupCard(content: @Composable ColumnScope.() -> Unit) {
     Column(
-        Modifier.fillMaxWidth().clip(PkgShape).background(W7D.Card, PkgShape).border(1.5.dp, PkgBorder, PkgShape),
+        Modifier.fillMaxWidth().clip(PkgShape).background(MolinaTheme.Explorer.Card, PkgShape).border(1.5.dp, PkgBorder, PkgShape),
         content = content
     )
 }
 
 @Composable
 internal fun PackageDivider() {
-    Box(Modifier.fillMaxWidth().height(1.dp).background(W7D.Hairline))
+    Box(Modifier.fillMaxWidth().height(1.dp).background(MolinaTheme.Explorer.Hairline))
 }
 
 @Composable
@@ -127,8 +134,8 @@ internal fun PackageSwitchRow(title: String, summary: String, checked: Boolean, 
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f).padding(end = 12.dp)) {
-            Text(title, color = W7D.Ink, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            Text(summary, color = W7D.TextDim, fontSize = 12.sp)
+            Text(title, color = MolinaTheme.Explorer.Ink, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Text(summary, color = MolinaTheme.Explorer.TextDim, fontSize = 12.sp)
         }
         Switch(checked = checked, onCheckedChange = onChange)
     }
@@ -146,14 +153,66 @@ internal fun PackageActionsBlock(
 ) {
     Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 12.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            ActionChip(if (running) "MEMERIKSA\u2026" else "PERIKSA SEKARANG", W7D.Ink) { if (!running) onCheck() }
+            ActionChip(if (running) "MEMERIKSA\u2026" else "PERIKSA SEKARANG", MolinaTheme.Explorer.Ink) { if (!running) onCheck() }
             ActionChip(if (updates > 0) "PERBARUI SEMUA ($updates)" else "PERBARUI SEMUA", PkgBlue, onUpdateAll)
         }
         Spacer(Modifier.height(8.dp))
         Text(
             "Terakhir: $lastCheck. Berjalan di latar belakang dan bisa memakai data seluler.",
-            color = W7D.TextDim, fontSize = 12.sp
+            color = MolinaTheme.Explorer.TextDim, fontSize = 12.sp
         )
-        Text(updateNote, color = W7D.TextDim, fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp))
+        Text(updateNote, color = MolinaTheme.Explorer.TextDim, fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp))
+    }
+}
+
+/** [PAKET-FRAME] Warna strip status kartu: hijau = terdeteksi, abu = tidak/belum diperiksa, emas berdenyut = memeriksa. */
+@Composable
+internal fun statusStripColor(detected: Boolean, checking: Boolean, checked: Boolean): Color {
+    if (checking) {
+        val transition = rememberInfiniteTransition()
+        val a by transition.animateFloat(
+            initialValue = 0.35f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse)
+        )
+        return MolinaTheme.Brand.copy(alpha = a)
+    }
+    return when {
+        !checked -> MolinaTheme.Idle.copy(alpha = 0.45f)
+        detected -> MolinaTheme.Detected
+        else -> MolinaTheme.Idle
+    }
+}
+
+/** [PAKET-FRAME] Tombol aksi berbentuk kapsul beroutline (PASANG biru, VERSI putih, HAPUS merah). */
+@Composable
+internal fun ActionChip(label: String, color: Color, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(50)
+    Text(
+        label, color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1,
+        modifier = Modifier.clip(shape).border(1.dp, color.copy(alpha = 0.7f), shape)
+            .clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 6.dp)
+    )
+}
+
+/** Lencana bulat merah glossy (jumlah paket menunggu, dsb.) ala Windows 7. */
+@Composable
+internal fun MolinaBadge(text: String, aero: Boolean = false, gold: Boolean = false) {
+    val shape = RoundedCornerShape(10.dp)
+    Box(
+        Modifier
+            .clip(shape)
+            .background(
+                Brush.verticalGradient(
+                    if (gold) listOf(Color(0xFFFFDC85), MolinaTheme.Brand)
+                    else if (aero) listOf(Color(0xFF7FC4FF), Color(0xFF1B6FC2))
+                    else listOf(MolinaTheme.Bad, Color(0xFFC4392B))
+                ),
+                shape
+            )
+            .border(1.dp, Color(0x55000000), shape)
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+    ) {
+        Text(text, color = if (gold) Color(0xFF2B1D00) else Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
     }
 }

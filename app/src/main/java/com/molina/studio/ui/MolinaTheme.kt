@@ -43,6 +43,8 @@ object MolinaTheme {
         val FrameBottom = Color(0xFF0A0A0A)
         val FrameLine = Color(0xFF3A3A3A)
         val Face = Color(0xFF000000)
+        /** Latar kartu halaman Paket (dulu W7D.Card). */
+        val Card = Color(0xFF0B0B0B)
         val NavBg = Color(0xFF070707)
         val NavHeader = Color(0xFF8FC4EE)
         val Ink = Color(0xFFEDEDED)

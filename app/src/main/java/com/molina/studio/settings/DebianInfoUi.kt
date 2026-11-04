@@ -1,5 +1,7 @@
 package com.molina.studio.settings
 
+import com.molina.studio.ui.components.PkgState
+import com.molina.studio.ui.components.PackageStatusCard
 import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect

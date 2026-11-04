@@ -1,5 +1,13 @@
 package com.molina.studio.settings
 
+import com.molina.studio.ui.components.PkgState
+import com.molina.studio.ui.components.PackageSectionHeader
+import com.molina.studio.ui.components.PackageStatusCard
+import com.molina.studio.ui.components.PackageGroupCard
+import com.molina.studio.ui.components.PackageDivider
+import com.molina.studio.ui.components.PackageSwitchRow
+import com.molina.studio.ui.components.PackageActionsBlock
+import com.molina.studio.ui.components.MolinaBadge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Spacer
@@ -33,7 +41,7 @@ internal fun BadgeOverlay(badge: String?, aero: Boolean, gold: Boolean = false, 
     Box(Modifier.fillMaxWidth()) {
         content()
         if (badge != null) {
-            Box(Modifier.align(Alignment.CenterEnd).padding(end = 12.dp)) { W7Badge(badge, aero, gold) }
+            Box(Modifier.align(Alignment.CenterEnd).padding(end = 12.dp)) { MolinaBadge(badge, aero, gold) }
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.molina.studio.settings
 
+import com.molina.studio.ui.components.PkgState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable

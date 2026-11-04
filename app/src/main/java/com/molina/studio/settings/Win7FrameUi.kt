@@ -62,24 +62,3 @@ internal fun Win7FrameBox(
     }
 }
 
-/** Lencana bulat merah glossy (jumlah paket menunggu, dsb.) ala Windows 7. */
-@Composable
-internal fun W7Badge(text: String, aero: Boolean = false, gold: Boolean = false) {
-    val shape = RoundedCornerShape(10.dp)
-    Box(
-        Modifier
-            .clip(shape)
-            .background(
-                Brush.verticalGradient(
-                    if (gold) listOf(Color(0xFFFFDC85), com.molina.studio.ui.MolinaTheme.Brand)
-                    else if (aero) listOf(Color(0xFF7FC4FF), Color(0xFF1B6FC2))
-                    else listOf(MolinaTheme.Bad, Color(0xFFC4392B))
-                ),
-                shape
-            )
-            .border(1.dp, Color(0x55000000), shape)
-            .padding(horizontal = 8.dp, vertical = 2.dp)
-    ) {
-        Text(text, color = if (gold) Color(0xFF2B1D00) else Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-    }
-}

@@ -1,5 +1,6 @@
 package com.molina.studio.settings
 
+import com.molina.studio.ui.components.PkgState
 import com.molina.studio.automation.AutoState
 
 /**

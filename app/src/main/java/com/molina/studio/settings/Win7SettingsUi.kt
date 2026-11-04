@@ -1,5 +1,6 @@
 package com.molina.studio.settings
 
+import com.molina.studio.ui.components.MolinaBadge
 import android.app.ActivityManager
 import android.content.Context
 import android.os.Build
@@ -256,7 +257,7 @@ internal fun W7CategoryTile(
                     Text(l.first, color = W7LinkColor, fontSize = 13.sp, modifier = Modifier.clickable(onClick = l.second).padding(top = 6.dp))
                 }
             }
-            if (badge != null) W7Badge(badge, badgeAero, badgeGold)
+            if (badge != null) MolinaBadge(badge, badgeAero, badgeGold)
         }
     }
 }

@@ -1,5 +1,9 @@
 package com.molina.studio.settings
 
+import com.molina.studio.ui.components.PackageSectionHeader
+import com.molina.studio.ui.components.PackageStatusCard
+import com.molina.studio.ui.components.ActionChip
+import com.molina.studio.ui.components.statusStripColor
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -507,36 +511,6 @@ private fun ToolField(
         cursorBrush = SolidColor(W7D.NavHeader),
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
         modifier = modifier.fillMaxWidth().clip(shape).background(W7D.Field, shape).border(1.dp, W7D.Line, shape).padding(10.dp)
-    )
-}
-
-/** [PAKET-FRAME] Warna strip status kartu: hijau = terdeteksi, abu = tidak/belum diperiksa, emas berdenyut = memeriksa. */
-@Composable
-internal fun statusStripColor(detected: Boolean, checking: Boolean, checked: Boolean): Color {
-    if (checking) {
-        val transition = rememberInfiniteTransition()
-        val a by transition.animateFloat(
-            initialValue = 0.35f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse)
-        )
-        return com.molina.studio.ui.MolinaTheme.Brand.copy(alpha = a)
-    }
-    return when {
-        !checked -> com.molina.studio.ui.MolinaTheme.Idle.copy(alpha = 0.45f)
-        detected -> com.molina.studio.ui.MolinaTheme.Detected
-        else -> com.molina.studio.ui.MolinaTheme.Idle
-    }
-}
-
-/** [PAKET-FRAME] Tombol aksi berbentuk kapsul beroutline (PASANG biru, VERSI putih, HAPUS merah). */
-@Composable
-internal fun ActionChip(label: String, color: Color, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(50)
-    Text(
-        label, color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1,
-        modifier = Modifier.clip(shape).border(1.dp, color.copy(alpha = 0.7f), shape)
-            .clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 6.dp)
     )
 }
 
