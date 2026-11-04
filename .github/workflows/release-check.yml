@@ -65,6 +65,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: bash scripts/fetch_native.sh
+      - name: Pastikan NDK sesuai pin
+        run: bash scripts/ensure_ndk.sh
       - name: Build release APK
         env:
           MOLINA_KEYSTORE_PASSWORD: ${{ secrets.MOLINA_KEYSTORE_PASSWORD }}

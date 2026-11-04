@@ -25,6 +25,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: bash scripts/fetch_native.sh
+      - name: Pastikan NDK sesuai pin
+        run: bash scripts/ensure_ndk.sh
       - name: Tulis metadata verifikasi
         run: gradle --write-verification-metadata sha256 :app:assembleDebug :app:assembleRelease --stacktrace
       - name: Pastikan metadata terbentuk

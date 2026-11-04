@@ -38,6 +38,8 @@ jobs:
           else
             echo "::warning::Secret kunci belum diisi; memakai keystore debug acak (update antar build akan gagal)."
           fi
+      - name: Pastikan NDK sesuai pin
+        run: bash scripts/ensure_ndk.sh
       - name: Build Vault release (R8)
         env:
           MOLINA_KEYSTORE_PASSWORD: ${{ secrets.MOLINA_KEYSTORE_PASSWORD }}
