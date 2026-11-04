@@ -152,7 +152,7 @@ private fun SessionPill(index: Int, title: String, selected: Boolean, onClose: (
         }
         Text(
             "${index + 1} $title",
-            color = if (selected) accent else MolinaTheme.Muted,
+            color = if (selected) Color.White else MolinaTheme.Muted, // [PILL-WHITE] judul putih polos; frame, garis bawah, dan titik tetap hijau
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
