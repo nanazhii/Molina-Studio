@@ -13,6 +13,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.shareIn
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.flow.first
@@ -64,6 +69,21 @@ object SystemStats {
     private const val HOLD_TICKS = 5 // lama warna kuning dipertahankan setelah lonjakan (detik)
 
     private const val MB = 1024L * 1024L
+
+    // [PILL-STATS] Satu pencuplik untuk semua pelanggan (Monitor Sistem + bilah sesi). Berhenti 5 dtk setelah
+    // pelanggan terakhir pergi; replay dikosongkan saat berhenti agar sampel basi tidak muncul lagi.
+    private val shareScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    @Volatile private var sharedFlow: SharedFlow<StatsSnapshot>? = null
+
+    @Synchronized
+    fun shared(context: Context): SharedFlow<StatsSnapshot> =
+        sharedFlow ?: flow(context.applicationContext)
+            .shareIn(
+                shareScope,
+                SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000, replayExpirationMillis = 0),
+                replay = 1
+            )
+            .also { sharedFlow = it }
 
     // [MONITOR-REALTIME] Pencuplik ringan tiap detik (hanya baca counter); kerja berat (pindai PID, PSS)
     // dipindah ke coroutine terpisah supaya tidak menunda emisi. Waktu dt diambil tepat saat counter dibaca.

@@ -49,7 +49,6 @@ object MolinaShell {
     private val LOGO_SGR = listOf("38;2;245;208;122", MolinaTheme.GOLD_SGR, "38;2;184;137;58")
     private const val MUTED_SGR = "38;2;154;160;166"
     private val TIPS = listOf(
-        "Cubit dua jari: ukuran font",
         "molina-git-secure: amankan token git",
         "CLEAR: bersihkan layar + banner",
         "Banner bisa dimatikan di Setelan",

@@ -70,7 +70,7 @@ internal fun SystemMonitorPage() {
     val txHist = remember { mutableStateListOf<Int>() }
     // Dikumpulkan langsung (bukan collectAsState) agar tiap sampel masuk riwayat walau nilainya sama.
     LaunchedEffect(ctx) {
-        SystemStats.flow(ctx).collect { s ->
+        SystemStats.shared(ctx).collect { s ->
             stats = s
             cpuHist.add(s.cpuPercent)
             ramHist.add(if (s.totalRamMb > 0) s.ramMb * 100 / s.totalRamMb else 0)
