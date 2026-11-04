@@ -498,7 +498,7 @@ private fun ToolField(
 
 /** [PAKET-FRAME] Warna strip status kartu: hijau = terdeteksi, abu = tidak/belum diperiksa, emas berdenyut = memeriksa. */
 @Composable
-private fun statusStripColor(detected: Boolean, checking: Boolean, checked: Boolean): Color {
+internal fun statusStripColor(detected: Boolean, checking: Boolean, checked: Boolean): Color {
     if (checking) {
         val transition = rememberInfiniteTransition()
         val a by transition.animateFloat(
@@ -517,7 +517,7 @@ private fun statusStripColor(detected: Boolean, checking: Boolean, checked: Bool
 
 /** [PAKET-FRAME] Tombol aksi berbentuk kapsul beroutline (PASANG biru, VERSI putih, HAPUS merah). */
 @Composable
-private fun ActionChip(label: String, color: Color, onClick: () -> Unit) {
+internal fun ActionChip(label: String, color: Color, onClick: () -> Unit) {
     val shape = RoundedCornerShape(50)
     Text(
         label, color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1,

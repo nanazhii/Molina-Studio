@@ -1,6 +1,8 @@
 package com.molina.studio.settings
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
@@ -69,59 +71,87 @@ internal fun UpdateStatusSection(onApt: (AptJob) -> Unit) { // [PAKET-TERPUSAT]
     val aptLast by AptHistory.last.collectAsState()
     val running by UpdateChecker.running.collectAsState()
 
-    Category("Pembaruan")
+    // [PAKET-KARTU] seragam dengan "Alat tambahan di Debian"
     val updates = updateCount(st, pending)
-    Text(
+    PackageSectionHeader(
+        "Pembaruan",
         when {
             updates > 0 -> "$updates pembaruan tersedia"
             st.lastCheck <= 0L -> "Belum pernah diperiksa"
             else -> "Semua sudah terbaru"
         },
-        color = if (updates > 0) com.molina.studio.ui.MolinaTheme.Brand else W7D.TextDim,
-        fontSize = 13.sp, fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(bottom = 4.dp)
+        when {
+            updates > 0 -> PkgState.Outdated
+            st.lastCheck <= 0L -> PkgState.Unchecked
+            else -> PkgState.Current
+        }
     )
-    BadgeOverlay(if (pending > 0) pending.toString() else null, false, gold = true) {
-        SettingsItem("Program Debian", AptHistory.checkSubtitle(pending)) {}
-    }
-    BadgeOverlay(if (st.ytdlpOutdated) "Baru" else null, true, gold = true) {
-        SettingsItem("yt-dlp (pengunduh tambahan)", ytdlpText(st) + if (st.ytdlpOutdated) ". Ikut diperbarui lewat Perbarui semua." else "") {}
-    }
-    BadgeOverlay(if (st.newpipeOutdated) "Baru" else null, true, gold = true) {
-        SettingsItem("NewPipeExtractor (pencari video)", newpipeText(st)) {}
-    }
+    PackageStatusCard(
+        "Program Debian", AptHistory.checkSubtitle(pending),
+        when {
+            running -> PkgState.Checking
+            pending > 0 -> PkgState.Outdated
+            pending == 0 -> PkgState.Current
+            else -> PkgState.Unchecked
+        },
+        badge = if (pending > 0) pending.toString() else null
+    )
+    Spacer(Modifier.height(8.dp))
+    PackageStatusCard(
+        "yt-dlp (pengunduh tambahan)",
+        ytdlpText(st) + if (st.ytdlpOutdated) ". Ikut diperbarui lewat Perbarui semua." else "",
+        when {
+            running -> PkgState.Checking
+            st.ytdlpOutdated -> PkgState.Outdated
+            st.ytdlpInstalled.isNotEmpty() -> PkgState.Current
+            else -> PkgState.Unchecked
+        },
+        badge = if (st.ytdlpOutdated) "Baru" else null
+    )
+    Spacer(Modifier.height(8.dp))
+    PackageStatusCard(
+        "NewPipeExtractor (pencari video)", newpipeText(st),
+        when {
+            running -> PkgState.Checking
+            st.newpipeOutdated -> PkgState.Outdated
+            st.newpipeLatest.isNotEmpty() -> PkgState.Current
+            else -> PkgState.Unchecked
+        },
+        badge = if (st.newpipeOutdated) "Baru" else null
+    )
 
-    // [PAKET-BRAND] subjudul Pembaruan tunggal
-    SwitchRow(
-        "Cek pembaruan otomatis",
-        "Paling sering sekali per 24 jam dan hanya lewat Wi-Fi. Memperbarui angka pembaruan program Debian dan " +
-            "yt-dlp di menu Paket tanpa membuka dialog. Tanpa notifikasi dan tidak memasang apa pun.",
-        st.autoUpdate
-    ) {
-        AutoPrefs.setAutoUpdate(ctx, it)
-        AutoWork.sync(ctx)
+    Spacer(Modifier.height(16.dp))
+    PackageSectionHeader("Pemeriksaan otomatis") // [PAKET-BRAND] [PAKET-SAKELAR]
+    PackageGroupCard {
+        PackageSwitchRow(
+            "Cek pembaruan otomatis",
+            "Paling sering sekali per 24 jam dan hanya lewat Wi-Fi. Memperbarui angka pembaruan program Debian dan " +
+                "yt-dlp di menu Paket tanpa membuka dialog. Tanpa notifikasi dan tidak memasang apa pun.",
+            st.autoUpdate
+        ) {
+            AutoPrefs.setAutoUpdate(ctx, it)
+            AutoWork.sync(ctx)
+        }
+        PackageDivider()
+        PackageSwitchRow(
+            "Periksa versi alat otomatis",
+            "Memperbarui versi dan tanggal di kartu alat Paket sekitar sekali per 24 jam dan saat Paket dibuka. " +
+                "Hanya membaca versi: tanpa jaringan dan tanpa memasang apa pun. Tidak dijalankan bila baterai lemah.",
+            st.autoToolCheck
+        ) {
+            AutoPrefs.setAutoToolCheck(ctx, it)
+            AutoWork.sync(ctx)
+        }
+        PackageDivider()
+        PackageActionsBlock(
+            running = running,
+            updates = updates,
+            lastCheck = whenText(st.lastCheck, "belum pernah"),
+            updateNote = "Program Debian, lalu yt-dlp bila ada rilis baru, berurutan dalam satu proses. " + AptHistory.subtitle(aptLast),
+            onCheck = { UpdateChecker.checkNow(ctx) },
+            onUpdateAll = { onApt(AptJob.UpdateUpgrade) }
+        )
     }
-    // [PAKET-SAKELAR]
-    SwitchRow(
-        "Periksa versi alat otomatis",
-        "Memperbarui versi dan tanggal di kartu alat Paket sekitar sekali per 24 jam dan saat Paket dibuka. " +
-            "Hanya membaca versi: tanpa jaringan dan tanpa memasang apa pun. Tidak dijalankan bila baterai lemah.",
-        st.autoToolCheck
-    ) {
-        AutoPrefs.setAutoToolCheck(ctx, it)
-        AutoWork.sync(ctx)
-    }
-    SettingsItem(
-        if (running) "Memeriksa\u2026" else "Periksa sekarang",
-        "Terakhir: " + whenText(st.lastCheck, "belum pernah") + ". Berjalan di latar belakang dan bisa memakai data seluler."
-    ) { if (!running) UpdateChecker.checkNow(ctx) }
-    BadgeOverlay(if (updates > 0) updates.toString() else null, false, gold = true) {
-        SettingsItem(
-            "Perbarui semua",
-            "Program Debian, lalu yt-dlp bila ada rilis baru, berurutan dalam satu proses. " + AptHistory.subtitle(aptLast)
-        ) { onApt(AptJob.UpdateUpgrade) }
-    }
-
 }
 
 /**
