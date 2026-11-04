@@ -65,6 +65,7 @@ import kotlinx.coroutines.isActive
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -506,6 +507,7 @@ fun Win7OpenDialog(
             message = ""
         }
     }
+    var floatHidden by remember { mutableStateOf(false) } // [FLOAT-INFO] pil melayang tersembunyi saat gulir ke bawah
     val backAction: () -> Unit = { if (multi) { multi = false; picked = emptySet() } else if (!goUp()) onDismiss() }
     val content: @Composable () -> Unit = {
         // [FILEOPS-2] keyboard tidak boleh muncul sendiri saat Penjelajah dibuka
@@ -627,18 +629,7 @@ fun Win7OpenDialog(
                         onRunOp = { op, onDone, onFail -> runOp(op, onDone, onFail) }
                     )
                 }
-                if (browse) {
-                    // [DROP-MENU] keterangan folder/item pindah ke atas (bekas bilah ikon)
-                    val tvTarget = selected?.file ?: dir
-                    val tvFiles = if (multi && picked.isNotEmpty()) picked.map { File(it) } else listOf(tvTarget)
-                    if (selected != null || (multi && picked.isNotEmpty())) W7BrowseInfo( // [FLOAT-DOCK] kartu folder saat ini dihilangkan
-                        files = tvFiles,
-                        isDir = if (selected == null || multi) null else selected!!.isDir,
-                        size = selected?.size ?: 0L,
-                        modified = selected?.modified ?: 0L,
-                        onCopyPath = { onCopyPath?.invoke(tvTarget); say("Path disalin", true) }
-                    )
-                } else Row(
+                if (!browse) Row(
                     Modifier.fillMaxWidth().height(30.dp)
                         .horizontalScroll(rememberScrollState())
                         .background(Brush.verticalGradient(listOf(Win7.BarTop, Win7.BarBottom))),
@@ -661,7 +652,8 @@ fun Win7OpenDialog(
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                         granted = granted, entries = shown, key = key, asc = asc, selected = selected,
                         compact = portrait,
-                        bottomInset = if (browse) 52.dp else 0.dp, // [FLOAT-DOCK]
+                        bottomInset = if (!browse) 0.dp else if (selected != null || (multi && picked.isNotEmpty())) 76.dp else 52.dp, // [FLOAT-INFO]
+                        onScrollDir = { floatHidden = it }, // [FLOAT-INFO]
                         onSort = { k -> if (key == k) asc = !asc else { key = k; asc = true } },
                         multi = multi, picked = picked, recentRefs = playedRefs,
                         emptyNote = if (query.isNotBlank()) "Tidak ada hasil untuk \"" + query.trim() + "\"" else "Folder ini kosong.",
@@ -686,11 +678,35 @@ fun Win7OpenDialog(
                         onAsk = { ask.launch(Manifest.permission.READ_EXTERNAL_STORAGE) }
                     )
                 }
-                if (browse) { // [FLOAT-DOCK] pil melayang: Debian + menu kisi di kanan bawah daftar
+                if (browse) { // [FLOAT-DOCK] [FLOAT-INFO] baris melayang bawah: kartu info (kiri) + pil Debian/menu (kanan)
+                    LaunchedEffect(dir.path) { floatHidden = false }
                     val flTarget = selected?.file ?: dir
                     val flFiles = if (multi && picked.isNotEmpty()) picked.map { File(it) } else listOf(flTarget)
-                    W7BrowseFloat(
-                        modifier = Modifier.align(Alignment.BottomEnd).padding(end = 8.dp, bottom = 8.dp),
+                    Row(
+                        Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 8.dp),
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        if (selected != null || (multi && picked.isNotEmpty())) {
+                            val infoShape = RoundedCornerShape(10.dp)
+                            Box(Modifier.weight(1f).padding(end = 8.dp).clip(infoShape).border(1.dp, if (multi) MolinaTheme.Gold else Win7.BtnLine, infoShape)) { // [FLOAT-GOLD]
+                                W7BrowseInfo(
+                                    files = flFiles,
+                                    isDir = if (selected == null || multi) null else selected!!.isDir,
+                                    size = selected?.size ?: 0L,
+                                    modified = selected?.modified ?: 0L,
+                                    onCopyPath = { onCopyPath?.invoke(flTarget); say("Path disalin", true) }
+                                )
+                            }
+                        } else Spacer(Modifier.weight(1f))
+                        Box {
+                            androidx.compose.animation.AnimatedVisibility(
+                                visible = !floatHidden || menuOpen || sortOpen || toolsOpen,
+                                enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically { it },
+                                exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.slideOutVertically { it }
+                            ) {
+                                W7BrowseFloat(
+                        modifier = Modifier,
+                        accent = multi, // [FLOAT-GOLD]
                         debian = if (flFiles.size == 1) isVisibleInDebian?.invoke(flFiles[0]) else null,
                         modeLabel = if (!multi) null else if (picked.isEmpty()) "Mode Pilih" else picked.size.toString() + " dipilih",
                         onHelp = if (multi) ({ showSelectHelp = true }) else null, // [HELP-PANEL]
@@ -733,6 +749,9 @@ fun Win7OpenDialog(
                                 }
                             }
                     )
+                            }
+                        }
+                    }
                 }
                 if (portrait) {
                     Box(Modifier.align(Alignment.CenterStart).width(16.dp).fillMaxHeight().pointerInput(Unit) {
@@ -1020,6 +1039,7 @@ private fun W7FileArea(
     emptyNote: String = "Folder ini kosong.",
     compact: Boolean = false,
     bottomInset: androidx.compose.ui.unit.Dp = 0.dp, // [FLOAT-DOCK]
+    onScrollDir: (Boolean) -> Unit = {}, // [FLOAT-INFO] true = gulir ke bawah (sembunyikan pil)
     onSwipeRight: ((W7Entry) -> Unit)? = null,
     onSwipeLeft: ((W7Entry) -> Unit)? = null,
     onSort: (ExplorerList.Key) -> Unit,
@@ -1027,7 +1047,16 @@ private fun W7FileArea(
     onEnter: (W7Entry) -> Unit = {},
     onAsk: () -> Unit
 ) {
-    BoxWithConstraints(modifier.background(Win7.Input)) {
+    val onDir by rememberUpdatedState(onScrollDir) // [FLOAT-INFO]
+    val scrollConn = remember {
+        object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: androidx.compose.ui.input.nestedscroll.NestedScrollSource): Offset {
+                if (available.y < -6f) onDir(true) else if (available.y > 6f) onDir(false)
+                return Offset.Zero
+            }
+        }
+    }
+    BoxWithConstraints(modifier.background(Win7.Input).nestedScroll(scrollConn)) {
         val wide = !compact && maxWidth >= 380.dp
         Column(Modifier.fillMaxSize()) {
             if (wide) Row(

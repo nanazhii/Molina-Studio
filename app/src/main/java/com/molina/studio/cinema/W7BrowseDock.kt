@@ -138,6 +138,7 @@ internal fun W7BrowseDock(
 @Composable
 internal fun W7BrowseFloat(
     modifier: Modifier,
+    accent: Boolean = false, // [FLOAT-GOLD] garis tepi emas saat Mode Pilih aktif
     debian: Boolean?,
     modeLabel: String?,
     onHelp: (() -> Unit)?,
@@ -145,7 +146,7 @@ internal fun W7BrowseFloat(
 ) {
     val shape = RoundedCornerShape(10.dp)
     Row(
-        modifier.clip(shape).background(Color(0xE60B0B0F), shape).border(1.dp, Win7.BtnLine, shape)
+        modifier.clip(shape).background(Color(0xE60B0B0F), shape).border(1.dp, if (accent) MolinaTheme.Gold else Win7.BtnLine, shape)
             .padding(start = 10.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
