@@ -659,6 +659,19 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
     /** Dipasang :app. (teks, jalankan) -> pesan galat atau null. Null = menu Terminal redup. */
     var terminalSink: ((String, Boolean) -> String?)? = null
 
+    /** MOLINA-H13-BRIDGE: dipasang :app. (berkas) -> pesan galat atau null bila Vault berhasil dibuka. Null = menu redup. */
+    var vaultSink: ((File) -> String?)? = null
+
+    /** Menu titik tiga: simpan berkas tab aktif ke Molina Vault. Vault membaca dari disk, jadi tab harus sudah tersimpan. */
+    internal fun saveToVault() {
+        val sink = vaultSink ?: run { toast("Molina Vault belum tersedia"); return }
+        val tab = active ?: return
+        if (tab.loading) return
+        val f = tab.file ?: run { toast("Simpan berkas ke disk dulu"); return }
+        if (tab.dirty) { toast("Ada perubahan belum disimpan. Simpan dulu: Vault membaca berkas dari disk"); return }
+        sink(f)?.let { toast(it) }
+    }
+
     /** Teks seleksi aktif, atau baris kursor bila tidak ada seleksi. Kosong bila tidak ada editor. */
     internal fun selectionOrLine(): String {
         val ed = active?.editor ?: return ""

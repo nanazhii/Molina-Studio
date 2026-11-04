@@ -10,6 +10,8 @@ import android.view.ViewTreeObserver
 import com.molina.core.common.AppVisibility
 import com.molina.studio.log.LogServer
 import androidx.activity.ComponentActivity
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.background
@@ -83,6 +85,34 @@ class MainActivity : ComponentActivity() {
     private val storagePermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
             AppPaths.ensureIfPermitted(applicationContext)
+        }
+
+    // MOLINA-H13-BRIDGE: Code > Simpan ke Vault. Hasil hanya dilaporkan lewat Toast; Code tidak pernah menghapus berkas.
+    private var vaultCodeReq: com.molina.studio.settings.VaultBridge.Request? = null
+    private val vaultCodeLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+            val req = vaultCodeReq
+            vaultCodeReq = null
+            if (req != null) MainScope().launch {
+                val o = com.molina.studio.settings.VaultBridge.verify(req, res.resultCode, res.data, offerDelete = false)
+                android.widget.Toast.makeText(applicationContext, o.message, android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
+
+    /** Dipanggil menu Code. Mengembalikan pesan galat, atau null bila Vault berhasil dibuka. */
+    private fun sendToVault(f: java.io.File): String? =
+        when (val p = com.molina.studio.settings.VaultBridge.prepare(this, listOf(f))) {
+            is com.molina.studio.settings.VaultBridge.Prepared.Fail -> p.message
+            is com.molina.studio.settings.VaultBridge.Prepared.Ready -> {
+                vaultCodeReq = p.request
+                try {
+                    vaultCodeLauncher.launch(p.request.intent)
+                    null
+                } catch (e: Exception) {
+                    vaultCodeReq = null
+                    "Vault tidak bisa dibuka: " + (e.message ?: e.javaClass.simpleName)
+                }
+            }
         }
 
     override fun onStart() {
@@ -236,6 +266,7 @@ class MainActivity : ComponentActivity() {
                             override fun put(key: String, value: String) { runPrefs.edit().putString(key, value).apply() }
                         }
                         it.snippetSink = { name, cmd -> com.molina.studio.terminal.TerminalSnippets.addFromCode(applicationContext, name, cmd) }
+                        it.vaultSink = { f -> this@MainActivity.sendToVault(f) } // MOLINA-H13-BRIDGE
                         com.molina.studio.code.CodeInbox.session = it
                         it.scriptSink = com.molina.code.run.ScriptSink { share ->
                             val r = com.molina.studio.code.ScriptStore.upsertFromEditor(share)

@@ -100,7 +100,7 @@ internal object VaultBridge {
     }
 
     /** Cocokkan laporan Vault dengan berkas asli. Hash dihitung ulang di thread IO. */
-    suspend fun verify(req: Request, resultCode: Int, data: Intent?): Outcome = withContext(Dispatchers.IO) {
+    suspend fun verify(req: Request, resultCode: Int, data: Intent?, offerDelete: Boolean = true): Outcome = withContext(Dispatchers.IO) {
         if (resultCode != Activity.RESULT_OK || data == null) {
             return@withContext Outcome(emptyList(), "Vault tidak mengembalikan hasil (dibatalkan atau ditutup). Berkas asli tidak dihapus.")
         }
@@ -129,7 +129,7 @@ internal object VaultBridge {
         val head = when {
             ok.isEmpty() -> "Vault melaporkan ${saved.size} berkas tersimpan, tetapi tidak ada yang cocok SHA-256 dengan berkas asli (atau berkas berubah). Tidak ada yang dihapus."
             ok.size < req.files.size -> "${ok.size} dari ${req.files.size} berkas terverifikasi di Vault (SHA-256). Sisanya dipertahankan."
-            else -> "${ok.size} berkas tersimpan di Vault dan terverifikasi (SHA-256). Hapus berkas asli?"
+            else -> "${ok.size} berkas tersimpan di Vault dan terverifikasi (SHA-256)." + (if (offerDelete) " Hapus berkas asli?" else "")
         }
         Outcome(ok, head + req.note)
     }

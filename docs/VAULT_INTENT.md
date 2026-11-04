@@ -34,3 +34,8 @@ sebelum menawarkan "hapus asli". Tanpa hasil atau tidak cocok: jangan hapus.
 - Hasil: Studio menghitung ulang SHA-256 berkas asli; hanya yang cocok (nama + ukuran + hash) ditawarkan untuk dihapus
   lewat dialog "Hapus permanen" yang sudah ada. Tanpa hasil atau tidak cocok: tidak ada yang dihapus.
 - Berkas kunci/kredensial (SHARE-GUARD) sengaja BOLEH dikirim ke Vault karena tujuannya terenkripsi dan bertanda tangan sama.
+
+## Code > Simpan ke Vault (MOLINA-H13-CODE, tahap 5c)
+- Menu titik tiga Code mengirim berkas tab aktif lewat `VaultBridge` yang sama. Hanya untuk tab yang sudah tersimpan
+  di disk dan tidak berstatus dirty (Vault membaca dari disk, bukan dari editor).
+- Hasil hanya dilaporkan lewat Toast. Code tidak menghapus berkas asli.

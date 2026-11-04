@@ -125,6 +125,10 @@ internal fun menuGroups(session: CodeSession, ctx: Context, onDismiss: () -> Uni
                 session.sendToScripts()
                 onDismiss()
             },
+            MenuEntry("Simpan ke Vault", enabled = tab?.file != null && !tab.loading && session.vaultSink != null, icon = MenuIcon.ReadOnly) { // MOLINA-H13-BRIDGE
+                session.saveToVault()
+                onDismiss()
+            },
             MenuEntry("Sisipkan ke Terminal", enabled = hasText && session.terminalSink != null, icon = MenuIcon.Insert) {
                 session.sendToTerminal(false)
                 onDismiss()
