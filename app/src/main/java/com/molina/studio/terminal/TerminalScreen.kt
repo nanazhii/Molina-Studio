@@ -131,11 +131,13 @@ private fun TerminalContent(modifier: Modifier, onOpenSettings: () -> Unit) {
                         val target = TerminalSessions.active
                         if (target != null && v.currentSession !== target) {
                             v.attachSession(target)
+                            startCursorBlink(v)
                             v.requestFocus()
                             v.onScreenUpdated()
                         }
                     },
                     onRelease = { v ->
+                        v.setTerminalCursorBlinkerState(false, false)
                         if (TerminalSessions.client.view === v) TerminalSessions.client.view = null
                     }
                 )
@@ -168,8 +170,18 @@ private fun createTerminalView(ctx: Context, mods: TerminalModifiers): TerminalV
     view.isFocusable = true
     view.isFocusableInTouchMode = true
     view.attachSession(session)
+    startCursorBlink(view)
     view.requestFocus()
     return view
+}
+
+// [CURSOR-BLINK] Kedip pelan (600 ms) memakai blinker bawaan TerminalView. Flag kedip tersimpan per emulator,
+// jadi harus dinyalakan ulang setiap pindah sesi; dihentikan saat view dilepas agar tidak bocor.
+private const val CURSOR_BLINK_MS = 600
+
+private fun startCursorBlink(v: TerminalView) {
+    v.setTerminalCursorBlinkerRate(CURSOR_BLINK_MS)
+    v.setTerminalCursorBlinkerState(true, true)
 }
 
 @Composable

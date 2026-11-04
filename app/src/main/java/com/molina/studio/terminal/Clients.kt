@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.util.Log
+import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.inputmethod.InputMethodManager
@@ -106,6 +107,8 @@ class MolinaViewClient(
     override fun readFnKey(): Boolean = false
     override fun onCodePoint(codePoint: Int, ctrlDown: Boolean, session: TerminalSession): Boolean {
         MolinaLog.key(TAG, "onCodePoint(codePoint=$codePoint, ctrlDown=$ctrlDown)")
+        // [CTRL-HAPTIC] tick halus tiap kombinasi Ctrl+tombol terkirim (sekali pakai maupun terkunci)
+        if (mods.ctrl || ctrlDown) view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
         if (mods.ctrl && !mods.ctrlLocked) mods.ctrl = false // sekali pakai kecuali dikunci
         if (mods.alt && !mods.altLocked) mods.alt = false
         return false
