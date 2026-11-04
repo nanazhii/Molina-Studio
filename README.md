@@ -22,7 +22,7 @@ Anda bisa menulis skrip, menjalankannya, memasang alat tambahan, lalu pindah men
 ## Molina Terminal
 
 - Terminal dengan lingkungan Debian Linux, berjalan tanpa root.
-- Pasang alat seperti Python, Git, dan FFmpeg dari menu Paket. Paket dasar (Starter) bisa dipasang sekali ketuk.
+- Pasang alat seperti Python, JDK, dan FFmpeg dari menu Paket. Paket dasar (Starter) bisa dipasang sekali ketuk.
 - Cadangkan, pulihkan, atau kembalikan Debian ke kondisi awal.
 - Cadangan setelan, Recycle Bin, dan penjelajah berkas.
 
