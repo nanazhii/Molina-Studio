@@ -49,6 +49,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.molina.studio.ui.MolinaTheme
 import com.molina.studio.ui.onHorizontalSwipe
 import androidx.compose.ui.viewinterop.AndroidView
 import com.molina.terminal.view.TerminalView
@@ -153,7 +154,8 @@ private fun TerminalContent(modifier: Modifier, onOpenSettings: () -> Unit) {
 private val KeyRed = Color(0xFFFF8A80)    // ESC, CLEAR
 private val KeyBlue = Color(0xFF82B1FF)   // HOME, panah
 private val KeyGreen = Color(0xFF69F0AE)  // COPY, PASTE
-private val KeyAmber = Color(0xFFFFD54F)  // CTRL, ALT, TAB, menu
+private val KeyAmber = MolinaTheme.Gold  // TAB, menu, —
+private val KeyNeutral = MolinaTheme.OnBackground // CTRL, ALT (menyala emas saat aktif)
 
 private fun createTerminalView(ctx: Context, mods: TerminalModifiers): TerminalView {
     val view = TerminalView(ctx, null)
@@ -181,7 +183,15 @@ private fun ExtraKeys(mods: TerminalModifiers, onOpenDrawer: () -> Unit) {
                 "PGDN" to { TerminalActions.sendKey(KeyEvent.KEYCODE_PAGE_DOWN) }
             )
     }
-    Column(Modifier.fillMaxWidth()) {
+    val shape = RoundedCornerShape(12.dp)
+    val lit = mods.ctrl || mods.alt || mods.ctrlLocked || mods.altLocked
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp)
+            .clip(shape)
+            .background(Color(0xE60B0B0F), shape) // [FLOAT-KEYS] sama dengan pil melayang Penjelajah
+            .border(1.dp, if (lit) MolinaTheme.Gold else MolinaTheme.CardLine, shape)
+            .padding(3.dp)
+    ) {
         Row(Modifier.fillMaxWidth()) {
             Key("ESC", color = KeyRed) { TerminalActions.send("\u001b") }
             DrawerKey("\u2261", menu, KeyAmber, onOpenDrawer)
@@ -199,9 +209,9 @@ private fun ExtraKeys(mods: TerminalModifiers, onOpenDrawer: () -> Unit) {
         }
         Row(Modifier.fillMaxWidth()) {
             Key("\u21C6", color = KeyAmber) { TerminalActions.send("\t") }
-            Key("CTRL", active = mods.ctrl, locked = mods.ctrlLocked, color = KeyAmber,
+            Key("CTRL", active = mods.ctrl, locked = mods.ctrlLocked, color = KeyNeutral,
                 onLongClick = { mods.toggleCtrlLock() }) { mods.tapCtrl() }
-            Key("ALT", active = mods.alt, locked = mods.altLocked, color = KeyAmber,
+            Key("ALT", active = mods.alt, locked = mods.altLocked, color = KeyNeutral,
                 onLongClick = { mods.toggleAltLock() }) { mods.tapAlt() }
             Key("\u2190", color = KeyBlue) { TerminalActions.sendKey(KeyEvent.KEYCODE_DPAD_LEFT) }
             Key("\u2193", color = KeyBlue) { TerminalActions.sendKey(KeyEvent.KEYCODE_DPAD_DOWN) }
@@ -220,7 +230,7 @@ private fun RowScope.Key(
     onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
-    Box(Modifier.weight(1f)) { KeyButton(label, active, locked, color, onLongClick, onClick) }
+    Box(Modifier.weight(1f).padding(1.dp)) { KeyButton(label, active, locked, color, onLongClick, onClick) }
 }
 
 /**
@@ -235,7 +245,7 @@ private fun RowScope.DrawerKey(
 ) {
     var open by remember { mutableStateOf(false) }
     Box(
-        Modifier.weight(1f).onHorizontalSwipe(18.dp) { onOpenDrawer() }
+        Modifier.weight(1f).padding(1.dp).onHorizontalSwipe(18.dp) { onOpenDrawer() }
     ) {
         KeyButton(label, false, false, color, { open = true }) { onOpenDrawer() }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
@@ -262,19 +272,24 @@ private fun KeyButton(
 ) {
     val haptic = LocalHapticFeedback.current
     val base = if (tint == Color.Unspecified) MaterialTheme.colorScheme.onSurface else tint
+    val gold = MolinaTheme.Gold
     val shape = RoundedCornerShape(8.dp)
     val bg = when {
-        locked -> base.copy(alpha = 0.40f)
-        active -> base.copy(alpha = 0.22f)
-        else -> Color.Transparent
+        locked -> gold.copy(alpha = 0.40f)
+        active -> gold.copy(alpha = 0.22f)
+        else -> Color.White.copy(alpha = 0.05f)
     }
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 40.dp)
+            .heightIn(min = 38.dp)
             .clip(shape)
             .background(bg, shape)
-            .then(if (locked) Modifier.border(1.5.dp, base, shape) else Modifier)
+            .then(
+                if (locked) Modifier.border(1.5.dp, gold, shape)
+                else if (active) Modifier.border(1.dp, gold.copy(alpha = 0.7f), shape)
+                else Modifier
+            )
             .combinedClickable(
                 onClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -294,7 +309,7 @@ private fun KeyButton(
             fontSize = 13.sp,
             maxLines = 1,
             fontWeight = if (active || locked) FontWeight.Bold else FontWeight.Medium,
-            color = if (active || locked) base else base.copy(alpha = 0.85f)
+            color = if (active || locked) gold else base.copy(alpha = 0.85f)
         )
     }
 }
