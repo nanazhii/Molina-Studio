@@ -68,7 +68,7 @@ public final class TerminalView extends View {
 
     /** Sorotan hasil pencarian: baris layar (HIT_NONE = tidak ada) dan rentang kolom [mHitX1, mHitX2). */
     private static final int HIT_NONE = Integer.MIN_VALUE;
-    private static final int HIT_COLOR = 0x664FD1A5;
+    private static final int HIT_COLOR = 0x662ECC71;
     private final Paint mHitPaint = new Paint();
     int mHitRow = HIT_NONE, mHitX1, mHitX2;
     /** Saat true, pembaruan layar tidak mengembalikan tampilan ke bawah. Dilepas saat pengguna berinteraksi. */

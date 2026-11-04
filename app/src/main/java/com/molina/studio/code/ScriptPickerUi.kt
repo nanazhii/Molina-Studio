@@ -157,7 +157,7 @@ internal fun ScriptPickerDialog(onDismiss: () -> Unit) {
                                 Text((if (s.favorite) "\u2605 " else "") + s.title, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text(lastRunText(s), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
-                            Text("\u25B6", color = MolinaTheme.Mint, fontSize = 18.sp, modifier = Modifier.padding(start = 8.dp).size(24.dp))
+                            Text("\u25B6", color = MolinaTheme.Brand, fontSize = 18.sp, modifier = Modifier.padding(start = 8.dp).size(24.dp))
                         }
                     }
                 }

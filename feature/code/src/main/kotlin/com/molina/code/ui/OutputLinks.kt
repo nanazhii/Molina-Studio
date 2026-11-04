@@ -19,7 +19,7 @@ internal fun outputWithLinks(lines: List<OutLine>): AnnotatedString = buildAnnot
             for (loc in ErrorLinks.find(l.text)) {
                 val s = start + loc.start
                 val e = start + loc.end
-                addStyle(SpanStyle(color = CodeColors.Mint, textDecoration = TextDecoration.Underline), s, e)
+                addStyle(SpanStyle(color = CodeColors.Brand, textDecoration = TextDecoration.Underline), s, e)
                 addStringAnnotation(LOC_TAG, loc.path + "\u0000" + loc.line + "\u0000" + loc.col, s, e)
             }
         }

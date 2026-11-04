@@ -111,7 +111,7 @@ internal fun PreviewPage(session: CodeSession, onJump: (Int, Int) -> Unit, modif
                 if (run.running) {
                     PaneAction("BERHENTI", CodeColors.Danger) { run.stop() }
                 } else {
-                    PaneAction("ULANGI", CodeColors.Mint) { session.playActive() }
+                    PaneAction("ULANGI", CodeColors.Brand) { session.playActive() }
                 }
                 PaneAction("BAGIKAN", CodeColors.IconDefault) {
                     val out = PreviewRender.output(run.lines).text
@@ -122,7 +122,7 @@ internal fun PreviewPage(session: CodeSession, onJump: (Int, Int) -> Unit, modif
                     }
                 }
             } else {
-                PaneAction("BAGIKAN", CodeColors.Mint) {
+                PaneAction("BAGIKAN", CodeColors.Brand) {
                     val text = tab?.currentTextOrNull(200_000)
                     if (text == null) session.toast("Teks terlalu besar untuk dibagikan") else shareText(ctx, text)
                 }
@@ -148,7 +148,7 @@ private fun RunStatusBar(run: RunController) {
         else -> ""
     }
     val dot = when (run.status) {
-        RunStatus.Running -> CodeColors.Mint
+        RunStatus.Running -> CodeColors.Brand
         RunStatus.Done -> CodeColors.OutputOk
         RunStatus.Failed, RunStatus.TimedOut -> CodeColors.Danger
         else -> CodeColors.IconDim
@@ -421,7 +421,7 @@ private fun JsonErrorBody(e: PreviewContent.JsonError, onJump: (Int, Int) -> Uni
         BasicText(
             text = "Lompat ke baris ${e.line}, kolom ${e.column}",
             modifier = Modifier.clickable { onJump(e.line, e.column) }.padding(vertical = 8.dp),
-            style = TextStyle(color = CodeColors.Mint, fontSize = 13.sp)
+            style = TextStyle(color = CodeColors.Brand, fontSize = 13.sp)
         )
     }
 }

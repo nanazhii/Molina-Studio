@@ -255,7 +255,7 @@ internal fun ReplaceBar(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         singleLine = true,
         textStyle = TextStyle(color = CodeColors.TextPrimary, fontSize = CodeDimens.FindTextSize),
-        cursorBrush = SolidColor(CodeColors.Mint),
+        cursorBrush = SolidColor(CodeColors.Brand),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
         decorationBox = { inner ->
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
@@ -321,7 +321,7 @@ internal fun ReplaceBar(
                                 )
                                 BasicText(
                                     text = item.count.toString(),
-                                    style = TextStyle(color = CodeColors.Mint, fontSize = 12.sp)
+                                    style = TextStyle(color = CodeColors.Brand, fontSize = 12.sp)
                                 )
                             }
                             BasicText(

@@ -52,14 +52,14 @@ internal fun ThemeDialog(session: CodeSession, onDismiss: () -> Unit) {
                             .height(40.dp)
                             .clip(chip)
                             .background(if (on) CodeColors.Capsule else CodeColors.Surface2, chip)
-                            .border(CodeDimens.Hairline, if (on) CodeColors.Mint else CodeColors.Hairline, chip)
+                            .border(CodeDimens.Hairline, if (on) CodeColors.Brand else CodeColors.Hairline, chip)
                             .clickable(enabled = session.tmEnabled) { session.applyEditorTheme(t.id) }
                             .padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         BasicText(
                             text = t.label,
-                            style = TextStyle(color = if (on) CodeColors.Mint else CodeColors.MenuText, fontSize = 14.sp),
+                            style = TextStyle(color = if (on) CodeColors.Brand else CodeColors.MenuText, fontSize = 14.sp),
                             modifier = Modifier.weight(1f)
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {

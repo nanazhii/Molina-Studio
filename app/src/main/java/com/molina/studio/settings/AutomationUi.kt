@@ -77,7 +77,7 @@ internal fun UpdateStatusSection(onApt: (AptJob) -> Unit) { // [PAKET-TERPUSAT]
             st.lastCheck <= 0L -> "Belum pernah diperiksa"
             else -> "Semua sudah terbaru"
         },
-        color = if (updates > 0) com.molina.studio.ui.MolinaTheme.Mint else W7D.TextDim,
+        color = if (updates > 0) com.molina.studio.ui.MolinaTheme.Brand else W7D.TextDim,
         fontSize = 13.sp, fontWeight = FontWeight.Bold,
         modifier = Modifier.padding(bottom = 4.dp)
     )

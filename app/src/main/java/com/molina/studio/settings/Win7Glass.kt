@@ -117,7 +117,7 @@ internal fun RgbFrame(modifier: Modifier = Modifier, animate: Boolean = true, co
         Box(
             modifier
                 .clip(shape)
-                .background(Brush.linearGradient(listOf(MolinaTheme.Mint, Color(0xFF2D6DB5), MolinaTheme.Mint)), shape)
+                .background(Brush.linearGradient(listOf(MolinaTheme.Brand, Color(0xFF2D6DB5), MolinaTheme.Brand)), shape)
                 .padding(2.dp)
         ) { content() }
     }

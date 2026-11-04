@@ -246,7 +246,7 @@ internal fun CinemaChannelsDialog(
                 .heightIn(max = 640.dp)
                 .border(
                     1.dp,
-                    Brush.verticalGradient(listOf(MolinaTheme.Mint.copy(alpha = 0.6f), MolinaTheme.CardLine)),
+                    Brush.verticalGradient(listOf(MolinaTheme.Brand.copy(alpha = 0.6f), MolinaTheme.CardLine)),
                     frame,
                 ),
             shape = frame,
@@ -291,7 +291,7 @@ internal fun CinemaChannelsDialog(
                         keyboardActions = KeyboardActions(onGo = { saveAndLoad() }),
                     )
                     Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.End) {
-                        Text("Simpan & muat", color = MolinaTheme.Mint, fontSize = 14.sp,
+                        Text("Simpan & muat", color = MolinaTheme.Brand, fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.clickable { saveAndLoad() }.padding(8.dp))
                     }
@@ -320,17 +320,17 @@ internal fun CinemaChannelsDialog(
                             Row(Modifier.clickable { onOpenFolder() }.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Box(Modifier.size(20.dp)) { TabFolderIcon(MolinaTheme.Explorer.Folder) }
                                 Spacer(Modifier.width(6.dp))
-                                Text("Folder IPTV", color = MolinaTheme.Mint, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Folder IPTV", color = MolinaTheme.Brand, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                             }
                         } else Spacer(Modifier.width(1.dp))
-                        Text("Segarkan", color = MolinaTheme.Mint, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                        Text("Segarkan", color = MolinaTheme.Brand, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.clickable { refreshFiles() }.padding(8.dp))
                     }
                 }
 
                 if (loading) LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp),
-                    color = MolinaTheme.Mint,
+                    color = MolinaTheme.Brand,
                     trackColor = Color(0x1FFFFFFF),
                 )
                 if (status.isNotEmpty()) Text(status, color = MolinaTheme.Muted, fontSize = 12.sp,
@@ -375,7 +375,7 @@ internal fun CinemaChannelsDialog(
                     ChKey(R.drawable.ic_tv_page_prev, null, "Prev", Color.White, Modifier.weight(1f)) { page(-PAGE) }
                     ChKey(R.drawable.ic_tv_page_next, null, "Next", Color.White, Modifier.weight(1f)) { page(PAGE) }
                     ChKey(R.drawable.ic_tv_search, null, "Cari",
-                        if (searchOpen) MolinaTheme.Mint else Color.White, Modifier.weight(1f)) {
+                        if (searchOpen) MolinaTheme.Brand else Color.White, Modifier.weight(1f)) {
                         searchOpen = !searchOpen
                         if (!searchOpen) query = ""
                     }
@@ -392,9 +392,9 @@ internal fun CinemaChannelsDialog(
 private fun fieldColors() = OutlinedTextFieldDefaults.colors(
     focusedTextColor = MolinaTheme.OnBackground,
     unfocusedTextColor = MolinaTheme.OnBackground,
-    focusedBorderColor = MolinaTheme.Mint,
+    focusedBorderColor = MolinaTheme.Brand,
     unfocusedBorderColor = MolinaTheme.CardLine,
-    cursorColor = MolinaTheme.Mint,
+    cursorColor = MolinaTheme.Brand,
     focusedPlaceholderColor = MolinaTheme.Muted,
     unfocusedPlaceholderColor = MolinaTheme.Muted,
 )
@@ -404,10 +404,10 @@ private fun SourceChip(label: String, active: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(14.dp)
     Text(
         label,
-        color = if (active) MolinaTheme.Mint else MolinaTheme.Muted,
+        color = if (active) MolinaTheme.Brand else MolinaTheme.Muted,
         fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
         modifier = Modifier.widthIn(max = 170.dp).clip(shape)
-            .border(1.dp, if (active) MolinaTheme.Mint else MolinaTheme.CardLine, shape)
+            .border(1.dp, if (active) MolinaTheme.Brand else MolinaTheme.CardLine, shape)
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 6.dp),
     )
@@ -421,14 +421,14 @@ private fun ChRow(e: ChEntry, isSelected: Boolean, onPress: () -> Unit, onClick:
     Row(
         Modifier.fillMaxWidth().padding(vertical = 2.dp)
             .clip(shape).background(brush)
-            .border(if (isSelected) 2.dp else 1.dp, if (isSelected) MolinaTheme.Mint else RowLine, shape)
+            .border(if (isSelected) 2.dp else 1.dp, if (isSelected) MolinaTheme.Brand else RowLine, shape)
             .pointerInput(e.number) {
                 detectTapGestures(onPress = { onPress(); tryAwaitRelease() }, onTap = { onClick() })
             }
             .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("%03d".format(e.number), color = MolinaTheme.Mint,
+        Text("%03d".format(e.number), color = MolinaTheme.Brand,
             fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 14.sp,
             modifier = Modifier.width(44.dp))
         Column(Modifier.weight(1f)) {
@@ -471,7 +471,7 @@ private fun FileRow(e: IptvLocal.Entry, onCode: (() -> Unit)? = null, onClick: (
             overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         Spacer(Modifier.width(8.dp))
         Text(sizeLabel(e.sizeBytes), color = MolinaTheme.Muted, fontSize = 12.sp)
-        if (onCode != null) Text("Code", color = MolinaTheme.Mint, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+        if (onCode != null) Text("Code", color = MolinaTheme.Brand, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
             modifier = Modifier.clickable(onClick = onCode).padding(horizontal = 8.dp, vertical = 4.dp))
     }
 }

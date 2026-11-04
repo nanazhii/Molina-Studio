@@ -25,7 +25,7 @@ internal fun CinemaLogo(message: String) {
         Text("\u25B6", color = CinemaPurple, fontSize = 40.sp)
     }
     Spacer(Modifier.height(16.dp))
-    Text("Molina", color = MolinaTheme.Mint, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+    Text("Molina", color = MolinaTheme.Brand, fontSize = 32.sp, fontWeight = FontWeight.Bold)
     Text("CINEMA", color = MolinaTheme.OnBackground, fontSize = 20.sp,
         fontWeight = FontWeight.Bold, letterSpacing = 6.sp)
     Text("HOME THEATER", color = MolinaTheme.Muted, fontSize = 12.sp, letterSpacing = 4.sp)

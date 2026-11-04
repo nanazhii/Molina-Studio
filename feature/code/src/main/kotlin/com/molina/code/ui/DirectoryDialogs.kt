@@ -200,13 +200,13 @@ internal fun ConfirmDialog(
 ) {
     Dialog(onDismissRequest = onCancel) {
         DialogCard(Modifier.widthIn(max = 320.dp)) {
-            BasicText(title, style = TextStyle(color = CodeColors.Mint, fontSize = CodeDimens.DialogTitleSize))
+            BasicText(title, style = TextStyle(color = CodeColors.Brand, fontSize = CodeDimens.DialogTitleSize))
             Spacer(Modifier.height(12.dp))
             BasicText(message, style = TextStyle(color = CodeColors.TextPrimary, fontSize = 14.sp))
             Spacer(Modifier.height(16.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 DialogAction("BATAL", CodeColors.LabelNeutral, onCancel)
-                DialogAction(confirmLabel, if (danger) CodeColors.Danger else CodeColors.Mint, onConfirm)
+                DialogAction(confirmLabel, if (danger) CodeColors.Danger else CodeColors.Brand, onConfirm)
             }
         }
     }
@@ -377,7 +377,7 @@ private fun NameDialog(
 
     Dialog(onDismissRequest = onCancel, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         DialogCard(Modifier.fillMaxWidth(0.92f).widthIn(max = 360.dp)) {
-            BasicText(title, style = TextStyle(color = CodeColors.Mint, fontSize = CodeDimens.DialogTitleSize))
+            BasicText(title, style = TextStyle(color = CodeColors.Brand, fontSize = CodeDimens.DialogTitleSize))
             Spacer(Modifier.height(16.dp))
             Label("Nama:")
             UnderlineField(
@@ -400,7 +400,7 @@ private fun NameDialog(
             Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 DialogAction("BATAL", CodeColors.LabelNeutral, onCancel)
-                DialogAction(confirmLabel, CodeColors.Mint) { submit() }
+                DialogAction(confirmLabel, CodeColors.Brand) { submit() }
             }
         }
     }
@@ -436,7 +436,7 @@ internal fun PickerDialog(
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         DialogCard(Modifier.fillMaxWidth(0.94f).widthIn(max = 380.dp).heightIn(max = maxHeight)) {
-            BasicText(title, style = TextStyle(color = CodeColors.Mint, fontSize = CodeDimens.DialogTitleSize))
+            BasicText(title, style = TextStyle(color = CodeColors.Brand, fontSize = CodeDimens.DialogTitleSize))
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 DirIconButton(DirIcon.Up, enabled = canUp) { cur = cur.parentFile ?: cur }
@@ -487,7 +487,7 @@ internal fun PickerDialog(
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 DialogAction("BATAL", CodeColors.LabelNeutral, onDismiss)
-                if (mode == PickMode.Folder) DialogAction("PILIH FOLDER INI", CodeColors.Mint) { onPick(cur) }
+                if (mode == PickMode.Folder) DialogAction("PILIH FOLDER INI", CodeColors.Brand) { onPick(cur) }
             }
         }
     }

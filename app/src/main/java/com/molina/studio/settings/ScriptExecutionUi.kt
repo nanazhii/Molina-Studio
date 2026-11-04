@@ -258,7 +258,7 @@ private fun ScriptAccordion(
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 if (item.favorite) "\u2605" else "\u2606",
-                color = if (item.favorite) MolinaTheme.Mint else W7D.TextDim, fontSize = 20.sp,
+                color = if (item.favorite) MolinaTheme.Brand else W7D.TextDim, fontSize = 20.sp,
                 modifier = Modifier.clickable(onClick = onFav).padding(start = 12.dp, top = 10.dp, bottom = 10.dp, end = 4.dp)
             )
             Text(
@@ -276,7 +276,7 @@ private fun ScriptAccordion(
                     p.lineTo(w * 0.95f, h * 0.5f)
                     p.lineTo(w * 0.15f, h * 0.95f)
                     p.close()
-                    drawPath(p, MolinaTheme.Mint)
+                    drawPath(p, MolinaTheme.Brand)
                 }
             }
         }

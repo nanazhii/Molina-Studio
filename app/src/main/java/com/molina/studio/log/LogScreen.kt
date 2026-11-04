@@ -571,7 +571,7 @@ private fun androidx.compose.ui.text.AnnotatedString.Builder.appendHighlighted(
             return
         }
         if (at > from) withStyle(SpanStyle(color = color)) { append(text.substring(from, at)) }
-        withStyle(SpanStyle(color = Color.Black, background = MolinaTheme.Mint)) {
+        withStyle(SpanStyle(color = Color.Black, background = MolinaTheme.Brand)) {
             append(text.substring(at, at + query.length))
         }
         from = at + query.length

@@ -112,7 +112,7 @@ internal fun SymbolDialog(session: CodeSession, onDismiss: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().focusRequester(focus).padding(horizontal = 16.dp, vertical = 12.dp),
                 singleLine = true,
                 textStyle = TextStyle(color = CodeColors.TextPrimary, fontSize = CodeDimens.FindTextSize),
-                cursorBrush = SolidColor(CodeColors.Mint),
+                cursorBrush = SolidColor(CodeColors.Brand),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
                 keyboardActions = KeyboardActions(onGo = { shown.firstOrNull()?.let { go(it) } }),
                 decorationBox = { inner ->
@@ -161,7 +161,7 @@ internal fun SymbolDialog(session: CodeSession, onDismiss: () -> Unit) {
                                     text = e.kind,
                                     modifier = Modifier.width(44.dp),
                                     maxLines = 1,
-                                    style = TextStyle(color = CodeColors.Mint.copy(alpha = 0.75f), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                    style = TextStyle(color = CodeColors.Brand.copy(alpha = 0.75f), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                                 )
                                 BasicText(
                                     text = e.name,

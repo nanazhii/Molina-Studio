@@ -55,7 +55,7 @@ internal fun W7IconStatsBig(box: Dp) {
         val base = h * 0.80f
         listOf(0.22f, 0.36f, 0.50f).forEachIndexed { i, frac ->
             val bh = h * frac
-            drawRoundRect(MolinaTheme.Mint, Offset(w * (0.25f + i * 0.19f), base - bh), Size(w * 0.13f, bh), CornerRadius(w * 0.02f))
+            drawRoundRect(MolinaTheme.Brand, Offset(w * (0.25f + i * 0.19f), base - bh), Size(w * 0.13f, bh), CornerRadius(w * 0.02f))
         }
     }
 }
@@ -92,8 +92,8 @@ internal fun WatchStatsPage() {
                 val x = slot * i + (slot - barW) / 2f
                 val color = when {
                     sec <= 0L -> Color(0xFF262626)
-                    i == s.days.lastIndex -> MolinaTheme.Mint
-                    else -> MolinaTheme.Mint.copy(alpha = 0.55f)
+                    i == s.days.lastIndex -> MolinaTheme.Brand
+                    else -> MolinaTheme.Brand.copy(alpha = 0.55f)
                 }
                 drawRoundRect(color, Offset(x, size.height - bh), Size(barW, bh), CornerRadius(3.dp.toPx()))
             }
@@ -117,7 +117,7 @@ internal fun WatchStatsPage() {
         }
         s.top.take(5).forEachIndexed { i, t ->
             Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("${i + 1}", color = MolinaTheme.Mint, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(end = 10.dp))
+                Text("${i + 1}", color = MolinaTheme.Brand, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(end = 10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(t.title, color = W7D.Ink, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text("${t.plays}x diputar", color = W7D.TextDim, fontSize = 11.sp)
@@ -156,7 +156,7 @@ private fun StatCard(label: String, value: String, modifier: Modifier) {
         modifier.clip(shape).background(W7D.Card, shape).border(1.dp, W7D.Hairline, shape).padding(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(value, color = MolinaTheme.Mint, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(value, color = MolinaTheme.Brand, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1)
         Text(label, color = W7D.TextDim, fontSize = 11.sp)
     }
 }

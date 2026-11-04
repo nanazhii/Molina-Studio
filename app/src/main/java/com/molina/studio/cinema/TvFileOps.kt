@@ -255,7 +255,7 @@ internal fun TvOpsDialogs(sheet: TvSheet?, ops: TvOps, channels: List<TvGuide.Ch
                         }.padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(ch.number.toString(), color = com.molina.studio.ui.MolinaTheme.Mint, fontSize = 13.sp)
+                        Text(ch.number.toString(), color = com.molina.studio.ui.MolinaTheme.Brand, fontSize = 13.sp)
                         Spacer(Modifier.width(10.dp))
                         Text(ch.label, color = Win7.Ink, fontSize = 14.sp)
                     }

@@ -215,7 +215,7 @@ internal fun TvBrowser(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                Text("Molina Cinema", color = MolinaTheme.Mint, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text("Molina Cinema", color = MolinaTheme.Brand, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                 val chLabel = if (recentMode) "Terakhir" else channels.getOrNull(idx)?.label.orEmpty()
                 Text(
                     " \u00B7 " + chLabel, color = Win7.TextDim, fontSize = 13.sp, maxLines = 1,
@@ -239,7 +239,7 @@ internal fun TvBrowser(
         if (!recentMode && cur != null && root != null && cur.path != root.path) {
             Text(
                 "\u2039  " + cur.name,
-                color = MolinaTheme.Mint, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                color = MolinaTheme.Brand, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.fillMaxWidth()
                     .clickable { cur.parentFile?.let { dir = it; focus = null } }
                     .padding(horizontal = 14.dp, vertical = 8.dp)
@@ -308,12 +308,12 @@ internal fun TvBrowser(
                                     ChannelCover(row.title, row.coverFile?.let { d.cards[it.path] })
                                     Spacer(Modifier.width(8.dp))
                                     Text(
-                                        row.title, color = MolinaTheme.Mint, fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                                        row.title, color = MolinaTheme.Brand, fontSize = 13.sp, fontWeight = FontWeight.Bold,
                                         maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false)
                                     )
                                     Spacer(Modifier.width(8.dp))
                                     CountBadge(TvGuide.badge(row.total))
-                                    Text("  \u203A", color = MolinaTheme.Mint, fontSize = 13.sp)
+                                    Text("  \u203A", color = MolinaTheme.Brand, fontSize = 13.sp)
                                 }
                             } else {
                                 Text(
@@ -395,11 +395,11 @@ private fun TvTile(item: TvGuide.Item, onLong: () -> Unit, onClick: () -> Unit) 
         Box(
             Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(TileShape)
                 .background(Brush.verticalGradient(listOf(Color(0xFF241B2B), Color(0xFF0E0B10))), TileShape)
-                .border(1.dp, if (folder) MolinaTheme.Mint else Win7.Line, TileShape),
+                .border(1.dp, if (folder) MolinaTheme.Brand else Win7.Line, TileShape),
             Alignment.Center
         ) {
             Text(label, color = Win7.TextDim, fontSize = 9.sp, modifier = Modifier.align(Alignment.TopStart).padding(6.dp))
-            Text(ShelfCard.monogram(item.title), color = MolinaTheme.Mint, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+            Text(ShelfCard.monogram(item.title), color = MolinaTheme.Brand, fontSize = 34.sp, fontWeight = FontWeight.Bold)
         }
         Spacer(Modifier.height(4.dp))
         Text(item.title, color = Win7.Ink, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -426,15 +426,15 @@ private fun TvInfoPanel(
             Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     ops.message + (if (ops.busy) ops.progress?.let { " " + (it * 100).toInt() + "%" }.orEmpty() else ""),
-                    color = if (ops.ok) MolinaTheme.Mint else Color(0xFFFF8A80), fontSize = 12.sp,
+                    color = if (ops.ok) MolinaTheme.Brand else Color(0xFFFF8A80), fontSize = 12.sp,
                     modifier = Modifier.weight(1f), maxLines = 3, overflow = TextOverflow.Ellipsis
                 )
                 if (ops.busy) {
                     Text("Batal", color = Win7.TextDim, fontSize = 12.sp, modifier = Modifier.clickable { ops.cancelOp() }.padding(8.dp))
                 } else if (ops.undo != null) {
-                    Text("Urungkan", color = MolinaTheme.Mint, fontSize = 12.sp, modifier = Modifier.clickable { ops.undoTrash() }.padding(8.dp))
+                    Text("Urungkan", color = MolinaTheme.Brand, fontSize = 12.sp, modifier = Modifier.clickable { ops.undoTrash() }.padding(8.dp))
                 } else if (ops.tidyUndo != null) {
-                    Text("Urungkan", color = MolinaTheme.Mint, fontSize = 12.sp, modifier = Modifier.clickable { ops.undoTidy() }.padding(8.dp))
+                    Text("Urungkan", color = MolinaTheme.Brand, fontSize = 12.sp, modifier = Modifier.clickable { ops.undoTidy() }.padding(8.dp))
                 }
             }
         }
@@ -444,9 +444,9 @@ private fun TvInfoPanel(
             if (tidy != null && tidy.items.isNotEmpty() && !ops.busy) {
                 // [CINEMA-TIDY] video lama yang masih campur di folder ini -> folder per kanal (dari .info.json sidecar)
                 Text(
-                    "Rapikan " + tidy.items.size + " video ke folder kanal", color = MolinaTheme.Mint, fontSize = 12.sp,
+                    "Rapikan " + tidy.items.size + " video ke folder kanal", color = MolinaTheme.Brand, fontSize = 12.sp,
                     modifier = Modifier.padding(top = 8.dp).clip(RoundedCornerShape(12.dp))
-                        .border(1.dp, MolinaTheme.Mint, RoundedCornerShape(12.dp))
+                        .border(1.dp, MolinaTheme.Brand, RoundedCornerShape(12.dp))
                         .clickable { onSheet(TvSheet.Tidy(tidy)) }.padding(horizontal = 14.dp, vertical = 6.dp)
                 )
             }
@@ -455,7 +455,7 @@ private fun TvInfoPanel(
             Text(TvGuide.describe(item, extra), color = Win7.TextDim, fontSize = 11.sp, modifier = Modifier.padding(top = 2.dp))
             if (resumeSec != null) {
                 Text(
-                    "Dilanjutkan di " + ShelfCard.clock(resumeSec), color = MolinaTheme.Mint, fontSize = 11.sp,
+                    "Dilanjutkan di " + ShelfCard.clock(resumeSec), color = MolinaTheme.Brand, fontSize = 11.sp,
                     modifier = Modifier.padding(top = 2.dp)
                 )
             }
@@ -464,14 +464,14 @@ private fun TvInfoPanel(
                     Text(
                         if (item.kind == TvGuide.Kind.Folder) "Buka" else "Putar",
                         color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Medium,
-                        modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(MolinaTheme.Mint)
+                        modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(MolinaTheme.Brand)
                             .clickable { onOpen(item) }.padding(horizontal = 16.dp, vertical = 6.dp)
                     )
                 }
                 if (resumeSec != null) {
                     Text(
-                        "Mulai dari awal", color = MolinaTheme.Mint, fontSize = 12.sp,
-                        modifier = Modifier.clip(RoundedCornerShape(12.dp)).border(1.dp, MolinaTheme.Mint, RoundedCornerShape(12.dp))
+                        "Mulai dari awal", color = MolinaTheme.Brand, fontSize = 12.sp,
+                        modifier = Modifier.clip(RoundedCornerShape(12.dp)).border(1.dp, MolinaTheme.Brand, RoundedCornerShape(12.dp))
                             .clickable { onReset(item) }.padding(horizontal = 14.dp, vertical = 6.dp)
                     )
                 }
@@ -542,7 +542,7 @@ private fun TvChannelMenu(
             Box(
                 Modifier.size(48.dp).clip(RoundedCornerShape(14.dp))
                     .background(if (open) Color(0x33FFFFFF) else Color(0x14FFFFFF))
-                    .border(1.dp, if (open) MolinaTheme.Mint else Color.Transparent, RoundedCornerShape(14.dp))
+                    .border(1.dp, if (open) MolinaTheme.Brand else Color.Transparent, RoundedCornerShape(14.dp))
                     .clickable { if (open) open = false else show() },
                 contentAlignment = Alignment.Center
             ) {
@@ -551,7 +551,7 @@ private fun TvChannelMenu(
                     val cell = (size.width - gap) / 2f
                     for (r in 0..1) for (c in 0..1) {
                         drawRoundRect(
-                            color = MolinaTheme.Mint,
+                            color = MolinaTheme.Brand,
                             topLeft = Offset(c * (cell + gap), r * (cell + gap)),
                             size = Size(cell, cell),
                             cornerRadius = CornerRadius(2.dp.toPx())
@@ -563,7 +563,7 @@ private fun TvChannelMenu(
                 Box(
                     Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-4).dp)
                         .defaultMinSize(minWidth = 16.dp, minHeight = 16.dp)
-                        .clip(CircleShape).background(MolinaTheme.Mint).padding(horizontal = 4.dp),
+                        .clip(CircleShape).background(MolinaTheme.Brand).padding(horizontal = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(if (recentCount > 9) "9+" else recentCount.toString(), color = Color.Black, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
@@ -578,7 +578,7 @@ private fun TvChannelMenu(
                 Column(
                     Modifier.width(210.dp).heightIn(max = 440.dp)
                         .clip(RoundedCornerShape(14.dp)).background(TvPanel)
-                        .border(1.dp, MolinaTheme.Mint, RoundedCornerShape(14.dp))
+                        .border(1.dp, MolinaTheme.Brand, RoundedCornerShape(14.dp))
                         .verticalScroll(rememberScrollState()).padding(vertical = 6.dp)
                 ) {
                     TvMenuRow("0", "Terakhir" + if (recentCount > 0) " \u00B7 $recentCount" else "", selected == -1) { open = false; onRecent() }
@@ -600,7 +600,7 @@ private fun TvMenuRow(number: String, label: String, on: Boolean, onClick: () ->
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(number, color = MolinaTheme.Mint, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(24.dp))
+        Text(number, color = MolinaTheme.Brand, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(24.dp))
         Text(label, color = if (on) Color.White else Win7.TextDim, fontSize = 14.sp, fontWeight = if (on) FontWeight.Medium else FontWeight.Normal)
     }
 }

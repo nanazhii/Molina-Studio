@@ -84,7 +84,7 @@
                     android:fontFamily="sans-serif-condensed"
                     android:letterSpacing="0.15"
                     android:text="● MOLINA CINEMA"
-                    android:textColor="#FF4FD1A5"
+                    android:textColor="#FF2ECC71"
                     android:textSize="11sp"
                     android:textStyle="bold" />
 

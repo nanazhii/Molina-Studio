@@ -161,7 +161,7 @@ private fun HealthCard(checks: List<CheckResult>?, onAction: (CheckAction) -> Un
             Modifier.fillMaxWidth().background(head.copy(alpha = 0.14f)).padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Molina Control Panel", color = MolinaTheme.Mint, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Text("Molina Control Panel", color = MolinaTheme.Brand, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             val sum = checks?.takeIf { it.isNotEmpty() }?.let { c -> "${c.count { it.level == CheckLevel.Ok }}/${c.size} sehat" } ?: ""
             Text(sum, color = head, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
         }
@@ -246,7 +246,7 @@ internal fun DiagnosticsDialog(onManageDebian: () -> Unit = {}, onViewLog: () ->
 
     AlertDialog(
         containerColor = MolinaTheme.Background, // [DIAG-THEME] Home Theater: latar gelap, judul emas merek
-        titleContentColor = MolinaTheme.Mint,
+        titleContentColor = MolinaTheme.Brand,
         textContentColor = MolinaTheme.OnBackground,
         onDismissRequest = { if (!busy) onDismiss() },
         title = { Text("Diagnostik dan laporan bug") },

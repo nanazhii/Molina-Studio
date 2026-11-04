@@ -44,14 +44,14 @@ internal fun CinemaOpenChooser(
                     .background(MolinaTheme.CardBg)
                     .border(
                         1.dp,
-                        Brush.verticalGradient(listOf(MolinaTheme.Mint.copy(alpha = 0.6f), MolinaTheme.CardLine)),
+                        Brush.verticalGradient(listOf(MolinaTheme.Brand.copy(alpha = 0.6f), MolinaTheme.CardLine)),
                         shape
                     )
                     .padding(horizontal = 24.dp, vertical = 22.dp)
             ) {
                 Text("Buka dari perangkat", color = MolinaTheme.OnBackground, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(8.dp))
-                Box(Modifier.width(32.dp).height(2.dp).background(MolinaTheme.Mint, RoundedCornerShape(1.dp)))
+                Box(Modifier.width(32.dp).height(2.dp).background(MolinaTheme.Brand, RoundedCornerShape(1.dp)))
                 Spacer(Modifier.height(14.dp))
                 ChooserRow(ChooserIcon.FILM, "Buka berkas", "Putar satu video atau audio", onFile)
                 Spacer(Modifier.height(8.dp))
@@ -72,7 +72,7 @@ private enum class ChooserIcon { FILM, FOLDER, FOLDERS }
 /** Ikon emas bergaya Home Theater, digambar vektor agar konsisten di semua perangkat. */
 @Composable
 private fun GoldIcon(kind: ChooserIcon, modifier: Modifier = Modifier.size(28.dp)) {
-    val gold = MolinaTheme.Mint
+    val gold = MolinaTheme.Brand
     Canvas(modifier) {
         val w = size.width
         val h = size.height

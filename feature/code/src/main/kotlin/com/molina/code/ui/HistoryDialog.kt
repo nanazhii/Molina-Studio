@@ -180,7 +180,7 @@ private fun HistoryListPane(
         BasicText(
             text = "Pilih dua versi untuk dibandingkan (" + marked.size + "/2)",
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 6.dp),
-            style = TextStyle(color = CodeColors.Mint, fontSize = 12.sp)
+            style = TextStyle(color = CodeColors.Brand, fontSize = 12.sp)
         )
     }
     when {
@@ -201,7 +201,7 @@ private fun HistoryListPane(
                         BasicText(
                             text = (if (on) "\u2713 " else "") + HistoryFormat.time(v.time, now),
                             maxLines = 1,
-                            style = TextStyle(color = if (on) CodeColors.Mint else CodeColors.IconDefault, fontSize = 14.sp)
+                            style = TextStyle(color = if (on) CodeColors.Brand else CodeColors.IconDefault, fontSize = 14.sp)
                         )
                         BasicText(
                             text = v.lines.toString() + " baris \u00B7 " + HistoryFormat.size(v.chars.toLong()),
@@ -212,13 +212,13 @@ private fun HistoryListPane(
                     BasicText(
                         text = v.kind.label,
                         maxLines = 1,
-                        style = TextStyle(color = CodeColors.Mint.copy(alpha = 0.75f), fontSize = 11.sp)
+                        style = TextStyle(color = CodeColors.Brand.copy(alpha = 0.75f), fontSize = 11.sp)
                     )
                     BasicText(
                         text = if (v.pinned) "\u2605" else "\u2606",
                         modifier = Modifier.clickable { onTogglePin(v) }.padding(horizontal = 14.dp, vertical = 8.dp),
                         style = TextStyle(
-                            color = if (v.pinned) CodeColors.Mint else CodeColors.SecondaryNeutral.copy(alpha = 0.55f),
+                            color = if (v.pinned) CodeColors.Brand else CodeColors.SecondaryNeutral.copy(alpha = 0.55f),
                             fontSize = 20.sp
                         )
                     )

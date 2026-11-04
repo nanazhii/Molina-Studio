@@ -43,12 +43,12 @@ enum class PromptTheme(
         "molina_noir", "Molina Noir",
         "1;${MolinaTheme.GOOD_SGR}", "1;38;2;255;138;128",
         MolinaTheme.Good, MolinaTheme.Bad,
-        userSgr = "1;${MolinaTheme.MINT_SGR}", branchSgr = "38;2;179;136;255"
+        userSgr = "1;${MolinaTheme.BRAND_SGR}", branchSgr = "38;2;179;136;255"
     ),
-    CinemaMint(
-        "cinema_gold", "Cinema Mint",
-        "1;${MolinaTheme.MINT_SGR}", "1;38;2;196;69;54",
-        MolinaTheme.Mint, Color(0xFFC44536)
+    CinemaBrand(
+        "cinema_gold", "Cinema Emerald",
+        "1;${MolinaTheme.BRAND_SGR}", "1;38;2;196;69;54",
+        MolinaTheme.Brand, Color(0xFFC44536)
     ),
     NeonGreen(
         "neon_green", "Neon Green",
@@ -70,7 +70,7 @@ enum class PromptTheme(
 data class TerminalSettings(
     val fontSp: Int = TerminalPrefs.DEFAULT_FONT_SP,
     val promptTheme: PromptTheme = PromptTheme.Noir,
-    val look: TerminalLook = TerminalLook.NoirMint,
+    val look: TerminalLook = TerminalLook.NoirBrand,
     val banner: BannerStyle = BannerStyle.Off,
     val logLevel: Int = TerminalPrefs.LOG_NORMAL,
     val keyLogging: Boolean = false,

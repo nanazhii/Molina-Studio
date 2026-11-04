@@ -130,7 +130,7 @@ internal fun Win7Folder(box: Dp) {
         val h = size.height
         drawRoundRect(Color(0xFF8A6418), Offset(w * 0.04f, h * 0.14f), Size(w * 0.42f, h * 0.2f), CornerRadius(w * 0.05f))
         drawRoundRect(
-            Brush.verticalGradient(listOf(MolinaTheme.Mint, Color(0xFFB07F22))),
+            Brush.verticalGradient(listOf(MolinaTheme.Brand, Color(0xFFB07F22))),
             Offset(w * 0.04f, h * 0.26f), Size(w * 0.92f, h * 0.62f), CornerRadius(w * 0.07f)
         )
         drawRoundRect(Color.White.copy(alpha = 0.30f), Offset(w * 0.08f, h * 0.32f), Size(w * 0.84f, h * 0.12f), CornerRadius(w * 0.04f))
@@ -145,7 +145,7 @@ internal fun Win7MolinaFolder(box: Dp) {
         val h = size.height
         drawRoundRect(Color(0xFF9A6F10), Offset(w * 0.04f, h * 0.14f), Size(w * 0.42f, h * 0.2f), CornerRadius(w * 0.05f))
         drawRoundRect(
-            Brush.verticalGradient(listOf(Color(0xFFFFDC85), MolinaTheme.Mint)),
+            Brush.verticalGradient(listOf(Color(0xFFFFDC85), MolinaTheme.Brand)),
             Offset(w * 0.04f, h * 0.26f), Size(w * 0.92f, h * 0.62f), CornerRadius(w * 0.07f)
         )
         val cx = w * 0.5f
@@ -170,7 +170,7 @@ internal fun Win7File(video: Boolean, box: Dp) {
     Canvas(Modifier.size(box)) {
         val w = size.width
         val h = size.height
-        val gold = MolinaTheme.Mint
+        val gold = MolinaTheme.Brand
         val page = Path().apply {
             moveTo(w * 0.18f, h * 0.06f); lineTo(w * 0.62f, h * 0.06f); lineTo(w * 0.84f, h * 0.28f)
             lineTo(w * 0.84f, h * 0.94f); lineTo(w * 0.18f, h * 0.94f); close()

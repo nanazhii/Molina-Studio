@@ -23,7 +23,7 @@ class MarkedSeekBar @JvmOverloads constructor(
     private val density = resources.displayMetrics.density
     private val slop = ViewConfiguration.get(context).scaledTouchSlop
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0xFF4FD1A5.toInt()
+        color = 0xFF2ECC71.toInt()
         style = Paint.Style.FILL
     }
     private val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply {

@@ -242,17 +242,17 @@ private fun MenuRow(e: MenuEntry) {
     }
 }
 
-/** Kotak centang: terisi mint dengan centang hitam bila aktif; border netral 50% bila tidak. */
+/** Kotak centang: terisi aksen dengan centang hitam bila aktif; border netral 50% bila tidak. */
 @Composable
 internal fun CheckMark(on: Boolean) {
     val shape = RoundedCornerShape(3.dp)
     Box(
         Modifier
             .size(CodeDimens.MenuIconSize)
-            .background(if (on) CodeColors.Mint else Color.Transparent, shape)
+            .background(if (on) CodeColors.Brand else Color.Transparent, shape)
             .border(
                 1.5.dp,
-                if (on) CodeColors.Mint else CodeColors.IconDefault.copy(alpha = 0.5f),
+                if (on) CodeColors.Brand else CodeColors.IconDefault.copy(alpha = 0.5f),
                 shape
             ),
         contentAlignment = Alignment.Center

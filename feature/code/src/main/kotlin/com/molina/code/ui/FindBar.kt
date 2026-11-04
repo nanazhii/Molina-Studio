@@ -90,7 +90,7 @@ internal fun FindBar(session: CodeSession, tab: EditorTab) {
                 value = find.query,
                 onChange = { find.query = it },
                 hint = "Cari",
-                underline = if (focused) CodeColors.Mint else CodeColors.Hairline,
+                underline = if (focused) CodeColors.Brand else CodeColors.Hairline,
                 imeAction = ImeAction.Search,
                 onAction = { step(true) },
                 fieldModifier = Modifier.focusRequester(focus).onFocusChanged { focused = it.isFocused }
@@ -125,14 +125,14 @@ internal fun FindBar(session: CodeSession, tab: EditorTab) {
                     onAction = {},
                     fieldModifier = Modifier
                 )
-                BarButton("GANTI", width = 56.dp, color = CodeColors.Mint, enabled = canReplace) {
+                BarButton("GANTI", width = 56.dp, color = CodeColors.Brand, enabled = canReplace) {
                     try {
                         ed?.searcher?.replaceCurrentMatch(find.replaceText)
                     } catch (e: IllegalStateException) {
                         // tidak ada hasil terpilih
                     }
                 }
-                BarButton("SEMUA", width = 56.dp, color = CodeColors.Mint, enabled = canReplace) {
+                BarButton("SEMUA", width = 56.dp, color = CodeColors.Brand, enabled = canReplace) {
                     try {
                         ed?.searcher?.replaceAll(find.replaceText)
                     } catch (e: IllegalStateException) {
@@ -228,7 +228,7 @@ private fun RowScope.FindField(
             modifier = fieldModifier.fillMaxWidth(),
             singleLine = true,
             textStyle = TextStyle(color = CodeColors.TextPrimary, fontSize = CodeDimens.FindTextSize),
-            cursorBrush = SolidColor(CodeColors.Mint),
+            cursorBrush = SolidColor(CodeColors.Brand),
             keyboardOptions = KeyboardOptions(imeAction = imeAction),
             keyboardActions = KeyboardActions(onSearch = { onAction() }, onDone = { onAction() }),
             decorationBox = { inner ->
@@ -318,7 +318,7 @@ private fun FindOptionsDialog(find: FindState, onDismiss: () -> Unit) {
                             onDismiss()
                         }
                         .padding(12.dp),
-                    style = TextStyle(color = CodeColors.Mint, fontSize = 14.sp)
+                    style = TextStyle(color = CodeColors.Brand, fontSize = 14.sp)
                 )
             }
         }
@@ -387,7 +387,7 @@ internal fun GotoLineDialog(tab: EditorTab, onDismiss: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().focusRequester(focus),
                 singleLine = true,
                 textStyle = TextStyle(color = CodeColors.TextPrimary, fontSize = CodeDimens.FindTextSize),
-                cursorBrush = SolidColor(CodeColors.Mint),
+                cursorBrush = SolidColor(CodeColors.Brand),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Go),
                 keyboardActions = KeyboardActions(onGo = { go() }),
                 decorationBox = { inner ->
@@ -408,7 +408,7 @@ internal fun GotoLineDialog(tab: EditorTab, onDismiss: () -> Unit) {
                     .fillMaxWidth()
                     .padding(top = 4.dp)
                     .height(CodeDimens.FindUnderline)
-                    .background(CodeColors.Mint)
+                    .background(CodeColors.Brand)
             )
             Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -420,7 +420,7 @@ internal fun GotoLineDialog(tab: EditorTab, onDismiss: () -> Unit) {
                 BasicText(
                     text = "PERGI",
                     modifier = Modifier.clickable { go() }.padding(12.dp),
-                    style = TextStyle(color = CodeColors.Mint, fontSize = 14.sp)
+                    style = TextStyle(color = CodeColors.Brand, fontSize = 14.sp)
                 )
             }
         }

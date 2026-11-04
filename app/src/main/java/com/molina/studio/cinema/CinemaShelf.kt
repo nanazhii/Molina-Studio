@@ -58,14 +58,14 @@ internal fun ShelfCardView(card: ShelfCard.Card, onLong: () -> Unit = {}, onClic
         Box(
             Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(PosterShape)
                 .background(Brush.verticalGradient(listOf(Color(0xFF241B2B), Color(0xFF0E0B10))), PosterShape)
-                .border(1.dp, if (card.hasPoster) MolinaTheme.Mint else Win7.Line, PosterShape),
+                .border(1.dp, if (card.hasPoster) MolinaTheme.Brand else Win7.Line, PosterShape),
             Alignment.Center
         ) {
             val img = thumb
             if (img != null) {
                 Image(img, contentDescription = card.title, modifier = Modifier.matchParentSize(), contentScale = ContentScale.Crop)
             } else {
-                Text(card.monogram, color = MolinaTheme.Mint, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+                Text(card.monogram, color = MolinaTheme.Brand, fontSize = 34.sp, fontWeight = FontWeight.Bold)
             }
             if (card.resumeSec != null) {
                 // Aksen "sudah pernah dilanjutkan": jalur redup + garis emas sepanjang posisi/durasi.
@@ -73,7 +73,7 @@ internal fun ShelfCardView(card: ShelfCard.Card, onLong: () -> Unit = {}, onClic
                 Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(3.dp).background(Color(0x66000000)))
                 Box(
                     Modifier.align(Alignment.BottomStart).fillMaxWidth(f ?: 1f).height(3.dp)
-                        .background(MolinaTheme.Mint.copy(alpha = if (f == null) 0.55f else 1f))
+                        .background(MolinaTheme.Brand.copy(alpha = if (f == null) 0.55f else 1f))
                 )
             }
             card.duration?.let {
@@ -104,14 +104,14 @@ internal fun ChannelCover(name: String, card: ShelfCard.Card?, diameter: Dp = 28
     Box(
         Modifier.size(diameter).clip(CircleShape)
             .background(Brush.verticalGradient(listOf(Color(0xFF241B2B), Color(0xFF0E0B10))), CircleShape)
-            .border(1.dp, MolinaTheme.Mint, CircleShape),
+            .border(1.dp, MolinaTheme.Brand, CircleShape),
         Alignment.Center
     ) {
         val img = thumb
         if (img != null) {
             Image(img, contentDescription = name, modifier = Modifier.matchParentSize(), contentScale = ContentScale.Crop)
         } else {
-            Text(ShelfCard.monogram(name), color = MolinaTheme.Mint, fontSize = (diameter.value * 0.46f).sp, fontWeight = FontWeight.Bold)
+            Text(ShelfCard.monogram(name), color = MolinaTheme.Brand, fontSize = (diameter.value * 0.46f).sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -121,6 +121,6 @@ internal fun ChannelCover(name: String, card: ShelfCard.Card?, diameter: Dp = 28
 internal fun CountBadge(text: String) {
     Text(
         text, color = Color.Black, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1,
-        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(MolinaTheme.Mint).padding(horizontal = 6.dp, vertical = 1.dp)
+        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(MolinaTheme.Brand).padding(horizontal = 6.dp, vertical = 1.dp)
     )
 }

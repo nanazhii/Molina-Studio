@@ -92,7 +92,7 @@ internal fun PythonRunDialog(session: CodeSession, tab: EditorTab, onDismiss: ()
                 .win7DialogFrame(shape)
                 .padding(20.dp)
         ) {
-            BasicText("Jalankan ${lang.label} di Terminal", style = TextStyle(color = CodeColors.Mint, fontSize = CodeDimens.DialogTitleSize))
+            BasicText("Jalankan ${lang.label} di Terminal", style = TextStyle(color = CodeColors.Brand, fontSize = CodeDimens.DialogTitleSize))
             Spacer(Modifier.height(8.dp))
 
             PyOption(
@@ -117,7 +117,7 @@ internal fun PythonRunDialog(session: CodeSession, tab: EditorTab, onDismiss: ()
                         modifier = Modifier.weight(1f).focusRequester(focus),
                         singleLine = true,
                         textStyle = TextStyle(color = CodeColors.TextPrimary, fontSize = CodeDimens.FindTextSize),
-                        cursorBrush = SolidColor(CodeColors.Mint),
+                        cursorBrush = SolidColor(CodeColors.Brand),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
                         keyboardActions = KeyboardActions(onGo = { run() })
                     )
@@ -126,7 +126,7 @@ internal fun PythonRunDialog(session: CodeSession, tab: EditorTab, onDismiss: ()
                         style = TextStyle(color = CodeColors.IconDim, fontSize = CodeDimens.FindTextSize)
                     )
                 }
-                Box(Modifier.fillMaxWidth().padding(top = 4.dp).height(CodeDimens.FindUnderline).background(CodeColors.Mint))
+                Box(Modifier.fillMaxWidth().padding(top = 4.dp).height(CodeDimens.FindUnderline).background(CodeColors.Brand))
                 if (hasSelection) PyNote("Seleksi diabaikan; seluruh isi tab ditulis ke berkas.", CodeColors.LabelNeutral)
                 parsed.error?.let { if (name.isNotBlank()) PyNote(it, CodeColors.Danger) }
                 if (overwrite) PyNote(parsed.name + " sudah ada dan akan ditimpa (bisa diurungkan).", CodeColors.Danger)
@@ -162,7 +162,7 @@ internal fun PythonRunDialog(session: CodeSession, tab: EditorTab, onDismiss: ()
                 BasicText(
                     text = if (overwrite) "TIMPA & JALANKAN" else "JALANKAN",
                     modifier = Modifier.clickable(enabled = canRun, onClick = { run() }).padding(12.dp),
-                    style = TextStyle(color = if (canRun) CodeColors.Mint else CodeColors.IconDim, fontSize = 14.sp)
+                    style = TextStyle(color = if (canRun) CodeColors.Brand else CodeColors.IconDim, fontSize = 14.sp)
                 )
             }
         }
@@ -176,10 +176,10 @@ private fun PyOption(selected: Boolean, title: String, subtitle: String, onClick
         verticalAlignment = Alignment.Top
     ) {
         Box(
-            Modifier.padding(top = 2.dp).size(18.dp).border(1.5.dp, if (selected) CodeColors.Mint else CodeColors.IconDim, CircleShape),
+            Modifier.padding(top = 2.dp).size(18.dp).border(1.5.dp, if (selected) CodeColors.Brand else CodeColors.IconDim, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            if (selected) Box(Modifier.size(9.dp).background(CodeColors.Mint, CircleShape))
+            if (selected) Box(Modifier.size(9.dp).background(CodeColors.Brand, CircleShape))
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
@@ -201,10 +201,10 @@ private fun PyCheck(on: Boolean, label: String, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            Modifier.size(16.dp).border(1.5.dp, if (on) CodeColors.Mint else CodeColors.IconDim, RoundedCornerShape(3.dp)),
+            Modifier.size(16.dp).border(1.5.dp, if (on) CodeColors.Brand else CodeColors.IconDim, RoundedCornerShape(3.dp)),
             contentAlignment = Alignment.Center
         ) {
-            if (on) Box(Modifier.size(8.dp).background(CodeColors.Mint, RoundedCornerShape(2.dp)))
+            if (on) Box(Modifier.size(8.dp).background(CodeColors.Brand, RoundedCornerShape(2.dp)))
         }
         Spacer(Modifier.width(10.dp))
         BasicText(label, style = TextStyle(color = CodeColors.LabelNeutral, fontSize = 12.sp))

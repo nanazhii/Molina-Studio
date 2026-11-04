@@ -124,7 +124,7 @@ private fun BrandRow(live: Boolean) {
         Image(painterResource(R.drawable.ic_cinema_orb), contentDescription = null, modifier = Modifier.size(56.dp))
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text("Molina", color = MolinaTheme.Mint, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Text("Molina", color = MolinaTheme.Brand, fontSize = 24.sp, fontWeight = FontWeight.Bold)
             Text("CINEMA \u00B7 HOME THEATER", color = Win7.NavHeader, fontSize = 11.sp, letterSpacing = 2.sp)
         }
         if (live) LiveBadge()
@@ -233,15 +233,15 @@ private fun StatusStrip(info: String, busy: Boolean) {
 private fun ResumeCard(item: CinemaRecent.Item, remembered: Boolean, onPick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth()
-            .background(Color(0x224FD1A5), androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+            .background(Color(0x222ECC71), androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
             .clickable(onClick = onPick)
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("\u25B6", color = MolinaTheme.Mint, fontSize = 20.sp)
+        Text("\u25B6", color = MolinaTheme.Brand, fontSize = 20.sp)
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
-            Text("Lanjutkan", color = MolinaTheme.Mint, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+            Text("Lanjutkan", color = MolinaTheme.Brand, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
             Text(item.title, color = Win7.Ink, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
                 if (remembered) "Dilanjutkan dari posisi terakhir" else "Diputar dari awal (aktifkan Lanjutkan di Settings > Otomasi)",

@@ -91,7 +91,7 @@ internal fun EditorToolbar(
             // Simpan: aktif saat ada perubahan; titik emas menandai dirty
             ToolbarButton(
                 ToolbarIcon.Save,
-                if (tab.dirty) CodeColors.Mint else CodeColors.IconDim,
+                if (tab.dirty) CodeColors.Brand else CodeColors.IconDim,
                 enabled = tab.dirty && !tab.loading, dot = tab.dirty, onClick = onSave
             )
             GroupDivider()
@@ -127,7 +127,7 @@ internal fun EditorToolbar(
                 when (play) {
                     PlayState.Off -> CodeColors.IconDisabled
                     PlayState.Ready -> CodeColors.IconDefault
-                    PlayState.On -> CodeColors.Mint
+                    PlayState.On -> CodeColors.Brand
                     PlayState.Running -> CodeColors.Danger
                 },
                 enabled = play != PlayState.Off, onClick = onPlay
@@ -173,7 +173,7 @@ private fun RowScope.ToolbarButton(
             BasicText(
                 text = badge.toString(),
                 modifier = Modifier.align(Alignment.TopEnd).padding(top = 6.dp, end = 3.dp),
-                style = TextStyle(color = CodeColors.MintSoft, fontSize = CodeDimens.TabBadgeTextSize)
+                style = TextStyle(color = CodeColors.BrandSoft, fontSize = CodeDimens.TabBadgeTextSize)
             )
         }
     }

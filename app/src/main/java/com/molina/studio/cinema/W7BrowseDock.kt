@@ -127,7 +127,7 @@ internal fun W7BrowseDock(
         DockButton(quickLabel, Modifier.weight(1f), true, false, null, onQuick)
         DockButton("Sisipkan", Modifier.weight(1f), insertEnabled, false, null, onInsert)
         DockButton("Terminal", Modifier.weight(1.1f), terminalEnabled, false, MolinaTheme.Good, onTerminal)
-        DockButton("Buka", Modifier.weight(0.9f), true, true, MolinaTheme.Mint, onOpen)
+        DockButton("Buka", Modifier.weight(0.9f), true, true, MolinaTheme.Brand, onOpen)
     }
 }
 
@@ -146,7 +146,7 @@ internal fun W7BrowseFloat(
 ) {
     val shape = RoundedCornerShape(10.dp)
     Row(
-        modifier.clip(shape).background(Color(0xE60B0B0F), shape).border(1.dp, if (accent) MolinaTheme.Mint else Win7.BtnLine, shape)
+        modifier.clip(shape).background(Color(0xE60B0B0F), shape).border(1.dp, if (accent) MolinaTheme.Brand else Win7.BtnLine, shape)
             .padding(start = 10.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

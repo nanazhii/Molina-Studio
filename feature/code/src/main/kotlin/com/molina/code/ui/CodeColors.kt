@@ -27,17 +27,17 @@ object CodeColors {
     val IconDim = Color(0xFF767D86)
     val IconDisabled = Color(0xFF474B52)
 
-    // Aksen (maksimal dua di toolbar: Mint dan Danger)
-    val Mint = Color(0xFF4FD1A5)
-    val MintSoft = Color(0xFF7ED6B8)
+    // Aksen (maksimal dua di toolbar: Brand dan Danger)
+    val Brand = Color(0xFF2ECC71)
+    val BrandSoft = Color(0xFF7BDCA0)
     val Warning = Color(0xFFFFB300)       // peringatan tetap amber, bukan aksen merek
     val FolderYellow = Color(0xFFE9B949)
     val Danger = Color(0xFFE5484D)
     val Clean = Color(0xFF3FB950)               // indikator berkas sama dengan isi awal (hijau)
-    val Capsule = Color(0xFF123D31)       // kapsul aktif, sama dengan bottom nav
+    val Capsule = Color(0xFF133B25)       // kapsul aktif, sama dengan bottom nav
 
     // Editor
-    val ActiveLine = Color(0xFF0F2A22)
+    val ActiveLine = Color(0xFF0E2A1A)
     // Nomor baris bernuansa Claude (terakota): redup untuk baris biasa, terang untuk baris kursor,
     // putih-persik + latar terakota sesaat saat Pergi ke baris / lompat hasil Cari.
     val ClaudeOrange = Color(0xFFD97757)
@@ -48,7 +48,7 @@ object CodeColors {
     val ActiveLineFlash = Color(0xFF5A2E1F)
     val TextPrimary = Color(0xFFE6E6E6)
     val TextSecondary = Color(0xFF9AA0A6)
-    val ButtonBrown = Color(0xFF1E7A5E)   // tombol panel direktori (dulu cokelat), kini mint tua
+    val ButtonBrown = Color(0xFF1F8A4C)   // tombol panel direktori (dulu cokelat), kini hijau tua
 
     // Garis penanda ikon berkas per ekstensi di panel direktori (blueprint bagian 5.3)
     val ExtKotlin = Color(0xFFB07CFF)
@@ -60,32 +60,32 @@ object CodeColors {
     val ExtDefault = IconDim
 
     // Turunan beralfa (nilai alfa dari blueprint)
-    val Ripple = Mint.copy(alpha = 0.16f)
-    val SelectFill = Mint.copy(alpha = 0.18f)     // seleksi baris tree
-    val SelectBorder = Mint.copy(alpha = 0.45f)
+    val Ripple = Brand.copy(alpha = 0.16f)
+    val SelectFill = Brand.copy(alpha = 0.18f)     // seleksi baris tree
+    val SelectBorder = Brand.copy(alpha = 0.45f)
     val EditorSelection = Color(0x80D97757)   // blok/hasil aktif: terakota Claude 50%
     val SearchMatch = Color(0x47D97757)       // hasil lain: terakota Claude 28%
-    val RailPeak = Mint.copy(alpha = 0.40f)       // puncak gradient rail mint toolbar
+    val RailPeak = Brand.copy(alpha = 0.40f)       // puncak gradient rail aksen toolbar
     val LabelNeutral = IconDefault.copy(alpha = 0.70f)
     val SecondaryNeutral = IconDefault.copy(alpha = 0.60f)
-    val Caret = Mint
+    val Caret = Brand
     val Scrim = Color.Black.copy(alpha = 0.55f)
 
     // Layar Tinjauan (mode gelap saja; toggle terang dihapus)
     val PreviewBg = Color(0xFF000000)
     val PreviewText = Color(0xFFE6E6E6)
-    val PreviewLink = Mint
+    val PreviewLink = Brand
     val PreviewCodeBg = Color(0xFF121212)
-    val PreviewQuoteBg = Color(0xFF0A0F0D)
+    val PreviewQuoteBg = Color(0xFF0A0F0B)
 
     // Pratinjau native (blueprint bagian 21.3 dan 22) dan panel Keluaran skrip
-    val PreviewHairline = Color(0xFF263530)
-    val PreviewHeading = MintSoft
-    val PreviewInlineCode = MintSoft
-    val PreviewInlineCodeBg = Color(0xFF121A17)
+    val PreviewHairline = Color(0xFF25362C)
+    val PreviewHeading = BrandSoft
+    val PreviewInlineCode = BrandSoft
+    val PreviewInlineCodeBg = Color(0xFF111A14)
     val PreviewQuoteText = IconDefault
-    val PreviewQuoteBar = Mint.copy(alpha = 0.60f)
-    val PreviewTableHeadBg = Color(0xFF121A17)
+    val PreviewQuoteBar = Brand.copy(alpha = 0.60f)
+    val PreviewTableHeadBg = Color(0xFF111A14)
     val JsonKey = Color(0xFFE3A987)
     val JsonString = Color(0xFF9DBE8A)
     val JsonNumber = Color(0xFFE5C07B)

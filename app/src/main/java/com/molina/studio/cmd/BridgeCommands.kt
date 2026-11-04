@@ -88,7 +88,7 @@ internal object BridgeCommands {
             )
             val n = Notification.Builder(app, CHANNEL)
                 .setSmallIcon(R.drawable.ic_stat_molina)
-                .setColor(MolinaTheme.MINT_ARGB)
+                .setColor(MolinaTheme.BRAND_ARGB)
                 .setContentTitle(CommandProtocol.notifyHeadline(msg.title)) // [NOTIFY-SPOOF]
                 .setSubText("Terminal Debian")
                 .setContentText(msg.text)
