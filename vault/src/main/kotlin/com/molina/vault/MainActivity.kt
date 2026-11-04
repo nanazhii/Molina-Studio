@@ -43,7 +43,8 @@ internal const val EXTRA_SAVED_SIZES = "com.molina.vault.extra.SAVED_SIZES"
 
 class MainActivity : BunkerActivity() {
     private val bg = Color.parseColor("#0E0E10")
-    internal val amber = Color.parseColor("#FFB300")
+    internal val accent = Color.parseColor("#5EE6A8")   // MOLINA-H16-TEMA: aksen mint selaras logo
+    internal val amber = Color.parseColor("#FFB300")   // MOLINA-H16-TEMA: khusus peringatan
     internal val red = Color.parseColor("#FF6E6E")
     internal val ui = Handler(Looper.getMainLooper())
     internal val worker = Executors.newSingleThreadExecutor()
@@ -140,7 +141,7 @@ class MainActivity : BunkerActivity() {
         return e
     }
 
-    // MOLINA-H5-FRAME: bingkai emas tipis untuk tombol, kolom, dan kartu. Warna tetap hitam-amber.
+    // MOLINA-H5-FRAME: bingkai mint tipis untuk tombol, kolom, dan kartu. Warna tetap hitam-mint.
     private val ghostLabels = setOf(
         "Batal", "Kembali", "Kunci sekarang", "Tutup pratinjau",
         "Impor banyak berkas", "Cadangan terenkripsi", "Ganti master password", "Pulihkan dari cadangan",
@@ -149,8 +150,8 @@ class MainActivity : BunkerActivity() {
     )
     private val dangerLabels = setOf("Hapus entri")
     private val surface = Color.parseColor("#141416")
-    private val frameDim = Color.parseColor("#8A6A00")
-    private val cardLine = Color.parseColor("#4A3B00")
+    private val frameDim = Color.parseColor("#2E8B63")
+    private val cardLine = Color.parseColor("#173D2E")
 
     internal fun dp(v: Float): Int = (v * resources.displayMetrics.density + 0.5f).toInt()
 
@@ -164,13 +165,13 @@ class MainActivity : BunkerActivity() {
 
     private fun rippleMask(): Drawable = frameDrawable(Color.WHITE, Color.WHITE, 0f, 12f)
 
-    /** Kartu berbingkai dengan efek sentuh amber redup, untuk baris daftar dan chip filter. */
+    /** Kartu berbingkai dengan efek sentuh mint redup, untuk baris daftar dan chip filter. */
     internal fun cardDrawable(): Drawable =
-        RippleDrawable(ColorStateList.valueOf(Color.argb(60, 255, 179, 0)), frameDrawable(surface, cardLine, 1f, 12f), rippleMask())
+        RippleDrawable(ColorStateList.valueOf(Color.argb(60, 94, 230, 168)), frameDrawable(surface, cardLine, 1f, 12f), rippleMask())
 
     internal fun frameInput(e: EditText) {
         fun style(focused: Boolean) {
-            e.background = frameDrawable(surface, if (focused) amber else frameDim, if (focused) 1.5f else 1f, 12f)
+            e.background = frameDrawable(surface, if (focused) accent else frameDim, if (focused) 1.5f else 1f, 12f)
             e.setPadding(dp(14f), dp(12f), dp(14f), dp(12f))
         }
         style(false)
@@ -182,7 +183,7 @@ class MainActivity : BunkerActivity() {
     internal fun LinearLayout.button(t: String, onClick: (Button) -> Unit): Button {
         val ghost = t in ghostLabels
         val danger = t in dangerLabels
-        val tone = if (danger) red else amber
+        val tone = if (danger) red else accent
         val b = object : Button(context) {
             override fun setEnabled(enabled: Boolean) {
                 super.setEnabled(enabled)
@@ -202,8 +203,8 @@ class MainActivity : BunkerActivity() {
             face = frameDrawable(surface, tone, 1f, 12f)
         } else {
             b.setTextColor(Color.BLACK)
-            val inner = GradientDrawable().apply { setColor(amber); cornerRadius = 9f * resources.displayMetrics.density }
-            face = LayerDrawable(arrayOf<Drawable>(frameDrawable(Color.TRANSPARENT, amber, 1f, 12f), inner))
+            val inner = GradientDrawable().apply { setColor(accent); cornerRadius = 9f * resources.displayMetrics.density }
+            face = LayerDrawable(arrayOf<Drawable>(frameDrawable(Color.TRANSPARENT, accent, 1f, 12f), inner))
                 .also { it.setLayerInset(1, dp(3f), dp(3f), dp(3f), dp(3f)) }
         }
         b.background = RippleDrawable(ColorStateList.valueOf(Color.argb(70, 255, 255, 255)), face, rippleMask())
@@ -219,12 +220,12 @@ class MainActivity : BunkerActivity() {
         addView(TextView(context).apply {
             text = "MOLINA VAULT"
             textSize = 24f
-            setTextColor(amber)
+            setTextColor(accent)
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             letterSpacing = 0.18f
         })
         addView(View(context).apply {
-            background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(amber, Color.TRANSPARENT))
+            background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(accent, Color.TRANSPARENT))
             layoutParams = LinearLayout.LayoutParams(dp(120f), dp(2f)).apply { setMargins(0, dp(10f), 0, dp(8f)) }
         })
         addView(TextView(context).apply {

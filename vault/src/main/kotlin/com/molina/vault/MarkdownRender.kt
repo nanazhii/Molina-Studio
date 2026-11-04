@@ -17,7 +17,7 @@ import android.text.style.UnderlineSpan
  * tautan hanya ditampilkan sebagai teks (tidak bisa diketuk) dan gambar tidak dimuat.
  */
 internal object MarkdownRender {
-    private val AMBER = Color.parseColor("#FFB300")
+    private val ACCENT = Color.parseColor("#5EE6A8")
     private val CODE_BG = Color.parseColor("#1E1E22")
     private val MUTED = Color.parseColor("#9E9E9E")
     private const val FENCE = "\u0060\u0060\u0060"
@@ -49,13 +49,13 @@ internal object MarkdownRender {
                     val size = when (level) { 1 -> 1.6f; 2 -> 1.35f; 3 -> 1.2f; else -> 1.1f }
                     add(out, inline(heading.groupValues[2].trim()),
                         RelativeSizeSpan(size), StyleSpan(Typeface.BOLD),
-                        ForegroundColorSpan(if (level <= 2) AMBER else Color.WHITE))
+                        ForegroundColorSpan(if (level <= 2) ACCENT else Color.WHITE))
                     out.append('\n')
                 }
                 RULE.matches(line) -> add(out, "────────────────\n", ForegroundColorSpan(MUTED))
                 trimmed.startsWith("|") -> add(out, line + "\n", TypefaceSpan("monospace"))
                 quote != null -> {
-                    add(out, "▎ ", ForegroundColorSpan(AMBER))
+                    add(out, "▎ ", ForegroundColorSpan(ACCENT))
                     add(out, inline(quote.groupValues[1]), ForegroundColorSpan(MUTED), StyleSpan(Typeface.ITALIC))
                     out.append('\n')
                 }
@@ -63,7 +63,7 @@ internal object MarkdownRender {
                     val depth = (item.groupValues[1].replace("\t", "    ").length / 2).coerceAtMost(6)
                     val marker = item.groupValues[2]
                     val bullet = if (marker[0].isDigit()) marker + " " else "• "
-                    add(out, "  ".repeat(depth) + bullet, ForegroundColorSpan(AMBER))
+                    add(out, "  ".repeat(depth) + bullet, ForegroundColorSpan(ACCENT))
                     out.append(inline(item.groupValues[3]))
                     out.append('\n')
                 }
@@ -90,7 +90,7 @@ internal object MarkdownRender {
                 g[3] != null -> add(out, inline(m.groupValues[3]), StyleSpan(Typeface.ITALIC))
                 g[4] != null -> add(out, "[gambar: " + m.groupValues[4] + "]", ForegroundColorSpan(MUTED))
                 else -> {
-                    add(out, m.groupValues[6], UnderlineSpan(), ForegroundColorSpan(AMBER))
+                    add(out, m.groupValues[6], UnderlineSpan(), ForegroundColorSpan(ACCENT))
                     if (m.groupValues[7].isNotEmpty()) add(out, " (" + m.groupValues[7] + ")", ForegroundColorSpan(MUTED))
                 }
             }

@@ -203,7 +203,7 @@ class EntryUi(private val host: MainActivity) {
                 addView(search)
                 val chip = TextView(context).apply {
                     textSize = 14f
-                    setTextColor(amber)
+                    setTextColor(accent)
                     maxLines = 1
                     ellipsize = TextUtils.TruncateAt.END
                     background = host.cardDrawable()
@@ -216,7 +216,7 @@ class EntryUi(private val host: MainActivity) {
                 chipRow.addView(chip)
                 val folderChip = TextView(context).apply {
                     textSize = 14f
-                    setTextColor(amber)
+                    setTextColor(accent)
                     maxLines = 1
                     ellipsize = TextUtils.TruncateAt.END
                     background = host.cardDrawable()
@@ -293,7 +293,7 @@ class EntryUi(private val host: MainActivity) {
                             row.addView(TextView(context).apply {
                                 text = m.tags.joinToString("  ") { "#$it" }
                                 textSize = 12f
-                                setTextColor(amber)
+                                setTextColor(accent)
                             })
                         }
                         box.addView(row)
@@ -364,7 +364,7 @@ class EntryUi(private val host: MainActivity) {
     private fun showSettings(): Unit = host.run {
         clearSensitive()
         screen {
-            label("Pengaturan", 22f, amber)
+            label("Pengaturan", 22f, accent)
             label("Auto-lock: vault terkunci setelah tidak disentuh selama waktu ini, dan langsung saat aplikasi ditinggalkan.", 13f, Color.LTGRAY)
             val cur = store.prefs.autoLockMs
             for ((name, ms) in listOf("30 detik" to 30_000L, "2 menit" to 120_000L, "5 menit" to 300_000L)) {
@@ -385,7 +385,7 @@ class EntryUi(private val host: MainActivity) {
     private fun showRenameFolder(old: String): Unit = host.run {
         clearSensitive()
         screen {
-            label("Ganti nama folder", 22f, amber)
+            label("Ganti nama folder", 22f, accent)
             label("Semua entri di folder \"$old\" dipindah ke nama baru. Bila nama baru sudah ada, isinya digabung. Kosongkan nama untuk mengeluarkan entri dari folder.", 13f, Color.LTGRAY)
             val input = makeInput(Spec("Nama folder baru", Kind.TEXT)).apply { setSingleLine(true); setText(old) }
             addView(input)
@@ -414,7 +414,7 @@ class EntryUi(private val host: MainActivity) {
     private fun showMoveFolder(m: RecordMeta): Unit = host.run {
         clearSensitive()
         screen {
-            label("Pindah folder", 22f, amber)
+            label("Pindah folder", 22f, accent)
             label(m.title, 15f, Color.WHITE)
             val input = makeInput(Spec("Nama folder (kosongkan = tanpa folder)", Kind.TEXT)).apply { setSingleLine(true); setText(m.folder) }
             addView(input)
@@ -442,7 +442,7 @@ class EntryUi(private val host: MainActivity) {
     private fun showChangeMaster(): Unit = host.run {
         clearSensitive()
         screen {
-            label("Ganti master password", 22f, amber)
+            label("Ganti master password", 22f, accent)
             label("Master dan kunci data (vaultKey) diganti sekaligus: semua entri dienkripsi ulang. Cadangan .mvault lama dan salinan lama vault tetap terbuka dengan master atau passphrase lamanya, jadi buat cadangan baru setelah ini dan hapus yang lama. Jangan tutup aplikasi selama proses berjalan.", 13f, Color.LTGRAY)
             val cur = field("Master password saat ini")
             val n1 = field("Master password baru")
@@ -506,7 +506,7 @@ class EntryUi(private val host: MainActivity) {
 
     private fun showTypePick(): Unit = host.run {
         screen {
-            label("Jenis entri", 22f, amber)
+            label("Jenis entri", 22f, accent)
             for (t in RecordType.values()) { button(typeName(t)) { showForm(t) }; label(typeHint(t), 12f) }
             button("Batal") { show() }
         }
@@ -557,7 +557,7 @@ class EntryUi(private val host: MainActivity) {
         val specs = SPECS.getValue(type)
         editKeep = prefill?.getOrNull(specs.indexOfFirst { it.kind == Kind.FILE })
         screen {
-            label(typeName(type), 22f, amber)
+            label(typeName(type), 22f, accent)
             if (specs.any { it.kind == Kind.SECRET || it.kind == Kind.MULTI }) {
                 label("Salin dan tempel dimatikan di kolom rahasia agar tidak lewat clipboard. Ketik langsung atau impor dari berkas; jangan menempelkan rahasia dari aplikasi lain.", 12f)
             }
@@ -682,7 +682,7 @@ class EntryUi(private val host: MainActivity) {
         val current = detailFields.map { it.copyOf() }
         clearSensitive()
         screen {
-            label("Ubah berkas besar", 22f, amber)
+            label("Ubah berkas besar", 22f, accent)
             label("Yang diubah hanya judul, nama, dan catatan. Isi berkas (${fmtSize(size)}) tidak dibaca ulang dan SHA-256-nya tetap. Folder dan tag tidak berubah.", 13f, Color.LTGRAY)
             val titleField = EditText(context).apply {
                 hint = "Judul"
@@ -741,7 +741,7 @@ class EntryUi(private val host: MainActivity) {
         clearSensitive()
         auditCancel = false
         screen {
-            label("Gudang", 22f, amber)
+            label("Gudang", 22f, accent)
             val info = TextView(context).apply {
                 setTextColor(Color.WHITE)
                 textSize = 14f
@@ -811,7 +811,7 @@ class EntryUi(private val host: MainActivity) {
                     }
                     r.bad.isEmpty() && !r.cancelled && r.manifest?.state != ManifestState.ALERT -> {   // MOLINA-H15-MANIFEST
                         host.store.prefs.markAudited()
-                        out.setTextColor(host.amber)
+                        out.setTextColor(host.accent)
                         out.text = "Semua ${r.ok} entri utuh (${fmtSize(r.bytes)} diperiksa). Setiap segel cocok."
                     }
                     else -> {
@@ -838,7 +838,7 @@ class EntryUi(private val host: MainActivity) {
     private fun showBackupForm(): Unit = host.run {
         clearSensitive()
         screen {
-            label("Cadangan terenkripsi", 22f, amber)
+            label("Cadangan terenkripsi", 22f, accent)
             label("Berkas .mvault dienkripsi dengan passphrase cadangan yang BERBEDA dari master password. Berkas ini bisa disalin lalu diserang offline, jadi kekuatan passphrase adalah satu-satunya pelindungnya. Tanpa passphrase, cadangan tidak bisa dibuka dan tidak ada pemulihan.", 13f, Color.LTGRAY)
             // MOLINA-H14-GUDANG: sertakan berkas besar atau database saja, dengan perkiraan ukuran
             backupIncludeLarge = true
@@ -870,12 +870,12 @@ class EntryUi(private val host: MainActivity) {
         clearSensitive()
         val gen = PassphraseGenerator.generate()
         screen {
-            label("Passphrase cadangan Anda", 22f, amber)
+            label("Passphrase cadangan Anda", 22f, accent)
             label("Tulis di kertas dan simpan TERPISAH dari berkas .mvault. Jika hilang, cadangan tidak bisa dibuka. Layar ini tidak bisa di-screenshot. Ketik persis, termasuk tanda hubung.", 13f, Color.LTGRAY)
             addView(TextView(context).apply {
                 setText(gen, 0, gen.size)
                 textSize = 20f
-                setTextColor(amber)
+                setTextColor(accent)
                 typeface = Typeface.MONOSPACE
                 setPadding(0, 24, 0, 24)
             })
@@ -898,7 +898,7 @@ class EntryUi(private val host: MainActivity) {
     private fun showCustomPassphrase(): Unit = host.run {
         clearSensitive()
         screen {
-            label("Passphrase sendiri", 22f, amber)
+            label("Passphrase sendiri", 22f, accent)
             label("Minimal 24 karakter, minimal 10 karakter unik, hanya ASCII. Passphrase buatan manusia jauh lebih mudah ditebak daripada yang acak; pilih passphrase acak jika ragu.", 13f, Color.LTGRAY)
             val p1 = field("Passphrase cadangan")
             val p2 = field("Ulangi passphrase cadangan")
@@ -1078,7 +1078,7 @@ class EntryUi(private val host: MainActivity) {
         var status: TextView? = null
         host.run {
             screen {
-                label("Impor banyak berkas", 22f, amber)
+                label("Impor banyak berkas", 22f, accent)
                 if (importFolder.isNotEmpty()) label("Masuk ke folder: $importFolder", 13f)
                 val s = TextView(context).apply { setTextColor(Color.WHITE); textSize = 15f; setPadding(0, 16, 0, 16); text = "Menyiapkan…" }
                 addView(s)
@@ -1141,7 +1141,7 @@ class EntryUi(private val host: MainActivity) {
 
     private fun showImportResult(ok: Int, skipped: List<String>, failed: List<String>, over: Int): Unit = host.run {
         screen {
-            label("Impor selesai", 22f, amber)
+            label("Impor selesai", 22f, accent)
             label("Berhasil: $ok", 16f, Color.WHITE)
             if (skipped.isNotEmpty()) label("Dilewati (judul sama sudah ada): ${skipped.size}", 14f)
             if (over > 0) label("Melebihi batas $MAX_BATCH berkas per impor: $over berkas tidak diproses. Ulangi impor untuk sisanya.", 14f, amber)
@@ -1161,7 +1161,7 @@ class EntryUi(private val host: MainActivity) {
         var details: TextView? = null
         host.run {
             screen {
-                label("Simpan ke Vault", 22f, amber)
+                label("Simpan ke Vault", 22f, accent)
                 label("Molina meminta menyimpan ${uris.size} berkas ke Vault. Berkas dienkripsi di dalam Vault; berkas asli tidak diubah.", 14f, Color.WHITE)
                 val d = TextView(context).apply { setTextColor(Color.LTGRAY); textSize = 13f; setPadding(0, 12, 0, 12); text = "Menghitung ukuran…" }
                 addView(d)
@@ -1383,7 +1383,7 @@ class EntryUi(private val host: MainActivity) {
     private fun valueView() = TextView(host).apply {
         textSize = 16f
         setTextColor(Color.WHITE)
-        background = host.frameDrawable(Color.parseColor("#141416"), Color.parseColor("#4A3B00"), 1.2f, 8f)
+        background = host.frameDrawable(Color.parseColor("#141416"), Color.parseColor("#173D2E"), 1.2f, 8f)
         setPadding(host.dp(14f), host.dp(10f), host.dp(14f), host.dp(10f))
         setTextIsSelectable(false)
         isLongClickable = false
@@ -1412,7 +1412,7 @@ class EntryUi(private val host: MainActivity) {
         if (m == null) { showList(); return@run }
         screen {
             label(typeName(m.type), 13f)
-            label(m.title, 22f, amber)
+            label(m.title, 22f, accent)
             if (m.folder.isNotEmpty()) label("Folder: ${m.folder}", 13f)
             if (m.tags.isNotEmpty()) label(m.tags.joinToString("  ") { "#$it" }, 13f)
             for ((i, s) in SPECS.getValue(m.type).withIndex()) {
@@ -1503,7 +1503,7 @@ class EntryUi(private val host: MainActivity) {
 
     private fun showPreview(title: String, body: CharSequence?, err: String?): Unit = host.run {
         screen {
-            label(title, 18f, amber)
+            label(title, 18f, accent)
             button("Tutup pratinjau") { showDetail() }
             if (body == null) {
                 label(err ?: "Gagal memuat pratinjau", 14f, red)
