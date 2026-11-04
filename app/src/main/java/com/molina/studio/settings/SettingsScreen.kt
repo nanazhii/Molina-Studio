@@ -168,7 +168,7 @@ private val INDEX = listOf(
     Hit("Kode sumber", "Alamat repo resmi Molina dan lisensi GPL", Page.Licenses),
     Hit("Rilis Debian", "Versi Debian dan jumlah program yang terpasang", Page.Packages),
     Hit("Pasang paket dasar (Starter)", "Perangkat dasar sekali ketuk: Python, SSH, pengunduh video (yt-dlp), dan sertifikat keamanan, di Paket > Program Debian", Page.Packages),
-    Hit("Kelola Debian (Linux di Molina)", "Cadangkan, pulihkan, atau kembalikan Debian ke kondisi awal (rootfs)", Page.System),
+    Hit("Kelola Debian (Linux di Molina)", "Cadangkan, pulihkan, atau kembalikan Debian ke kondisi awal (rootfs)", Page.Packages),
     Hit("Status Molina", "Ringkasan Debian, paket, yt-dlp, dan cadangan di Sistem > Info", Page.Info),
     Hit("Informasi perangkat", "Versi aplikasi, Android, tipe HP, dan memori (RAM)", Page.Info),
     Hit("Versi libmpv", "Versi Molina Terminal, Molina Cinema, libmpv, dan FFmpeg", Page.Info)
@@ -334,7 +334,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                         AutoBackupRows()
                         W7Link({ W7IconToolList() }, "Profil setelan", "Simpan dan ganti kumpulan setelan dengan satu ketukan") { showProfiles = true }
                         Category("Linux Debian di Molina")
-                        W7Link({ W7IconRootfs() }, "Kelola Debian (Linux di Molina)", "Cadangkan, pulihkan, atau kembalikan Debian ke kondisi awal") { showRootfsAdmin = true } // [TERM-ROOTFS2]
+                        W7Link({ W7IconRootfs() }, "Kelola Debian (Linux di Molina)", "Cadangkan, pulihkan, atau atur ulang Debian di Paket > Program Debian") { open(Page.Packages) } // [DEBIAN-PUSAT]
                     }
                     Page.Info -> HubInfoPage( // [INFO-PAGE] rumah informasi diagnostik; gabungan About lama
                         onSystem = { open(Page.System) },
@@ -371,6 +371,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                     Page.Packages -> PackagesPage(
                         onOpenYtdlp = { open(Page.Stream) },
                         onOpenBundle = { open(Page.Bundle) },
+                        onManageDebian = { showRootfsAdmin = true }, // [DEBIAN-PUSAT]
                         onApt = { apt = it }
                     )
                     Page.Bundle -> BundlePage(onOpenPackages = { open(Page.Packages) })

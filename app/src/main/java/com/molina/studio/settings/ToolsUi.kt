@@ -106,6 +106,7 @@ private fun scriptOf(t: ToolItem, a: ToolAction): String = when (a) {
 internal fun PackagesPage(
     onOpenYtdlp: () -> Unit,
     onOpenBundle: () -> Unit,
+    onManageDebian: () -> Unit,
     onApt: (AptJob) -> Unit
 ) {
     val ctx = LocalContext.current
@@ -170,6 +171,12 @@ internal fun PackagesPage(
         "Pasang paket dasar (Starter)",
         "Python, SSH, pengunduh video (yt-dlp), dan sertifikat keamanan sekali ketuk. Dari sumber resmi dan diperiksa keasliannya",
         null, onClick = { onApt(AptJob.InstallStarter) } // [TERM-STARTER1] [STARTER-YTDLP]
+    )
+    Spacer(Modifier.height(8.dp))
+    PackageStatusCard( // [DEBIAN-PUSAT] rumah tunggal pengelolaan Debian: rilis, apt, Starter, rootfs
+        "Kelola Debian (Linux di Molina)",
+        "Cadangkan, pulihkan, atau kembalikan Debian ke kondisi awal (rootfs)",
+        null, onClick = onManageDebian // [TERM-ROOTFS2]
     )
     Spacer(Modifier.height(16.dp))
     PackageSectionHeader("Alat")

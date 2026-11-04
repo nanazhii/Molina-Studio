@@ -62,7 +62,7 @@ internal fun W7IconRootfs() {
 
 private fun mb(bytes: Long) = "${bytes / (1024 * 1024)} MB"
 
-/** Settings > Sistem > "Kelola Debian (Linux di Molina)" (TERM-ROOTFS2): cadangkan, pulihkan, atur ulang. */
+/** Settings > Paket > Program Debian > "Kelola Debian (Linux di Molina)" (TERM-ROOTFS2): cadangkan, pulihkan, atur ulang. Dialog dipegang SettingsScreen karena Diagnostik juga membukanya. */
 @Composable
 internal fun RootfsAdminDialog(onDismiss: () -> Unit) {
     val ctx = LocalContext.current
