@@ -1,5 +1,14 @@
 package com.molina.studio.settings
 
+import com.molina.studio.ui.components.PackageDivider
+import com.molina.studio.ui.components.PackageGroupCard
+import com.molina.studio.ui.components.PackageInfoRow
+import com.molina.studio.ui.components.PackageSectionHeader
+import com.molina.studio.ui.components.PackageStatusCard
+import com.molina.studio.ui.components.PackageSwitchRow
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.unit.dp
 import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
@@ -62,70 +71,97 @@ internal fun PlayerSettingsPage(onOpenCinema: () -> Unit) {
     var removing by remember { mutableStateOf<IptvSources.Source?>(null) }
     val iptvPath = remember { runCatching { AppPaths.get(ctx).dir(MolinaDir.Iptv).path }.getOrDefault("") }
 
-    Category("Pemutaran")
-    SwitchRow("Ingat posisi putar", "Lanjutkan video dari posisi terakhir saat dibuka lagi.", resume) {
-        resume = it
-        ResumeBridge.setEnabled(ctx, it)
-    }
-    SwitchRow(
-        "Dekoder perangkat keras",
-        "MediaCodec. Matikan bila video hijau atau patah-patah. Berlaku pada video berikutnya yang dibuka.",
-        hw
-    ) {
-        hw = it
-        HwdecBridge.setEnabled(ctx, it)
-    }
-
-    Category("Pencarian YouTube")
+    // [PEMUTAR-KARTU] state yang dibaca Flow diangkat ke atas supaya isi kartu hanya berisi baris
     val lockId by StreamEnginePrefs.lockIndonesian.collectAsState()
-    SwitchRow(
-        "Kunci hasil ke bahasa Indonesia",
-        "Utamakan judul berbahasa Indonesia dan sembunyikan judul yang jelas berbahasa Inggris/asing. "
-            + "Bila hasilnya terlalu sedikit, semuanya tetap ditampilkan.",
-        lockId
-    ) { StreamEnginePrefs.setLockIndonesian(it) }
     val origTitle by StreamEnginePrefs.originalTitles.collectAsState()
-    SwitchRow(
-        "Judul asli YouTube",
-        "Pakai judul persis seperti yang ditulis pengunggah, bukan terjemahan otomatis YouTube. "
-            + "Pencarian jadi beberapa detik lebih lambat karena judul tiap hasil diambil ulang.",
-        origTitle
-    ) { StreamEnginePrefs.setOriginalTitles(it) }
-
-    Category("Beranda Cinema")
-    SwitchRow(
-        "Mode TV",
-        "Tambah tile Mode TV di Beranda: jelajah berkas ala saluran TV dengan kartu poster dan panel info.",
-        tvMode
-    ) {
-        tvMode = it
-        TvMode.setEnabled(ctx, it)
-    }
     // [SETELAN-PUSAT] pindah dari halaman Cadangan dan otomasi
     remember { com.molina.studio.automation.AutoPrefs.init(ctx) }
     val autoSt by com.molina.studio.automation.AutoPrefs.state.collectAsState()
-    SwitchRow(
-        "Unduhan masuk ke Cinema",
-        "Setelah unduhan selesai, video atau audio yang berhasil otomatis muncul di Terakhir diputar Molina Cinema " +
-            "agar bisa diputar dengan satu ketukan.",
-        autoSt.addToCinema
-    ) { com.molina.studio.automation.AutoPrefs.setAddToCinema(ctx, it) }
 
-    Category("Sumber IPTV")
-    if (sources.isEmpty()) {
-        SettingsItem("Belum ada sumber playlist", "Tambahkan dari dialog Saluran di Molina Cinema.") {}
-    } else {
-        sources.forEach { s -> SettingsItem(s.name, "Ketuk untuk menghapus dari daftar") { removing = s } }
-    }
-    SettingsItem("Folder IPTV", "$iptvPath\nSalin berkas .m3u atau .m3u8 ke folder ini.") {}
-
-    Category("Pemutar")
-    SettingsItem("Setelan pemutar lengkap", "Video, antarmuka, gestur, dan lanjutan") {
-        if (!CinemaActions.openSettings(ctx)) {
-            Toast.makeText(ctx, "Setelan pemutar tidak bisa dibuka", Toast.LENGTH_SHORT).show()
+    PackageSectionHeader("Pemutaran")
+    PackageGroupCard {
+        PackageSwitchRow("Ingat posisi putar", "Lanjutkan video dari posisi terakhir saat dibuka lagi.", resume) {
+            resume = it
+            ResumeBridge.setEnabled(ctx, it)
+        }
+        PackageDivider()
+        PackageSwitchRow(
+            "Dekoder perangkat keras",
+            "MediaCodec. Matikan bila video hijau atau patah-patah. Berlaku pada video berikutnya yang dibuka.",
+            hw
+        ) {
+            hw = it
+            HwdecBridge.setEnabled(ctx, it)
         }
     }
-    SettingsItem("Buka Molina Cinema", "Pindah ke tab Cinema", onOpenCinema)
+
+    Spacer(Modifier.height(16.dp))
+    PackageSectionHeader("Pencarian YouTube")
+    PackageGroupCard {
+        PackageSwitchRow(
+            "Kunci hasil ke bahasa Indonesia",
+            "Utamakan judul berbahasa Indonesia dan sembunyikan judul yang jelas berbahasa Inggris/asing. "
+                + "Bila hasilnya terlalu sedikit, semuanya tetap ditampilkan.",
+            lockId
+        ) { StreamEnginePrefs.setLockIndonesian(it) }
+        PackageDivider()
+        PackageSwitchRow(
+            "Judul asli YouTube",
+            "Pakai judul persis seperti yang ditulis pengunggah, bukan terjemahan otomatis YouTube. "
+                + "Pencarian jadi beberapa detik lebih lambat karena judul tiap hasil diambil ulang.",
+            origTitle
+        ) { StreamEnginePrefs.setOriginalTitles(it) }
+    }
+
+    Spacer(Modifier.height(16.dp))
+    PackageSectionHeader("Beranda Cinema")
+    PackageGroupCard {
+        PackageSwitchRow(
+            "Mode TV",
+            "Tambah tile Mode TV di Beranda: jelajah berkas ala saluran TV dengan kartu poster dan panel info.",
+            tvMode
+        ) {
+            tvMode = it
+            TvMode.setEnabled(ctx, it)
+        }
+        PackageDivider()
+        PackageSwitchRow(
+            "Unduhan masuk ke Cinema",
+            "Setelah unduhan selesai, video atau audio yang berhasil otomatis muncul di Terakhir diputar Molina Cinema " +
+                "agar bisa diputar dengan satu ketukan.",
+            autoSt.addToCinema
+        ) { com.molina.studio.automation.AutoPrefs.setAddToCinema(ctx, it) }
+    }
+
+    Spacer(Modifier.height(16.dp))
+    PackageSectionHeader("Sumber IPTV")
+    if (sources.isEmpty()) {
+        PackageGroupCard {
+            PackageInfoRow("Belum ada sumber playlist", "Tambahkan dari dialog Saluran di Molina Cinema.")
+        }
+    } else {
+        sources.forEachIndexed { idx, s ->
+            if (idx > 0) Spacer(Modifier.height(8.dp))
+            PackageStatusCard(s.name, "Ketuk untuk menghapus dari daftar", null, onClick = { removing = s })
+        }
+    }
+    Spacer(Modifier.height(8.dp))
+    PackageGroupCard {
+        PackageInfoRow("Folder IPTV", "$iptvPath\nSalin berkas .m3u atau .m3u8 ke folder ini.")
+    }
+
+    Spacer(Modifier.height(16.dp))
+    PackageSectionHeader("Pemutar")
+    PackageStatusCard(
+        "Setelan pemutar lengkap", "Video, antarmuka, gestur, dan lanjutan", null,
+        onClick = {
+            if (!CinemaActions.openSettings(ctx)) {
+                Toast.makeText(ctx, "Setelan pemutar tidak bisa dibuka", Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
+    Spacer(Modifier.height(8.dp))
+    PackageStatusCard("Buka Molina Cinema", "Pindah ke tab Cinema", null, onClick = onOpenCinema)
 
     removing?.let { s ->
         AlertDialog(
