@@ -18,6 +18,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.sp
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -48,10 +56,10 @@ import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.Color
 
 private enum class Tab(@StringRes val labelRes: Int, val glyph: String, val color: Color) {
-    Mpv(R.string.tab_mpv, "\u25B6", Color(0xFFB9A7E8)),          // lavender redup: bioskop
-    Files(R.string.tab_files, "\u25A4", Color(0xFF7FB2E5)),       // biru lembut: penjelajah berkas (Terminal kini di Settings)
+    Mpv(R.string.tab_mpv, "\u25B6", Color(0xFFB388FF)),          // [NAV-SLIM] ungu pekat: bioskop
+    Files(R.string.tab_files, "\u25A4", Color(0xFF5C9DFF)),       // biru pekat: penjelajah berkas (Terminal kini di Settings)
     Code(R.string.tab_editor, "< >", Color(0xFFFFB300)),             // emas: editor
-    Settings(R.string.tab_settings, "\u2699", Color(0xFFCDBFA3))  // champagne: pengaturan
+    Settings(R.string.tab_settings, "\u2699", Color(0xFFF2D9A0))  // champagne terang: pengaturan
 }
 
 /** True saat keyboard layar tampil. Dipakai agar nav bawah tidak makan ruang saat mengetik. */
@@ -348,12 +356,25 @@ class MainActivity : ComponentActivity() {
                                         )
                                     )
                                 )
-                                NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                                    Tab.entries.forEachIndexed { i, tab ->
-                                        NavigationBarItem(
-                                            selected = selected == i,
-                                            onClick = { selected = i },
-                                            icon = {
+                                // [NAV-SLIM] nav bawah kompak: tinggi 52dp (bawaan 80dp), warna ikon/label pekat
+                                androidx.compose.material3.Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = 3.dp) {
+                                    Row(
+                                        Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Tab.entries.forEachIndexed { i, tab ->
+                                            val sel = selected == i
+                                            val c = if (sel) androidx.compose.ui.graphics.lerp(tab.color, Color.White, 0.15f)
+                                            else tab.color.copy(alpha = 0.80f)
+                                            val itemShape = RoundedCornerShape(14.dp)
+                                            Column(
+                                                Modifier.weight(1f).fillMaxHeight().padding(horizontal = 6.dp, vertical = 5.dp)
+                                                    .clip(itemShape)
+                                                    .background(if (sel) tab.color.copy(alpha = 0.22f) else Color.Transparent, itemShape)
+                                                    .clickable(role = Role.Tab) { selected = i },
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.Center
+                                            ) {
                                                 if (tab == Tab.Settings && (dl.running || com.molina.studio.download.DownloadNav.unseen)) {
                                                     androidx.compose.material3.BadgedBox(
                                                         badge = {
@@ -362,22 +383,18 @@ class MainActivity : ComponentActivity() {
                                                                 else com.molina.studio.ui.MolinaTheme.Good
                                                             )
                                                         }
-                                                    ) { Text(tab.glyph, fontWeight = FontWeight.Bold) }
+                                                    ) { Text(tab.glyph, color = c, fontSize = 16.sp, fontWeight = FontWeight.Bold) }
                                                 } else if (tab == Tab.Files) {
-                                                    com.molina.studio.settings.TabFolderIcon(androidx.compose.material3.LocalContentColor.current)
+                                                    com.molina.studio.settings.TabFolderIcon(c)
                                                 } else {
-                                                    Text(tab.glyph, fontWeight = FontWeight.Bold)
+                                                    Text(tab.glyph, color = c, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                                                 }
-                                            },
-                                            label = { Text(stringResource(tab.labelRes), fontWeight = if (selected == i) FontWeight.Bold else FontWeight.Normal) },
-                                            colors = NavigationBarItemDefaults.colors(
-                                                selectedIconColor = androidx.compose.ui.graphics.lerp(tab.color, Color.White, 0.30f),
-                                                selectedTextColor = androidx.compose.ui.graphics.lerp(tab.color, Color.White, 0.30f),
-                                                indicatorColor = tab.color.copy(alpha = 0.28f),
-                                                unselectedIconColor = tab.color.copy(alpha = 0.40f),
-                                                unselectedTextColor = tab.color.copy(alpha = 0.40f)
-                                            )
-                                        )
+                                                Text(
+                                                    stringResource(tab.labelRes), color = c, fontSize = 11.sp, maxLines = 1,
+                                                    fontWeight = if (sel) FontWeight.Bold else FontWeight.SemiBold
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
