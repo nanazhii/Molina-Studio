@@ -21,7 +21,9 @@ data class ToolItem(
     /** Paket apt yang di-purge saat HAPUS (dipakai pratinjau hapus); kosong = tanpa pratinjau. */
     val purgePkgs: List<String> = emptyList(),
     /** Berkas konfigurasi non-rahasia yang bisa dicadangkan sebelum HAPUS. */
-    val backupPaths: List<String> = emptyList()
+    val backupPaths: List<String> = emptyList(),
+    /** [PAKET-SERAGAM] True = pemasangan lewat kode Kotlin (unduh + verifikasi SHA-256), bukan skrip shell. */
+    val nativeInstall: Boolean = false
 )
 
 /** Hasil pemeriksaan versi terakhir; [text] kosong = belum diperiksa. */
@@ -44,6 +46,7 @@ object BuiltinTools {
         true
     )
     private val FFMPEG_REMOVE = ToolPurge.script(listOf("ffmpeg"), emptyList(), true)
+    private val YTDLP_REMOVE = ToolPurge.script(listOf("yt-dlp"), ToolPurge.YTDLP_PATHS, false)
 
     val all: List<ToolItem> = listOf(
         ToolItem(
@@ -58,6 +61,10 @@ object BuiltinTools {
             "b-ffmpeg", "FFmpeg", "Konversi dan pemrosesan audio/video.",
             "apt update $APT\napt install -y $APT ffmpeg",
             "command -v ffmpeg >/dev/null && ffmpeg -version | head -n 1", FFMPEG_REMOVE, true, listOf("ffmpeg")
+        ),
+        ToolItem( // [PAKET-SERAGAM]
+            "b-ytdlp", "yt-dlp", "Pengunduh tambahan untuk TikTok, Facebook, dan situs lain. Butuh Python 3. Pemasangan memverifikasi SHA-256 rilis resmi.",
+            "", "command -v yt-dlp >/dev/null && yt-dlp --version | head -n 1", YTDLP_REMOVE, true, emptyList(), emptyList(), true
         )
     )
 }

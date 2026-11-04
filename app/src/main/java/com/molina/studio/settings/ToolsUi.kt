@@ -56,6 +56,8 @@ import com.molina.studio.packages.ToolCheck
 import com.molina.studio.packages.ToolItem
 import com.molina.studio.packages.ToolPurge
 import com.molina.studio.packages.ToolStore
+import com.molina.studio.stream.YtdlpInstallState
+import com.molina.studio.stream.YtdlpInstaller
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -100,6 +102,7 @@ internal fun PackagesPage(
     remember { ToolStore.init(ctx) }
     val custom by ToolStore.custom.collectAsState()
     val checks by ToolStore.checks.collectAsState()
+    val ytInstall by YtdlpInstaller.state.collectAsState() // [PAKET-SERAGAM]
     var expandedId by rememberSaveable { mutableStateOf<String?>(null) }
     var pending by remember { mutableStateOf<PendingRun?>(null) }
     var draft by remember { mutableStateOf<ToolDraft?>(null) }
@@ -150,6 +153,7 @@ internal fun PackagesPage(
                     else -> {
                         if (r.exitCode == 0) batchOk += 1
                         ToolStore.setCheck(tid, if (r.exitCode == 0) firstLine(out.toString()) else "Tidak terdeteksi (kode ${r.exitCode})")
+                        if (tool.nativeInstall && r.exitCode == 0) syncYtdlp(ctx, firstLine(out.toString()))
                     }
                 }
                 if (r.cancelled) {
@@ -224,11 +228,14 @@ internal fun PackagesPage(
                 tool = tool,
                 check = checks[tool.id],
                 checking = checking == tool.id,
-                note = notes[tool.id],
+                note = if (tool.nativeInstall) ytNote(ytInstall) ?: notes[tool.id] else notes[tool.id],
                 expanded = expandedId == tool.id,
                 onToggle = { expandedId = if (expandedId == tool.id) null else tool.id },
                 onAction = { a ->
-                    if (scriptOf(tool, a).isBlank()) {
+                    if (tool.nativeInstall && a == ToolAction.Install) {
+                        if (ytInstall is YtdlpInstallState.Working) toast(ctx, "Pemasangan yt-dlp sedang berjalan")
+                        else { YtdlpInstaller.install(ctx); toast(ctx, "Memasang atau memperbarui yt-dlp di latar belakang\u2026") }
+                    } else if (scriptOf(tool, a).isBlank()) {
                         toast(ctx, "Skrip ${a.label.lowercase()} belum diisi. Ubah alat untuk mengisinya.")
                     } else {
                         if (a == ToolAction.Remove && tool.builtin && tool.purgePkgs.isNotEmpty()) preview = tool
@@ -275,7 +282,10 @@ internal fun PackagesPage(
             ToolAction.Install -> "Memasang ${pr.tool.name} di Debian. Butuh internet."
             ToolAction.Version -> "Memeriksa versi ${pr.tool.name}."
             ToolAction.Remove ->
-                if (pr.tool.builtin) {
+                if (pr.tool.nativeInstall) {
+                    "Menghapus yt-dlp sampai tuntas: semua salinan biner, cache, dan konfigurasi, lalu diverifikasi. " +
+                        "Python 3 tidak ikut dihapus. Anda bisa memasangnya lagi kapan saja."
+                } else if (pr.tool.builtin) {
                     "Menghapus ${pr.tool.name} dari Debian sampai tuntas: program, pendukung yang tidak terpakai, setelan, " +
                         "cache, dan sisa file, lalu dipastikan bersih. Setelan pribadi ikut hilang (mis. ~/.gitconfig " +
                         "untuk Git). Program lain yang memakainya bisa berhenti bekerja."
@@ -297,7 +307,10 @@ internal fun PackagesPage(
                 code == -1 -> {}
                 pr.action == ToolAction.Version ->
                     ToolStore.setCheck(pr.tool.id, if (code == 0) firstLine(out) else "Tidak terdeteksi (kode $code)")
-                code == 0 -> ToolStore.setCheck(pr.tool.id, "")
+                code == 0 -> {
+                    ToolStore.setCheck(pr.tool.id, "")
+                    if (pr.tool.nativeInstall) com.molina.studio.automation.AutoPrefs.clearYtdlp(ctx)
+                }
             }
         }
     }
@@ -387,7 +400,7 @@ private fun ToolCard(
                 Text(it, color = Color(0xFFE8A35F), fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                ActionText("PASANG", Blue) { onAction(ToolAction.Install) }
+                ActionText(if (tool.nativeInstall) "PASANG / PERBARUI" else "PASANG", Blue) { onAction(ToolAction.Install) }
                 ActionText("VERSI", W7D.Ink) { onAction(ToolAction.Version) }
                 ActionText("HAPUS", Red) { onAction(ToolAction.Remove) }
             }
@@ -478,6 +491,19 @@ private fun ActionText(label: String, color: Color, enabled: Boolean = true, onC
 }
 
 private fun toast(ctx: Context, msg: String) = Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
+
+/** [PAKET-SERAGAM] Teks status pemasangan yt-dlp untuk kartu; null saat tidak ada proses. */
+private fun ytNote(s: YtdlpInstallState): String? = when (s) {
+    YtdlpInstallState.Idle -> null
+    is YtdlpInstallState.Working -> s.message
+    is YtdlpInstallState.Done -> "Berhasil, versi ${s.version ?: "?"}."
+    is YtdlpInstallState.Failed -> "Gagal: ${s.message}"
+}
+
+/** [PAKET-SERAGAM] Jaga lencana pembaruan tetap sinkron dengan hasil cek versi di kartu. */
+private fun syncYtdlp(ctx: Context, version: String) {
+    if (version.isNotBlank()) com.molina.studio.automation.AutoPrefs.setYtdlpInstalled(ctx, version)
+}
 
 private fun firstLine(out: String): String =
     out.lineSequence().map { it.trim() }.firstOrNull { it.isNotEmpty() }?.take(80) ?: "OK"

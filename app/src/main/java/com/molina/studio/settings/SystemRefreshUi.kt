@@ -186,16 +186,14 @@ private fun RefreshRow(title: String, subtitle: String, enabled: Boolean, onClic
     }
 }
 
-/** Halaman "Pengunduh tambahan (yt-dlp)": sakelar, status, pasang/perbarui. */
+/** Halaman "Pengunduh tambahan (yt-dlp)": sakelar dan status saja. Pasang/versi/hapus ada di kartu Paket. [PAKET-SERAGAM] */
 @Composable
 internal fun StreamEnginePage() {
     val ctx = LocalContext.current
     val install by YtdlpInstaller.state.collectAsState()
     val ytdlpOn by StreamEnginePrefs.ytdlpEnabled.collectAsState()
     var status by remember { mutableStateOf<YtdlpStatus?>(null) }
-    var tick by remember { mutableIntStateOf(0) }
-    var ytRun by remember { mutableStateOf<ToolRun?>(null) }
-    LaunchedEffect(install, tick) {
+    LaunchedEffect(install) {
         status = withContext(Dispatchers.IO) { YtdlpLocator.status(ctx) }
     }
 
@@ -217,40 +215,11 @@ internal fun StreamEnginePage() {
         else if (st is YtdlpStatus.Ready) "Siap: ${st.guestBinary}"
         else st.hint().orEmpty()
     ) {}
-
-    Category("Pasang")
-    val working = install is YtdlpInstallState.Working
     SettingsItem(
-        if (st is YtdlpStatus.Ready) "Perbarui yt-dlp" else "Pasang yt-dlp",
-        when (val i = install) {
-            YtdlpInstallState.Idle -> "Unduh versi resmi lewat koneksi aman, lalu periksa keasliannya."
-            is YtdlpInstallState.Working -> i.message
-            is YtdlpInstallState.Done -> "Berhasil, versi ${i.version ?: "?"}."
-            is YtdlpInstallState.Failed -> "Gagal: ${i.message}"
-        }
-    ) { if (!working) YtdlpInstaller.install(ctx) }
-
-    if (st is YtdlpStatus.Ready) {
-        SettingsItem("Versi yt-dlp", "Cek versi yt-dlp yang terpasang (Debian dinyalakan sebentar).") {
-            ytRun = ToolRun("yt-dlp: Versi", "yt-dlp --version", 2 * 60_000L, "Memeriksa versi yt-dlp.", false)
-        }
-        SettingsItem("Hapus yt-dlp", "Hapus sampai bersih: programnya, file sementara, dan setelannya. Python 3 tidak ikut dihapus.") {
-            ytRun = ToolRun(
-                "yt-dlp: Hapus", ToolPurge.script(listOf("yt-dlp"), ToolPurge.YTDLP_PATHS, false), 10 * 60_000L,
-                "Menghapus yt-dlp sampai tuntas: semua salinan biner, cache, dan konfigurasi, lalu diverifikasi. " +
-                    "Python 3 tidak ikut dihapus. Anda bisa memasangnya lagi kapan saja.",
-                true
-            )
-        }
-    }
-    ytRun?.let { r ->
-        ToolRunDialog(r, onClose = { ytRun = null }) { code, _ ->
-            if (code != -1 && r.title.endsWith("Hapus")) {
-                tick++
-                com.molina.studio.automation.AutoPrefs.clearYtdlp(ctx)
-            }
-        }
-    }
+        "Pasang, perbarui, versi, dan hapus",
+        "Ada di kartu yt-dlp pada halaman Paket (Alat tambahan di Debian), seragam dengan Python 3 dan FFmpeg. " +
+            "Pembaruan juga ikut tombol Perbarui semua."
+    ) {}
 
     if (st == YtdlpStatus.NoPython) {
         SettingsItem("Salin perintah python3", YtdlpCommand.INSTALL_PYTHON_CMD) {

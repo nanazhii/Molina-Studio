@@ -109,7 +109,7 @@ internal fun DebianAptDialog(job: AptJob, onClose: () -> Unit) {
             AptJob.InstallStarter -> YtdlpInstaller.installIfMissing(ctx) { r -> // [STARTER-YTDLP]
                 val msg = when (r) {
                     is YtdlpInstallState.Done -> if (r.version != null) "yt-dlp terpasang, versi ${r.version}." else "yt-dlp sudah terpasang."
-                    is YtdlpInstallState.Failed -> "yt-dlp gagal dipasang: ${r.message}. Coba lagi di Setelan > Paket > Pengunduh tambahan (yt-dlp)."
+                    is YtdlpInstallState.Failed -> "yt-dlp gagal dipasang: ${r.message}. Coba lagi lewat kartu yt-dlp di Setelan > Paket."
                     else -> null
                 }
                 if (msg != null) Handler(Looper.getMainLooper()).post { Toast.makeText(ctx.applicationContext, msg, Toast.LENGTH_LONG).show() }
