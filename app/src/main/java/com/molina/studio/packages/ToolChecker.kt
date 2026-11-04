@@ -83,10 +83,15 @@ object ToolChecker {
     @Synchronized
     fun requestStale(ctx: Context): Boolean {
         if (autoDone) return false
-        autoDone = true
         ToolStore.init(ctx)
         val ids = staleIds()
-        return ids.isNotEmpty() && start(ctx, ids, batch = false, auto = true)
+        if (ids.isEmpty()) {
+            autoDone = true
+            return false
+        }
+        val started = start(ctx, ids, batch = false, auto = true) // [PAKET-WORKER] gagal mulai (cek lain berjalan) = boleh dicoba lagi
+        if (started) autoDone = true
+        return started
     }
 
     @Synchronized

@@ -7,13 +7,43 @@ import com.molina.core.common.AppLog
 import com.molina.core.common.LogLevel
 import com.molina.core.common.MolinaDir
 import com.molina.studio.AppPaths
+import com.molina.studio.packages.ToolChecker
 import com.molina.studio.settings.BackupManager
+import com.molina.studio.stream.YtdlpLocator
+import com.molina.studio.stream.YtdlpStatus
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 private const val DAY_MS = 23 * 3_600_000L // sedikit di bawah 24 jam agar jadwal periodik tidak terlewat
+
+private const val TOOLS_WAIT_MS = 4 * 60_000L
+
+/**
+ * [PAKET-WORKER] Periksa versi alat Paket yang belum pernah dicek atau hasilnya lebih tua dari 24 jam. Lokal, tanpa jaringan;
+ * dilewati bila Debian belum dipasang. Menunggu sampai selesai agar proses tidak dimatikan di tengah jalan.
+ */
+private suspend fun checkTools(app: Context) {
+    try {
+        val rootfsReady = withContext(Dispatchers.IO) { YtdlpLocator.status(app) != YtdlpStatus.NoRootfs }
+        if (!rootfsReady || !ToolChecker.requestStale(app)) return
+        val done = withTimeoutOrNull(TOOLS_WAIT_MS) { ToolChecker.state.first { it.checkingId == null } }
+        if (done == null) {
+            ToolChecker.cancel()
+            AppLog.log("system", LogLevel.Warn, "auto", "cek versi alat melewati batas waktu; dihentikan")
+        } else {
+            AppLog.log("system", LogLevel.Info, "auto", "cek versi alat selesai")
+        }
+    } catch (e: CancellationException) {
+        ToolChecker.cancel()
+        throw e
+    } catch (e: Exception) {
+        AppLog.log("system", LogLevel.Warn, "auto", "cek versi alat gagal: ${e.javaClass.simpleName}")
+    }
+}
 
 /** Periksa pembaruan apt + yt-dlp (Wi-Fi saja, maks. 1x/24 jam). Hasil hanya mengubah lencana. */
 class UpdateCheckWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
@@ -22,6 +52,7 @@ class UpdateCheckWorker(ctx: Context, params: WorkerParameters) : CoroutineWorke
         AutoPrefs.init(app)
         val st = AutoPrefs.state.value
         if (!st.autoUpdate) return Result.success()
+        checkTools(app) // [PAKET-WORKER] sebelum jeda 23 jam: staleIds() sudah membatasi alat yang diperiksa
         if (System.currentTimeMillis() - st.lastCheck < DAY_MS) return Result.success()
         try {
             UpdateChecker.checkAll(app)
