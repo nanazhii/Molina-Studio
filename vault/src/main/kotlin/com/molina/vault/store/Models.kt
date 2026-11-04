@@ -33,6 +33,19 @@ object LabelPolicy {
 
 data class VaultListing(val items: List<RecordMeta>, val corrupt: Int)
 
+// MOLINA-H14-GUDANG: laporan layar Gudang dan hasil pemeriksaan integritas.
+class AuditBad(val id: String, val title: String?, val reason: String)
+class AuditResult(val checked: Int, val ok: Int, val bad: List<AuditBad>, val cancelled: Boolean, val bytes: Long)
+class UsageReport(
+    val perType: Map<RecordType, Int>,
+    val records: Int,
+    val corrupt: Int,
+    val diskBytes: Long,
+    val largeCount: Int,
+    val largeDiskBytes: Long,
+    val largest: List<Pair<RecordMeta, Long>>,
+)
+
 /** Format biner [jumlah][len|bytes]...; aman untuk file keystore dan data apa pun. */
 object PayloadCodec {
     fun pack(fields: List<ByteArray>): ByteArray {

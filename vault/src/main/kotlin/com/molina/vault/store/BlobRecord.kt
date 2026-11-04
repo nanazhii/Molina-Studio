@@ -195,6 +195,37 @@ object BlobRecord {
         return r
     }
 
+    /** MOLINA-H14-GUDANG: menyegel ulang bagian kecil dengan field non-blob baru; deskriptor blob [info] dipertahankan. */
+    fun resealSmall(sealer: RecordSealer, id: String, info: BlobInfo, newFields: List<ByteArray>): ByteArray {
+        require(info.index in newFields.indices) { "Jumlah field tidak valid" }
+        val slots = newFields.mapIndexed { i, b -> if (i == info.index) ByteArray(0) else b }
+        return sealSmall(sealer, id, info, slots)
+    }
+
+    /** MOLINA-H14-GUDANG: mengganti meta dan bagian kecil sekaligus; aliran blob disalin apa adanya (tmp, fsync, rename atomik). */
+    fun rewriteHead(f: File, newSealedMeta: ByteArray, newSealedSmall: ByteArray) {
+        require(newSealedMeta.size in MIN_SEALED..MAX_META) { "Metadata tidak valid" }
+        require(newSealedSmall.size in MIN_SEALED..(MAX_SMALL_PLAIN + 64)) { "Bagian kecil tidak valid" }
+        val head = readHead(f)
+        val tmp = File(f.parentFile, f.name + ".tmp")
+        try {
+            FileInputStream(f).use { ins ->
+                ins.channel.position(head.streamOffset)
+                FileOutputStream(tmp).use { fos ->
+                    val bo = BufferedOutputStream(fos, BLOCK)
+                    writeHead(bo, newSealedMeta, newSealedSmall)
+                    copy(BufferedInputStream(ins, BLOCK), bo)
+                    bo.flush()
+                    fos.fd.sync()
+                }
+            }
+            if (!tmp.renameTo(f)) throw IOException("Gagal menyimpan")
+        } catch (e: Throwable) {
+            tmp.delete()
+            throw e
+        }
+    }
+
     /** Memeriksa seluruh record (meta, small, dan semua chunk) tanpa menyimpan hasilnya. */
     fun verify(f: File, id: String, key: ByteArray, sealer: RecordSealer) {
         val head = readHead(f)

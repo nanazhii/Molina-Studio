@@ -14,6 +14,11 @@ class VaultPrefs(context: Context) {
     val lastBackupAt: Long get() = p.getLong("last_backup_at", 0L)
     val changesSinceBackup: Int get() = p.getInt("changes_since_backup", 0)
 
+    // MOLINA-H14-GUDANG: waktu pemeriksaan integritas terakhir yang lolos penuh.
+    val lastAuditAt: Long get() = p.getLong("last_audit_at", 0L)
+
+    fun markAudited() { p.edit().putLong("last_audit_at", System.currentTimeMillis()).apply() }
+
     fun noteChange() { p.edit().putInt("changes_since_backup", changesSinceBackup + 1).apply() }
 
     fun markBackedUp() {

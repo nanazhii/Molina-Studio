@@ -121,6 +121,8 @@ class EntryUi(private val host: MainActivity) {
     private var detailMeta: RecordMeta? = null
     private var exportIndex = -1
     private var backupPass: CharArray? = null
+    private var backupIncludeLarge = true   // MOLINA-H14-GUDANG
+    @Volatile private var auditCancel = false   // MOLINA-H14-GUDANG
     private var restoreUri: Uri? = null
     private var editKeep: ByteArray? = null   // MOLINA-H2: isi file lama saat mengubah entri
 
@@ -313,6 +315,7 @@ class EntryUi(private val host: MainActivity) {
                 })
                 fill()
             }
+            button("Gudang dan integritas") { showStorage() }   // MOLINA-H14-GUDANG
             button("Cadangan terenkripsi") { showBackupForm() }
             button("Ganti master password") { showChangeMaster() }
             button("Pengaturan") { showSettings() }
@@ -492,10 +495,7 @@ class EntryUi(private val host: MainActivity) {
     }
 
     private fun showEdit(m: RecordMeta) {
-        if (detailBlob != null) {   // MOLINA-H12-STREAM: cegah penimpaan blob dengan field kosong
-            Toast.makeText(host, "Berkas besar belum bisa diubah. Ekspor lalu impor ulang.", Toast.LENGTH_LONG).show()
-            return
-        }
+        if (detailBlob != null) { showLargeEdit(m); return }   // MOLINA-H14-GUDANG: blob tidak disentuh, hanya judul dan field kecil
         val copy = detailFields.map { it.copyOf() }
         showForm(m.type, m, copy)
     }
@@ -620,6 +620,163 @@ class EntryUi(private val host: MainActivity) {
         }
     }
 
+    // MOLINA-H14-GUDANG ------------------------------------------------------------------
+    private fun showLargeEdit(m: RecordMeta): Unit = host.run {
+        val bi = detailBlob
+        if (bi == null) { showList(); return@run }
+        val blobIdx = bi.index
+        val size = bi.size
+        val specs = SPECS.getValue(m.type)
+        val current = detailFields.map { it.copyOf() }
+        clearSensitive()
+        screen {
+            label("Ubah berkas besar", 22f, amber)
+            label("Yang diubah hanya judul, nama, dan catatan. Isi berkas (${fmtSize(size)}) tidak dibaca ulang dan SHA-256-nya tetap. Folder dan tag tidak berubah.", 13f, Color.LTGRAY)
+            val titleField = EditText(context).apply {
+                hint = "Judul"
+                setHintTextColor(Color.GRAY)
+                setTextColor(Color.WHITE)
+                setSingleLine(true)
+                host.frameInput(this)
+            }
+            addView(titleField)
+            titleField.setText(m.title)
+            val inputs = ArrayList<EditText?>()
+            for ((i, s) in specs.withIndex()) {
+                if (i == blobIdx) { inputs.add(null); continue }
+                val e = makeInput(s)
+                addView(e)
+                inputs.add(e)
+                current.getOrNull(i)?.let { setChars(e, it) }
+            }
+            current.forEach { it.fill(0) }
+            val msg = messageView()
+            button("Simpan perubahan") { b ->
+                val t = titleField.text.toString().trim()
+                if (t.isEmpty()) { msg.text = "Judul wajib diisi."; return@button }
+                val fields = ArrayList<ByteArray>()
+                for (i in specs.indices) fields.add(if (i == blobIdx) ByteArray(0) else utf8(take(inputs[i]!!)))
+                b.isEnabled = false
+                msg.text = "Menyimpan… berkas besar ikut disalin, mohon tunggu."
+                worker.execute {
+                    val res = runCatching { store.editLarge(m.id, t, fields) }
+                    fields.forEach { it.fill(0) }
+                    ui.post {
+                        val nm = res.getOrNull()
+                        val ex = res.exceptionOrNull()
+                        when {
+                            nm != null -> {
+                                Toast.makeText(host, "Perubahan tersimpan. Isi berkas tidak berubah.", Toast.LENGTH_LONG).show()
+                                if (SessionLock.isUnlocked) openDetail(nm) else host.render()
+                            }
+                            ex is InsufficientSpaceException -> {
+                                msg.text = "Ruang tidak cukup untuk menyalin berkas (butuh ${fmtSize(ex.needed)}, sisa ${fmtSize(ex.free)})."
+                                b.isEnabled = true
+                            }
+                            else -> {
+                                msg.text = ex?.message ?: "Gagal menyimpan"
+                                b.isEnabled = true
+                            }
+                        }
+                    }
+                }
+            }
+            button("Batal") { openDetail(m) }
+        }
+    }
+
+    private fun showStorage(): Unit = host.run {
+        clearSensitive()
+        auditCancel = false
+        screen {
+            label("Gudang", 22f, amber)
+            val info = TextView(context).apply {
+                setTextColor(Color.WHITE)
+                textSize = 14f
+                setLineSpacing(0f, 1.2f)
+                setPadding(0, host.dp(6f), 0, host.dp(6f))
+                text = "Menghitung…"
+            }
+            addView(info)
+            worker.execute {
+                val u = runCatching { store.usage() }.getOrNull()
+                val free = runCatching { store.freeBytes() }.getOrDefault(-1L)
+                val text = buildString {
+                    if (u == null) append("Gagal membaca pemakaian.\n")
+                    else {
+                        append("Entri: ").append(u.records)
+                        if (u.perType.isNotEmpty()) append(" (").append(u.perType.entries.joinToString(" \u00b7 ") { "${typeName(it.key)} ${it.value}" }).append(")")
+                        append("\n")
+                        append("Berkas besar: ").append(u.largeCount)
+                        if (u.largeCount > 0) append(", ").append(fmtSize(u.largeDiskBytes)).append(" di disk")
+                        append("\nPemakaian Vault di disk: ").append(fmtSize(u.diskBytes))
+                        if (u.corrupt > 0) append("\nPERINGATAN: ").append(u.corrupt).append(" entri rusak atau dimanipulasi")
+                        if (u.largest.isNotEmpty()) {
+                            append("\n\nTerbesar:")
+                            for ((m, sz) in u.largest) append("\n\u2022 ").append(m.title.take(40)).append(" \u00b7 ").append(fmtSize(sz))
+                        }
+                    }
+                    if (free >= 0) append("\n\nRuang kosong: ").append(fmtSize(free))
+                    append("\nCadangan: ").append(backupStatus())
+                    val la = store.prefs.lastAuditAt
+                    append("\nPemeriksaan integritas: ").append(if (la == 0L) "belum pernah" else "lolos penuh ${dateFmt.format(Date(la))}")
+                }
+                ui.post { info.text = text }
+            }
+            label("Periksa integritas", 15f, Color.WHITE)
+            label("Mendekripsi dan memeriksa segel setiap entri, termasuk seluruh isi berkas besar (bisa beberapa menit). Ini mendeteksi kerusakan atau perubahan pada berkas yang ada. Berkas yang dihapus seluruhnya tidak bisa dideteksi dari sini.", 12f)
+            val progress = TextView(context).apply { setTextColor(Color.LTGRAY); textSize = 13f; setPadding(0, host.dp(6f), 0, host.dp(6f)) }
+            addView(progress)
+            button("Periksa sekarang") { b ->
+                b.isEnabled = false
+                auditCancel = false
+                runAudit(progress) { b.isEnabled = true }
+            }
+            button("Cadangan terenkripsi") { auditCancel = true; showBackupForm() }
+            button("Kembali") { auditCancel = true; show() }
+        }
+    }
+
+    private fun runAudit(out: TextView, done: () -> Unit) {
+        out.setTextColor(Color.LTGRAY)
+        out.text = "Memeriksa…"
+        host.worker.execute {
+            val res = runCatching {
+                host.store.audit(isCancelled = { auditCancel }) { d, t ->
+                    host.ui.post { out.text = "Memeriksa $d dari $t entri…"; host.onUserInteraction() }
+                }
+            }
+            host.ui.post {
+                done()
+                val r = res.getOrNull()
+                val ex = res.exceptionOrNull()
+                when {
+                    r == null -> {
+                        out.setTextColor(host.red)
+                        out.text = if (!SessionLock.isUnlocked) "Vault terkunci. Pemeriksaan dihentikan." else "Pemeriksaan gagal: ${ex?.message ?: "kesalahan tidak dikenal"}"
+                    }
+                    r.bad.isEmpty() && !r.cancelled -> {
+                        host.store.prefs.markAudited()
+                        out.setTextColor(host.amber)
+                        out.text = "Semua ${r.ok} entri utuh (${fmtSize(r.bytes)} diperiksa). Setiap segel cocok."
+                    }
+                    else -> {
+                        out.setTextColor(host.red)
+                        val sb = StringBuilder()
+                        sb.append("${r.ok} utuh, ${r.bad.size} bermasalah dari ${r.checked} diperiksa")
+                        if (r.cancelled) sb.append(" (dihentikan)")
+                        sb.append(".")
+                        for (b in r.bad.take(8)) sb.append("\n\u2022 ").append(b.title?.take(40) ?: "id ${b.id.take(8)}").append(": ").append(b.reason)
+                        if (r.bad.size > 8) sb.append("\n\u2022 … dan ${r.bad.size - 8} lainnya")
+                        if (r.bad.isNotEmpty()) sb.append("\nEntri bermasalah tidak bisa diperbaiki dari sini. Pulihkan dari cadangan yang masih baik, dan jangan menimpa cadangan lama sebelum yakin.")
+                        out.text = sb.toString()
+                    }
+                }
+            }
+        }
+    }
+    // ------------------------------------------------------------------------------------
+
     // ---------- cadangan terenkripsi (.mvault) ----------
     private fun wipeBackupPass() { backupPass?.fill(Char.MIN_VALUE); backupPass = null }
 
@@ -628,6 +785,26 @@ class EntryUi(private val host: MainActivity) {
         screen {
             label("Cadangan terenkripsi", 22f, amber)
             label("Berkas .mvault dienkripsi dengan passphrase cadangan yang BERBEDA dari master password. Berkas ini bisa disalin lalu diserang offline, jadi kekuatan passphrase adalah satu-satunya pelindungnya. Tanpa passphrase, cadangan tidak bisa dibuka dan tidak ada pemulihan.", 13f, Color.LTGRAY)
+            // MOLINA-H14-GUDANG: sertakan berkas besar atau database saja, dengan perkiraan ukuran
+            backupIncludeLarge = true
+            val sizeInfo = TextView(context).apply { setTextColor(Color.LTGRAY); textSize = 13f; setPadding(0, host.dp(8f), 0, host.dp(4f)); text = "Menghitung ukuran cadangan…" }
+            addView(sizeInfo)
+            val toggle = button("Berkas besar: ikut dicadangkan") { b ->
+                backupIncludeLarge = !backupIncludeLarge
+                b.text = if (backupIncludeLarge) "Berkas besar: ikut dicadangkan" else "Berkas besar: TIDAK ikut (database saja)"
+            }
+            toggle.visibility = View.GONE
+            worker.execute {
+                val both = runCatching { BackupStore.estimateBytes(store, true) to BackupStore.estimateBytes(store, false) }.getOrNull()
+                val large = runCatching { store.usage().largeCount }.getOrDefault(0)
+                ui.post {
+                    if (both == null) sizeInfo.text = ""
+                    else if (large > 0) {
+                        sizeInfo.text = "Perkiraan ukuran: ${fmtSize(both.first)} dengan $large berkas besar, atau ${fmtSize(both.second)} database saja. Cadangan database saja belum cadangan penuh."
+                        toggle.visibility = View.VISIBLE
+                    } else sizeInfo.text = "Perkiraan ukuran: ${fmtSize(both.first)}."
+                }
+            }
             button("Buat passphrase acak (disarankan)") { showGeneratedPassphrase() }
             button("Saya pakai passphrase sendiri") { showCustomPassphrase() }
             button("Batal") { show() }
@@ -715,18 +892,21 @@ class EntryUi(private val host: MainActivity) {
     private fun backupTo(uri: Uri) {
         val pass = backupPass ?: return
         backupPass = null
+        val includeLarge = backupIncludeLarge   // MOLINA-H14-GUDANG
         Toast.makeText(host, "Mengekspor cadangan…", Toast.LENGTH_SHORT).show()
         host.worker.execute {
             val r = runCatching {
                 val out = host.contentResolver.openOutputStream(uri, "wt") ?: throw IOException("Tidak bisa menulis berkas")
-                out.use { BackupStore.export(host.store, it, pass) }
+                out.use { BackupStore.export(host.store, it, pass, includeLarge) }
             }
             pass.fill(Char.MIN_VALUE)
+            if (r.isFailure) discardExportTarget(uri)   // MOLINA-H14-GUDANG: SAF tidak membuang berkas setengah jadi sendiri
             host.ui.post {
                 val res = r.getOrNull()
-                if (res != null) host.store.prefs.markBackedUp()
+                if (res != null && res.omitted == 0) host.store.prefs.markBackedUp()
                 val text = when {
-                    res == null -> "Gagal mengekspor cadangan. Hapus berkas yang terbentuk."
+                    res == null -> "Gagal mengekspor cadangan (${r.exceptionOrNull()?.message ?: "kesalahan tidak dikenal"}). Berkas setengah jadi dibersihkan."
+                    res.omitted > 0 -> "Cadangan ${res.count} entri tersimpan TANPA ${res.omitted} berkas besar. Ini belum cadangan penuh, jadi pengingat cadangan tetap aktif."
                     res.skipped > 0 -> "Cadangan ${res.count} entri. ${res.skipped} entri rusak dilewati."
                     else -> "Cadangan ${res.count} entri tersimpan. Uji pulihkan sebelum mengandalkannya."
                 }
@@ -1206,8 +1386,8 @@ class EntryUi(private val host: MainActivity) {
                     }
                 }
             }
-            if (detailBlob == null) button("Ubah entri") { showEdit(m) }
-            else label("Berkas besar: untuk mengubah, ekspor lalu impor ulang (pengeditan menyusul).", 12f)
+            button("Ubah entri") { showEdit(m) }
+            if (detailBlob != null) label("Berkas besar: yang bisa diubah hanya judul, nama, dan catatan. Untuk mengganti isinya, impor ulang.", 12f)
             button("Pindah folder") { showMoveFolder(m) }
             button("Hapus entri") { confirmDelete(m) }
             button("Kembali") { show() }

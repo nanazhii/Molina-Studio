@@ -40,6 +40,7 @@ Isi entri (keystore, password, rahasia), vaultKey, master password, metadata (ju
 | 26 | Kunci Keystore hanya perangkat lunak | Peringatan via KeyInfo.isInsideSecureHardware | Root dapat mengekstrak kunci; perlindungan bergantung pada master |
 | 27 | Accessibility service non-sistem | Unlock diblokir; dicek ulang saat rahasia ditampilkan | Layanan yang diaktifkan setelah rahasia tampil; keyboard jahat |
 | 28 | Master lama bocor setelah ganti master | Ganti master merotasi vaultKey dan mengenkripsi ulang semua record (staging, baca-ulang, penanda COMMIT, pulih otomatis bila terhenti); UI memperingatkan soal cadangan lama | Cadangan .mvault lama dan salinan lama vault tetap terbuka dengan kunci lama; record yang sudah rusak dilewati |
+| 29 | Record rusak atau diubah tanpa disadari | Gudang > Periksa integritas: dekripsi dan verifikasi segel GCM semua record serta SHA-256 dan chunk blob; waktu pemeriksaan lolos terakhir dicatat | Berkas yang dihapus seluruhnya dan rollback ke versi lama yang sah tidak terdeteksi (roadmap: manifest tersegel) |
 
 ## Di luar cakupan
 Malware root aktif selama sesi terbuka; paksaan fisik terhadap pengguna.

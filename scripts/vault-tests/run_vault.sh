@@ -23,5 +23,5 @@ S=vault/src/main/kotlin/com/molina/vault/store
   "$V/SessionLock.kt" "$V/PasswordPolicy.kt" \
   "$S/Models.kt" "$S/BlobRecord.kt" "$S/SecureWipe.kt" "$S/VaultPrefs.kt" "$S/VaultStore.kt" "$S/BackupStore.kt" \
   scripts/vault-tests/CryptoStubs.kt scripts/vault-tests/VaultTests.kt scripts/vault-tests/StreamStoreTests.kt \
-  scripts/vault-tests/AndroidStubs.kt scripts/vault-tests/VaultCryptoFake.kt scripts/vault-tests/StoreIntegrationTests.kt scripts/vault-tests/BackupStoreTests.kt
+  scripts/vault-tests/AndroidStubs.kt scripts/vault-tests/VaultCryptoFake.kt scripts/vault-tests/StoreIntegrationTests.kt scripts/vault-tests/BackupStoreTests.kt scripts/vault-tests/GudangTests.kt
 java -Xmx64m -cp "$OUT:$JSONC:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" VaultTestsKt

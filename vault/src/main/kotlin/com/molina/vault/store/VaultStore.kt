@@ -305,6 +305,118 @@ class VaultStore(context: Context) {
         BlobRecord.exportBlob(recFile(id), id, key, sealer(key), out)
     }
 
+    // ---- gudang: sunting berkas besar, pemeriksaan integritas, pemakaian (MOLINA-H14-GUDANG) ----
+
+    /**
+     * Mengubah judul dan field non-blob record v3 (mis. nama file, catatan) tanpa membuka blob. [fields] harus sama
+     * banyak dengan record; isi pada indeks blob diabaikan. Deskriptor blob (ukuran, SHA-256) dipertahankan dan dicek
+     * ulang setelah ditulis. Folder dan tag tidak berubah. Atomik; gagal berarti record lama utuh.
+     */
+    fun editLarge(id: String, title: String, fields: List<ByteArray>): RecordMeta {
+        require(validId(id)) { "ID tidak valid" }
+        require(title.isNotBlank() && title.length <= 200) { "Judul tidak valid" }
+        return SessionLock.use { key ->
+            val rf = recFile(id)
+            require(BlobRecord.isBlobRecord(rf)) { "Bukan berkas besar" }
+            needSpace(rf.length() + SPACE_MARGIN)
+            val sl = sealer(key)
+            val head = BlobRecord.readHead(rf)
+            val old = BlobRecord.openSmall(head, id, sl)
+            try {
+                require(fields.size == old.fields.size) { "Jumlah field tidak cocok" }
+                val metaPlain = sl.open("meta", id, head.sealedMeta)
+                val j = try { JSONObject(String(metaPlain, Charsets.UTF_8)) } finally { metaPlain.fill(0) }
+                if (j.getString("id") != id) throw InvalidVaultException("ID tidak cocok")
+                j.put("title", title).put("ts", System.currentTimeMillis())
+                val metaJson = j.toString().toByteArray(Charsets.UTF_8)
+                val newMeta = try { sl.seal("meta", id, metaJson) } finally { metaJson.fill(0) }
+                val newSmall = BlobRecord.resealSmall(sl, id, old.info, fields)
+                BlobRecord.rewriteHead(rf, newMeta, newSmall)
+                val check = BlobRecord.openSmall(rf, id, sl)
+                try {
+                    if (check.info.size != old.info.size || !java.security.MessageDigest.isEqual(check.info.sha256, old.info.sha256)) {
+                        throw InvalidVaultException("Deskriptor blob berubah setelah menulis")
+                    }
+                } finally {
+                    check.fields.forEach { it.fill(0) }
+                }
+                prefs.noteChange()
+                readMeta(key, rf)
+            } finally {
+                old.fields.forEach { it.fill(0) }
+            }
+        }
+    }
+
+    /**
+     * Mendekripsi dan memeriksa segel setiap record: meta, data (v2), atau seluruh chunk dan SHA-256 blob (v3).
+     * Mendeteksi kerusakan dan perubahan pada berkas yang ADA; berkas yang hilang seluruhnya tidak terdeteksi.
+     * Melempar IllegalStateException bila vault terkunci di tengah jalan. [isCancelled] dicek sebelum tiap record.
+     */
+    fun audit(isCancelled: () -> Boolean = { false }, onProgress: (Int, Int) -> Unit = { _, _ -> }): AuditResult {
+        val files = dir.listFiles().orEmpty()
+            .filter { it.isFile && it.name.startsWith("rec_") && it.name.endsWith(".mvr") }
+            .sortedBy { it.name }
+        val bad = ArrayList<AuditBad>()
+        var ok = 0
+        var bytes = 0L
+        var checked = 0
+        var cancelled = false
+        for ((i, f) in files.withIndex()) {
+            if (isCancelled()) { cancelled = true; break }
+            if (!SessionLock.isUnlocked) throw IllegalStateException("Vault terkunci")
+            onProgress(i, files.size)
+            val id = f.name.removePrefix("rec_").removeSuffix(".mvr")
+            var title: String? = null
+            try {
+                SessionLock.use { key ->
+                    require(validId(id)) { "Nama berkas tidak valid" }
+                    title = readMeta(key, f).title
+                    if (BlobRecord.isBlobRecord(f)) BlobRecord.verify(f, id, key, sealer(key))
+                    else read(id).forEach { it.fill(0) }
+                }
+                ok++
+                bytes += f.length()
+            } catch (e: Exception) {
+                if (!SessionLock.isUnlocked) throw IllegalStateException("Vault terkunci")
+                val why = when (e) {
+                    is com.molina.vault.crypto.WrongPasswordOrTamperedException -> "Segel tidak valid: rusak atau dimanipulasi"
+                    is InvalidVaultException -> e.message ?: "Struktur record rusak"
+                    else -> "Tidak terbaca"
+                }
+                bad.add(AuditBad(id, title, why))
+            }
+            checked++
+        }
+        onProgress(files.size, files.size)
+        return AuditResult(checked, ok, bad, cancelled, bytes)
+    }
+
+    /** Ringkasan pemakaian untuk layar Gudang: jumlah per jenis, ukuran di disk, berkas besar, dan lima record terbesar. */
+    fun usage(): UsageReport = SessionLock.use { key ->
+        val per = LinkedHashMap<RecordType, Int>()
+        var corrupt = 0
+        var disk = 0L
+        var large = 0
+        var largeDisk = 0L
+        var n = 0
+        val sized = ArrayList<Pair<RecordMeta, Long>>()
+        for (f in dir.listFiles().orEmpty()) {
+            if (!f.isFile || !f.name.startsWith("rec_") || !f.name.endsWith(".mvr")) continue
+            disk += f.length()
+            try {
+                val m = readMeta(key, f)
+                n++
+                per[m.type] = (per[m.type] ?: 0) + 1
+                sized.add(m to f.length())
+                if (BlobRecord.isBlobRecord(f)) { large++; largeDisk += f.length() }
+            } catch (e: Exception) {
+                corrupt++
+            }
+        }
+        UsageReport(per, n, corrupt, disk, large, largeDisk, sized.sortedByDescending { it.second }.take(5))
+    }
+
     // ---- rotasi (MOLINA-H8-ROTATE) ----
 
     private fun stageRotated(old: ByteArray, fresh: ByteArray, f: File, id: String, staging: File) {
