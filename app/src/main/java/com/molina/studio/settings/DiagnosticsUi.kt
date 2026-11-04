@@ -89,6 +89,7 @@ private fun RowBadge(name: String, color: Color) {
         "Terminal jalan" -> ">_"
         "Cinema siap" -> "CIN"
         "Log Cinema" -> "LOG"
+        "Dekoder" -> "DEC"
         "Jaringan" -> "NET"
         "Penyimpanan" -> "SD"
         "Ruang bebas" -> "GB"
@@ -160,9 +161,9 @@ private fun HealthCard(checks: List<CheckResult>?, onAction: (CheckAction) -> Un
             Modifier.fillMaxWidth().background(head.copy(alpha = 0.14f)).padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Molina Control Panel", color = head, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Text("Molina Control Panel", color = MolinaTheme.Gold, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             val sum = checks?.takeIf { it.isNotEmpty() }?.let { c -> "${c.count { it.level == CheckLevel.Ok }}/${c.size} sehat" } ?: ""
-            Text(sum, color = MolinaTheme.Muted, fontSize = 11.sp)
+            Text(sum, color = head, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
         }
         if (checks == null) {
             Text("Memeriksa...", color = MolinaTheme.Muted, fontSize = 12.sp, modifier = Modifier.padding(12.dp))
@@ -191,7 +192,11 @@ private fun HealthCard(checks: List<CheckResult>?, onAction: (CheckAction) -> Un
                         val act = r.action
                         if (act != null && r.level != CheckLevel.Ok) {
                             Text(
-                                if (act == CheckAction.ManageDebian) "Kelola Debian" else "Beri izin",
+                                when (act) {
+                                    CheckAction.ManageDebian -> "Kelola Debian"
+                                    CheckAction.GrantPermission -> "Beri izin"
+                                    CheckAction.ViewMpvLog -> "Lihat log mpv"
+                                },
                                 color = c, fontSize = 12.sp, fontWeight = FontWeight.Bold,
                                 modifier = Modifier.clickable { onAction(act) }.padding(top = 6.dp, bottom = 2.dp)
                             )
@@ -209,7 +214,7 @@ private fun HealthCard(checks: List<CheckResult>?, onAction: (CheckAction) -> Un
  * BugReport): salin info debug, laporan bug (.txt), dan ZIP diagnostik sekali klik. Semuanya memuat ID laporan.
  */
 @Composable
-internal fun DiagnosticsDialog(onManageDebian: () -> Unit = {}, onDismiss: () -> Unit) {
+internal fun DiagnosticsDialog(onManageDebian: () -> Unit = {}, onViewLog: () -> Unit = {}, onDismiss: () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf(false) }
@@ -234,11 +239,15 @@ internal fun DiagnosticsDialog(onManageDebian: () -> Unit = {}, onDismiss: () ->
         when (a) {
             CheckAction.ManageDebian -> onManageDebian()
             CheckAction.GrantPermission -> permLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            CheckAction.ViewMpvLog -> onViewLog()
         }
     }
     LaunchedEffect(Unit) { refresh() }
 
     AlertDialog(
+        containerColor = MolinaTheme.Background, // [DIAG-THEME] Home Theater: latar gelap, judul emas merek
+        titleContentColor = MolinaTheme.Gold,
+        textContentColor = MolinaTheme.OnBackground,
         onDismissRequest = { if (!busy) onDismiss() },
         title = { Text("Diagnostik dan laporan bug") },
         text = {

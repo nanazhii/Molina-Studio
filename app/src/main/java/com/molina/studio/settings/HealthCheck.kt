@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit
 internal enum class CheckLevel(val glyph: String) { Ok("\u2713"), Warn("\u26A0"), Bad("\u2717") }
 
 /** [DIAG-ACTION] Tindakan perbaikan yang bisa ditawarkan di samping hasil bermasalah. */
-internal enum class CheckAction { ManageDebian, GrantPermission }
+internal enum class CheckAction { ManageDebian, GrantPermission, ViewMpvLog }
 
 internal class CheckResult(val name: String, val level: CheckLevel, val detail: String, val action: CheckAction? = null)
 
@@ -59,6 +59,7 @@ internal object HealthCheck {
                 add(terminal())
                 add(cinema(app))
                 add(cinemaLog())
+                decoder(app)?.let { add(it) }
                 add(network())
             }
             add(storage(app))
@@ -228,7 +229,24 @@ internal object HealthCheck {
         if (errs.isEmpty()) return CheckResult(name, CheckLevel.Ok, "tidak ada error mpv dalam 5 menit terakhir")
         val last = errs.last()
         val tag = if (last.tag.isEmpty()) "mpv" else last.tag
-        return CheckResult(name, CheckLevel.Warn, "${errs.sumOf { it.count }} error mpv dalam 5 menit terakhir; terakhir [$tag] ${last.message.take(80)}")
+        return CheckResult(name, CheckLevel.Warn, "${errs.sumOf { it.count }} error mpv dalam 5 menit terakhir; terakhir [$tag] ${last.message.take(80)}", CheckAction.ViewMpvLog)
+    }
+
+    /**
+     * [DIAG-DECODER] Dekoder aktif terakhir (dicatat pemutar) dibanding preferensi "hardware_decoding". Null bila pemutar
+     * belum pernah mencatat dekoder. Hanya ⚠: SW bisa sah (codec tidak didukung mediacodec, atau dipilih manual).
+     */
+    private fun decoder(ctx: Context): CheckResult? {
+        val active = MpvVersionBridge.decoder(ctx) ?: return null
+        val wantHw = runCatching {
+            ctx.getSharedPreferences(ctx.packageName + "_preferences", Context.MODE_PRIVATE).getBoolean("hardware_decoding", true)
+        }.getOrDefault(true)
+        val label = decoderLabel(active)
+        return when {
+            !wantHw -> CheckResult("Dekoder", CheckLevel.Ok, "$label; sesuai preferensi (dekode perangkat keras dimatikan)")
+            active == "no" -> CheckResult("Dekoder", CheckLevel.Warn, "terakhir SW padahal preferensi HW aktif; codec mungkin tidak didukung mediacodec, atau dipilih manual")
+            else -> CheckResult("Dekoder", CheckLevel.Ok, "$label; sesuai preferensi HW")
+        }
     }
 
     private fun storage(ctx: Context): CheckResult {

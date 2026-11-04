@@ -252,7 +252,10 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
         if (showBackup) BackupDialog { showBackup = false }
         if (showRootfsAdmin) RootfsAdminDialog { showRootfsAdmin = false } // [TERM-ROOTFS2]
         if (showProfiles) ProfileDialog { showProfiles = false }
-        if (showDiag) DiagnosticsDialog(onManageDebian = { showDiag = false; showRootfsAdmin = true }) { showDiag = false }
+        if (showDiag) DiagnosticsDialog(
+            onManageDebian = { showDiag = false; showRootfsAdmin = true },
+            onViewLog = { showDiag = false; com.molina.studio.log.LogNav.request("cinema"); open(Page.Log) }
+        ) { showDiag = false }
         when {
             searching -> SearchResults(query) { open(it) }
             page == Page.Log -> LogScreen(Modifier.fillMaxSize())

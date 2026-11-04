@@ -148,6 +148,7 @@ private fun buildRows(list: List<LogEntry>, group: Boolean, openKeys: Set<String
 fun LogScreen(modifier: Modifier = Modifier) {
     val entries by LogBus.entries.collectAsState()
     var source by rememberSaveable { mutableStateOf("") }
+    LaunchedEffect(Unit) { LogNav.take()?.let { source = it } } // [DIAG-LOGNAV]
     var levelIdx by rememberSaveable { mutableStateOf(0) }
     var openKeys by remember { mutableStateOf<Set<String>>(emptySet()) }
     var levelMenu by remember { mutableStateOf(false) }
