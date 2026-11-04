@@ -37,6 +37,7 @@ internal object HealthCheck {
     private const val DEBIAN_TIMEOUT_S = 8L
     private const val NET_TIMEOUT_S = 4L
     private const val PTY_TIMEOUT_MS = 3000L
+    private const val CINEMA_LOG_WINDOW_MS = 5 * 60 * 1000L
     private const val LOW_FREE_MB = 500L
     private const val CRITICAL_FREE_MB = 100L
     private const val DEEP_TTL_MS = 10 * 60 * 1000L
@@ -57,6 +58,7 @@ internal object HealthCheck {
                 add(debianRuns(app))
                 add(terminal())
                 add(cinema(app))
+                add(cinemaLog())
                 add(network())
             }
             add(storage(app))
@@ -211,6 +213,22 @@ internal object HealthCheck {
         } catch (e: ClassNotFoundException) {
             CheckResult(name, CheckLevel.Bad, "kelas pemutar tidak ditemukan")
         }
+    }
+
+    /**
+     * [DIAG-CINLOG] Error mpv di log aplikasi (LogBus, hanya sejak proses ini hidup) dalam 5 menit terakhir.
+     * Hanya ⚠: error bisa berasal dari stream yang mati, bukan kerusakan aplikasi.
+     */
+    private fun cinemaLog(): CheckResult {
+        val name = "Log Cinema"
+        val since = System.currentTimeMillis() - CINEMA_LOG_WINDOW_MS
+        val errs = com.molina.studio.log.LogBus.entries.value.filter {
+            it.source == "mpv" && it.level == com.molina.core.common.LogLevel.Error && it.time >= since
+        }
+        if (errs.isEmpty()) return CheckResult(name, CheckLevel.Ok, "tidak ada error mpv dalam 5 menit terakhir")
+        val last = errs.last()
+        val tag = if (last.tag.isEmpty()) "mpv" else last.tag
+        return CheckResult(name, CheckLevel.Warn, "${errs.sumOf { it.count }} error mpv dalam 5 menit terakhir; terakhir [$tag] ${last.message.take(80)}")
     }
 
     private fun storage(ctx: Context): CheckResult {

@@ -1,6 +1,9 @@
 package com.molina.studio.settings
 
 import android.Manifest
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import com.molina.core.common.LogRedact
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -85,6 +88,7 @@ private fun RowBadge(name: String, color: Color) {
         "Debian jalan" -> "RUN"
         "Terminal jalan" -> ">_"
         "Cinema siap" -> "CIN"
+        "Log Cinema" -> "LOG"
         "Jaringan" -> "NET"
         "Penyimpanan" -> "SD"
         "Ruang bebas" -> "GB"
@@ -146,15 +150,17 @@ internal fun DiagBadge(level: CheckLevel?, modifier: Modifier = Modifier) {
 /** [DIAG-CARD] Kartu hasil pemeriksaan: header berwarna sesuai kondisi terburuk, baris dengan penanda warna di kiri. */
 @Composable
 private fun HealthCard(checks: List<CheckResult>?, onAction: (CheckAction) -> Unit = {}) {
+    val ctx = LocalContext.current // [DIAG-COPY]
     val shape = RoundedCornerShape(10.dp)
     val overall = checks?.takeIf { it.isNotEmpty() }?.let { HealthCheck.worst(it) }
     val head = overall?.let { levelColor(it) } ?: MolinaTheme.Muted
     Column(Modifier.fillMaxWidth().clip(shape).background(MolinaTheme.CardBg).border(1.dp, MolinaTheme.CardLine, shape)) {
+        Box(Modifier.fillMaxWidth().height(2.dp).background(head)) // [DIAG-BRAND] garis aksen sesuai kondisi
         Row(
             Modifier.fillMaxWidth().background(head.copy(alpha = 0.14f)).padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Pemeriksaan sistem", color = head, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Text("Molina Control Panel", color = head, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             val sum = checks?.takeIf { it.isNotEmpty() }?.let { c -> "${c.count { it.level == CheckLevel.Ok }}/${c.size} sehat" } ?: ""
             Text(sum, color = MolinaTheme.Muted, fontSize = 11.sp)
         }
@@ -163,7 +169,16 @@ private fun HealthCard(checks: List<CheckResult>?, onAction: (CheckAction) -> Un
         } else {
             checks.forEach { r ->
                 val c = levelColor(r.level)
-                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+                Row(
+                    Modifier.fillMaxWidth().height(IntrinsicSize.Min).pointerInput(r) {
+                        detectTapGestures(onLongPress = {
+                            val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val text = LogRedact.text("${r.level.glyph} ${r.name}: ${r.detail}")
+                            cm.setPrimaryClip(ClipData.newPlainText("Molina pemeriksaan", text))
+                            Toast.makeText(ctx, "Detail ${r.name} disalin", Toast.LENGTH_SHORT).show()
+                        })
+                    }
+                ) {
                     Box(Modifier.width(3.dp).fillMaxHeight().background(c))
                     Text(r.level.glyph, color = c, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 10.dp, top = 8.dp))
                     Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
@@ -229,6 +244,7 @@ internal fun DiagnosticsDialog(onManageDebian: () -> Unit = {}, onDismiss: () ->
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 HealthCard(checks, onAction)
+                Text("Tekan lama satu baris untuk menyalin detailnya.", color = MolinaTheme.Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
                 Spacer(Modifier.height(8.dp))
                 Text(
                     "URL hanya memuat skema dan host, token disamarkan. Setiap laporan punya ID (MOL-tanggal-jam-kode) " +
