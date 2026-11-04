@@ -349,10 +349,16 @@ class MainActivity : ComponentActivity() {
                         if (!keyboardVisible && !(selected == Tab.Code.ordinal && codeSession.previewFullScreen)) {
                             Column {
                                 Box(
-                                    Modifier.fillMaxWidth().height(1.dp).background(
+                                    Modifier.fillMaxWidth().height(2.dp).background(
                                         Brush.horizontalGradient(
-                                            // rail emas, selaras dengan rail toolbar Code
-                                            listOf(Color.Transparent, Color(0xFFFFB300).copy(alpha = 0.40f), Color.Transparent)
+                                            // [NAV-RGB] rail RGB: merah -> hijau -> biru, ujung memudar
+                                            listOf(
+                                                Color.Transparent,
+                                                Color(0xFFFF3B3B),
+                                                Color(0xFF00E676),
+                                                Color(0xFF448AFF),
+                                                Color.Transparent
+                                            )
                                         )
                                     )
                                 )
