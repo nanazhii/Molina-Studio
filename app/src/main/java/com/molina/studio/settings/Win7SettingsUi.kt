@@ -48,12 +48,12 @@ import com.molina.studio.cinema.Win7
 import com.molina.studio.cinema.Win7BackOrb
 import com.molina.studio.ui.MolinaTheme
 
-private val W7LinkColor = Color(0xFF6CB4FF)
+private val W7LinkColor = MolinaTheme.Link // [TOKEN-PUSAT]
 
 /** Palet Aero Gelap: hitam pekat (OLED) dengan aksen biru Aero. */
 internal object W7D {
     val Bg = Color(0xFF000000)
-    val Accent = Color(0xFF6CB4FF)
+    val Accent = MolinaTheme.Link
     val Card = Color(0xFF0B0B0B)
     val BarTop = Color(0xFF151515)
     val BarBottom = Color(0xFF060606)
@@ -69,7 +69,7 @@ internal object W7D {
 
 /** Skema warna gelap Aero: dipasang di dalam jendela Settings agar semua halaman ikut hitam pekat. */
 internal val Win7Scheme = darkColorScheme(
-    primary = Color(0xFF6CB4FF), onPrimary = Color.Black,
+    primary = MolinaTheme.Link, onPrimary = Color.Black,
     primaryContainer = W7D.SelFill, onPrimaryContainer = Color(0xFFD9EBF9),
     secondary = Color(0xFF3C7FB1), onSecondary = Color.White,
     background = W7D.Bg, onBackground = W7D.Ink,

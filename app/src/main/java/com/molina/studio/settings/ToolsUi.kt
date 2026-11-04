@@ -68,7 +68,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val Blue = Color(0xFF6CB4FF)
+private val Blue = com.molina.studio.ui.MolinaTheme.Link // [TOKEN-PUSAT]
 private val Red = Color(0xFFE8776B)
 
 private enum class ToolAction(val label: String, val timeoutMs: Long, val confirm: Boolean) {
@@ -362,8 +362,8 @@ private fun StatusDot(detected: Boolean, checking: Boolean, checked: Boolean = t
         )
         Box(Modifier.size(9.dp).clip(CircleShape).background(com.molina.studio.ui.MolinaTheme.Brand.copy(alpha = alpha)))
     } else {
-        if (!checked) Box(Modifier.size(9.dp).clip(CircleShape).border(1.5.dp, Color(0xFF8A8F98), CircleShape))
-        else Box(Modifier.size(9.dp).clip(CircleShape).background(if (detected) Color(0xFF5FB36B) else Color(0xFF8A8F98)))
+        if (!checked) Box(Modifier.size(9.dp).clip(CircleShape).border(1.5.dp, com.molina.studio.ui.MolinaTheme.Idle, CircleShape))
+        else Box(Modifier.size(9.dp).clip(CircleShape).background(if (detected) com.molina.studio.ui.MolinaTheme.Detected else com.molina.studio.ui.MolinaTheme.Idle))
     }
 }
 
@@ -389,7 +389,7 @@ private fun ToolCard(
     val sub = if (checking) "memeriksa versi\u2026" else base
     Column(
         Modifier.fillMaxWidth().clip(shape).background(W7D.Card, shape)
-            .border(1.5.dp, if (expanded) com.molina.studio.ui.MolinaTheme.Brand.copy(alpha = 0.75f) else Color(0xFF454A55), shape)
+            .border(1.5.dp, if (expanded) com.molina.studio.ui.MolinaTheme.Brand.copy(alpha = 0.75f) else com.molina.studio.ui.MolinaTheme.PanelBorder, shape)
     ) {
         val detected = check?.text?.let { it.isNotBlank() && !it.startsWith("Tidak terdeteksi") } == true
         val strip = statusStripColor(detected, checking, checked = check?.text?.isNotBlank() == true)
@@ -523,9 +523,9 @@ internal fun statusStripColor(detected: Boolean, checking: Boolean, checked: Boo
         return com.molina.studio.ui.MolinaTheme.Brand.copy(alpha = a)
     }
     return when {
-        !checked -> Color(0xFF8A8F98).copy(alpha = 0.45f)
-        detected -> Color(0xFF5FB36B)
-        else -> Color(0xFF8A8F98)
+        !checked -> com.molina.studio.ui.MolinaTheme.Idle.copy(alpha = 0.45f)
+        detected -> com.molina.studio.ui.MolinaTheme.Detected
+        else -> com.molina.studio.ui.MolinaTheme.Idle
     }
 }
 

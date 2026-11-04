@@ -27,6 +27,16 @@ object MolinaTheme {
     val CardBg = Color(0xFF14161B)
     val CardLine = Color(0xFF2A2D35)
 
+    // [TOKEN-PUSAT] Warna kartu/status halaman Paket, dulu literal tersebar. Nilainya SAMA dengan sebelumnya (tanpa perubahan tampilan).
+    /** Biru tautan dan tombol aksi Aero (#6CB4FF). */
+    val Link = Color(0xFF6CB4FF)
+    /** Hijau "terdeteksi" pada strip dan titik status komponen (#5FB36B). */
+    val Detected = Color(0xFF5FB36B)
+    /** Abu "belum diperiksa atau tidak ada" (#8A8F98). */
+    val Idle = Color(0xFF8A8F98)
+    /** Garis bingkai kartu dan panel (#454A55). */
+    val PanelBorder = Color(0xFF454A55)
+
     /** Palet Penjelajah Molina Cinema (dulu token Win7). Garis tombol utama memakai aksen merek. */
     object Explorer {
         val FrameTop = Color(0xFF1B1B1B)

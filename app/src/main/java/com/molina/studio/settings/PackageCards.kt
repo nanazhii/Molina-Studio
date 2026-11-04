@@ -38,9 +38,9 @@ import com.molina.studio.ui.MolinaTheme
 internal enum class PkgState { Unchecked, Current, Outdated, Checking }
 
 private val PkgShape = RoundedCornerShape(10.dp)
-private val PkgBorder = Color(0xFF454A55)
-private val PkgGood = Color(0xFF5FB36B) // sama dengan strip "terdeteksi" pada ToolCard
-private val PkgBlue = Color(0xFF6CB4FF)
+private val PkgBorder = MolinaTheme.PanelBorder // [TOKEN-PUSAT]
+private val PkgGood = MolinaTheme.Detected // sama dengan strip "terdeteksi" pada ToolCard
+private val PkgBlue = MolinaTheme.Link
 
 @Composable
 private fun pkgStrip(state: PkgState): Color = when (state) {

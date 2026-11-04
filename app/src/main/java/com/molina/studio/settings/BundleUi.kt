@@ -66,7 +66,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val BundleBlue = Color(0xFF6CB4FF)
+private val BundleBlue = com.molina.studio.ui.MolinaTheme.Link // [TOKEN-PUSAT]
 private val BundleGreen = Color(0xFF7BC77E)
 private val BundleAmber = Color(0xFFE0B04A)
 

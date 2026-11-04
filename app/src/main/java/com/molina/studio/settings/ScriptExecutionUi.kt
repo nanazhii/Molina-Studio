@@ -65,7 +65,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private val Blue = Color(0xFF6CB4FF)
+private val Blue = MolinaTheme.Link // [TOKEN-PUSAT]
 private val Red = Color(0xFFE8776B)
 private const val PREVIEW_LINES = 30
 
