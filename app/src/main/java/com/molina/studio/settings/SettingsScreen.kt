@@ -45,7 +45,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.molina.studio.log.BugReport
 import com.molina.studio.log.LogScreen
 import com.molina.studio.terminal.CrashReporter
 import com.molina.studio.terminal.LogcatReporter
@@ -138,7 +137,7 @@ private val INDEX = listOf(
     Hit("Cadangan dan pemulihan", "Simpan atau pulihkan penanda video, potongan perintah, dan setelan (folder Backup)", Page.System),
     Hit("Pulihkan dari Backup", "Pulihkan penanda video, snippet, dan setelan dari molina-backup.json", Page.System),
     Hit("Profil setelan", "Simpan setelan sebagai profil bernama (mis. Nonton, Dev, Hemat Baterai) dan ganti dengan satu ketukan", Page.System),
-    Hit("Diagnostik sekali klik", "Kumpulkan info HP, versi aplikasi, dan laporan masalah dalam satu file ZIP untuk dikirim ke pengembang", Page.Info),
+    Hit("Diagnostik dan laporan bug", "Salin info debug, diagnostik sekali klik (satu ZIP), dan laporan bug ke folder Export dalam satu tempat", Page.Info),
     Hit("Terminal (sesi)", "Buka layar perintah Debian di Molina Terminal", Page.TerminalApp),
     Hit("Unduhan", "Simpan video atau lagu dari tautan: daftar tunggu, riwayat, dan ulangi yang gagal", Page.Downloads),
     Hit("Penyimpanan", "Lihat pemakaian ruang (Debian, cache, Recycle Bin, folder kerja) dan bersihkan", Page.Storage),
@@ -160,9 +159,7 @@ private val INDEX = listOf(
     Hit("Dekoder perangkat keras", "MediaCodec untuk pemutar mpv", Page.Player),
     Hit("Mode TV", "Tile Mode TV di Beranda Cinema: jelajah berkas ala saluran TV", Page.Player),
     Hit("Sumber IPTV", "Daftar playlist saluran dan Folder IPTV", Page.Player),
-    Hit("Laporan bug", "Ekspor log gabungan dan per kelompok ke folder Export", Page.Info),
     Hit("About", "Versi, perangkat, status, dan lisensi (kini di Sistem > Info)", Page.Info),
-    Hit("Salin info debug", "Salin ringkasan versi dan status untuk laporan bug", Page.Info),
     Hit("Info", "Status Molina dan informasi dasar perangkat", Page.Info),
     Hit("Tentang Molina", "Apa itu Molina: fitur, privasi, dan kebutuhan sistem", Page.AboutMolina),
     Hit("Lisensi dan atribusi", "Lisensi Molina dan komponen pihak ketiga, teks lengkap bisa dibaca offline", Page.Licenses),
@@ -339,7 +336,6 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                         onPackages = { lastTile = Page.Packages; open(Page.Packages) },
                         onAutomation = { open(Page.System) }, // [SETELAN-PUSAT] cadangan kini di Sistem
                         onDiagnostics = { showDiag = true },
-                        onBugReport = { BugReport.export(aptCtx) },
                         onLog = { open(Page.Log) },
                         onMonitor = { open(Page.Monitor) },
                         onAbout = { open(Page.AboutMolina) },

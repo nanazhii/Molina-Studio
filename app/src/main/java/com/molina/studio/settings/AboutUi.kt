@@ -1,11 +1,8 @@
 package com.molina.studio.settings
 
 import android.app.ActivityManager
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.os.Build
-import android.widget.Toast
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
@@ -30,7 +27,6 @@ internal fun HubInfoPage(
     onPackages: () -> Unit,
     onAutomation: () -> Unit,
     onDiagnostics: () -> Unit,
-    onBugReport: () -> Unit,
     onLog: () -> Unit,
     onMonitor: () -> Unit,
     onAbout: () -> Unit,
@@ -69,14 +65,7 @@ internal fun HubInfoPage(
     HubCard("Versi dan perangkat", base.map { HubRow(it.first, it.second) }, dots = false)
     Spacer(Modifier.height(8.dp))
     Category("Diagnostik")
-    W7Link({ W7IconInfo() }, "Salin info debug", "Salin ringkasan versi dan status untuk laporan bug") {
-        val text = (base + status.map { it.label to it.value }).joinToString("\n") { "${it.first}: ${it.second}" }
-        val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        cm.setPrimaryClip(ClipData.newPlainText("Molina info debug", text))
-        Toast.makeText(ctx, "Info debug disalin", Toast.LENGTH_SHORT).show()
-    }
-    W7Link({ W7IconLog() }, "Diagnostik sekali klik", "Satu ZIP: perangkat, versi, status PRoot, laporan bug, crash (URL disamarkan)") { onDiagnostics() }
-    W7Link({ W7IconLog() }, "Laporan bug", "Gabungan kronologis dan per kelompok (Cinema, Terminal, Sistem, Logcat, Crash) ke folder Export") { onBugReport() }
+    W7Link({ W7IconLog() }, "Diagnostik dan laporan bug", "Salin info debug, ZIP diagnostik sekali klik, dan laporan bug (URL disamarkan) dalam satu tempat") { onDiagnostics() }
     W7Link({ W7IconLog() }, "Log", "Log aktivitas mpv, Terminal, dan sistem") { onLog() }
     W7Link({ W7IconMonitor(32.dp) }, "Monitor Sistem", "Unduh, unggah, CPU, dan RAM secara langsung") { onMonitor() }
     Category("Tentang")
@@ -85,7 +74,7 @@ internal fun HubInfoPage(
 }
 
 /** [INFO-DECODER] Label dekoder untuk kartu Versi dan perangkat; selaras dengan tombol SW/HW/HW+ di pemutar. */
-private fun decoderLabel(v: String?): String = when (v) {
+internal fun decoderLabel(v: String?): String = when (v) {
     null -> "belum tercatat (putar video sekali)"
     "no" -> "SW (perangkat lunak)"
     "mediacodec" -> "HW+ (mediacodec)"

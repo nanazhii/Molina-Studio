@@ -258,10 +258,6 @@ fun LogScreen(modifier: Modifier = Modifier) {
                         onClick = { actionMenu = false; exportLogs(ctx, shown, filterDesc) }
                     )
                     DropdownMenuItem(
-                        text = { Text("Laporan bug (gabungan + per kelompok)", fontSize = 13.sp) },
-                        onClick = { actionMenu = false; BugReport.export(ctx) }
-                    )
-                    DropdownMenuItem(
                         text = { Text("Kirim pesan uji", fontSize = 13.sp) },
                         onClick = { actionMenu = false; sendTest() }
                     )

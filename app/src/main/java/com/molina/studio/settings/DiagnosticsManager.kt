@@ -88,7 +88,13 @@ internal object DiagnosticsManager {
             "yt-dlp terbaru" to auto.ytdlpLatest.ifEmpty { "belum diperiksa" },
             "Level log Terminal" to logLevelName(TerminalPrefs.settings.value.logLevel),
             "PRoot (libproot.so)" to lib("libproot.so"),
-            "PRoot loader" to lib("libproot_loader.so")
+            "PRoot loader" to lib("libproot_loader.so"),
+            "Dekoder aktif" to decoderLabel(MpvVersionBridge.decoder(ctx)),
+            "RAM" to run {
+                val mi = android.app.ActivityManager.MemoryInfo()
+                (ctx.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager).getMemoryInfo(mi)
+                "${mi.availMem / 1048576} MB tersedia dari ${mi.totalMem / 1048576} MB"
+            }
         )
         return buildString {
             appendLine("MOLINA DIAGNOSTIK")
@@ -96,24 +102,37 @@ internal object DiagnosticsManager {
             appendLine()
             appendLine("--- Status Molina ---")
             status.forEach { appendLine("${it.first.padEnd(20)}: ${it.second}") }
-            appendLine()
-            appendLine("--- Integritas: SHA-256 isi berkas (hash ZIP ada di berkas .sha256 di samping ZIP) ---")
-            integrity.forEach { appendLine("${it.first}: ${it.second}") }
+            if (integrity.isNotEmpty()) {
+                appendLine()
+                appendLine("--- Integritas: SHA-256 isi berkas (hash ZIP ada di berkas .sha256 di samping ZIP) ---")
+                integrity.forEach { appendLine("${it.first}: ${it.second}") }
+            }
         }
     }
 
-    /** Buat ZIP diagnostik baru dan hapus yang lama (menyisakan [KEEP] terbaru). */
-    fun build(ctx: Context): File {
-        val app = ctx.applicationContext
+    /** Baris status Molina (PRoot, paket, otomasi, cadangan). Satu sumber untuk salin, laporan bug, dan ZIP. Operasi disk. */
+    private fun statusRows(app: Context): List<Pair<String, String>> {
         AptHistory.init(app)
         AutoPrefs.init(app)
         TerminalPrefs.init(app)
         RootfsManager.refresh(app)
         val auto = AutoPrefs.state.value
-        val status = hubStatusRows(
+        return hubStatusRows(
             RootfsManager.state.value, AptHistory.pending.value, auto,
             maxOf(auto.lastBackup, BackupManager.lastBackupMs(app))
         ).map { it.label to it.value }
+    }
+
+    /** Info debug untuk clipboard: ringkasan yang sama dengan ringkasan.txt di ZIP (tanpa bagian integritas), disamarkan. */
+    fun debugInfo(ctx: Context): String {
+        val app = ctx.applicationContext
+        return LogRedact.text(summary(app, statusRows(app), emptyList()))
+    }
+
+    /** Buat ZIP diagnostik baru dan hapus yang lama (menyisakan [KEEP] terbaru). */
+    fun build(ctx: Context): File {
+        val app = ctx.applicationContext
+        val status = statusRows(app)
         val crashes = CrashReporter.list(app)
         // Isi dibangun dan disamarkan sekali; hash dihitung atas byte yang benar-benar masuk ZIP.
         val files = buildList<Pair<String, ByteArray>> {
