@@ -27,6 +27,8 @@ object ToolChecker {
         val remaining: Int = 0,
         /** Jumlah alat pada pemeriksaan massal; 0 = pemeriksaan tunggal atau otomatis. */
         val total: Int = 0,
+        /** [PAKET-HEADER] Jumlah alat pada antrean aktif (selalu terisi, juga untuk cek otomatis); 0 = tidak ada pemeriksaan. */
+        val size: Int = 0,
         val note: String? = null,
         val notes: Map<String, String> = emptyMap()
     )
@@ -58,7 +60,7 @@ object ToolChecker {
         total = if (batch) ids.size else 0
         queue.clear()
         queue.addAll(ids)
-        _state.update { it.copy(note = null, total = total, remaining = queue.size) }
+        _state.update { it.copy(note = null, total = total, size = ids.size, remaining = queue.size) }
         runNext()
         return true
     }
@@ -100,7 +102,7 @@ object ToolChecker {
         val tid = queue.removeFirstOrNull()
         if (tid == null) {
             handle = null
-            _state.update { it.copy(checkingId = null, remaining = 0, total = 0, note = if (total > 0) "Selesai: $ok dari $total terdeteksi." else it.note) }
+            _state.update { it.copy(checkingId = null, remaining = 0, total = 0, size = 0, note = if (total > 0) "Selesai: $ok dari $total terdeteksi." else it.note) }
             total = 0
             return
         }
@@ -142,7 +144,7 @@ object ToolChecker {
         }
         if (r.cancelled) {
             queue.clear()
-            _state.update { it.copy(checkingId = null, remaining = 0, total = 0, note = if (total > 0) "Dihentikan: $ok dari $total terdeteksi." else it.note) }
+            _state.update { it.copy(checkingId = null, remaining = 0, total = 0, size = 0, note = if (total > 0) "Dihentikan: $ok dari $total terdeteksi." else it.note) }
             total = 0
         } else {
             main.postDelayed({ runNext() }, NEXT_DELAY_MS)

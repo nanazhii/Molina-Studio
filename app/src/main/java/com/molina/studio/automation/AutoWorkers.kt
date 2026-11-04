@@ -67,6 +67,8 @@ class UpdateCheckWorker(ctx: Context, params: WorkerParameters) : CoroutineWorke
 /** [PAKET-WORKER2] Cek versi alat Paket tiap ~24 jam. Lokal (tanpa jaringan) dan tidak bergantung pada "pembaruan otomatis". */
 class ToolCheckWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
     override suspend fun doWork(): Result {
+        AutoPrefs.init(applicationContext)
+        if (!AutoPrefs.state.value.autoToolCheck) return Result.success() // [PAKET-SAKELAR]
         checkTools(applicationContext)
         return Result.success()
     }

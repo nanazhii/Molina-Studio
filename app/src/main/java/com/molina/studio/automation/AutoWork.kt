@@ -47,11 +47,15 @@ object AutoWork {
         }
 
         // [PAKET-WORKER2] cek versi alat Paket: lokal tanpa jaringan, tidak bergantung pada autoUpdate; hanya baterai tidak lemah
-        val tc = Constraints.Builder().setRequiresBatteryNotLow(true).build()
-        val treq = PeriodicWorkRequestBuilder<ToolCheckWorker>(24, TimeUnit.HOURS)
-            .setConstraints(tc)
-            .setInitialDelay(20, TimeUnit.MINUTES)
-            .build()
-        wm.enqueueUniquePeriodicWork(TOOLS, ExistingPeriodicWorkPolicy.KEEP, treq)
+        if (st.autoToolCheck) { // [PAKET-SAKELAR]
+            val tc = Constraints.Builder().setRequiresBatteryNotLow(true).build()
+            val treq = PeriodicWorkRequestBuilder<ToolCheckWorker>(24, TimeUnit.HOURS)
+                .setConstraints(tc)
+                .setInitialDelay(20, TimeUnit.MINUTES)
+                .build()
+            wm.enqueueUniquePeriodicWork(TOOLS, ExistingPeriodicWorkPolicy.KEEP, treq)
+        } else {
+            wm.cancelUniqueWork(TOOLS)
+        }
     }
 }

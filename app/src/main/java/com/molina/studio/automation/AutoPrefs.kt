@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 data class AutoState(
     val autoUpdate: Boolean = true,
     val autoBackup: Boolean = false,
+    val autoToolCheck: Boolean = true, // [PAKET-SAKELAR] cek versi alat Paket otomatis
     val addToCinema: Boolean = false,
     val lastCheck: Long = 0L,
     val lastBackup: Long = 0L,
@@ -53,6 +54,7 @@ object AutoPrefs {
         _state.value = AutoState(
             autoUpdate = p.getBoolean("auto_update", true),
             autoBackup = p.getBoolean("auto_backup", false),
+            autoToolCheck = p.getBoolean("auto_tool_check", true),
             addToCinema = p.getBoolean("dl_to_cinema", false),
             lastCheck = p.getLong("last_check", 0L),
             lastBackup = p.getLong("last_backup", 0L),
@@ -76,6 +78,9 @@ object AutoPrefs {
 
     fun setAutoBackup(ctx: Context, v: Boolean) =
         change(ctx, { it.putBoolean("auto_backup", v) }, { it.copy(autoBackup = v) })
+
+    fun setAutoToolCheck(ctx: Context, v: Boolean) =
+        change(ctx, { it.putBoolean("auto_tool_check", v) }, { it.copy(autoToolCheck = v) })
 
     fun setAddToCinema(ctx: Context, v: Boolean) =
         change(ctx, { it.putBoolean("dl_to_cinema", v) }, { it.copy(addToCinema = v) })

@@ -132,8 +132,21 @@ internal fun PackagesPage(
     }
 
     // [PAKET-AUTOCEK] sekali per proses (penjaganya ada di ToolChecker)
-    androidx.compose.runtime.LaunchedEffect(Unit) { ToolChecker.requestStale(ctx) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        com.molina.studio.automation.AutoPrefs.init(ctx)
+        if (com.molina.studio.automation.AutoPrefs.state.value.autoToolCheck) ToolChecker.requestStale(ctx) // [PAKET-SAKELAR]
+    }
 
+    // [PAKET-HEADER] indikator tipis pemeriksaan versi (manual maupun otomatis)
+    if (checking != null) {
+        val who = (BuiltinTools.all + custom).firstOrNull { it.id == checking }?.name
+        val pos = if (chk.size > 1) " ${chk.size - chk.remaining}/${chk.size}" else ""
+        Text(
+            "Memeriksa$pos" + (who?.let { " \u00B7 $it" } ?: "") + "\u2026",
+            color = com.molina.studio.ui.MolinaTheme.Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 6.dp)
+        )
+    }
     Text(
         "Di sini Anda memperbarui program di dalam Debian, memasang atau menghapus alat tambahan, dan memeriksa versinya. Skrip biasa ada di menu Script execution.",
         color = W7D.TextDim, fontSize = 13.sp, modifier = Modifier.padding(bottom = 8.dp)

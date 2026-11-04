@@ -101,6 +101,16 @@ internal fun UpdateStatusSection(onApt: (AptJob) -> Unit) { // [PAKET-TERPUSAT]
         AutoPrefs.setAutoUpdate(ctx, it)
         AutoWork.sync(ctx)
     }
+    // [PAKET-SAKELAR]
+    SwitchRow(
+        "Periksa versi alat otomatis",
+        "Memperbarui versi dan tanggal di kartu alat Paket sekitar sekali per 24 jam dan saat Paket dibuka. " +
+            "Hanya membaca versi: tanpa jaringan dan tanpa memasang apa pun. Tidak dijalankan bila baterai lemah.",
+        st.autoToolCheck
+    ) {
+        AutoPrefs.setAutoToolCheck(ctx, it)
+        AutoWork.sync(ctx)
+    }
     SettingsItem(
         if (running) "Memeriksa\u2026" else "Periksa sekarang",
         "Terakhir: " + whenText(st.lastCheck, "belum pernah") + ". Berjalan di latar belakang dan bisa memakai data seluler."
