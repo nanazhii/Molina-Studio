@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.os.Environment
 import android.os.StatFs
 import com.molina.core.common.YtdlpCommand
+import com.molina.core.common.YtdlpInstall
 import com.molina.studio.AppPaths
 import com.molina.studio.cinema.MpvVersionBridge
 import com.molina.studio.code.ScriptCommand
@@ -167,7 +168,7 @@ internal object HealthCheck {
     /** [DIAG-NET] Pemetaan DNS host unduhan yt-dlp (tanpa koneksi data). Gagal hanya memberi peringatan: bisa saja offline. */
     private fun network(): CheckResult {
         val name = "Jaringan"
-        val host = runCatching { java.net.URI(YtdlpCommand.BASE).host }.getOrNull() ?: "github.com"
+        val host = runCatching { java.net.URI(YtdlpInstall.BASE).host }.getOrNull() ?: "github.com"
         val ex = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "molina-health-dns").apply { isDaemon = true } }
         val t0 = System.nanoTime()
         return try {
