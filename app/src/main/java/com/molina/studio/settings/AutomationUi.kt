@@ -61,11 +61,12 @@ internal fun updateCount(s: AutoState, aptPending: Int): Int =
 
 /** Settings > Paket: status pembaruan (Debian, yt-dlp, NewPipe) dan pemeriksaan otomatis [PAKET-PUSAT]. */
 @Composable
-internal fun UpdateStatusSection() {
+internal fun UpdateStatusSection(onApt: (AptJob) -> Unit) { // [PAKET-TERPUSAT]
     val ctx = LocalContext.current
     remember { AutoPrefs.init(ctx); AptHistory.init(ctx) }
     val st by AutoPrefs.state.collectAsState()
     val pending by AptHistory.pending.collectAsState()
+    val aptLast by AptHistory.last.collectAsState()
     val running by UpdateChecker.running.collectAsState()
 
     Category("Pembaruan")
@@ -84,7 +85,7 @@ internal fun UpdateStatusSection() {
         SettingsItem("Program Debian", AptHistory.checkSubtitle(pending)) {}
     }
     BadgeOverlay(if (st.ytdlpOutdated) "Baru" else null, true, gold = true) {
-        SettingsItem("yt-dlp (pengunduh tambahan)", ytdlpText(st) + if (st.ytdlpOutdated) ". Perbarui di Paket > Alat." else "") {}
+        SettingsItem("yt-dlp (pengunduh tambahan)", ytdlpText(st) + if (st.ytdlpOutdated) ". Ikut diperbarui lewat Perbarui semua." else "") {}
     }
     BadgeOverlay(if (st.newpipeOutdated) "Baru" else null, true, gold = true) {
         SettingsItem("NewPipeExtractor (pencari video)", newpipeText(st)) {}
@@ -104,6 +105,12 @@ internal fun UpdateStatusSection() {
         if (running) "Memeriksa\u2026" else "Periksa sekarang",
         "Terakhir: " + whenText(st.lastCheck, "belum pernah") + ". Berjalan di latar belakang dan bisa memakai data seluler."
     ) { if (!running) UpdateChecker.checkNow(ctx) }
+    BadgeOverlay(if (updates > 0) updates.toString() else null, false, gold = true) {
+        SettingsItem(
+            "Perbarui semua",
+            "Program Debian, lalu yt-dlp bila ada rilis baru, berurutan dalam satu proses. " + AptHistory.subtitle(aptLast)
+        ) { onApt(AptJob.UpdateUpgrade) }
+    }
 
 }
 

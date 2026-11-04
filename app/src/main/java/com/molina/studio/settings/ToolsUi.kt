@@ -180,13 +180,10 @@ internal fun PackagesPage(
         "Di sini Anda memperbarui program di dalam Debian, memasang atau menghapus alat tambahan, dan memeriksa versinya. Skrip biasa ada di menu Script execution.",
         color = W7D.TextDim, fontSize = 13.sp, modifier = Modifier.padding(bottom = 8.dp)
     )
-    UpdateStatusSection()
+    UpdateStatusSection(onApt)
     Category("Program Debian")
     DebianInfoRow(aptLast to aptPending) // [DEBIAN-INFO]
-    BadgeOverlay(if (aptPending > 0) aptPending.toString() else null, false, gold = true) {
-        W7Link({ W7IconAptSync() }, "Cek pembaruan program", AptHistory.checkSubtitle(aptPending)) { onApt(AptJob.CheckUpdates) }
-    }
-    W7Link({ W7IconAptSync() }, "Perbarui semua program", AptHistory.subtitle(aptLast)) { onApt(AptJob.UpdateUpgrade) }
+    // [PAKET-TERPUSAT] cek/perbarui dipindah ke bagian Pembaruan di atas
     W7Link({ W7IconToolList() }, "Bersihkan sisa program yang tidak terpakai", "Hapus file unduhan lama dan program yang tidak lagi dibutuhkan agar ruang kosong bertambah") { onApt(AptJob.CleanUp) }
     W7Link({ W7IconToolList() }, "Pasang paket dasar (Starter)", "Python, SSH, pengunduh video (yt-dlp), dan sertifikat keamanan sekali ketuk. Dari sumber resmi dan diperiksa keasliannya") { onApt(AptJob.InstallStarter) } // [TERM-STARTER1] [STARTER-YTDLP]
     Spacer(Modifier.height(12.dp))

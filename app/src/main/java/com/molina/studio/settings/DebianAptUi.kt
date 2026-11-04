@@ -25,7 +25,7 @@ internal enum class AptJob(val title: String, val command: String, val timeoutMs
         50 * 60_000L,
         "Mengecek program terbaru di Debian, lalu memperbarui semuanya tanpa bertanya lagi. " +
             "Butuh internet, bisa memakai banyak kuota dan memakan beberapa menit. " +
-            "Pembaruan hanya berjalan jika pengecekan berhasil."
+            "Pembaruan hanya berjalan jika pengecekan berhasil. Bila yt-dlp punya rilis baru, ikut diperbarui setelahnya."
     ),
     CheckUpdates(
         "Cek pembaruan program",
@@ -95,7 +95,14 @@ internal fun DebianAptDialog(job: AptJob, onClose: () -> Unit) {
     ) { code, out ->
         if (code != 0) return@ToolRunDialog
         when (job) {
-            AptJob.UpdateUpgrade -> { AptHistory.mark(ctx); AptHistory.setPending(ctx, 0) }
+            AptJob.UpdateUpgrade -> { // [PAKET-TERPUSAT]
+                AptHistory.mark(ctx); AptHistory.setPending(ctx, 0)
+                com.molina.studio.automation.AutoPrefs.init(ctx)
+                if (com.molina.studio.automation.AutoPrefs.state.value.ytdlpOutdated) {
+                    YtdlpInstaller.install(ctx)
+                    Handler(Looper.getMainLooper()).post { Toast.makeText(ctx.applicationContext, "Memperbarui yt-dlp di latar belakang\u2026", Toast.LENGTH_LONG).show() }
+                }
+            }
             AptJob.CheckUpdates -> out.lineSequence().map { it.trim() }.lastOrNull { COUNT_LINE.matches(it) }
                 ?.toIntOrNull()?.let { AptHistory.setPending(ctx, it) }
             AptJob.CleanUp -> Unit
