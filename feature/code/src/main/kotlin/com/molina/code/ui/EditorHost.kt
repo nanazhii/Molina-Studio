@@ -14,6 +14,7 @@ import io.github.rosemoe.sora.event.PublishSearchResultEvent
 import io.github.rosemoe.sora.event.SelectionChangeEvent
 import io.github.rosemoe.sora.langs.textmate.registry.ThemeRegistry
 import io.github.rosemoe.sora.widget.CodeEditor
+import io.github.rosemoe.sora.widget.component.Magnifier // [CODE-NOMAG]
 import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
 import java.util.WeakHashMap
 
@@ -65,6 +66,7 @@ internal fun EditorTab.editorOrCreate(context: Context): CodeEditor {
     ed.setTextSize(CodeDimens.EditorTextSize.value)
     ed.setWordwrap(wordWrap) // blueprint v2 bagian 12: default AKTIF; diubah dari menu titik tiga
     ed.setEditable(!readOnly && !loading)
+    ed.getComponent(Magnifier::class.java).isEnabled = false // [CODE-NOMAG] matikan pratinjau/kaca pembesar saat seleksi teks
     if (MolinaTextMate.ensure(context)) { // [CODE-TM] skema TextMate (chrome Molina tetap dijaga)
         ed.colorScheme = MolinaTmColorScheme(ThemeRegistry.getInstance(), MolinaTextMate.currentModel())
     } else {
