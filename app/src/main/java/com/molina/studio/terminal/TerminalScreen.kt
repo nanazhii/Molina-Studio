@@ -164,9 +164,10 @@ private fun TerminalContent(modifier: Modifier, onOpenSettings: () -> Unit) {
     }
 }
 
-private val KeyRed = Color(0xFFFF8A80)    // ESC, CLEAR
-private val KeyBlue = Color(0xFF82B1FF)   // HOME, panah
-private val KeyGreen = Color(0xFF69F0AE)  // COPY, PASTE
+private val KeyRed = Color(0xFFFF5252)    // ESC, CLEAR [TERM-KEYS-BOLD] lebih pekat
+private val KeyBlue = Color(0xFF448AFF)   // HOME, panah
+private val KeyGreen = Color(0xFF00E676)  // COPY, PASTE
+private val KeyFrame = Color(0xFF454A55)  // bingkai terluar panel extra keys
 private val KeyAmber = MolinaTheme.Gold  // TAB, menu, —
 private val KeyNeutral = MolinaTheme.OnBackground // CTRL, ALT (menyala emas saat aktif)
 
@@ -212,7 +213,7 @@ private fun ExtraKeys(mods: TerminalModifiers, onOpenDrawer: () -> Unit) {
         Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp)
             .clip(shape)
             .background(Color.Black, shape) // [TERM-KEYS-BLACK] hitam pekat solid; bingkai hanya di sisi terluar
-            .border(1.dp, if (lit) MolinaTheme.Gold else MolinaTheme.CardLine, shape)
+            .border(2.dp, if (lit) MolinaTheme.Gold else KeyFrame, shape) // [TERM-KEYS-BOLD] bingkai 2dp
             .padding(3.dp)
     ) {
         Row(Modifier.fillMaxWidth()) {
@@ -329,10 +330,10 @@ private fun KeyButton(
     ) {
         Text(
             label,
-            fontSize = 13.sp,
+            fontSize = 14.sp,
             maxLines = 1,
-            fontWeight = if (active || locked) FontWeight.Bold else FontWeight.Medium,
-            color = if (active || locked) gold else base.copy(alpha = 0.85f)
+            fontWeight = if (active || locked) FontWeight.Bold else FontWeight.SemiBold,
+            color = if (active || locked) gold else base
         )
     }
 }
