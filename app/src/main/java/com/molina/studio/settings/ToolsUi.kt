@@ -187,6 +187,18 @@ internal fun PackagesPage(
         runNext()
     }
 
+    // [PAKET-AUTOCEK] sekali per proses: periksa versi alat yang belum pernah dicek atau datanya lebih tua dari 24 jam (berurutan, tanpa catatan batch)
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (autoCheckDone) return@LaunchedEffect
+        autoCheckDone = true
+        val now = System.currentTimeMillis()
+        val stale = (BuiltinTools.all + ToolStore.custom.value)
+            .filter { it.version.isNotBlank() }
+            .filter { t -> ToolStore.checks.value[t.id]?.let { it.text.isBlank() || now - it.at > 24L * 60 * 60 * 1000 } ?: true }
+            .map { it.id }
+        if (stale.isNotEmpty() && checking == null) begin(stale, false)
+    }
+
     Text(
         "Di sini Anda memperbarui program di dalam Debian, memasang atau menghapus alat tambahan, dan memeriksa versinya. Skrip biasa ada di menu Script execution.",
         color = W7D.TextDim, fontSize = 13.sp, modifier = Modifier.padding(bottom = 8.dp)
@@ -373,6 +385,9 @@ internal fun BundlePage(onOpenYtdlp: () -> Unit) {
     BundledComponentsSection(onOpenYtdlp = onOpenYtdlp)
 }
 
+/** [PAKET-AUTOCEK] cek otomatis hanya sekali per proses aplikasi, agar PRoot tidak dibebani tiap halaman dibuka. */
+private var autoCheckDone = false
+
 /** Titik status kartu alat: hijau = terdeteksi, abu = belum; berdenyut emas Molina saat sedang diperiksa [SETELAN-PUSAT]. */
 @Composable
 private fun StatusDot(detected: Boolean, checking: Boolean, checked: Boolean = true) { // [PAKET-SERAGAM2] belum diperiksa = cincin kosong
@@ -386,7 +401,7 @@ private fun StatusDot(detected: Boolean, checking: Boolean, checked: Boolean = t
         Box(Modifier.size(9.dp).clip(CircleShape).background(com.molina.studio.ui.MolinaTheme.Gold.copy(alpha = alpha)))
     } else {
         if (!checked) Box(Modifier.size(9.dp).clip(CircleShape).border(1.5.dp, Color(0xFF8A8F98), CircleShape))
-        else Box(Modifier.size(9.dp).clip(CircleShape).background(if (detected) Color(0xFF4CAF50) else Color(0xFF8A8F98)))
+        else Box(Modifier.size(9.dp).clip(CircleShape).background(if (detected) Color(0xFF5FB36B) else Color(0xFF8A8F98)))
     }
 }
 
