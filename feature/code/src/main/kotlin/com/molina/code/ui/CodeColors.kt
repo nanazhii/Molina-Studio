@@ -1,7 +1,6 @@
 package com.molina.code.ui
 
 import androidx.compose.ui.graphics.Color
-import com.molina.studio.ui.MolinaTheme
 
 /**
  * Token warna Code Editor "Molina Cinema". Satu-satunya sumber warna untuk layar Code.
