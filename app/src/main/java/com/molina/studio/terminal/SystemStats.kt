@@ -67,6 +67,11 @@ object SystemStats {
     private const val RAM_WARN_PCT = 10
     private const val RAM_HIGH_PCT = 20
     private const val HOLD_TICKS = 5 // lama warna kuning dipertahankan setelah lonjakan (detik)
+    // [NET-REALTIME2] Jaringan dicuplik tiap 500 ms + EMA ringan; CPU/RAM tetap tiap 1 dtk (tiap CPU_EVERY tick).
+    private const val NET_TICK_MS = 500L
+    private const val NET_ALPHA = 0.8
+    private const val NET_FLOOR_BPS = 1024.0 // di bawah 1 KB/s dianggap 0 agar ekor peluruhan tidak menggantung
+    private const val CPU_EVERY = 2
 
     private const val MB = 1024L * 1024L
 
@@ -93,10 +98,11 @@ object SystemStats {
         val clk = Os.sysconf(OsConstants._SC_CLK_TCK).coerceAtLeast(1L)
         val cores = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
         val totalMb = (ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }.totalMem / MB).toInt()
-        // Per-UID bila didukung perangkat; jika tidak, jatuh ke total seluruh perangkat (bukan nol terus).
-        val perUid = TrafficStats.getUidRxBytes(uid) >= 0L
-        fun rxNow(): Long = if (perUid) TrafficStats.getUidRxBytes(uid) else TrafficStats.getTotalRxBytes()
-        fun txNow(): Long = if (perUid) TrafficStats.getUidTxBytes(uid) else TrafficStats.getTotalTxBytes()
+        // [NET-REALTIME2] Per-UID dipakai hanya jika counter-nya benar-benar >0. Sebagian perangkat mengembalikan 0
+        // konstan (bukan -1) sehingga monitor macet di 0.0K/s; saat itu jatuh ke total perangkat.
+        fun uidOk(): Boolean = TrafficStats.getUidRxBytes(uid) > 0L || TrafficStats.getUidTxBytes(uid) > 0L
+        fun rxNow(u: Boolean): Long = if (u) TrafficStats.getUidRxBytes(uid) else TrafficStats.getTotalRxBytes()
+        fun txNow(u: Boolean): Long = if (u) TrafficStats.getUidTxBytes(uid) else TrafficStats.getTotalTxBytes()
 
         while (true) {
             AppVisibility.foreground.first { it } // tidur sampai aplikasi terlihat lagi
@@ -118,49 +124,71 @@ object SystemStats {
                 }
             }
             try {
+                var perUid = uidOk()
                 var lastAt = SystemClock.elapsedRealtime()
-                var lastRx = rxNow()
-                var lastTx = txNow()
+                var lastRx = rxNow(perUid)
+                var lastTx = txNow(perUid)
+                var smRx = 0.0
+                var smTx = 0.0
+                var cpuAt = lastAt
                 var lastTicks = pidsRef.get().sumOf { cpuTicks(it) }
                 var lastCpu = 0
                 var cpuHold = 0
+                var cpu = 0
+                var cpuLevel = Level.Normal
+                var ramLevel = Level.Normal
+                var tick = 0
 
                 while (AppVisibility.foreground.value) {
-                    delay(1000)
+                    delay(NET_TICK_MS)
+                    tick++
                     val now = SystemClock.elapsedRealtime()
-                    val rx = rxNow()
-                    val tx = txNow()
                     val dt = (now - lastAt).coerceAtLeast(1L) / 1000.0
                     lastAt = now
 
-                    val rxBps = if (rx >= 0 && lastRx >= 0) ((rx - lastRx) / dt).toLong().coerceAtLeast(0) else 0L
-                    val txBps = if (tx >= 0 && lastTx >= 0) ((tx - lastTx) / dt).toLong().coerceAtLeast(0) else 0L
+                    val useUid = uidOk()
+                    if (useUid != perUid) {
+                        perUid = useUid
+                        lastRx = rxNow(perUid)
+                        lastTx = txNow(perUid)
+                    }
+                    val rx = rxNow(perUid)
+                    val tx = txNow(perUid)
+                    val instRx = if (rx >= 0 && lastRx >= 0) ((rx - lastRx) / dt).coerceAtLeast(0.0) else 0.0
+                    val instTx = if (tx >= 0 && lastTx >= 0) ((tx - lastTx) / dt).coerceAtLeast(0.0) else 0.0
                     lastRx = rx
                     lastTx = tx
+                    smRx = NET_ALPHA * instRx + (1 - NET_ALPHA) * smRx
+                    smTx = NET_ALPHA * instTx + (1 - NET_ALPHA) * smTx
+                    if (smRx < NET_FLOOR_BPS) smRx = 0.0
+                    if (smTx < NET_FLOOR_BPS) smTx = 0.0
 
-                    val ticks = pidsRef.get().sumOf { cpuTicks(it) }
-                    val cpu = ((ticks - lastTicks).coerceAtLeast(0L) / clk.toDouble() / dt * 100.0 / cores)
-                        .toInt().coerceIn(0, 100)
-                    lastTicks = ticks
-                    if (cpuHold > 0) cpuHold--
-                    if (cpu - lastCpu >= CPU_SPIKE_POINTS) cpuHold = HOLD_TICKS
-                    lastCpu = cpu
+                    if (tick % CPU_EVERY == 0) {
+                        val cdt = (now - cpuAt).coerceAtLeast(1L) / 1000.0
+                        cpuAt = now
+                        val ticks = pidsRef.get().sumOf { cpuTicks(it) }
+                        cpu = ((ticks - lastTicks).coerceAtLeast(0L) / clk.toDouble() / cdt * 100.0 / cores)
+                            .toInt().coerceIn(0, 100)
+                        lastTicks = ticks
+                        if (cpuHold > 0) cpuHold--
+                        if (cpu - lastCpu >= CPU_SPIKE_POINTS) cpuHold = HOLD_TICKS
+                        lastCpu = cpu
 
-                    if (ramHold.get() > 0) ramHold.decrementAndGet()
-                    val ramMb = ramRef.get()
-
-                    val cpuLevel = when {
-                        cpu >= CPU_HIGH -> Level.High
-                        cpu >= CPU_WARN || cpuHold > 0 -> Level.Warn
-                        else -> Level.Normal
+                        if (ramHold.get() > 0) ramHold.decrementAndGet()
+                        val ramNow = ramRef.get()
+                        cpuLevel = when {
+                            cpu >= CPU_HIGH -> Level.High
+                            cpu >= CPU_WARN || cpuHold > 0 -> Level.Warn
+                            else -> Level.Normal
+                        }
+                        val ramPct = if (totalMb > 0) ramNow * 100 / totalMb else 0
+                        ramLevel = when {
+                            ramPct >= RAM_HIGH_PCT -> Level.High
+                            ramPct >= RAM_WARN_PCT || ramHold.get() > 0 -> Level.Warn
+                            else -> Level.Normal
+                        }
                     }
-                    val ramPct = if (totalMb > 0) ramMb * 100 / totalMb else 0
-                    val ramLevel = when {
-                        ramPct >= RAM_HIGH_PCT -> Level.High
-                        ramPct >= RAM_WARN_PCT || ramHold.get() > 0 -> Level.Warn
-                        else -> Level.Normal
-                    }
-                    send(StatsSnapshot(rxBps, txBps, cpu, ramMb, totalMb, cpuLevel, ramLevel, perUid))
+                    send(StatsSnapshot(smRx.toLong(), smTx.toLong(), cpu, ramRef.get(), totalMb, cpuLevel, ramLevel, perUid))
                 }
             } finally {
                 heavy.cancel()
