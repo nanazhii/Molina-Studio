@@ -13,6 +13,7 @@ import com.molina.studio.automation.AutoPrefs
 import com.molina.studio.cinema.MpvVersionBridge
 import com.molina.studio.log.BugReport
 import com.molina.studio.log.LogBus
+import com.molina.studio.log.ReportId
 import com.molina.studio.terminal.CrashReporter
 import com.molina.studio.terminal.RootfsManager
 import com.molina.studio.terminal.TerminalPrefs
@@ -68,7 +69,13 @@ internal object DiagnosticsManager {
         runCatching { File(f.path + ".sha256").readText().substringBefore(' ').trim() }.getOrNull()
             ?.takeIf { it.length == 64 }
 
-    private fun summary(ctx: Context, status: List<Pair<String, String>>, integrity: List<Pair<String, String>>): String {
+    private fun summary(
+        ctx: Context,
+        status: List<Pair<String, String>>,
+        integrity: List<Pair<String, String>>,
+        checks: List<CheckResult>,
+        reportId: String
+    ): String {
         val pi = runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0) }.getOrNull()
         @Suppress("DEPRECATION")
         val code = pi?.versionCode?.toString() ?: "?"
@@ -77,6 +84,7 @@ internal object DiagnosticsManager {
         val auto = AutoPrefs.state.value
         val rows = listOf(
             "Dibuat" to DATE.format(Instant.now()),
+            "ID laporan" to reportId,
             "Molina Studio" to "${pi?.versionName ?: "?"} (kode $code)",
             "Paket" to ctx.packageName,
             "Android" to "${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
@@ -102,6 +110,9 @@ internal object DiagnosticsManager {
             appendLine()
             appendLine("--- Status Molina ---")
             status.forEach { appendLine("${it.first.padEnd(20)}: ${it.second}") }
+            appendLine()
+            appendLine("--- Pemeriksaan ---")
+            appendLine(HealthCheck.toText(checks))
             if (integrity.isNotEmpty()) {
                 appendLine()
                 appendLine("--- Integritas: SHA-256 isi berkas (hash ZIP ada di berkas .sha256 di samping ZIP) ---")
@@ -126,27 +137,30 @@ internal object DiagnosticsManager {
     /** Info debug untuk clipboard: ringkasan yang sama dengan ringkasan.txt di ZIP (tanpa bagian integritas), disamarkan. */
     fun debugInfo(ctx: Context): String {
         val app = ctx.applicationContext
-        return LogRedact.text(summary(app, statusRows(app), emptyList()))
+        val status = statusRows(app)
+        return LogRedact.text(summary(app, status, emptyList(), HealthCheck.run(app), ReportId.new()))
     }
 
     /** Buat ZIP diagnostik baru dan hapus yang lama (menyisakan [KEEP] terbaru). */
     fun build(ctx: Context): File {
         val app = ctx.applicationContext
         val status = statusRows(app)
+        val id = ReportId.new()
+        val checks = HealthCheck.run(app)
         val crashes = CrashReporter.list(app)
         // Isi dibangun dan disamarkan sekali; hash dihitung atas byte yang benar-benar masuk ZIP.
         val files = buildList<Pair<String, ByteArray>> {
-            val report = BugReport.build(app, LogBus.entries.value, status, crashes.take(CRASH_IN_REPORT))
+            val report = BugReport.build(app, LogBus.entries.value, status, crashes.take(CRASH_IN_REPORT), id, checks)
             add("laporan-bug.txt" to LogRedact.text(report).toByteArray(Charsets.UTF_8))
             crashes.take(CRASH_IN_ZIP).forEach {
                 add("crash/${it.name}" to LogRedact.text(CrashReporter.read(it)).toByteArray(Charsets.UTF_8))
             }
         }
-        val head = summary(app, status, files.map { it.first to sha256(it.second) })
+        val head = summary(app, status, files.map { it.first to sha256(it.second) }, checks, id)
 
         val dir = AppPaths.get(app).dir(MolinaDir.Export)
         if (!dir.isDirectory && !dir.mkdirs()) throw IOException("folder tidak bisa dibuat: ${dir.path}")
-        val out = File(dir, "$PREFIX${STAMP.format(Instant.now())}.zip")
+        val out = File(dir, "$PREFIX$id.zip")
         val tmp = File(dir, out.name + ".tmp")
         ZipOutputStream(tmp.outputStream().buffered()).use { z ->
             fun put(name: String, bytes: ByteArray) {

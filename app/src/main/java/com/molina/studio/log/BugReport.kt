@@ -12,6 +12,8 @@ import com.molina.studio.AppPaths
 import com.molina.studio.automation.AutoPrefs
 import com.molina.studio.settings.AptHistory
 import com.molina.studio.settings.BackupManager
+import com.molina.studio.settings.HealthCheck
+import com.molina.studio.settings.CheckResult
 import com.molina.studio.settings.hubStatusRows
 import com.molina.studio.terminal.CrashReporter
 import com.molina.studio.terminal.RootfsManager
@@ -55,11 +57,19 @@ internal object BugReport {
         return "${TS.format(Instant.ofEpochMilli(e.time))} ${e.level.code} $src${e.tag}: ${e.message}$n"
     }
 
-    fun build(ctx: Context, entries: List<LogEntry>, status: List<Pair<String, String>>, crashes: List<File>): String {
+    fun build(
+        ctx: Context,
+        entries: List<LogEntry>,
+        status: List<Pair<String, String>>,
+        crashes: List<File>,
+        reportId: String = ReportId.new(),
+        checks: List<CheckResult> = emptyList()
+    ): String {
         val ver = runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull() ?: "?"
         val byGroup = entries.groupBy { groupOf(it.source) }
         val sb = StringBuilder()
         sb.appendLine("MOLINA LAPORAN BUG")
+        sb.appendLine("ID laporan: $reportId")
         sb.appendLine("Dibuat    : ${DATE.format(Instant.now())}")
         sb.appendLine("Versi app : $ver")
         sb.appendLine(
@@ -67,6 +77,10 @@ internal object BugReport {
                 "(API ${Build.VERSION.SDK_INT}), ${Build.SUPPORTED_ABIS.firstOrNull() ?: "?"}"
         )
         status.forEach { sb.appendLine("${it.first.padEnd(18)}: ${it.second}") }
+        if (checks.isNotEmpty()) {
+            sb.appendLine("Pemeriksaan:")
+            sb.appendLine(HealthCheck.toText(checks).prependIndent("  "))
+        }
         sb.appendLine("Isi       : 1) Ringkasan  2) Per kelompok  3) Gabungan kronologis  4) Crash")
         sb.appendLine()
 
@@ -134,10 +148,13 @@ internal object BugReport {
                     RootfsManager.state.value, AptHistory.pending.value, auto,
                     maxOf(auto.lastBackup, BackupManager.lastBackupMs(app))
                 ).map { it.label to it.value }
-                val text = LogRedact.text(build(app, entries, status, CrashReporter.list(app).take(CRASH_MAX)))
+                val id = ReportId.new()
+                val text = LogRedact.text(
+                    build(app, entries, status, CrashReporter.list(app).take(CRASH_MAX), id, HealthCheck.run(app))
+                )
                 val dir = AppPaths.get(app).dir(MolinaDir.Export)
                 if (!dir.isDirectory && !dir.mkdirs()) throw IOException("folder tidak bisa dibuat: ${dir.path}")
-                val file = File(dir, "molina-laporan-bug-${STAMP.format(Instant.now())}.txt")
+                val file = File(dir, "molina-laporan-bug-$id.txt")
                 file.writeText(text, Charsets.UTF_8)
                 "Laporan tersimpan: ${file.path}"
             } catch (e: Exception) {
