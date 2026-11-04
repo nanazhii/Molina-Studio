@@ -126,6 +126,7 @@ internal fun PackagesPage(
     var batchTotal by remember { mutableStateOf(0) }
     var batchOk by remember { mutableStateOf(0) }
     var batchNote by remember { mutableStateOf<String?>(null) }
+    var autoRun by remember { mutableStateOf(false) } // [PAKET-OTOMATIS] antrean aktif berasal dari cek otomatis
     val notes = remember { androidx.compose.runtime.mutableStateMapOf<String, String>() }
     androidx.compose.runtime.DisposableEffect(Unit) { onDispose { queue = emptyList(); checkHandle?.cancel() } }
 
@@ -159,7 +160,7 @@ internal fun PackagesPage(
                     r.cancelled -> { notes[tid] = "Pemeriksaan dihentikan." }
                     else -> {
                         if (r.exitCode == 0) batchOk += 1
-                        ToolStore.setCheck(tid, if (r.exitCode == 0) firstLine(out.toString()) else "Tidak terdeteksi (kode ${r.exitCode})")
+                        ToolStore.setCheck(tid, if (r.exitCode == 0) firstLine(out.toString()) else "Tidak terdeteksi (kode ${r.exitCode})", autoRun)
                         if (tool.nativeInstall && r.exitCode == 0) syncYtdlp(ctx, firstLine(out.toString()))
                     }
                 }
@@ -175,12 +176,13 @@ internal fun PackagesPage(
         )
     }
 
-    fun begin(ids: List<String>, batch: Boolean) {
+    fun begin(ids: List<String>, batch: Boolean, auto: Boolean = false) {
         if (checking != null) {
             toast(ctx, "Pemeriksaan lain sedang berjalan")
             return
         }
         batchNote = null
+        autoRun = auto
         batchOk = 0
         batchTotal = if (batch) ids.size else 0
         queue = ids
@@ -196,7 +198,7 @@ internal fun PackagesPage(
             .filter { it.version.isNotBlank() }
             .filter { t -> ToolStore.checks.value[t.id]?.let { it.text.isBlank() || now - it.at > 24L * 60 * 60 * 1000 } ?: true }
             .map { it.id }
-        if (stale.isNotEmpty() && checking == null) begin(stale, false)
+        if (stale.isNotEmpty() && checking == null) begin(stale, false, true)
     }
 
     Text(
@@ -421,8 +423,8 @@ private fun ToolCard(
     val shape = RoundedCornerShape(6.dp)
     // [PAKET-SERAGAM2] baris seragam: "Versi terakhir: ... \u00B7 tanggal" / "Tidak terdeteksi \u00B7 tanggal" / "Belum diperiksa"
     val base = check?.takeIf { it.text.isNotBlank() }?.let {
-        if (it.text.startsWith("Tidak terdeteksi")) "${it.text} \u00B7 ${stamp(it.at)}"
-        else "Versi terakhir: ${it.text} \u00B7 ${stamp(it.at)}"
+        if (it.text.startsWith("Tidak terdeteksi")) "${it.text} \u00B7 ${stamp(it.at)}${if (it.auto) " \u00B7 otomatis" else ""}"
+        else "Versi terakhir: ${it.text} \u00B7 ${stamp(it.at)}${if (it.auto) " \u00B7 otomatis" else ""}"
     } ?: "Belum diperiksa"
     val sub = if (checking) "memeriksa versi\u2026" else base
     Column(

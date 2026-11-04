@@ -29,7 +29,7 @@ data class ToolItem(
 )
 
 /** Hasil pemeriksaan versi terakhir; [text] kosong = belum diperiksa. */
-class ToolCheck(val text: String, val at: Long)
+class ToolCheck(val text: String, val at: Long, val auto: Boolean = false) // [PAKET-OTOMATIS] auto = hasil cek otomatis
 
 class ToolResult(val ok: Boolean, val message: String, val id: String? = null)
 
@@ -201,12 +201,12 @@ object ToolStore {
 
     /** Simpan hasil cek versi; [text] kosong menghapus hasil lama. */
     @Synchronized
-    fun setCheck(id: String, text: String) {
+    fun setCheck(id: String, text: String, auto: Boolean = false) {
         val m = _checks.value.toMutableMap()
-        if (text.isBlank()) m.remove(id) else m[id] = ToolCheck(text.trim().take(120), System.currentTimeMillis())
+        if (text.isBlank()) m.remove(id) else m[id] = ToolCheck(text.trim().take(120), System.currentTimeMillis(), auto)
         _checks.value = m
         val a = JSONObject()
-        for ((k, c) in m) a.put(k, JSONObject().put("t", c.text).put("at", c.at))
+        for ((k, c) in m) a.put(k, JSONObject().put("t", c.text).put("at", c.at).put("a", c.auto))
         prefs?.edit()?.putString("checks", a.toString())?.apply()
     }
 
@@ -257,7 +257,7 @@ object ToolStore {
         if (raw.isNullOrEmpty()) return emptyMap()
         return try {
             val o = JSONObject(raw)
-            buildMap { for (k in o.keys()) put(k, ToolCheck(o.getJSONObject(k).optString("t"), o.getJSONObject(k).optLong("at"))) }
+            buildMap { for (k in o.keys()) put(k, ToolCheck(o.getJSONObject(k).optString("t"), o.getJSONObject(k).optLong("at"), o.getJSONObject(k).optBoolean("a"))) }
         } catch (e: Exception) {
             emptyMap()
         }
