@@ -1,5 +1,13 @@
 package com.molina.studio.settings
 
+import com.molina.studio.ui.components.PackageDivider
+import com.molina.studio.ui.components.PackageGroupCard
+import com.molina.studio.ui.components.PackageInfoRow
+import com.molina.studio.ui.components.PackageSectionHeader
+import com.molina.studio.ui.components.PackageStatusCard
+import com.molina.studio.ui.components.PackageSwitchRow
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -198,35 +206,45 @@ internal fun StreamEnginePage() {
         status = withContext(Dispatchers.IO) { YtdlpLocator.status(ctx) }
     }
 
-    SwitchRow(
-        "Aktifkan pengunduh tambahan (yt-dlp)",
-        "Untuk TikTok, Facebook, dan situs lain yang tidak dikenali NewPipe. Satu resolusi memulai " +
-            "Debian dan Python (memori bisa naik ratusan MB sesaat), jadi bawaannya mati.",
-        ytdlpOn
-    ) {
-        StreamEnginePrefs.enableYtdlp(it)
-        StreamResolvers.release()
+    PackageGroupCard { // [YTDLP-KARTU]
+        PackageSwitchRow(
+            "Aktifkan pengunduh tambahan (yt-dlp)",
+            "Untuk TikTok, Facebook, dan situs lain yang tidak dikenali NewPipe. Satu resolusi memulai " +
+                "Debian dan Python (memori bisa naik ratusan MB sesaat), jadi bawaannya mati.",
+            ytdlpOn
+        ) {
+            StreamEnginePrefs.enableYtdlp(it)
+            StreamResolvers.release()
+        }
     }
 
-    Category("Status")
+    Spacer(Modifier.height(16.dp))
+    PackageSectionHeader("Status")
     val st = status
-    SettingsItem(
-        "Debian + yt-dlp",
-        if (st == null) "Memeriksa\u2026"
-        else if (st is YtdlpStatus.Ready) "Siap: ${st.guestBinary}"
-        else st.hint().orEmpty()
-    ) {}
-    SettingsItem(
-        "Pasang, perbarui, versi, dan hapus",
-        "Ada di kartu yt-dlp pada halaman Paket (Alat tambahan di Debian), seragam dengan Python 3 dan FFmpeg. " +
-            "Pembaruan juga ikut tombol Perbarui semua."
-    ) {}
+    PackageGroupCard {
+        PackageInfoRow(
+            "Debian + yt-dlp",
+            if (st == null) "Memeriksa\u2026"
+            else if (st is YtdlpStatus.Ready) "Siap: ${st.guestBinary}"
+            else st.hint().orEmpty()
+        )
+        PackageDivider()
+        PackageInfoRow(
+            "Pasang, perbarui, versi, dan hapus",
+            "Ada di kartu yt-dlp pada halaman Paket (Alat tambahan di Debian), seragam dengan Python 3 dan FFmpeg. " +
+                "Pembaruan juga ikut tombol Perbarui semua."
+        )
+    }
 
     if (st == YtdlpStatus.NoPython) {
-        SettingsItem("Salin perintah python3", YtdlpCommand.INSTALL_PYTHON_CMD) {
-            val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            cm.setPrimaryClip(ClipData.newPlainText("molina", YtdlpCommand.INSTALL_PYTHON_CMD))
-            Toast.makeText(ctx, "Perintah disalin. Tempel di Terminal.", Toast.LENGTH_SHORT).show()
-        }
+        Spacer(Modifier.height(8.dp))
+        PackageStatusCard(
+            "Salin perintah python3", YtdlpCommand.INSTALL_PYTHON_CMD, null,
+            onClick = {
+                val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                cm.setPrimaryClip(ClipData.newPlainText("molina", YtdlpCommand.INSTALL_PYTHON_CMD))
+                Toast.makeText(ctx, "Perintah disalin. Tempel di Terminal.", Toast.LENGTH_SHORT).show()
+            }
+        )
     }
 }

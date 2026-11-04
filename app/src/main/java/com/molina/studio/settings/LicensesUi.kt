@@ -1,5 +1,6 @@
 package com.molina.studio.settings
 
+import com.molina.studio.ui.components.PackageSectionHeader
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -177,7 +178,8 @@ internal fun LicensesPage() {
             listOf("Lainnya" to items.filter { it.id !in grouped })
         sections.forEach { s ->
             if (s.second.isNotEmpty()) {
-                Category(s.first)
+                Spacer(Modifier.height(12.dp)) // [LISENSI-KARTU]
+                PackageSectionHeader(s.first)
                 s.second.forEach { c ->
                     LicenseRow(
                         c = c,

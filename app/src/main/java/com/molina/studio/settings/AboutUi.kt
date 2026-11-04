@@ -1,5 +1,8 @@
 package com.molina.studio.settings
 
+import com.molina.studio.ui.components.PackageSectionHeader
+import com.molina.studio.ui.components.PackageStatusCard
+import androidx.compose.foundation.layout.padding
 import android.app.ActivityManager
 import android.content.Context
 import android.os.Build
@@ -77,18 +80,31 @@ internal fun HubInfoPage(
     HubCard("Status Molina", status)
     Spacer(Modifier.height(12.dp))
     HubCard("Versi dan perangkat", base.map { HubRow(it.first, it.second) }, dots = false)
-    Spacer(Modifier.height(8.dp))
-    Category("Diagnostik")
+    Spacer(Modifier.height(16.dp)) // [INFO-KARTU]
+    PackageSectionHeader("Diagnostik")
     Box {
-        W7Link({ W7IconLog() }, "Diagnostik dan laporan bug", diagLine?.let { "$it \u00b7 ketuk untuk detail" }
-            ?: "Salin info debug, ZIP diagnostik sekali klik, dan laporan bug (URL disamarkan) dalam satu tempat") { onDiagnostics() }
-        DiagBadge(diag, Modifier.align(Alignment.TopEnd))
+        PackageStatusCard(
+            "Diagnostik dan laporan bug",
+            diagLine?.let { "$it \u00b7 ketuk untuk detail" }
+                ?: "Salin info debug, ZIP diagnostik sekali klik, dan laporan bug (URL disamarkan) dalam satu tempat",
+            null, onClick = onDiagnostics
+        )
+        DiagBadge(diag, Modifier.align(Alignment.TopEnd).padding(end = 20.dp))
     }
-    W7Link({ W7IconLog() }, "Log", "Log aktivitas mpv, Terminal, dan sistem") { onLog() }
-    W7Link({ W7IconMonitor(32.dp) }, "Monitor Sistem", "Unduh, unggah, CPU, dan RAM secara langsung") { onMonitor() }
-    Category("Tentang")
-    W7Link({ W7IconInfo() }, "Tentang Molina", "Apa itu Molina, fitur, privasi, dan kebutuhan sistem") { onAbout() }
-    W7Link({ W7IconToolList() }, "Lisensi dan atribusi", "GPL-3.0-or-later \u00b7 teks lisensi komponen pihak ketiga, bisa dibaca tanpa internet") { onLicenses() }
+    Spacer(Modifier.height(8.dp))
+    PackageStatusCard("Log", "Log aktivitas mpv, Terminal, dan sistem", null, onClick = onLog)
+    Spacer(Modifier.height(8.dp))
+    PackageStatusCard("Monitor Sistem", "Unduh, unggah, CPU, dan RAM secara langsung", null, onClick = onMonitor)
+
+    Spacer(Modifier.height(16.dp))
+    PackageSectionHeader("Tentang")
+    PackageStatusCard("Tentang Molina", "Apa itu Molina, fitur, privasi, dan kebutuhan sistem", null, onClick = onAbout)
+    Spacer(Modifier.height(8.dp))
+    PackageStatusCard(
+        "Lisensi dan atribusi",
+        "GPL-3.0-or-later \u00b7 teks lisensi komponen pihak ketiga, bisa dibaca tanpa internet",
+        null, onClick = onLicenses
+    )
 }
 
 /** [INFO-DECODER] Label dekoder untuk kartu Versi dan perangkat; selaras dengan tombol SW/HW/HW+ di pemutar. */
