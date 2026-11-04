@@ -6,6 +6,7 @@ plugins {
 android {
     namespace = "com.molina.vault"
     compileSdk = 34
+    ndkVersion = "27.3.13750724" // [NDK-PIN] sama dengan NDK default image runner GitHub
     defaultConfig {
         applicationId = "com.molina.vault"
         minSdk = 26
