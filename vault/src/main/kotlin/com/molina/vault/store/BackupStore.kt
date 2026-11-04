@@ -160,6 +160,7 @@ object BackupStore {
                 usable.add(f)
             }
             if (usable.isEmpty() && skipped > 0) throw InvalidVaultException("Tidak ada record yang bisa dipulihkan")
+            store.resetManifestState()   // MOLINA-H15-MANIFEST: vault hasil pemulihan diadopsi saat dibuka pertama kali
             store.dir.listFiles().orEmpty().filter { it.isFile && it.name.startsWith("rec_") }.forEach { it.delete() }
             for (f in usable) {
                 if (!f.renameTo(File(store.dir, f.name))) throw IOException("Gagal memindahkan record")

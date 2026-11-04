@@ -32,7 +32,10 @@ import com.molina.vault.crypto.WrongPasswordOrTamperedException
 import com.molina.vault.store.BackupStore
 import com.molina.vault.store.BlobInfo
 import com.molina.vault.store.InsufficientSpaceException
+import com.molina.vault.store.IssueKind
 import com.molina.vault.store.LabelPolicy
+import com.molina.vault.store.ManifestReport
+import com.molina.vault.store.ManifestState
 import com.molina.vault.store.RecordMeta
 import com.molina.vault.store.RecordType
 import com.molina.vault.store.VAULT_LARGE_THRESHOLD
@@ -123,6 +126,7 @@ class EntryUi(private val host: MainActivity) {
     private var backupPass: CharArray? = null
     private var backupIncludeLarge = true   // MOLINA-H14-GUDANG
     @Volatile private var auditCancel = false   // MOLINA-H14-GUDANG
+    private var checkedEpoch = -1   // MOLINA-H15-MANIFEST: pemeriksaan manifest sekali per sesi
     private var restoreUri: Uri? = null
     private var editKeep: ByteArray? = null   // MOLINA-H2: isi file lama saat mengubah entri
 
@@ -135,7 +139,7 @@ class EntryUi(private val host: MainActivity) {
     val hasPendingRestore: Boolean get() = restoreUri != null
     private val pickerLock = Runnable { SessionLock.lock(); clearSensitive() }
 
-    fun show() { clearSensitive(); showList() }
+    fun show() { clearSensitive(); if (checkedEpoch != SessionLock.epoch) startIntegrityCheck() else showList() }   // MOLINA-H15-MANIFEST
 
     fun clearSensitive() {
         pickedBytes?.fill(0); pickedBytes = null
@@ -621,6 +625,54 @@ class EntryUi(private val host: MainActivity) {
     }
 
     // MOLINA-H14-GUDANG ------------------------------------------------------------------
+    // MOLINA-H15-MANIFEST ------------------------------------------------------------------
+    private fun startIntegrityCheck(): Unit = host.run {
+        checkedEpoch = SessionLock.epoch
+        screen { label("Memeriksa integritas Vault…", 15f, Color.LTGRAY) }
+        worker.execute {
+            val rep = runCatching { store.checkManifest() }.getOrNull()
+            ui.post {
+                if (SessionLock.isUnlocked) {
+                    if (rep != null && rep.state == ManifestState.ALERT) showIntegrityAlert(rep) else showList()
+                }
+            }
+        }
+    }
+
+    private fun showIntegrityAlert(rep: ManifestReport): Unit = host.run {
+        clearSensitive()
+        screen {
+            label("Peringatan integritas", 22f, red)
+            label("Isi folder Vault tidak sama dengan catatan tersegel terakhir. Bila Anda tidak menghapus atau mengubah entri ini sendiri, anggap berkas Vault mungkin diutak-atik (aplikasi lain, perangkat root, atau pemulihan folder lama).", 13f, Color.LTGRAY)
+            val sb = StringBuilder()
+            appendManifestIssues(sb, rep)
+            label(sb.toString().trim(), 14f, Color.WHITE)
+            label("Disarankan: jangan menimpa cadangan lama, periksa entri yang terdampak, dan pulihkan dari cadangan terakhir yang baik bila perlu. Menerima hanya menjadikan keadaan sekarang sebagai acuan baru; entri yang hilang tidak kembali.", 12f)
+            button("Lanjut tanpa menerima") { showList() }
+            button("Terima keadaan sekarang") { b ->
+                b.isEnabled = false
+                worker.execute {
+                    runCatching { store.acceptManifest() }
+                    ui.post { if (SessionLock.isUnlocked) showList() else host.render() }
+                }
+            }
+        }
+    }
+
+    private fun appendManifestIssues(sb: StringBuilder, rep: ManifestReport) {
+        rep.problem?.let { sb.append("\u2022 ").append(it).append('\n') }
+        val shown = rep.issues.take(10)
+        for (i in shown) {
+            val what = when (i.kind) {
+                IssueKind.MISSING -> "Hilang"
+                IssueKind.CHANGED -> "Diganti atau berubah"
+                IssueKind.UNKNOWN -> "Tidak dikenal"
+            }
+            sb.append("\u2022 ").append(what).append(": ").append(i.title?.take(40) ?: ("id " + i.id.take(8))).append('\n')
+        }
+        if (rep.issues.size > shown.size) sb.append("\u2022 … dan ${rep.issues.size - shown.size} lainnya\n")
+    }
+
     private fun showLargeEdit(m: RecordMeta): Unit = host.run {
         val bi = detailBlob
         if (bi == null) { showList(); return@run }
@@ -720,11 +772,13 @@ class EntryUi(private val host: MainActivity) {
                     append("\nCadangan: ").append(backupStatus())
                     val la = store.prefs.lastAuditAt
                     append("\nPemeriksaan integritas: ").append(if (la == 0L) "belum pernah" else "lolos penuh ${dateFmt.format(Date(la))}")
+                    val mr = runCatching { store.checkManifest() }.getOrNull()   // MOLINA-H15-MANIFEST
+                    if (mr != null) append("\nManifest tersegel: ").append(if (mr.state == ManifestState.ALERT) "PERINGATAN (ketuk Periksa sekarang untuk rincian)" else "utuh (${mr.sealed} entri, penghitung ${mr.counter})")
                 }
                 ui.post { info.text = text }
             }
             label("Periksa integritas", 15f, Color.WHITE)
-            label("Mendekripsi dan memeriksa segel setiap entri, termasuk seluruh isi berkas besar (bisa beberapa menit). Ini mendeteksi kerusakan atau perubahan pada berkas yang ada. Berkas yang dihapus seluruhnya tidak bisa dideteksi dari sini.", 12f)
+            label("Mendekripsi dan memeriksa segel setiap entri, termasuk seluruh isi berkas besar (bisa beberapa menit). Juga membandingkan daftar entri dengan manifest tersegel untuk mendeteksi entri yang dihapus, diganti, atau ditambahkan di luar Vault.", 12f)
             val progress = TextView(context).apply { setTextColor(Color.LTGRAY); textSize = 13f; setPadding(0, host.dp(6f), 0, host.dp(6f)) }
             addView(progress)
             button("Periksa sekarang") { b ->
@@ -755,7 +809,7 @@ class EntryUi(private val host: MainActivity) {
                         out.setTextColor(host.red)
                         out.text = if (!SessionLock.isUnlocked) "Vault terkunci. Pemeriksaan dihentikan." else "Pemeriksaan gagal: ${ex?.message ?: "kesalahan tidak dikenal"}"
                     }
-                    r.bad.isEmpty() && !r.cancelled -> {
+                    r.bad.isEmpty() && !r.cancelled && r.manifest?.state != ManifestState.ALERT -> {   // MOLINA-H15-MANIFEST
                         host.store.prefs.markAudited()
                         out.setTextColor(host.amber)
                         out.text = "Semua ${r.ok} entri utuh (${fmtSize(r.bytes)} diperiksa). Setiap segel cocok."
@@ -769,6 +823,7 @@ class EntryUi(private val host: MainActivity) {
                         for (b in r.bad.take(8)) sb.append("\n\u2022 ").append(b.title?.take(40) ?: "id ${b.id.take(8)}").append(": ").append(b.reason)
                         if (r.bad.size > 8) sb.append("\n\u2022 … dan ${r.bad.size - 8} lainnya")
                         if (r.bad.isNotEmpty()) sb.append("\nEntri bermasalah tidak bisa diperbaiki dari sini. Pulihkan dari cadangan yang masih baik, dan jangan menimpa cadangan lama sebelum yakin.")
+                        r.manifest?.let { mr -> if (mr.state == ManifestState.ALERT) { sb.append("\nManifest:\n"); appendManifestIssues(sb, mr) } }   // MOLINA-H15-MANIFEST
                         out.text = sb.toString()
                     }
                 }

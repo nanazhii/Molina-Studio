@@ -6,9 +6,14 @@ object SessionLock {
 
     val isUnlocked: Boolean get() = key != null
 
+    /** MOLINA-H15-MANIFEST: naik setiap sesi baru dibuka; UI memakainya untuk memeriksa integritas sekali per sesi. */
+    @Volatile var epoch: Int = 0
+        private set
+
     @Synchronized fun begin(vaultKey: ByteArray) {
         lock()
         key = vaultKey
+        epoch++
     }
 
     @Synchronized fun lock() {

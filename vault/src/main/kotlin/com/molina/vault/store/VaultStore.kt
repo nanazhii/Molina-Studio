@@ -60,7 +60,9 @@ class VaultStore(context: Context) {
         require(PasswordPolicy.isAcceptable(master)) { "Master password terlalu lemah" }
         val created = VaultCrypto.create(master)
         atomicWrite(headerFile, created.fileBytes)
+        resetManifestState()   // MOLINA-H15-MANIFEST
         SessionLock.begin(created.vaultKey)
+        runCatching { SessionLock.use { k -> mfWrite(k, buildFromDisk(k, 1L)) } }
     }
 
     fun unlock(master: CharArray) {
@@ -81,6 +83,7 @@ class VaultStore(context: Context) {
         require(PasswordPolicy.isAcceptable(newMaster)) { "Master password terlalu lemah" }
         recoverRotation()
         var skipped = 0
+        var newCounter = 0L   // MOLINA-H15-MANIFEST
         try {
             SessionLock.rotate { old ->
                 val fresh = VaultCrypto.newVaultKey()
@@ -105,6 +108,7 @@ class VaultStore(context: Context) {
                         }
                     }
                     check(skipped == 0 || rotated > 0) { "Rotasi dibatalkan: tidak ada record yang bisa dibaca" }
+                    newCounter = stageManifest(old, fresh, staging)   // MOLINA-H15-MANIFEST
                     writeSynced(File(staging, headerFile.name), VaultCrypto.rewrap(newMaster, fresh))
                     writeSynced(File(staging, ROTATE_COMMIT), byteArrayOf(1))
                     committed = true
@@ -120,6 +124,7 @@ class VaultStore(context: Context) {
             SessionLock.lock()
             throw e
         }
+        if (newCounter > 0L) prefs.setManifestCounter(newCounter)   // MOLINA-H15-MANIFEST
         return skipped
     }
 
@@ -169,7 +174,7 @@ class VaultStore(context: Context) {
                 val out = ByteBuffer.allocate(HEAD + sealedMeta.size + sealedData.size)
                     .put(REC_MAGIC).put(REC_VERSION).putInt(sealedMeta.size)
                     .put(sealedMeta).put(sealedData).array()
-                atomicWrite(recFile(id), out)
+                tracked(key, id) { atomicWrite(recFile(id), out) }   // MOLINA-H15-MANIFEST
                 prefs.noteChange()
                 RecordMeta(id, type, title, now, cleanFolder, cleanTags)
             }
@@ -190,7 +195,7 @@ class VaultStore(context: Context) {
 
     fun delete(id: String) {
         require(validId(id)) { "ID tidak valid" }
-        SessionLock.use { _ -> secureDelete(recFile(id)); prefs.noteChange() }
+        SessionLock.use { key -> tracked(key, id, remove = true) { secureDelete(recFile(id)) }; prefs.noteChange() }   // MOLINA-H15-MANIFEST
     }
 
     /** MOLINA-H7B: ubah folder (dan tag bila diberikan) tanpa menyentuh isi; hanya metadata yang dienkripsi ulang. */
@@ -202,7 +207,7 @@ class VaultStore(context: Context) {
             if (BlobRecord.isBlobRecord(rf)) {   // MOLINA-H11-GLUE: tanpa memuat blob
                 needSpace(rf.length() + SPACE_MARGIN)
                 val head = BlobRecord.readHead(rf)
-                BlobRecord.relabel(rf, relabeledMeta(key, head.sealedMeta, id, cleanFolder, tags))
+                tracked(key, id) { BlobRecord.relabel(rf, relabeledMeta(key, head.sealedMeta, id, cleanFolder, tags)) }   // MOLINA-H15-MANIFEST
                 prefs.noteChange()
                 return@use
             }
@@ -224,7 +229,7 @@ class VaultStore(context: Context) {
                 val out = ByteBuffer.allocate(HEAD + sealedMeta.size + rest)
                     .put(REC_MAGIC).put(REC_VERSION).putInt(sealedMeta.size)
                     .put(sealedMeta).put(raw, HEAD + n, rest).array()
-                atomicWrite(recFile(id), out)
+                tracked(key, id) { atomicWrite(recFile(id), out) }   // MOLINA-H15-MANIFEST
                 prefs.noteChange()
             } finally {
                 raw.fill(0)
@@ -276,7 +281,7 @@ class VaultStore(context: Context) {
             if (cleanTags.isNotEmpty()) metaObj.put("tags", JSONArray(cleanTags))
             val metaJson = metaObj.toString().toByteArray(Charsets.UTF_8)
             try {
-                val info = BlobRecord.write(recFile(id), id, key, sealer(key), metaJson, fields, blobIndex, blob, maxBytes)
+                val info = tracked(key, id) { BlobRecord.write(recFile(id), id, key, sealer(key), metaJson, fields, blobIndex, blob, maxBytes) }   // MOLINA-H15-MANIFEST
                 prefs.noteChange()
                 StoredFile(RecordMeta(id, type, title, now, cleanFolder, cleanTags), info)
             } finally {
@@ -331,7 +336,7 @@ class VaultStore(context: Context) {
                 val metaJson = j.toString().toByteArray(Charsets.UTF_8)
                 val newMeta = try { sl.seal("meta", id, metaJson) } finally { metaJson.fill(0) }
                 val newSmall = BlobRecord.resealSmall(sl, id, old.info, fields)
-                BlobRecord.rewriteHead(rf, newMeta, newSmall)
+                tracked(key, id) { BlobRecord.rewriteHead(rf, newMeta, newSmall) }   // MOLINA-H15-MANIFEST
                 val check = BlobRecord.openSmall(rf, id, sl)
                 try {
                     if (check.info.size != old.info.size || !java.security.MessageDigest.isEqual(check.info.sha256, old.info.sha256)) {
@@ -389,7 +394,8 @@ class VaultStore(context: Context) {
             checked++
         }
         onProgress(files.size, files.size)
-        return AuditResult(checked, ok, bad, cancelled, bytes)
+        val mf = if (cancelled) null else try { checkManifest() } catch (e: Exception) { null }   // MOLINA-H15-MANIFEST
+        return AuditResult(checked, ok, bad, cancelled, bytes, mf)
     }
 
     /** Ringkasan pemakaian untuk layar Gudang: jumlah per jenis, ukuran di disk, berkas besar, dan lima record terbesar. */
@@ -415,6 +421,185 @@ class VaultStore(context: Context) {
             }
         }
         UsageReport(per, n, corrupt, disk, large, largeDisk, sized.sortedByDescending { it.second }.take(5))
+    }
+
+    // ---- manifest tersegel (MOLINA-H15-MANIFEST) ----
+    // Satu berkas terenkripsi (kunci turunan vaultKey) berisi, per record: id, tag SHA-256 (meta + IV/tag data + panjang), judul.
+    // Mendeteksi record dihapus, ditukar dengan versi lama, disambung (meta lama + data baru), atau ditambahkan di luar Vault.
+    // Jangkar penghitung disimpan di shared_prefs (di luar folder vault) untuk mendeteksi seluruh folder dikembalikan ke versi lama.
+
+    private val manifestFile = File(dir, MANIFEST_NAME)
+
+    private fun isRecFile(f: File) = f.isFile && f.name.startsWith("rec_") && f.name.endsWith(".mvr")
+
+    private fun recMap(): Map<String, File> {
+        val m = LinkedHashMap<String, File>()
+        for (f in dir.listFiles().orEmpty().sortedBy { it.name }) {
+            if (!isRecFile(f)) continue
+            val id = f.name.removePrefix("rec_").removeSuffix(".mvr")
+            if (validId(id)) m[id] = f
+        }
+        return m
+    }
+
+    private fun mfSeal(key: ByteArray, d: ManifestData): ByteArray {
+        val plain = ManifestCodec.encode(d)
+        try {
+            val sealed = VaultCrypto.encryptRecord(key, plain, aad("manifest", "vault"))
+            return ByteBuffer.allocate(5 + sealed.size).put(ManifestCodec.MAGIC).put(ManifestCodec.VERSION).put(sealed).array()
+        } finally {
+            plain.fill(0)
+        }
+    }
+
+    /** null bila belum ada. Melempar WrongPasswordOrTamperedException atau InvalidVaultException bila rusak atau dimanipulasi. */
+    private fun mfRead(key: ByteArray): ManifestData? {
+        if (!manifestFile.exists()) return null
+        val raw = manifestFile.readBytes()
+        if (raw.size < 5 + MIN_SEALED || raw.size > 32 * 1024 * 1024) throw InvalidVaultException("Manifest rusak")
+        for (i in 0 until 4) if (raw[i] != ManifestCodec.MAGIC[i]) throw InvalidVaultException("Manifest rusak")
+        if (raw[4] != ManifestCodec.VERSION) throw InvalidVaultException("Versi manifest tidak dikenal")
+        val plain = VaultCrypto.decryptRecord(key, raw.copyOfRange(5, raw.size), aad("manifest", "vault"))
+        try { return ManifestCodec.decode(plain) } finally { plain.fill(0) }
+    }
+
+    private fun mfLoad(key: ByteArray): Pair<ManifestData?, String?> =
+        try { mfRead(key) to null }
+        catch (e: WrongPasswordOrTamperedException) { null to "Manifest rusak atau dimanipulasi" }
+        catch (e: InvalidVaultException) { null to "Manifest rusak atau dimanipulasi" }
+
+    private fun mfWrite(key: ByteArray, d: ManifestData) {
+        atomicWrite(manifestFile, mfSeal(key, d))
+        prefs.setManifestCounter(d.counter)
+    }
+
+    private fun entryOf(key: ByteArray, id: String, f: File): ManifestEntry {
+        val title = try { readMeta(key, f).title } catch (e: Exception) { "(tidak terbaca)" }
+        return ManifestEntry(id, ManifestCodec.fileTag(f), title)
+    }
+
+    private fun buildFromDisk(key: ByteArray, counter: Long): ManifestData {
+        val d = ManifestData(counter, LinkedHashMap())
+        for ((id, f) in recMap()) {
+            try { d.entries[id] = entryOf(key, id, f) } catch (e: Exception) { /* tidak bisa dihitung: akan terlapor tak dikenal */ }
+        }
+        return d
+    }
+
+    private fun mfTouch(key: ByteArray, id: String) {
+        val d = mfLoad(key).first ?: return   // hilang atau rusak: jangan dibenarkan diam-diam, peringatan tetap muncul saat pemeriksaan
+        d.entries[id] = entryOf(key, id, recFile(id))
+        d.counter++
+        mfWrite(key, d)
+    }
+
+    private fun mfRemove(key: ByteArray, id: String) {
+        val d = mfLoad(key).first ?: return
+        if (d.entries.remove(id) == null) return
+        d.counter++
+        mfWrite(key, d)
+    }
+
+    /** Jurnal: id dicatat SEBELUM menulis dan dihapus setelah manifest diperbarui; bila proses mati di antaranya, pemeriksaan berikutnya memulihkan id itu saja. */
+    private fun <T> tracked(key: ByteArray, id: String, remove: Boolean = false, block: () -> T): T {
+        prefs.setPending(id)
+        try {
+            val r = block()
+            try {
+                if (remove) mfRemove(key, id) else mfTouch(key, id)
+            } catch (e: Exception) {
+                /* IO gagal: terlihat sebagai perubahan pada pemeriksaan berikutnya (alarm palsu langka, bukan celah) */
+            }
+            return r
+        } finally {
+            prefs.clearPending()
+        }
+    }
+
+    internal fun resetManifestState() {
+        manifestFile.delete()
+        File(dir, MANIFEST_NAME + ".tmp").delete()
+        prefs.resetManifest()
+    }
+
+    /**
+     * Membandingkan isi folder dengan manifest. Vault lama tanpa manifest (dan tanpa jangkar) diadopsi sekali sebagai acuan awal.
+     * Tidak pernah menulis ulang manifest yang rusak, hilang, atau tampak diputar balik: buktinya dipertahankan sampai [acceptManifest].
+     */
+    fun checkManifest(): ManifestReport = SessionLock.use { key ->
+        val recs = recMap()
+        val (data, bad) = mfLoad(key)
+        if (bad != null) return@use ManifestReport(ManifestState.ALERT, emptyList(), bad, 0, 0L)
+        if (data == null) {
+            if (prefs.manifestCounter > 0L) {
+                return@use ManifestReport(ManifestState.ALERT, emptyList(), "Manifest hilang atau diganti. Entri yang dihapus diam-diam tidak bisa dipastikan.", 0, 0L)
+            }
+            val fresh = buildFromDisk(key, 1L)
+            mfWrite(key, fresh)
+            prefs.clearPending()
+            return@use ManifestReport(ManifestState.ADOPTED, emptyList(), null, fresh.entries.size, fresh.counter)
+        }
+        var problem: String? = null
+        val anchor = prefs.manifestCounter
+        if (data.counter < anchor) {
+            problem = "Folder Vault tampak dikembalikan ke versi lama (penghitung manifest ${data.counter}, tercatat $anchor)"
+        }
+        val pend = prefs.pendingId
+        if (pend != null) {
+            if (validId(pend)) {
+                val pf = recs[pend]
+                if (pf != null) {
+                    try { data.entries[pend] = entryOf(key, pend, pf) } catch (e: Exception) { data.entries.remove(pend) }
+                } else {
+                    data.entries.remove(pend)
+                }
+                data.counter++
+                if (problem == null) mfWrite(key, data)
+            }
+            prefs.clearPending()
+        }
+        val issues = ArrayList<ManifestIssue>()
+        for ((id, ent) in data.entries) {
+            val f = recs[id]
+            if (f == null) { issues.add(ManifestIssue(id, ent.title, IssueKind.MISSING)); continue }
+            val tag = try { ManifestCodec.fileTag(f) } catch (e: Exception) { null }
+            if (tag == null || !java.security.MessageDigest.isEqual(tag, ent.tag)) issues.add(ManifestIssue(id, ent.title, IssueKind.CHANGED))
+        }
+        for ((id, f) in recs) {
+            if (!data.entries.containsKey(id)) {
+                issues.add(ManifestIssue(id, try { readMeta(key, f).title } catch (e: Exception) { null }, IssueKind.UNKNOWN))
+            }
+        }
+        val state = if (problem != null || issues.isNotEmpty()) ManifestState.ALERT else ManifestState.OK
+        ManifestReport(state, issues.sortedWith(compareBy({ it.kind }, { it.title ?: "" })), problem, data.entries.size, data.counter)
+    }
+
+    /** Pengguna menerima keadaan folder sekarang sebagai acuan baru (entri yang hilang tidak kembali). */
+    fun acceptManifest() {
+        SessionLock.use { key ->
+            val prev = mfLoad(key).first
+            val counter = maxOf(prev?.counter ?: 0L, prefs.manifestCounter) + 1L
+            mfWrite(key, buildFromDisk(key, counter))
+            prefs.clearPending()
+        }
+    }
+
+    /** Rotasi: bangun manifest dengan kunci BARU dari record yang sudah di-staging; record rusak yang dilewati ikut tercatat apa adanya. */
+    private fun stageManifest(old: ByteArray, fresh: ByteArray, staging: File): Long {
+        val prev = mfLoad(old).first
+        val counter = maxOf(prev?.counter ?: 0L, prefs.manifestCounter) + 1L
+        val d = ManifestData(counter, LinkedHashMap())
+        for ((id, f) in recMap()) {
+            val staged = File(staging, f.name)
+            try {
+                d.entries[id] = if (staged.exists()) entryOf(fresh, id, staged)
+                else ManifestEntry(id, ManifestCodec.fileTag(f), "(tidak terbaca)")
+            } catch (e: Exception) {
+                /* tidak bisa dihitung: akan terlapor tak dikenal */
+            }
+        }
+        writeSynced(File(staging, MANIFEST_NAME), mfSeal(fresh, d))
+        return counter
     }
 
     // ---- rotasi (MOLINA-H8-ROTATE) ----
@@ -458,6 +643,8 @@ class VaultStore(context: Context) {
             if (!f.name.startsWith("rec_") || !f.name.endsWith(".mvr")) continue
             if (!f.renameTo(File(dir, f.name))) throw IOException("Gagal memindahkan record rotasi")
         }
+        val mf = File(staging, MANIFEST_NAME)   // MOLINA-H15-MANIFEST: manifest tersegel kunci baru pindah bersama record
+        if (mf.exists() && !mf.renameTo(manifestFile)) throw IOException("Gagal memindahkan manifest rotasi")
         val header = File(staging, headerFile.name)
         if (header.exists() && !header.renameTo(headerFile)) throw IOException("Gagal memindahkan header rotasi")
         staging.deleteRecursively()

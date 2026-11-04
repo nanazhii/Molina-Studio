@@ -35,7 +35,13 @@ data class VaultListing(val items: List<RecordMeta>, val corrupt: Int)
 
 // MOLINA-H14-GUDANG: laporan layar Gudang dan hasil pemeriksaan integritas.
 class AuditBad(val id: String, val title: String?, val reason: String)
-class AuditResult(val checked: Int, val ok: Int, val bad: List<AuditBad>, val cancelled: Boolean, val bytes: Long)
+class AuditResult(val checked: Int, val ok: Int, val bad: List<AuditBad>, val cancelled: Boolean, val bytes: Long, val manifest: ManifestReport? = null)
+
+// MOLINA-H15-MANIFEST: hasil pemeriksaan manifest tersegel.
+enum class ManifestState { OK, ADOPTED, ALERT }
+enum class IssueKind { MISSING, CHANGED, UNKNOWN }
+class ManifestIssue(val id: String, val title: String?, val kind: IssueKind)
+class ManifestReport(val state: ManifestState, val issues: List<ManifestIssue>, val problem: String?, val sealed: Int, val counter: Long)
 class UsageReport(
     val perType: Map<RecordType, Int>,
     val records: Int,

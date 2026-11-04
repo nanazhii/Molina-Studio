@@ -40,10 +40,20 @@ Isi entri (keystore, password, rahasia), vaultKey, master password, metadata (ju
 | 26 | Kunci Keystore hanya perangkat lunak | Peringatan via KeyInfo.isInsideSecureHardware | Root dapat mengekstrak kunci; perlindungan bergantung pada master |
 | 27 | Accessibility service non-sistem | Unlock diblokir; dicek ulang saat rahasia ditampilkan | Layanan yang diaktifkan setelah rahasia tampil; keyboard jahat |
 | 28 | Master lama bocor setelah ganti master | Ganti master merotasi vaultKey dan mengenkripsi ulang semua record (staging, baca-ulang, penanda COMMIT, pulih otomatis bila terhenti); UI memperingatkan soal cadangan lama | Cadangan .mvault lama dan salinan lama vault tetap terbuka dengan kunci lama; record yang sudah rusak dilewati |
-| 29 | Record rusak atau diubah tanpa disadari | Gudang > Periksa integritas: dekripsi dan verifikasi segel GCM semua record serta SHA-256 dan chunk blob; waktu pemeriksaan lolos terakhir dicatat | Berkas yang dihapus seluruhnya dan rollback ke versi lama yang sah tidak terdeteksi (roadmap: manifest tersegel) |
+| 29 | Record rusak atau diubah tanpa disadari | Gudang > Periksa integritas: dekripsi dan verifikasi segel GCM semua record serta SHA-256 dan chunk blob; waktu pemeriksaan lolos terakhir dicatat | Berkas yang dihapus seluruhnya dan rollback ke versi lama yang sah tidak terdeteksi (ditangani manifest, lihat #30) |
+| 30 | Record dihapus, ditukar versi lama, disambung (meta lama + data baru), atau diselipkan di luar Vault | Manifest tersegel (manifest.mvm): terenkripsi kunci turunan vaultKey; per record id, tag SHA-256 (meta, IV/tag data, panjang), judul; diperbarui tiap tulis dengan jurnal pending; diperiksa sekali per sesi dan oleh Periksa integritas | Rollback seluruh folder bersama manifest hanya terdeteksi bila shared_prefs tidak ikut diputar balik (root dapat memutar keduanya); entri yang hilang tidak bisa dipulihkan, hanya dilaporkan |
+
+## Manifest tersegel (MOLINA-H15-MANIFEST)
+- `manifest.mvm` = "MVMF" | versi 1 | AES-256-GCM(kunci turunan vaultKey, AAD "manifest|vault"). Isi: penghitung, lalu per record `id | SHA-256 tag | judul`.
+- Tag = SHA-256(panjang berkas, versi, meta tersegel, small tersegel v3 atau IV data v2, 16 byte terakhir). Hanya kepala dan ekor berkas yang dibaca.
+- Pembaruan bersifat inkremental per id (bukan pemindaian ulang), jadi kerusakan pada id lain tidak pernah "dibersihkan" oleh penulisan yang sah. Manifest yang rusak, hilang, atau tampak diputar balik tidak ditulis ulang sampai pengguna menerima.
+- Jangkar anti-rollback: penghitung manifest juga disimpan di shared_prefs (di luar folder vault). Penghitung manifest < jangkar berarti folder dikembalikan ke versi lama. Jangkar ditulis setelah manifest, sehingga crash di antaranya tidak memicu alarm palsu.
+- Jurnal pending: id dicatat (commit sinkron) sebelum menulis dan dihapus sesudah manifest diperbarui. Bila proses mati di antaranya, pemeriksaan berikutnya memulihkan id itu saja.
+- Rotasi master membangun manifest dengan kunci baru di staging dan memindahkannya bersama record (satu COMMIT). Pemulihan cadangan tidak membawa manifest; vault hasil pemulihan diadopsi saat dibuka pertama kali.
+- Batas yang diakui: vault lama tanpa manifest diadopsi apa adanya sekali (tidak ada pengetahuan sebelumnya); root yang memutar balik folder dan shared_prefs sekaligus tidak terdeteksi; IO yang gagal setelah tulis sah memunculkan alarm palsu langka.
 
 ## Di luar cakupan
 Malware root aktif selama sesi terbuka; paksaan fisik terhadap pengguna.
 
 ## Roadmap
-Manifest tersegel (deteksi hapus/ganti), Argon2id, keypad aman, cadangan terenkripsi (P3).
+Keypad aman. Argon2id ditolak (tanpa dependensi pihak ketiga; PBKDF2 tetap dengan kebijakan passphrase).

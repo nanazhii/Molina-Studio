@@ -26,3 +26,6 @@ trailer(32) = HMAC-SHA256 atas semua byte sebelumnya; kunci = HMAC(vaultKey, "mo
 - Opsi "database saja": `export(includeLarge = false)` melewati record v3; jumlahnya dilaporkan di `ExportResult.omitted`. `estimateBytes()` memberi ukuran cadangan sebelum ditulis.
 - Pemulihan: cek ruang kosong per record sebelum menulis ke staging (`InsufficientSpaceException`); setelah HMAC lolos, record v3 diperiksa penuh (setiap chunk). Record v3 yang rusak dilewati dan dihitung pada nilai kembalian `restore()`; bila tidak ada yang bisa dipulihkan, seluruh pemulihan dibatalkan.
 - Ekspor yang gagal di tengah meninggalkan berkas setengah jadi di tujuan: pemanggil wajib menghapusnya (SAF: `DocumentsContract.deleteDocument`).
+
+## Manifest tersegel (MOLINA-H15-MANIFEST)
+- `manifest.mvm` TIDAK ikut cadangan dan format `.mvault` tidak berubah. Vault hasil pemulihan membuat manifest baru dari record yang dipulihkan saat dibuka pertama kali (adopsi).
