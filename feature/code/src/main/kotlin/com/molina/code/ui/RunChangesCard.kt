@@ -75,7 +75,7 @@ internal fun RunChangesCard(session: CodeSession) {
             Column(Modifier.fillMaxWidth().heightIn(max = 220.dp).verticalScroll(rememberScrollState())) {
                 BasicText( // [CODE-SCANROOT] folder yang dipindai, supaya jelas proyek mana yang dilaporkan
                     text = "Dipindai: " + c.snap.root.name.ifEmpty { c.snap.root.path } +
-                        " (" + (c.snap.how?.let { "ditandai $it" } ?: "tanpa penanda proyek") + ")",
+                        " (" + (c.snap.how?.let { "ditandai $it" } ?: "tanpa penanda; menu: Jadikan folder proyek") + ")",
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                     style = TextStyle(color = CodeColors.TextSecondary, fontSize = 11.sp)
                 )

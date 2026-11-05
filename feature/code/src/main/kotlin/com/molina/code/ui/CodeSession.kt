@@ -1006,6 +1006,31 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
     /** Folder awal pemilih Buka: folder berkas tab aktif, lalu folder utama panel. */
     internal fun defaultOpenDir(): File = active?.file?.parentFile ?: dir.root
 
+    /** [CODE-PROJECT] Menu "Jadikan folder proyek": pilih folder, lalu buat penanda `.molina` (proyek lokal tanpa Git). */
+    internal fun pickProjectFolder() {
+        val start = RunReport.findRoot(defaultOpenDir())
+        picker = PickerRequest(PickMode.Folder, start, "Pilih folder proyek") { createProjectAt(it) }
+    }
+
+    private fun createProjectAt(folder: File) {
+        runIo {
+            val mark = com.molina.code.guard.ProjectMarker.markerIn(folder)
+            val r = if (mark != null) null else com.molina.code.guard.ProjectMarker.create(folder, System.currentTimeMillis())
+            mainHandler.post {
+                val name = folder.name.ifEmpty { folder.path }
+                toast(
+                    when {
+                        mark != null -> "$name sudah proyek (ditandai $mark)"
+                        r == com.molina.code.guard.ProjectMarker.Result.CREATED ->
+                            "Proyek dibuat: $name. Laporan perubahan skrip kini memindai folder ini"
+                        else -> "Gagal membuat penanda proyek di $name"
+                    }
+                )
+                dir.refresh()
+            }
+        }
+    }
+
     /**
      * Buka berkas di tab. Berkas yang sudah terbuka hanya dipilih (tidak ada tab ganda). Tab "Baru"
      * yang masih kosong dipakai ulang. Isi dibaca di thread IO; tab dikunci selama dibaca.
