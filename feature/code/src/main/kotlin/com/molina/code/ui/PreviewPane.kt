@@ -108,6 +108,7 @@ internal fun PreviewPage(session: CodeSession, onJump: (Int, Int) -> Unit, modif
                 )
             }
             if (output) {
+                PaneAction(com.molina.code.run.RunTimeout.short(run.timeoutMs).uppercase(), CodeColors.IconDim) { session.cycleRunTimeout() } // [CODE-RUNTIMEOUT]
                 if (run.running) {
                     PaneAction("BERHENTI", CodeColors.Danger) { run.stop() }
                 } else {

@@ -36,4 +36,7 @@ internal object RunPrefs {
 
     /** [CODE-HISTORY2] Diff kontras tinggi di Riwayat versi ("1" = aktif; bawaan mati). */
     const val KEY_DIFF_CONTRAST = "editor_diff_contrast"
+
+    /** [CODE-RUNTIMEOUT] Batas waktu skrip di panel Keluaran (ms; salah satu dari RunTimeout.OPTIONS_MS). */
+    const val KEY_RUN_TIMEOUT = "run_timeout_ms"
 }

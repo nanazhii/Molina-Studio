@@ -12,6 +12,7 @@ import com.molina.code.run.RunHandle
 import com.molina.code.run.RunListener
 import com.molina.code.run.RunRequest
 import com.molina.code.run.RunResult
+import com.molina.code.run.RunTimeout
 import com.molina.code.run.ScriptExecutor
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -24,6 +25,10 @@ internal enum class RunStatus { Idle, Running, Done, Failed, Stopped, TimedOut }
  */
 internal class RunController(private val main: Handler) {
     var executor: ScriptExecutor? = null
+
+    /** [CODE-RUNTIMEOUT] Batas waktu untuk run berikutnya; tiap run memakai nilai saat mulai ([usedTimeoutMs]). */
+    var timeoutMs by mutableStateOf(RunTimeout.DEFAULT_MS)
+    private var usedTimeoutMs = RunTimeout.DEFAULT_MS
 
     /** [CODE-GUARD] Dipanggil di thread utama setelah skrip selesai (berhasil, gagal, dihentikan, atau habis waktu). */
     var onRunFinished: (() -> Unit)? = null
@@ -58,6 +63,7 @@ internal class RunController(private val main: Handler) {
     fun start(name: String, text: String, plan: RunPlan, hostDir: String?, banner: String? = null): Boolean {
         val ex = executor ?: return false
         if (running) return false
+        usedTimeoutMs = timeoutMs // [CODE-RUNTIMEOUT]
         val gen = ++generation
         synchronized(buffer) {
             buffer.clear()
@@ -69,7 +75,7 @@ internal class RunController(private val main: Handler) {
         status = RunStatus.Running
         publish()
         handle = ex.start(
-            RunRequest(name, text, plan, hostDir, TIMEOUT_MS),
+            RunRequest(name, text, plan, hostDir, usedTimeoutMs),
             object : RunListener {
                 override fun onOutput(text: String, isError: Boolean) {
                     if (gen != generation) return
@@ -127,7 +133,7 @@ internal class RunController(private val main: Handler) {
         when {
             err != null -> { status = RunStatus.Failed; summary = "Tidak berjalan" }
             r.cancelled -> { status = RunStatus.Stopped; summary = "Dihentikan \u00B7 $time" }
-            r.timedOut -> { status = RunStatus.TimedOut; summary = "Waktu habis \u00B7 ${TIMEOUT_MS / 1000} dtk" }
+            r.timedOut -> { status = RunStatus.TimedOut; summary = "Waktu habis \u00B7 ${RunTimeout.short(usedTimeoutMs)}" }
             r.exitCode == 0 -> { status = RunStatus.Done; summary = "Selesai \u00B7 exit 0 \u00B7 $time$note" }
             else -> { status = RunStatus.Failed; summary = "Gagal \u00B7 exit ${r.exitCode} \u00B7 $time$note" }
         }
@@ -136,7 +142,7 @@ internal class RunController(private val main: Handler) {
 
     companion object {
         private const val FLUSH_MS = 100L
-        const val TIMEOUT_MS = 60_000L
+        // [CODE-RUNTIMEOUT] batas waktu: lihat RunTimeout
 
         /** 1234 -> "1,23 dtk" (koma desimal Indonesia, tanpa bergantung locale perangkat). */
         fun formatSeconds(ms: Long): String {

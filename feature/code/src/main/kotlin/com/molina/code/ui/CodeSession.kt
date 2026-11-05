@@ -18,6 +18,7 @@ import com.molina.code.preview.PreviewKind
 import com.molina.code.preview.PythonTerminalRun
 import com.molina.code.preview.TerminalRunLang
 import com.molina.code.preview.RunPlans
+import com.molina.code.run.RunTimeout
 import com.molina.code.run.ScriptExecutor
 import com.molina.code.run.ScriptShare
 import com.molina.code.run.ScriptSink
@@ -302,6 +303,7 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         runStore?.get(RunPrefs.KEY_TM_ON)?.let { tmEnabled = it != "0" }
         runStore?.get(RunPrefs.KEY_FORMAT_SAVE)?.let { formatOnSave = it == "1" } // [CODE-FORMAT]
         runStore?.get(RunPrefs.KEY_DIFF_CONTRAST)?.let { diffContrast = it == "1" } // [CODE-HISTORY2]
+        runStore?.get(RunPrefs.KEY_RUN_TIMEOUT)?.let { run.timeoutMs = RunTimeout.parse(it) } // [CODE-RUNTIMEOUT]
         runStore?.get(RunPrefs.KEY_CHECK_SAVE)?.let { checkOnSave = it == "1" } // [CODE-CHECK-SAVE]
         runStore?.get(RunPrefs.KEY_LSP_LIVE)?.let { liveEnabled = it == "1"; live.setEnabled(liveEnabled) } // [CODE-LSP3]
     }
@@ -329,6 +331,14 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
     fun toggleDiffContrast() {
         diffContrast = !diffContrast
         runStore?.put(RunPrefs.KEY_DIFF_CONTRAST, if (diffContrast) "1" else "0")
+    }
+
+    /** [CODE-RUNTIMEOUT] Ganti batas waktu skrip (berlaku untuk run berikutnya) dan ingat lewat [runStore]. */
+    fun cycleRunTimeout() {
+        val next = RunTimeout.next(run.timeoutMs)
+        run.timeoutMs = next
+        runStore?.put(RunPrefs.KEY_RUN_TIMEOUT, next.toString())
+        toast("Batas waktu skrip: ${RunTimeout.short(next)} (berlaku untuk run berikutnya)")
     }
 
     /** Catatan galat format untuk toast "Tersimpan" berikutnya. */
