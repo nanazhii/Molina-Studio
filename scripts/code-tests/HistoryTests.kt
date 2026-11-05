@@ -4,6 +4,8 @@ import com.molina.code.history.HistoryKind
 import com.molina.code.history.HistoryStore
 import com.molina.code.history.HistoryVersion
 import com.molina.code.history.LineDiff
+import com.molina.code.history.VersionDelta
+import com.molina.code.history.WordDiff
 import java.io.File
 import java.nio.file.Files
 import java.util.TimeZone
@@ -146,6 +148,40 @@ fun main() {
         check("waktu: beda tahun", HistoryFormat.time(now - 400L * 86_400_000, now, tz).contains("2023"))
         check("ukuran", HistoryFormat.size(850) == "850 B" && HistoryFormat.size(1229) == "1,2 KB" && HistoryFormat.size(2 * 1024 * 1024) == "2,0 MB")
         check("countLines", HistoryStore.countLines("") == 0 && HistoryStore.countLines("a") == 1 && HistoryStore.countLines("a\n") == 1 && HistoryStore.countLines("a\nb") == 2)
+
+        // ---- [CODE-HISTORY3] diff kata
+        fun sub(s: String, rs: List<IntRange>) = rs.map { s.substring(it.first, it.last + 1) }
+        val w1 = WordDiff.compare("val x = foo(bar)", "val x = foo(baz)")
+        check("kata: satu kata berubah", w1.similar && sub("val x = foo(bar)", w1.old) == listOf("bar") && sub("val x = foo(baz)", w1.new) == listOf("baz"))
+        val w2 = WordDiff.compare("alpha beta gamma", "alpha delta gamma epsilon")
+        check("kata: ganti dan tambah, spasi tepi dibuang", sub("alpha beta gamma", w2.old) == listOf("beta") && sub("alpha delta gamma epsilon", w2.new) == listOf("delta", "epsilon"))
+        check("kata: beda total = tidak mirip", !WordDiff.compare("return value", "import os").similar)
+        val w3 = WordDiff.compare("a ".repeat(500), "b ".repeat(500))
+        check("kata: terlalu panjang = tanpa penanda", !w3.similar && w3.old.isEmpty() && w3.new.isEmpty())
+        check("kata: identik = tanpa penanda", WordDiff.compare("sama saja", "sama saja").let { it.old.isEmpty() && it.new.isEmpty() && it.similarity == 1.0 })
+        val dl = LineDiff.diff("a\nval x = 1\nb\n", "a\nval x = 2\nb\n").lines
+        val mk = WordDiff.mark(dl)
+        val delL = dl.first { it.op == DiffOp.DEL }
+        val addL = dl.first { it.op == DiffOp.ADD }
+        check("kata: pasangan DEL/ADD ditandai", sub(delL.text, mk[delL].orEmpty()) == listOf("1") && sub(addL.text, mk[addL].orEmpty()) == listOf("2"))
+        check("kata: baris SAME tidak ditandai", dl.filter { it.op == DiffOp.SAME }.all { mk[it] == null })
+        val dl2 = LineDiff.diff("foo(1)\nbar(2)\n", "bar(3)\nfoo(4)\n").lines
+        val mk2 = WordDiff.mark(dl2)
+        val foo1 = dl2.first { it.op == DiffOp.DEL && it.text == "foo(1)" }
+        val foo4 = dl2.first { it.op == DiffOp.ADD && it.text == "foo(4)" }
+        check("kata: pasangan terbaik, bukan menurut urutan", sub(foo1.text, mk2[foo1].orEmpty()) == listOf("1") && sub(foo4.text, mk2[foo4].orEmpty()) == listOf("4"))
+        val dl3 = LineDiff.diff("return value\n", "import os\n").lines
+        check("kata: baris beda total tanpa penanda", WordDiff.mark(dl3).isEmpty())
+        val long = "x".repeat(250) + "OLD" + "y".repeat(40)
+        val (ws, wr) = WordDiff.window(long, listOf(250..252))
+        check("window: tanda di ujung baris panjang tetap terlihat", ws.length <= 162 && ws.startsWith("\u2026") && wr.size == 1 && ws.substring(wr[0].first, wr[0].last + 1) == "OLD")
+        val (ws2, wr2) = WordDiff.window("pendek", listOf(0..2))
+        check("window: baris pendek utuh", ws2 == "pendek" && wr2 == listOf(0..2))
+        val (ws3, wr3) = WordDiff.window("k".repeat(300), listOf(2..4))
+        check("window: tanda di awal, ujung dipotong", ws3.endsWith("\u2026") && !ws3.startsWith("\u2026") && wr3 == listOf(2..4))
+        check("ringkasan versi", VersionDelta.between("a\nb\n", "a\nc\n") == "\u22121 +1" && VersionDelta.between("a\n", "a\n") == "sama" &&
+            VersionDelta.between(null, "a") == "" && VersionDelta.between("a\nb", "a\nb\n") == "baris kosong" &&
+            VersionDelta.between("x".repeat(VersionDelta.MAX_CHARS + 1), "y") == "besar")
     } finally {
         tmp.deleteRecursively()
     }

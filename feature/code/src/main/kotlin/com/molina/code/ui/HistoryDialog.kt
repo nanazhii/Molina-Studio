@@ -27,7 +27,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -37,19 +39,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.molina.code.history.DiffLine
 import com.molina.code.history.DiffOp
 import com.molina.code.history.DiffRow
 import com.molina.code.history.HistoryFormat
 import com.molina.code.history.HistoryStore
 import com.molina.code.history.HistoryVersion
 import com.molina.code.history.LineDiff
+import com.molina.code.history.VersionDelta
+import com.molina.code.history.WordDiff
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** [CODE-HISTORY] Hasil membaca versi dan membandingkannya (dengan isi editor, atau dua versi: [new] terisi). */
-private class HistDiffState(val old: String?, val result: LineDiff.Result?, val rows: List<DiffRow>, val new: String? = null)
+private class HistDiffState(val old: String?, val result: LineDiff.Result?, val rows: List<DiffRow>, val new: String? = null,
+    /** [CODE-HISTORY3] Rentang kata berubah per baris diff (kunci = objek baris). */
+    val marks: Map<DiffLine, List<IntRange>> = emptyMap()
+)
 
 /**
  * [CODE-HISTORY] Riwayat versi lokal: daftar snapshot berkas tab aktif (dibuat tiap simpan, plus isi disk sebelum
@@ -168,6 +176,20 @@ private fun HistoryListPane(
     onCleared: () -> Unit, onClose: () -> Unit
 ) {
     var confirmClear by remember { mutableStateOf(false) }
+    // [CODE-HISTORY3] ringkasan perubahan tiap versi dibanding versi sebelumnya (-baris +baris), dihitung bertahap di thread IO
+    val deltas by produceState<Map<String, String>>(emptyMap(), versions?.map { it.name }) {
+        val vs = versions ?: return@produceState
+        val acc = HashMap<String, String>()
+        var cur: String? = if (vs.isEmpty()) null else withContext(Dispatchers.IO) { store.read(file, vs[0]) }
+        for (i in vs.indices) {
+            val older = vs.getOrNull(i + 1)
+            val olderText = if (older == null) null else withContext(Dispatchers.IO) { store.read(file, older) }
+            val from = cur
+            acc[vs[i].name] = if (older == null) "versi pertama" else withContext(Dispatchers.IO) { VersionDelta.between(olderText, from) }
+            cur = olderText
+            if (i % 4 == 3 || i == vs.lastIndex) value = HashMap(acc)
+        }
+    }
     val scope = rememberCoroutineScope()
     BasicText(
         text = "Riwayat: " + file.name + (if (versions != null) " (" + versions.size + ")" else ""),
@@ -204,7 +226,8 @@ private fun HistoryListPane(
                             style = TextStyle(color = if (on) CodeColors.Brand else CodeColors.IconDefault, fontSize = 14.sp)
                         )
                         BasicText(
-                            text = v.lines.toString() + " baris \u00B7 " + HistoryFormat.size(v.chars.toLong()),
+                            text = v.lines.toString() + " baris \u00B7 " + HistoryFormat.size(v.chars.toLong()) +
+                                (deltas[v.name]?.takeIf { it.isNotEmpty() }?.let { " \u00B7 " + it } ?: ""),
                             maxLines = 1,
                             style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 11.sp)
                         )
@@ -310,11 +333,19 @@ private fun DiffBody(st: HistDiffState?, maxH: Dp, contrast: Boolean) {
                             fontWeight = if (contrast) FontWeight.Bold else FontWeight.Normal
                         )
                     )
+                    // [CODE-HISTORY3] kata yang berubah diberi latar pekat; baris panjang membungkus (maks. 4 baris)
+                    val markBg = if (ln.op == DiffOp.ADD) CodeColors.Clean.copy(alpha = 0.60f) else CodeColors.Danger.copy(alpha = 0.65f)
+                    val shown = remember(ln, st.marks) {
+                        val (txt, rel) = WordDiff.window(ln.text, st.marks[ln].orEmpty())
+                        buildAnnotatedString {
+                            append(txt)
+                            for (r in rel) addStyle(SpanStyle(background = markBg, fontWeight = FontWeight.Bold), r.first, r.last + 1)
+                        }
+                    }
                     BasicText(
-                        text = ln.text,
+                        text = shown,
                         modifier = Modifier.weight(1f),
-                        maxLines = 1,
-                        softWrap = false,
+                        maxLines = 4,
                         overflow = TextOverflow.Ellipsis,
                         style = TextStyle(
                             color = if (contrast && ln.op != DiffOp.SAME) Color.White else CodeColors.TextPrimary,
@@ -341,7 +372,7 @@ private fun HistoryDiffPane(
                 HistDiffState(old, null, emptyList())
             } else {
                 val r = LineDiff.diff(old, cur)
-                HistDiffState(old, r, LineDiff.compact(r, 2))
+                HistDiffState(old, r, LineDiff.compact(r, 2), marks = WordDiff.mark(r.lines))
             }
         }
     }
@@ -368,7 +399,7 @@ private fun HistoryDiffPane(
         style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 12.sp)
     )
     BasicText(
-        text = "Merah: ada di versi ini. Hijau: ada di isi sekarang.",
+        text = "Merah: ada di versi ini. Hijau: ada di isi sekarang. Latar pekat: kata yang berubah.",
         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 8.dp),
         style = TextStyle(color = CodeColors.SecondaryNeutral.copy(alpha = 0.7f), fontSize = 11.sp)
     )
@@ -400,7 +431,7 @@ private fun HistoryComparePane(
                 HistDiffState(old, null, emptyList(), new)
             } else {
                 val r = LineDiff.diff(old, new)
-                HistDiffState(old, r, LineDiff.compact(r, 2), new)
+                HistDiffState(old, r, LineDiff.compact(r, 2), new, WordDiff.mark(r.lines))
             }
         }
     }
@@ -429,7 +460,7 @@ private fun HistoryComparePane(
         style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 12.sp)
     )
     BasicText(
-        text = "Merah: hanya di versi lama. Hijau: hanya di versi baru.",
+        text = "Merah: hanya di versi lama. Hijau: hanya di versi baru. Latar pekat: kata yang berubah.",
         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 8.dp),
         style = TextStyle(color = CodeColors.SecondaryNeutral.copy(alpha = 0.7f), fontSize = 11.sp)
     )
