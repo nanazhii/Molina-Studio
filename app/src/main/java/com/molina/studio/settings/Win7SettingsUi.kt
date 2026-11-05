@@ -297,10 +297,8 @@ private fun W7Badge(top: Color, bottom: Color, label: String) {
 }
 
 @Composable internal fun W7IconTerminal() = W7Badge(Color(0xFF505050), Color(0xFF202020), ">_")
-@Composable internal fun W7IconLog() = W7Badge(Color(0xFF8FC4EE), Color(0xFF2D6DB5), "LOG")
-@Composable internal fun W7IconYtdlp() = W7Badge(Color(0xFFE8776B), Color(0xFFB3261E), "yt")
-@Composable internal fun W7IconInfo() = W7Badge(Color(0xFF7FC57A), Color(0xFF3F8F3A), "i")
-@Composable internal fun W7IconHit() = W7Badge(Color(0xFF8FC4EE), Color(0xFF2D6DB5), "\u203A")
+@Composable internal fun W7IconLog() = W7Tinted(MolinaTheme.Muted, "LOG") // [IKON-INFO]
+@Composable internal fun W7IconHit() = W7Tinted(MolinaTheme.Link, "\u203A") // [IKON-INFO]
 
 // [IKON-TERMINAL] lencana halaman Terminal; warna dari token MolinaTheme (panduan-warna.md)
 @Composable private fun W7Tinted(base: Color, label: String) = W7Badge(
@@ -314,6 +312,7 @@ private fun W7Badge(top: Color, bottom: Color, label: String) {
 // [IKON-SISTEM] lencana halaman Sistem; warna dari token (Info = Link, Editor Code = Brand)
 @Composable internal fun W7IconSysInfo() = W7Tinted(MolinaTheme.Link, "i")
 @Composable internal fun W7IconCode() = W7Tinted(MolinaTheme.Brand, "</>")
+@Composable internal fun W7IconDiag() = W7Tinted(MolinaTheme.Link, "bug")
 
 @Composable
 internal fun W7IconShield() {

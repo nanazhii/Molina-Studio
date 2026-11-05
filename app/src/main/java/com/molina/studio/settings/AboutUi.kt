@@ -88,7 +88,7 @@ internal fun HubInfoPage(
             diagLine?.let { "$it \u00b7 ketuk untuk detail" }
                 ?: "Salin info debug, ZIP diagnostik sekali klik, dan laporan bug (URL disamarkan) dalam satu tempat",
             null, onClick = onDiagnostics,
-            icon = { W7IconLog() } // [INFO-IKON]
+            icon = { W7IconDiag() } // [INFO-IKON]
         )
         DiagBadge(diag, Modifier.align(Alignment.TopEnd).padding(end = 20.dp))
     }
@@ -99,7 +99,7 @@ internal fun HubInfoPage(
 
     Spacer(Modifier.height(16.dp))
     PackageSectionHeader("Tentang")
-    PackageStatusCard("Tentang Molina", "Apa itu Molina, fitur, privasi, dan kebutuhan sistem", null, onClick = onAbout, icon = { W7IconInfo() })
+    PackageStatusCard("Tentang Molina", "Apa itu Molina, fitur, privasi, dan kebutuhan sistem", null, onClick = onAbout, icon = { W7IconSysInfo() })
     Spacer(Modifier.height(8.dp))
     PackageStatusCard(
         "Lisensi dan atribusi",
