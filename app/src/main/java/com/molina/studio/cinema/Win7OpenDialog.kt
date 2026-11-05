@@ -653,9 +653,7 @@ fun Win7OpenDialog(
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                         granted = granted, entries = shown, key = key, asc = asc, selected = selected,
                         compact = portrait,
-                        bottomInset = androidx.compose.animation.core.animateDpAsState(
-                            if (!browse) 0.dp else if (!multi && selected != null) 76.dp else 52.dp
-                        ).value, // [FLOAT-INFO] [FLOAT-ANIM]
+                        bottomInset = if (browse) 52.dp else 0.dp, // [FLOAT-INFO] kartu info dihapus; ruang tetap setinggi pil
                         onScrollDir = { floatHidden = it }, // [FLOAT-INFO]
                         onSort = { k -> if (key == k) asc = !asc else { key = k; asc = true } },
                         multi = multi, picked = picked, recentRefs = playedRefs,
@@ -675,7 +673,7 @@ fun Win7OpenDialog(
                         onAsk = { ask.launch(Manifest.permission.READ_EXTERNAL_STORAGE) }
                     )
                 }
-                if (browse) { // [FLOAT-DOCK] [FLOAT-INFO] baris melayang bawah: kartu info (kiri) + pil Debian/menu (kanan)
+                if (browse) { // [FLOAT-DOCK] [FLOAT-INFO] baris melayang bawah: pil Debian/menu (kanan)
                     LaunchedEffect(dir.path) { floatHidden = false }
                     val flHaptic = androidx.compose.ui.platform.LocalHapticFeedback.current // [FLOAT-HAPTIC]
                     val flHapticReady = remember { booleanArrayOf(false) }
@@ -689,33 +687,7 @@ fun Win7OpenDialog(
                         Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 8.dp),
                         verticalAlignment = Alignment.Bottom
                     ) {
-                        val infoOn = !multi && selected != null // [FLOAT-ANIM] [NO-INFO-SELECT] Mode Pilih tanpa kartu info
-                        val flSnap = remember { W7InfoSnap() }
-                        if (infoOn) { // bekukan isi terakhir agar animasi keluar tidak berkedip ke info folder
-                            flSnap.files = flFiles
-                            flSnap.isDir = if (selected == null || multi) null else selected!!.isDir
-                            flSnap.size = selected?.size ?: 0L
-                            flSnap.modified = selected?.modified ?: 0L
-                            flSnap.target = flTarget
-                        }
-                        Box(Modifier.weight(1f).padding(end = 8.dp)) {
-                            androidx.compose.animation.AnimatedVisibility(
-                                visible = infoOn,
-                                enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.expandVertically(expandFrom = Alignment.Bottom),
-                                exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.shrinkVertically(shrinkTowards = Alignment.Bottom)
-                            ) {
-                                val infoShape = RoundedCornerShape(10.dp)
-                                Box(Modifier.clip(infoShape).border(1.dp, if (multi) MolinaTheme.Brand else Win7.BtnLine, infoShape)) {
-                                    W7BrowseInfo(
-                                        files = flSnap.files,
-                                        isDir = flSnap.isDir,
-                                        size = flSnap.size,
-                                        modified = flSnap.modified,
-                                        onCopyPath = { onCopyPath?.invoke(flSnap.target ?: flTarget); say("Path disalin", true) }
-                                    )
-                                }
-                            }
-                        }
+                        Spacer(Modifier.weight(1f)) // pendorong: pil Debian/menu tetap rata kanan
                         Box {
                             androidx.compose.animation.AnimatedVisibility(
                                 visible = !floatHidden || menuOpen || sortOpen || toolsOpen,
@@ -1039,15 +1011,6 @@ private fun W7NavItem(label: String, active: Boolean, icon: @Composable () -> Un
         Spacer(Modifier.width(5.dp))
         Text(label, color = Win7.Ink, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
-}
-
-/** [FLOAT-ANIM] Salinan isi kartu info terakhir; dibekukan selama animasi keluar. */
-private class W7InfoSnap {
-    var files: List<File> = emptyList()
-    var isDir: Boolean? = null
-    var size: Long = 0L
-    var modified: Long = 0L
-    var target: File? = null
 }
 
 @Composable
