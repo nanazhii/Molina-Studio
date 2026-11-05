@@ -18,7 +18,7 @@ object RunReport {
     private const val MTIME_SLACK_MS = 2_000L
     private const val SHRINK_MIN_BYTES = 200
 
-    private val SKIP_DIRS = setOf(
+    val SKIP_DIRS = setOf(
         ".git", ".molina", ".gradle", "build", ".idea", ".cxx", ".kotlin", "node_modules", "__pycache__", ".venv", "venv"
     )
     private val BINARY_EXT = setOf(

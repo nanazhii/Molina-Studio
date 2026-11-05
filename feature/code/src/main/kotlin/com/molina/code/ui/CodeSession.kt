@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.molina.code.guard.DiskGuard
 import com.molina.code.guard.DiskVerdict
+import com.molina.code.guard.ProjectCommit
 import com.molina.code.guard.ProjectLog
 import com.molina.code.guard.RunReport
 import com.molina.code.guard.ScriptPrecheck
@@ -1022,10 +1023,36 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         when (ri.how) {
             com.molina.code.guard.ProjectMarker.DIR -> runIo {
                 val list = ProjectLog.read(ri.root)
-                mainHandler.post { projectLogView = ProjectLogView(ri.root, list) }
+                val pend = ProjectCommit.pending(ri.root) // [CODE-COMMIT] null bila belum pernah commit
+                mainHandler.post { projectLogView = ProjectLogView(ri.root, list, pend) }
             }
             ".git" -> toast("Folder ini repo Git: riwayatnya memakai Git")
             else -> toast("Belum proyek. Pakai menu Jadikan folder proyek dulu")
+        }
+    }
+
+    /** [CODE-COMMIT] Commit manual: catat berkas yang berubah sejak commit terakhir di log proyek, lalu segarkan dialog. */
+    internal fun commitProject(root: File, message: String) {
+        runIo {
+            val res = try {
+                ProjectCommit.commit(root, message, System.currentTimeMillis())
+            } catch (e: Exception) {
+                null
+            }
+            val committed = res?.status == ProjectCommit.Status.COMMITTED
+            val list = if (committed) ProjectLog.read(root) else null
+            mainHandler.post {
+                toast(
+                    when (res?.status) {
+                        ProjectCommit.Status.COMMITTED -> "Commit dibuat: ${res.entry?.fileCount ?: 0} berkas"
+                        ProjectCommit.Status.NOTHING -> "Tidak ada perubahan sejak commit terakhir"
+                        ProjectCommit.Status.DISABLED -> "Folder ini bukan proyek .molina"
+                        ProjectCommit.Status.TOO_BIG -> "Proyek terlalu besar untuk di-commit"
+                        else -> "Gagal membuat commit"
+                    }
+                )
+                if (list != null) projectLogView = ProjectLogView(root, list, 0)
+            }
         }
     }
 

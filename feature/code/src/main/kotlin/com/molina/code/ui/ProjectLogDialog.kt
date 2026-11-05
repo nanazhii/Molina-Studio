@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.molina.code.guard.ProjectCommit
 import com.molina.code.guard.ProjectLog
 import java.io.File
 import java.text.SimpleDateFormat
@@ -40,13 +41,14 @@ import java.util.Locale
 // terbaru dulu. Ketuk entri = buka/tutup daftar berkasnya; ketuk berkas = buka di editor.
 
 /** Potret log proyek [root] saat dialog dibuka (tidak menyegarkan sendiri; buka lagi untuk memperbarui). */
-internal class ProjectLogView(val root: File, val entries: List<ProjectLog.Entry>)
+internal class ProjectLogView(val root: File, val entries: List<ProjectLog.Entry>, val pending: Int? = null) // [CODE-COMMIT]
 
 @Composable
 internal fun ProjectLogDialog(session: CodeSession, view: ProjectLogView, onDismiss: () -> Unit) {
     val shape = RoundedCornerShape(CodeDimens.DialogCorner)
     val maxH = (LocalConfiguration.current.screenHeightDp * 0.6f).dp
     val open = remember(view) { mutableStateOf(-1) }
+    val commitAsk = remember(view) { mutableStateOf(false) } // [CODE-COMMIT]
     val fmt = remember { SimpleDateFormat("dd MMM yyyy HH:mm", Locale("id", "ID")) }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp).win7DialogFrame(shape)) {
@@ -58,7 +60,7 @@ internal fun ProjectLogDialog(session: CodeSession, view: ProjectLogView, onDism
                 style = TextStyle(color = CodeColors.IconDefault, fontSize = CodeDimens.DialogTitleSize)
             )
             BasicText(
-                text = if (view.entries.isEmpty()) "Belum ada catatan" else "${view.entries.size} catatan \u00B7 terbaru dulu",
+                text = (if (view.entries.isEmpty()) "Belum ada catatan" else "${view.entries.size} catatan \u00B7 terbaru dulu") + pendingText(view.pending),
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
                 style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 12.sp)
             )
@@ -86,7 +88,7 @@ internal fun ProjectLogDialog(session: CodeSession, view: ProjectLogView, onDism
                                 style = TextStyle(color = CodeColors.TextPrimary, fontSize = 13.sp)
                             )
                             BasicText(
-                                text = fmt.format(Date(e.time)) + summary(e),
+                                text = fmt.format(Date(e.time)) + (if (e.source == ProjectCommit.SRC) " \u00B7 commit" else "") + summary(e),
                                 maxLines = 1,
                                 style = TextStyle(color = CodeColors.TextSecondary, fontSize = 11.sp)
                             )
@@ -120,7 +122,9 @@ internal fun ProjectLogDialog(session: CodeSession, view: ProjectLogView, onDism
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Win7DialogButton("Commit baru", { commitAsk.value = true })
                 Win7DialogButton("Tutup", onDismiss, isDefault = true)
+                if (commitAsk.value) CommitDialog(session, view.root) { commitAsk.value = false }
             }
         }
     }
@@ -130,6 +134,13 @@ internal fun ProjectLogDialog(session: CodeSession, view: ProjectLogView, onDism
 private fun summary(e: ProjectLog.Entry): String =
     if (e.fileCount == 0) ""
     else " \u00B7 ${e.fileCount} berkas" + if (e.omitted == 0) " (+${e.addedFiles} ~${e.modifiedFiles} \u2212${e.deletedFiles})" else ""
+
+/** [CODE-COMMIT] Ringkasan jumlah berkas yang belum di-commit; kosong bila belum pernah commit. */
+private fun pendingText(n: Int?): String = when {
+    n == null -> ""
+    n == 0 -> " \u00B7 tidak ada perubahan baru"
+    else -> " \u00B7 $n berkas belum di-commit"
+}
 
 @Composable
 private fun FileRow(c: ProjectLog.FileChange, onClick: () -> Unit) {
