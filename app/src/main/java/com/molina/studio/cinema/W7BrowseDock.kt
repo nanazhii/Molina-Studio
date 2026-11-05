@@ -33,14 +33,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.molina.studio.ui.MolinaTheme
-import com.molina.studio.ui.components.PackageStatusCard
-import androidx.compose.ui.window.PopupProperties
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -118,75 +110,25 @@ internal fun W7BrowseInfo(
 
 /**
  * [FILES-DOCK] Panel bawah Penjelajah (mode jelajah): tinggi TETAP, satu baris aksi
- * (Aksi cepat, Sisipkan, Terminal, Buka) dengan bobot sama, tanpa lebar minimum.
+ * (Aksi cepat, Alat, Terminal, Buka) dengan bobot sama, tanpa lebar minimum.
  * [FLOAT-DOCK] Status Debian dan menu kisi pindah ke pil melayang [W7BrowseFloat] agar daftar lebih luas.
  */
 @Composable
 internal fun W7BrowseDock(
     quickLabel: String,
     toolsEnabled: Boolean,
-    insertEnabled: Boolean,
     terminalEnabled: Boolean,
-    newSessionEnabled: Boolean,
     onQuick: () -> Unit,
     onTools: () -> Unit,
-    onInsert: () -> Unit,
     onTerminal: () -> Unit,
-    onNewSession: () -> Unit,
     onOpen: () -> Unit
 ) {
-    // [DOCK-V2] Sisipkan digabung ke Terminal (tombol terbelah); slot lamanya dipakai Alat (pindah dari menu kisi).
+    // [DOCK-V2] Sisipkan dihapus; Alat menempati slotnya. Terminal = cd + Enter ke sesi aktif [TERMINAL-CD].
     Row(Modifier.fillMaxWidth().padding(bottom = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         DockButton(quickLabel, Modifier.weight(1f), true, false, null, onQuick)
-        DockButton("Alat", Modifier.weight(0.9f), toolsEnabled, false, null, onTools)
-        W7TerminalSplit(Modifier.weight(1.3f), terminalEnabled, newSessionEnabled, insertEnabled, onTerminal, onNewSession, onInsert)
+        DockButton("Alat", Modifier.weight(1f), toolsEnabled, false, null, onTools)
+        DockButton("Terminal", Modifier.weight(1.1f), terminalEnabled, false, MolinaTheme.Good, onTerminal)
         DockButton("Buka", Modifier.weight(0.9f), true, true, MolinaTheme.Brand, onOpen)
-    }
-}
-
-/**
- * [DOCK-V2] [TERMINAL-CD] Tombol Terminal terbelah: ketuk "Terminal" = seperti salin path + Enter (cd ke folder ini di
- * sesi aktif, lalu tampilkan Terminal). Panah kecil membuka kartu bergaya Setelan > Paket: sesi baru di sini,
- * atau sisipkan path (tanpa Enter) ke prompt.
- */
-@Composable
-private fun W7TerminalSplit(
-    modifier: Modifier,
-    terminalEnabled: Boolean,
-    newSessionEnabled: Boolean,
-    insertEnabled: Boolean,
-    onTerminal: () -> Unit,
-    onNewSession: () -> Unit,
-    onInsert: () -> Unit
-) {
-    var open by remember { mutableStateOf(false) }
-    val density = LocalDensity.current
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        DockButton("Terminal", Modifier.weight(1f), terminalEnabled, false, MolinaTheme.Good, onTerminal)
-        Box {
-            DockButton("\u25BE", Modifier.width(26.dp), newSessionEnabled || insertEnabled, false, MolinaTheme.Good) { open = true }
-            if (open) Popup(
-                alignment = Alignment.BottomEnd,
-                offset = IntOffset(0, -with(density) { 38.dp.roundToPx() }),
-                onDismissRequest = { open = false },
-                properties = PopupProperties(focusable = true)
-            ) {
-                Column(
-                    Modifier.width(250.dp).clip(RoundedCornerShape(12.dp))
-                        .background(MolinaTheme.Background, RoundedCornerShape(12.dp)).padding(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    if (newSessionEnabled) PackageStatusCard(
-                        "Sesi Terminal baru di sini", "Buka sesi Debian baru di folder ini", null,
-                        onClick = { open = false; onNewSession() }, subtitleMaxLines = 2
-                    )
-                    if (insertEnabled) PackageStatusCard(
-                        "Sisipkan path ke Terminal", "Kirim path terpilih ke prompt aktif, tanpa Enter", null,
-                        onClick = { open = false; onInsert() }, subtitleMaxLines = 2
-                    )
-                }
-            }
-        }
     }
 }
 

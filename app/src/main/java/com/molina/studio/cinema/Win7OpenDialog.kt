@@ -672,12 +672,6 @@ fun Win7OpenDialog(
                             if (!multi) { multi = true; picked = setOf(e.file.path); selected = null; fileName = "" }
                             else picked = if (e.file.path in picked) picked - e.file.path else picked + e.file.path
                         }) else null,
-                        onSwipeLeft = if (browse) ({ e: W7Entry ->
-                            if (multi) { if (e.file.path !in picked) picked = picked + e.file.path }
-                            else { selected = e; fileName = e.name }
-                            message = ""
-                            toolsOpen = true
-                        }) else null,
                         onAsk = { ask.launch(Manifest.permission.READ_EXTERNAL_STORAGE) }
                     )
                 }
@@ -802,7 +796,7 @@ fun Win7OpenDialog(
                         "Centang" to "Ketuk berkas atau folder untuk mencentang atau melepas centang.",
                         "Buka folder" to "Ketuk tanda \u203A di ujung baris untuk masuk ke folder.",
                         "Lintas folder" to "Centang tetap tersimpan saat Anda berpindah folder.",
-                        "Geser baris" to "Geser ke kanan untuk mencentang atau melepas; geser ke kiri untuk membuka menu Alat bagi baris itu.",
+                        "Geser baris" to "Geser ke kanan untuk mencentang atau melepas.",
                         "Pilih cepat" to "Di menu ikon kisi (kanan bawah): Pilih semua mencentang seluruh isi folder ini; Kosongkan pilihan menghapus semua centang.",
                         "Selesai" to "Pilih Selesai memilih di menu ikon kisi atau tekan tombol Kembali untuk keluar dari Mode Pilih."
                     )
@@ -834,9 +828,7 @@ fun Win7OpenDialog(
                         W7BrowseDock(
                             quickLabel = if (dkMedia) "Putar" else if (dkText) "Edit" else if (dkZip) "Buka ZIP" else if (dkArc) "Buka arsip" else "Properti",
                             toolsEnabled = !busy,
-                            insertEnabled = onInsertPaths != null,
                             terminalEnabled = onCdTerminal != null || onOpenTerminal != null,
-                            newSessionEnabled = onOpenTerminal != null,
                             onQuick = {
                                 if (dkMedia) {
                                     val fn = onPlay
@@ -850,9 +842,7 @@ fun Win7OpenDialog(
                                 else sheet = W7Sheet.Info(dkFiles)
                             },
                             onTools = { toolsOpen = true },
-                            onInsert = { onInsertPaths?.invoke(dkFiles) },
                             onTerminal = { (onCdTerminal ?: onOpenTerminal)?.invoke(dkTarget) },
-                            onNewSession = { onOpenTerminal?.invoke(dkTarget) },
                             onOpen = { if (dkTarget.isDirectory) go(dkTarget) else smartOpen(dkTarget) }
                         )
                     } else {
