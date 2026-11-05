@@ -25,6 +25,9 @@ internal enum class RunStatus { Idle, Running, Done, Failed, Stopped, TimedOut }
 internal class RunController(private val main: Handler) {
     var executor: ScriptExecutor? = null
 
+    /** [CODE-GUARD] Dipanggil di thread utama setelah skrip selesai (berhasil, gagal, dihentikan, atau habis waktu). */
+    var onRunFinished: (() -> Unit)? = null
+
     var status by mutableStateOf(RunStatus.Idle)
         private set
     var title by mutableStateOf("")
@@ -52,11 +55,14 @@ internal class RunController(private val main: Handler) {
     }
 
     /** Mulai skrip. False bila belum ada eksekutor atau masih ada yang berjalan. */
-    fun start(name: String, text: String, plan: RunPlan, hostDir: String?): Boolean {
+    fun start(name: String, text: String, plan: RunPlan, hostDir: String?, banner: String? = null): Boolean {
         val ex = executor ?: return false
         if (running) return false
         val gen = ++generation
-        synchronized(buffer) { buffer.clear() }
+        synchronized(buffer) {
+            buffer.clear()
+            if (banner != null) buffer.append(banner + "\n", false) // [CODE-GUARD] jumlah baris dan sha1 untuk dicocokkan
+        }
         title = name
         interpreter = plan.label
         summary = ""
@@ -125,6 +131,7 @@ internal class RunController(private val main: Handler) {
             r.exitCode == 0 -> { status = RunStatus.Done; summary = "Selesai \u00B7 exit 0 \u00B7 $time$note" }
             else -> { status = RunStatus.Failed; summary = "Gagal \u00B7 exit ${r.exitCode} \u00B7 $time$note" }
         }
+        onRunFinished?.invoke() // [CODE-GUARD]
     }
 
     companion object {

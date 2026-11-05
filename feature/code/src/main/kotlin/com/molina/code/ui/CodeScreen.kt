@@ -57,6 +57,7 @@ fun CodeScreen(session: CodeSession, modifier: Modifier = Modifier) {
     var pendingClose by remember { mutableStateOf<EditorTab?>(null) }
     val ctx = LocalContext.current
     SideEffect { session.toast = { msg -> Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show() } }
+    LaunchedEffect(Unit) { session.refreshExternal() } // [CODE-GUARD] berkas berubah saat layar Code ditinggalkan
     session.active?.let { t -> // [CODE-LSP3] sinkron ke server saat tab aktif/dimuat/berkasnya berubah atau saklar dinyalakan
         LaunchedEffect(t.id, t.loading, t.file, t.editor, session.liveEnabled) { session.liveSync(t) }
     }
@@ -169,6 +170,8 @@ fun CodeScreen(session: CodeSession, modifier: Modifier = Modifier) {
     if (session.themeOpen) ThemeDialog(session) { session.themeOpen = false } // [CODE-TM]
 
     session.saveAs?.let { SaveAsDialog(session, it) }
+    session.staleConflict?.let { StaleDiskDialog(session, it) } // [CODE-GUARD]
+    session.scriptCheck?.let { ScriptCheckDialog(session, it) } // [CODE-GUARD]
 
     pendingClose?.let { tab ->
         ConfirmCloseDialog(
@@ -247,6 +250,7 @@ private fun StatusChip(tab: EditorTab) {
     val color: androidx.compose.ui.graphics.Color
     when {
         tab.loading -> { label = "Memuat"; color = Win7Code.InkDim }
+        tab.staleDisk -> { label = "Basi"; color = CodeColors.Danger } // [CODE-GUARD]
         tab.dirty -> { label = "Diubah"; color = CodeColors.Modified }
         tab.file != null -> { label = "Tersimpan"; color = Win7Code.InkDim }
         else -> { label = "Baru"; color = Win7Code.InkDim }

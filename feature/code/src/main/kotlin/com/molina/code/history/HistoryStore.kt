@@ -13,7 +13,8 @@ import java.util.zip.GZIPOutputStream
 
 enum class HistoryKind(val code: Char, val label: String) {
     SAVED('s', "Disimpan"),
-    BEFORE('b', "Sebelum simpan");
+    BEFORE('b', "Sebelum simpan"),
+    RELOAD('r', "Sebelum muat ulang");
 
     companion object {
         fun of(c: Char): HistoryKind? = entries.firstOrNull { it.code == c }

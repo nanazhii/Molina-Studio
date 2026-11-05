@@ -8,6 +8,9 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.molina.code.guard.DiskGuard
+import com.molina.code.guard.DiskVerdict
+import com.molina.code.guard.ScriptPrecheck
 import com.molina.code.history.HistoryKind
 import com.molina.code.history.HistoryStore
 import com.molina.code.preview.PreviewKind
@@ -56,6 +59,10 @@ class EditorTab internal constructor(val id: Int, initialTitle: String) {
 
     /** Hanya baca per tab. Diubah dari menu titik tiga. */
     var readOnly by mutableStateOf(false)
+
+    /** [CODE-GUARD] True bila berkas di disk berubah dari luar sementara tab punya perubahan sendiri. */
+    var staleDisk by mutableStateOf(false)
+        internal set
 
     /** Kunci entri Script Execution bila tab ini hasil EDIT dari Settings; dipakai saat Kirim ke Script Execution. */
     internal var scriptKey: String? = null
@@ -139,6 +146,7 @@ class EditorTab internal constructor(val id: Int, initialTitle: String) {
         baseFp = FileStore.fingerprint(text)
         baseEol = savedEol
         baseText = if (text.length <= 400_000) text else null
+        staleDisk = false
         recomputeDirty()
         ChangeGutter.schedule(this)
     }
@@ -151,6 +159,7 @@ class EditorTab internal constructor(val id: Int, initialTitle: String) {
         baseFp = FileStore.fingerprint(text)
         baseText = if (text.length <= 400_000) text else null
         dirty = false
+        staleDisk = false
         loading = false
         editor?.setEditable(!readOnly)
         ChangeGutter.schedule(this)
@@ -390,7 +399,13 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         set(value) { preview.htmlWebView = value }
 
     /** Status eksekusi skrip untuk panel Keluaran. */
-    internal val run = RunController(mainHandler)
+    internal val run = RunController(mainHandler).also { it.onRunFinished = { refreshExternal() } } // [CODE-GUARD]
+
+    /** [CODE-GUARD] Simpan ditahan: berkas berubah di disk sejak dibuka/disimpan. Dialog: Batal/Bandingkan/Muat ulang/Timpa. */
+    internal var staleConflict by mutableStateOf<StaleConflict?>(null)
+
+    /** [CODE-GUARD] Skrip yang tampak rusak (terpotong, kutip/kurung terbuka). Dialog: Tetap jalankan/Batal. */
+    internal var scriptCheck by mutableStateOf<ScriptCheckPrompt?>(null)
 
     /** Dipasang :app (Debian PRoot). Null = tombol Play untuk skrip memberi tahu bahwa belum tersedia. */
     var scriptExecutor: ScriptExecutor?
@@ -774,9 +789,12 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
     fun runScriptHeredoc(lang: TerminalRunLang) {
         val sink = terminalSink
         if (sink == null) { toast("Terminal belum tersedia"); return }
-        val cmd = PythonTerminalRun.heredoc(scriptSourceText(), lang)
-        if (cmd == null) { toast("Tidak ada kode untuk dikirim"); return }
-        sink(cmd, true)?.let { toast(it) }
+        val src = scriptSourceText()
+        guardedRun(active?.title ?: "skrip", src, kindOf(lang)) { rep -> // [CODE-GUARD]
+            val cmd = PythonTerminalRun.heredoc(rep.body, lang)
+            if (cmd == null) { toast("Tidak ada kode untuk dikirim"); return@guardedRun }
+            sink(cmd, true)?.let { toast(it) } ?: toast(rep.banner())
+        }
     }
 
     /** Mode 2: nama dari dialog (ekstensi otomatis) lalu [runScriptFileAt]. */
@@ -803,24 +821,28 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         }
         val cmd = PythonTerminalRun.fileCommand(guest, lang)
         if (tab.file == target && !tab.dirty) { sink(cmd, true)?.let { toast(it) }; return }
-        val content = FileStore.applyEol(tab.currentTextOrNull(Int.MAX_VALUE) ?: "", tab.eol)
-        if (content.isBlank()) { toast("Tidak ada kode untuk dijalankan"); return }
-        runIo {
-            var undo: TerminalRunUndo? = null
-            var err: String? = null
-            try {
-                undo = TerminalRunEngine.begin(target, content)
-                FileStore.writeUtf8Atomic(target, content)
-            } catch (e: Exception) {
-                err = e.message ?: "Gagal menulis berkas"
-            }
-            val failure = err
-            val made = undo
-            mainHandler.post {
-                if (failure != null) { toast(failure); return@post }
-                lastTerminalRun = made
-                dir.refresh()
-                sink(cmd, true)?.let { toast(it) }
+        val raw = FileStore.applyEol(tab.currentTextOrNull(Int.MAX_VALUE) ?: "", tab.eol)
+        if (raw.isBlank()) { toast("Tidak ada kode untuk dijalankan"); return }
+        guardedRun(tab.title, raw, kindOf(lang)) { rep -> // [CODE-GUARD]
+            val content = FileStore.applyEol(rep.body, tab.eol)
+            if (content.isBlank()) { toast("Tidak ada kode untuk dijalankan"); return@guardedRun }
+            runIo {
+                var undo: TerminalRunUndo? = null
+                var err: String? = null
+                try {
+                    undo = TerminalRunEngine.begin(target, content)
+                    FileStore.writeUtf8Atomic(target, content)
+                } catch (e: Exception) {
+                    err = e.message ?: "Gagal menulis berkas"
+                }
+                val failure = err
+                val made = undo
+                mainHandler.post {
+                    if (failure != null) { toast(failure); return@post }
+                    lastTerminalRun = made
+                    dir.refresh()
+                    sink(cmd, true)?.let { toast(it) } ?: toast(rep.banner())
+                }
             }
         }
     }
@@ -921,7 +943,9 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
     }
 
     fun select(id: Int) {
-        if (tabs.any { it.id == id }) activeId = id
+        val t = tabs.firstOrNull { it.id == id } ?: return
+        activeId = id
+        refreshExternal(t) // [CODE-GUARD]
     }
 
     /** Menutup tab. Selalu menyisakan satu tab kosong. Konfirmasi tab dirty ada di layar. */
@@ -1121,13 +1145,22 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         writeTab(req.tab, target, req.after)
     }
 
-    private fun writeTab(tab: EditorTab, target: File, after: (() -> Unit)?) {
+    private fun writeTab(tab: EditorTab, target: File, after: (() -> Unit)?, force: Boolean = false) {
         if (isLibraryFile(target)) return toast("Berkas pustaka Debian hanya-baca. Gunakan Simpan sebagai ke folder kerja") // [CODE-DEBLIB]
         val text = tab.currentTextOrNull(Int.MAX_VALUE) ?: ""
         val eol = tab.eol
         val formatNote = saveNote // [CODE-FORMAT]
         saveNote = null
+        val guard = !force && tab.file == target // [CODE-GUARD]
+        val base = tab.baseFp
         runIo {
+            if (guard && DiskGuard.blocksSave(diskVerdict(base, target, text).first)) {
+                mainHandler.post {
+                    tab.staleDisk = true
+                    staleConflict = StaleConflict(tab, target, after)
+                }
+                return@runIo
+            }
             val hist = history
             if (hist != null) recordHistoryBefore(hist, target) // [CODE-HISTORY] isi disk sebelum ditimpa
             val err = try {
@@ -1180,6 +1213,116 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
             }
         } catch (e: Exception) {
             // best-effort
+        }
+    }
+
+    // ---------------------------------------------------------------- [CODE-GUARD] Tab basi dan cek skrip
+
+    private var lastStaleCheck = 0L
+
+    private fun kindOf(lang: TerminalRunLang): ScriptPrecheck.Kind =
+        if (lang == TerminalRunLang.PY) ScriptPrecheck.Kind.PY else ScriptPrecheck.Kind.SH
+
+    /** Periksa [text] sebelum dijalankan. Bersih: [go] langsung. Bermasalah: dialog Tetap jalankan/Batal. */
+    private fun guardedRun(title: String, text: String, kind: ScriptPrecheck.Kind, go: (ScriptPrecheck.Report) -> Unit) {
+        val rep = ScriptPrecheck.analyze(text, kind)
+        if (rep.clean) go(rep) else scriptCheck = ScriptCheckPrompt(title, rep) { go(rep) }
+    }
+
+    /** Di thread IO: baca disk dan bandingkan dengan baseline [base]. Teks null bila berkas tak ada atau tak terbaca. */
+    private fun diskVerdict(base: Long, target: File, editorText: String?): Pair<DiskVerdict, String?> {
+        if (!target.exists()) return DiskVerdict.MISSING to null
+        val text = FileStore.readForOpen(target).text ?: return DiskVerdict.UNKNOWN to null
+        val v = DiskGuard.verdict(true, true, base, FileStore.fingerprint(text), editorText?.let { FileStore.fingerprint(it) })
+        return v to text
+    }
+
+    /**
+     * Cek tab berkas terhadap disk ([only] = satu tab, null = semua dengan jeda [STALE_CHECK_MS]). Tab bersih yang
+     * berkasnya berubah dimuat ulang diam-diam; tab dengan perubahan sendiri ditandai basi (chip "Basi").
+     */
+    internal fun refreshExternal(only: EditorTab? = null) {
+        if (only == null) {
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (now - lastStaleCheck < STALE_CHECK_MS) return
+            lastStaleCheck = now
+        }
+        class Probe(val tab: EditorTab, val file: File, val base: Long)
+        val probes = (if (only != null) listOf(only) else tabs.toList())
+            .filter { !it.loading }
+            .mapNotNull { t -> t.file?.let { f -> Probe(t, f, t.baseFp) } }
+        if (probes.isEmpty()) return
+        runIo {
+            val results = probes.map { it to diskVerdict(it.base, it.file, null).first }
+            mainHandler.post {
+                for ((p, v) in results) {
+                    val t = p.tab
+                    if (tabs.none { it === t } || t.loading || t.file != p.file || t.baseFp != p.base) continue
+                    if (DiskGuard.autoReload(v, t.dirty)) {
+                        toast("Diubah dari luar, dimuat ulang: ${t.title}")
+                        doReload(t)
+                    } else if (DiskGuard.flagStale(v, t.dirty)) {
+                        if (!t.staleDisk) {
+                            t.staleDisk = true
+                            toast("${t.title} diubah dari luar. Saat simpan Anda diberi pilihan.")
+                        }
+                    } else if (v == DiskVerdict.SAME) {
+                        t.staleDisk = false
+                    }
+                }
+            }
+        }
+    }
+
+    internal fun staleCancel() {
+        staleConflict = null
+    }
+
+    /** Timpa: tulis isi editor apa adanya. Isi disk saat ini tetap tercatat di Riwayat ("Sebelum simpan"). */
+    internal fun staleOverwrite() {
+        val c = staleConflict ?: return
+        staleConflict = null
+        writeTab(c.tab, c.target, c.after, force = true)
+    }
+
+    /** Muat ulang dari disk. Perubahan editor yang belum disimpan dicatat dulu di Riwayat ("Sebelum muat ulang"). */
+    internal fun staleReload() {
+        val c = staleConflict ?: return
+        staleConflict = null
+        val t = c.tab
+        val mine = if (t.dirty) t.currentTextOrNull(Int.MAX_VALUE) else null
+        runIo {
+            val h = history
+            if (h != null && mine != null) {
+                try {
+                    h.record(c.target, mine, HistoryKind.RELOAD)
+                } catch (e: Exception) {
+                    // best-effort
+                }
+            }
+            mainHandler.post { if (tabs.any { it === t }) doReload(t) }
+        }
+    }
+
+    /** Bandingkan: catat isi disk di Riwayat lalu buka Riwayat (merah = isi disk, hijau = isi editor). */
+    internal fun staleCompare() {
+        val c = staleConflict ?: return
+        staleConflict = null
+        val t = c.tab
+        if (history == null) { toast("Riwayat tidak tersedia"); return }
+        runIo {
+            try {
+                val disk = FileStore.readForOpen(c.target).text
+                if (disk != null) history?.record(c.target, disk, HistoryKind.BEFORE)
+            } catch (e: Exception) {
+                // best-effort
+            }
+            mainHandler.post {
+                if (tabs.any { it === t }) {
+                    activeId = t.id
+                    historyOpen = true
+                }
+            }
         }
     }
 
@@ -1348,9 +1491,13 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
             toast("Eksekutor skrip belum terpasang")
             return
         }
-        preview.mode = PaneMode.Output
-        preview.open = true
-        run.start(tab.title, text, plan, tab.file?.parentFile?.path)
+        val kind = if (plan.needsPython) ScriptPrecheck.Kind.PY else ScriptPrecheck.Kind.SH
+        guardedRun(tab.title, text, kind) { rep -> // [CODE-GUARD]
+            if (rep.body.isBlank()) { toast("Tidak ada kode untuk dijalankan"); return@guardedRun }
+            preview.mode = PaneMode.Output
+            preview.open = true
+            run.start(tab.title, rep.body, plan, tab.file?.parentFile?.path, rep.banner())
+        }
     }
 
     // [CODE-PALETTE] buka berkas:baris dari tautan error di panel Keluaran
@@ -1416,6 +1563,7 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         private const val DRAFT_DELAY_MS = 1500L
         private const val MAX_DRAFT_CHARS = 2_000_000
         private const val MAX_RUN_CHARS = 500_000
+        private const val STALE_CHECK_MS = 1_500L // [CODE-GUARD]
         private const val MAX_LIVE_CHARS = 300_000
         internal const val LIVE_LABEL = "pylsp"
         private const val DEFINITION_TIMEOUT_MS = 5_000L // [CODE-LSP6] Jedi pertama kali bisa lambat
