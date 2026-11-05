@@ -34,6 +34,7 @@ object CodeColors {
     val FolderYellow = Color(0xFFE9B949)
     val Danger = Color(0xFFE5484D)
     val Clean = Color(0xFF3FB950)               // indikator berkas sama dengan isi awal (hijau)
+    val Modified = Color(0xFF4FA3FF)            // [CODE-DIRTY-BLUE] indikator ada perubahan belum disimpan (biru)
     val Capsule = Color(0xFF133B25)       // kapsul aktif, sama dengan bottom nav
 
     // Editor

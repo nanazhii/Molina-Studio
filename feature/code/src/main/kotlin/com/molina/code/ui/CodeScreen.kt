@@ -82,11 +82,7 @@ fun CodeScreen(session: CodeSession, modifier: Modifier = Modifier) {
                 if (tab.dirty) pendingClose = tab else session.close(tab.id)
             }
             EditorHost(session, Modifier.weight(1f).fillMaxWidth())
-            session.active?.let { t ->
-                // [CODE-LSP3] lencana hanya untuk berkas yang didukung server (Python) dan saat saklar menyala
-                val supported = session.liveEnabled && t.file != null && com.molina.code.lsp.LspServers.of(t.file!!.name, if (t.revision >= 0) t.firstLineOrNull() else null) != null
-                CodeStatusBar(t, if (supported) liveBadge(session.liveState, session.liveDetail) else null, library = session.isLibraryFile(t.file)) // [CODE-DEBLIB]
-            }
+            // [CODE-NOSTATUS] bilah status dihapus: info baris/karakter/jenis/status ada di menu titik tiga > Informasi berkas
             if (session.find.open) {
                 session.active?.let { FindBar(session, it) }
             }
@@ -132,11 +128,11 @@ fun CodeScreen(session: CodeSession, modifier: Modifier = Modifier) {
                 .align(Alignment.CenterStart)
                 .fillMaxHeight()
                 .width(CodeDimens.EdgeSwipeWidth)
-                .padding(top = CodeDimens.HeaderHeight + CodeDimens.TabBarHeight, bottom = CodeDimens.ToolbarHeight + Win7Code.StatusHeight)
+                .padding(top = CodeDimens.HeaderHeight + CodeDimens.TabBarHeight, bottom = CodeDimens.ToolbarHeight)
         )
         BackPill( // [CODE-BACK]
             session,
-            Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = CodeDimens.ToolbarHeight + Win7Code.StatusHeight + 10.dp),
+            Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = CodeDimens.ToolbarHeight + 10.dp),
         )
         DirectoryPanel(session)
         // Halaman penuh: Tinjauan (Markdown/JSON/HTML) atau Keluaran skrip (.sh/.py), menutupi editor sampai ditutup.
@@ -251,7 +247,7 @@ private fun StatusChip(tab: EditorTab) {
     val color: androidx.compose.ui.graphics.Color
     when {
         tab.loading -> { label = "Memuat"; color = Win7Code.InkDim }
-        tab.dirty -> { label = "Diubah"; color = CodeColors.Danger }
+        tab.dirty -> { label = "Diubah"; color = CodeColors.Modified }
         tab.file != null -> { label = "Tersimpan"; color = Win7Code.InkDim }
         else -> { label = "Baru"; color = Win7Code.InkDim }
     }
@@ -259,7 +255,7 @@ private fun StatusChip(tab: EditorTab) {
         if (!tab.loading) {
             Box(
                 Modifier.size(CodeDimens.DirtyDot)
-                    .background(if (tab.dirty) CodeColors.Danger else CodeColors.Clean, CircleShape)
+                    .background(if (tab.dirty) CodeColors.Modified else CodeColors.Clean, CircleShape)
             )
             Spacer(Modifier.width(4.dp))
         }
@@ -359,7 +355,7 @@ private fun TabItem(
             if (!tab.loading) {
                 Box(
                     Modifier.size(CodeDimens.DirtyDot)
-                        .background(if (tab.dirty) CodeColors.Danger else CodeColors.Clean, CircleShape)
+                        .background(if (tab.dirty) CodeColors.Modified else CodeColors.Clean, CircleShape)
                 )
                 Spacer(Modifier.width(6.dp))
             }

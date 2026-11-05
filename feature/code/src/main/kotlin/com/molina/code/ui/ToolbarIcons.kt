@@ -65,7 +65,7 @@ internal fun DrawScope.drawToolbarIcon(kind: ToolbarIcon, color: Color, dot: Boo
                     },
                     color, style = IconStroke
                 )
-                if (dot) drawCircle(CodeColors.Brand, radius = 3.4f, center = Offset(20f, 4f))
+                if (dot) drawCircle(CodeColors.Modified, radius = 3.4f, center = Offset(20f, 4f))
             }
             ToolbarIcon.Paste -> {
                 drawPath(

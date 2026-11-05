@@ -22,9 +22,9 @@ object CodeDimens {
     val DirtyDot = 6.dp
 
     // Toolbar: 10 ikon rata lebar (36dp), area sentuh setinggi 48dp
-    val ToolbarHeight = 48.dp
+    val ToolbarHeight = 40.dp   // [CODE-TOOLBAR-SLIM] dulu 48dp
     val ToolbarItemWidth = 36.dp
-    val ToolbarIconSize = 22.dp
+    val ToolbarIconSize = 20.dp
     val ToolbarGroupDividerHeight = 16.dp
     val Hairline = 1.dp
     val RailHeight = 1.dp
