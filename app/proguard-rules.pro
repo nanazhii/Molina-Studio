@@ -31,7 +31,9 @@
 
 # [MOLINA-HARDEN] Rilis: buang Log.v dan pesan null-check Kotlin (nama parameter internal).
 # Log.d/i/w/e sengaja dipertahankan agar Logcat Reporter tetap berisi.
-# Efektif hanya bila R8 melakukan optimasi; tanpa itu tidak berdampak.
+# [R8-OPTIMIZE] Efektif karena app memakai proguard-android-optimize.txt (optimasi R8 aktif).
+# -dontobfuscate dari modul mpv sengaja dipertahankan: CrashReporter menulis jejak tumpukan di perangkat,
+# dan GPL terbuka tidak butuh penyamaran nama.
 -assumenosideeffects class android.util.Log {
     public static int v(...);
 }

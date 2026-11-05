@@ -42,7 +42,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             buildConfigField("String", "WORKSPACE_DIR", "\"Molina\"") // [WORKSPACE-NEUTRAL] [WORKSPACE-IN-MOLINA]
-            proguardFiles(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro") // [R8-OPTIMIZE]
             signingConfigs.findByName("molina")?.let { signingConfig = it }
         }
     }
