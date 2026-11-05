@@ -388,6 +388,8 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
     /** [CODE-HISTORY] Riwayat versi per berkas (folder privat, bersama folder draf); null bila sesi tanpa folder draf. */
     internal val history: HistoryStore? = draftDir?.let { HistoryStore(File(it, "history")) }
     var historyOpen by mutableStateOf(false)
+    /** [CODE-HISTORY6] Bila terisi, dialog Riwayat langsung membuka versi terbaru berjenis ini (dari kartu perubahan skrip). */
+    var historyFocus by mutableStateOf<HistoryKind?>(null)
     private var historyTrimmed = false
 
     /** [CODE-TEMPLATE] Template buatan pengguna (disimpan di folder draf privat). */
@@ -1315,6 +1317,21 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         }
         preview.open = false
         openFile(f)
+    }
+
+    /** [CODE-HISTORY6] Ketuk berkas yang dimodifikasi di kartu perubahan: buka berkasnya, lalu Riwayat pada versi "Sesudah skrip". */
+    internal fun openRunChangeDiff(path: String) {
+        val c = runChanges ?: return
+        val f = File(c.snap.root, path)
+        if (!f.isFile) {
+            toast("Berkas tidak ada lagi: $path")
+            return
+        }
+        preview.open = false
+        openFile(f)
+        if (history == null) return
+        historyFocus = HistoryKind.AFTER_SCRIPT
+        historyOpen = true
     }
 
     /** Terapkan Urungkan. Berkas yang berubah lagi sejak skrip selesai dilewati, bukan ditimpa. */

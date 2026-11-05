@@ -73,6 +73,13 @@ internal fun RunChangesCard(session: CodeSession) {
         }
         if (expanded.value) {
             Column(Modifier.fillMaxWidth().heightIn(max = 220.dp).verticalScroll(rememberScrollState())) {
+                if (rep.changes.any { it.kind == RunReport.Kind.MODIFIED }) {
+                    BasicText(
+                        text = "Ketuk berkas M untuk melihat baris yang berubah (Riwayat versi)",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                        style = TextStyle(color = CodeColors.TextSecondary, fontSize = 11.sp)
+                    )
+                }
                 for (ch in rep.changes.take(MAX_ROWS)) ChangeRow(session, ch)
                 if (rep.changes.size > MAX_ROWS) {
                     BasicText(
@@ -105,7 +112,9 @@ private fun ChangeRow(session: CodeSession, ch: RunReport.Change) {
         RunReport.Kind.DELETED -> "D" to CodeColors.Danger
     }
     Row(
-        Modifier.fillMaxWidth().clickable { session.openRunChange(ch.path) }.padding(horizontal = 16.dp, vertical = 5.dp),
+        Modifier.fillMaxWidth()
+            .clickable { if (ch.kind == RunReport.Kind.MODIFIED) session.openRunChangeDiff(ch.path) else session.openRunChange(ch.path) }
+            .padding(horizontal = 16.dp, vertical = 5.dp),
         verticalAlignment = Alignment.Top
     ) {
         BasicText(

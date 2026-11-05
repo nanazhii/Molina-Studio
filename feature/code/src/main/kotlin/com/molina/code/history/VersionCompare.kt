@@ -11,4 +11,7 @@ object VersionCompare {
         val i = list.indexOfFirst { it.name == v.name }
         return if (i < 0) null else list.getOrNull(i + 1)
     }
+
+    /** [CODE-HISTORY6] Versi terbaru berjenis [kind] pada [list] (urut terbaru-dulu); null bila tidak ada. */
+    fun latestOfKind(list: List<HistoryVersion>, kind: HistoryKind): HistoryVersion? = list.firstOrNull { it.kind == kind }
 }

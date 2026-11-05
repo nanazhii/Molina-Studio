@@ -205,6 +205,11 @@ fun main() {
         check("sesudah skrip: pembandingnya versi sebelum skrip", VersionCompare.previous(scrL, scrL[0])?.name == scrL[1].name)
         check("sesudah skrip: ringkasan = perubahan skrip", VersionDelta.between(store.read(scrF, scrL[1]), store.read(scrF, scrL[0])) == "\u22121 +1")
         check("sesudah skrip: isi sama dengan sebelum skrip tidak dicatat dua kali", store.record(scrF, "a\nB\n", HistoryKind.AFTER_SCRIPT) == null)
+        check("fokus: versi terbaru berjenis tertentu",
+            VersionCompare.latestOfKind(scrL, HistoryKind.AFTER_SCRIPT)?.name == scrL[0].name &&
+                VersionCompare.latestOfKind(scrL, HistoryKind.SCRIPT)?.name == scrL[1].name &&
+                VersionCompare.latestOfKind(scrL, HistoryKind.SAVED) == null &&
+                VersionCompare.latestOfKind(emptyList(), HistoryKind.SAVED) == null)
     } finally {
         tmp.deleteRecursively()
     }

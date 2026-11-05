@@ -160,7 +160,7 @@ fun CodeScreen(session: CodeSession, modifier: Modifier = Modifier) {
     if (session.templatesOpen) LiveTemplateDialog(session) { session.templatesOpen = false } // [CODE-TEMPLATE]
     if (session.scratchOpen) ScratchDialog(session) { session.scratchOpen = false }
     if (session.pyRunOpen) session.active?.let { PythonRunDialog(session, it) { session.pyRunOpen = false } } // [CODE-PYRUN]
-    if (session.historyOpen) session.active?.let { HistoryDialog(session, it) { session.historyOpen = false } } // [CODE-HISTORY]
+    if (session.historyOpen) session.active?.let { HistoryDialog(session, it) { session.historyOpen = false; session.historyFocus = null } } // [CODE-HISTORY]
     if (session.symbolOpen) SymbolDialog(session) { session.symbolOpen = false } // [CODE-SYMBOL]
     session.definitionChoices?.let { DefinitionDialog(session, it) { session.definitionChoices = null } } // [CODE-LSP6]
     if (session.problemsOpen) session.problems?.let { ProblemsDialog(session, it) { session.problemsOpen = false } } // [CODE-CHECK]

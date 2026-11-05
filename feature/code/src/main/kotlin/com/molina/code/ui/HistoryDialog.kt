@@ -83,6 +83,12 @@ internal fun HistoryDialog(session: CodeSession, tab: EditorTab, onDismiss: () -
 
     LaunchedEffect(file?.path) {
         versions = if (store == null || file == null) emptyList() else withContext(Dispatchers.IO) { store.list(file) }
+        // [CODE-HISTORY6] dibuka dari kartu perubahan skrip: langsung tampilkan versi terbaru berjenis itu ("Sesudah skrip")
+        val focus = session.historyFocus
+        if (focus != null) {
+            session.historyFocus = null
+            if (picked == null && !compareMode) picked = VersionCompare.latestOfKind(versions.orEmpty(), focus)
+        }
     }
 
     fun isPinned(v: HistoryVersion): Boolean = versions?.firstOrNull { it.name == v.name }?.pinned ?: v.pinned
@@ -366,7 +372,7 @@ private fun HistoryDiffPane(
     onTogglePin: () -> Unit, onBack: () -> Unit, onDone: () -> Unit
 ) {
     // Teks editor diambil di thread utama (Sora bukan thread-safe); membaca snapshot dan diff di thread latar.
-    val cur = remember(v) { tab.currentTextOrNull(HistoryStore.MAX_CHARS) }
+    val cur = remember(v, tab.loading) { tab.currentTextOrNull(HistoryStore.MAX_CHARS) } // [CODE-HISTORY6] ambil ulang setelah tab selesai dimuat
     // [CODE-HISTORY4] Tampilan utama = perubahan versi ini dibanding versi sebelumnya; ketuk chip untuk dibanding isi sekarang.
     // Versi tertua (tanpa pembanding) langsung dibanding isi sekarang.
     var vsNow by remember(v) { mutableStateOf(prev == null) }
