@@ -234,7 +234,7 @@ private fun StatusStrip(info: String, busy: Boolean) {
 private fun ResumeCard(item: CinemaRecent.Item, remembered: Boolean, onPick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth()
-            .background(Color(0x222ECC71), androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+            .background(MolinaTheme.Brand.copy(alpha = 0.133f), androidx.compose.foundation.shape.RoundedCornerShape(8.dp)) // [CINEMA-TOKEN]
             .clickable(onClick = onPick)
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
