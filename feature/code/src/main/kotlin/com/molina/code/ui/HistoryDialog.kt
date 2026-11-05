@@ -43,6 +43,7 @@ import com.molina.code.history.DiffLine
 import com.molina.code.history.DiffOp
 import com.molina.code.history.DiffRow
 import com.molina.code.history.HistoryFormat
+import com.molina.code.history.HistoryKind
 import com.molina.code.history.HistoryStore
 import com.molina.code.history.HistoryVersion
 import com.molina.code.history.LineDiff
@@ -236,7 +237,7 @@ private fun HistoryListPane(
                     BasicText(
                         text = v.kind.label,
                         maxLines = 1,
-                        style = TextStyle(color = CodeColors.Brand.copy(alpha = 0.75f), fontSize = 11.sp)
+                        style = TextStyle(color = kindColor(v.kind), fontSize = 11.sp)
                     )
                     BasicText(
                         text = if (v.pinned) "\u2605" else "\u2606",
@@ -503,6 +504,13 @@ private fun HistoryComparePane(
             Win7DialogButton("Pasang baru", { session.restoreHistoryText(tab, new, labelB); onDone() }, isDefault = true)
         }
     }
+}
+
+/** [CODE-HISTORY5] Warna label jenis versi: simpan = hijau merek, skrip (sebelum/sesudah) = amber, lainnya = netral. */
+private fun kindColor(k: HistoryKind): Color = when (k) {
+    HistoryKind.SAVED -> CodeColors.Brand.copy(alpha = 0.85f)
+    HistoryKind.SCRIPT, HistoryKind.AFTER_SCRIPT -> CodeColors.Warning
+    HistoryKind.BEFORE, HistoryKind.RELOAD -> CodeColors.SecondaryNeutral
 }
 
 /**

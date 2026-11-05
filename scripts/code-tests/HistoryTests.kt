@@ -191,6 +191,20 @@ fun main() {
         check("pembanding: versi tertua = null", VersionCompare.previous(pvList, pvList[2]) == null)
         check("pembanding: tidak ada di daftar / daftar kosong = null", VersionCompare.previous(pvList, pvMk("z")) == null && VersionCompare.previous(emptyList(), pvList[0]) == null)
         check("pembanding: dicocokkan lewat nama, bukan objek", VersionCompare.previous(pvList, pvMk("c"))?.name == "b")
+
+        // ---- [CODE-HISTORY5] "Sesudah skrip" berdampingan dengan "Sebelum skrip"
+        val scrF = File(tmp, "proj/Run.kt")
+        t += 10
+        val scrB = store.record(scrF, "a\nb\n", HistoryKind.SCRIPT)
+        t += 10
+        val scrA = store.record(scrF, "a\nB\n", HistoryKind.AFTER_SCRIPT)
+        val scrL = store.list(scrF)
+        check("sesudah skrip: tercatat dan jenisnya terbaca kembali",
+            scrB != null && scrA != null && scrL.size == 2 && scrL[0].kind == HistoryKind.AFTER_SCRIPT && scrL[1].kind == HistoryKind.SCRIPT &&
+                HistoryKind.AFTER_SCRIPT.label == "Sesudah skrip")
+        check("sesudah skrip: pembandingnya versi sebelum skrip", VersionCompare.previous(scrL, scrL[0])?.name == scrL[1].name)
+        check("sesudah skrip: ringkasan = perubahan skrip", VersionDelta.between(store.read(scrF, scrL[1]), store.read(scrF, scrL[0])) == "\u22121 +1")
+        check("sesudah skrip: isi sama dengan sebelum skrip tidak dicatat dua kali", store.record(scrF, "a\nB\n", HistoryKind.AFTER_SCRIPT) == null)
     } finally {
         tmp.deleteRecursively()
     }

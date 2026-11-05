@@ -1290,7 +1290,10 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
             try {
                 val text = String(bytes, Charsets.UTF_8)
                 if (text.indexOf('\uFFFD') >= 0) continue // bukan UTF-8 valid
-                h.record(File(snap.root, c.path), FileStore.normalizeLf(text), HistoryKind.SCRIPT)
+                val target = File(snap.root, c.path)
+                h.record(target, FileStore.normalizeLf(text), HistoryKind.SCRIPT)
+                // [CODE-HISTORY5] isi sesudah skrip jadi versi sendiri: "Perubahan versi ini" = persis apa yang diubah skrip
+                if (c.kind == RunReport.Kind.MODIFIED) FileStore.readForOpen(target).text?.let { h.record(target, it, HistoryKind.AFTER_SCRIPT) }
                 n++
             } catch (e: Exception) {
                 // best-effort

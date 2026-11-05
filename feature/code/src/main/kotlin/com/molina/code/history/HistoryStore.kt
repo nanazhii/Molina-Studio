@@ -15,6 +15,7 @@ enum class HistoryKind(val code: Char, val label: String) {
     SAVED('s', "Disimpan"),
     BEFORE('b', "Sebelum simpan"),
     SCRIPT('p', "Sebelum skrip"),
+    AFTER_SCRIPT('a', "Sesudah skrip"), // [CODE-HISTORY5]
     RELOAD('r', "Sebelum muat ulang");
 
     companion object {
