@@ -122,47 +122,55 @@ internal fun Win7Close(onClick: () -> Unit) {
     }
 }
 
-/** [GOLD-ICONS] Folder emas Molina: badan gradasi emas merek, tab lebih gelap, kilap tipis. */
+private val FolderEdge = Color(0xE61B1405) // tepi hitam kecokelatan yang tipis
+private val FolderBack = Color(0xFFC9962A) // sisi belakang dan tab, lebih gelap dari muka depan
+
+/**
+ * [FOLDER-KUNING] Folder kuning bertepi hitam tipis (tab, badan belakang, muka depan berkilap).
+ * Warna dasar sama dengan folder editor Code ([MolinaTheme.FolderYellow]). [star] = penanda folder akar Molina.
+ */
 @Composable
-internal fun Win7Folder(box: Dp) {
+private fun W7YellowFolder(box: Dp, lightTop: Color, star: Boolean) {
     Canvas(Modifier.size(box)) {
         val w = size.width
         val h = size.height
-        drawRoundRect(Color(0xFF8A6418), Offset(w * 0.04f, h * 0.14f), Size(w * 0.42f, h * 0.2f), CornerRadius(w * 0.05f))
-        drawRoundRect(
-            Brush.verticalGradient(listOf(MolinaTheme.Brand, Color(0xFFB07F22))),
-            Offset(w * 0.04f, h * 0.26f), Size(w * 0.92f, h * 0.62f), CornerRadius(w * 0.07f)
-        )
-        drawRoundRect(Color.White.copy(alpha = 0.30f), Offset(w * 0.08f, h * 0.32f), Size(w * 0.84f, h * 0.12f), CornerRadius(w * 0.04f))
+        val edge = (w * 0.05f).coerceAtLeast(1f)
+        val back = Path().apply {
+            moveTo(w * 0.07f, h * 0.18f); lineTo(w * 0.40f, h * 0.18f); lineTo(w * 0.48f, h * 0.28f)
+            lineTo(w * 0.93f, h * 0.28f); lineTo(w * 0.93f, h * 0.82f); lineTo(w * 0.07f, h * 0.82f); close()
+        }
+        drawPath(back, FolderBack)
+        drawPath(back, FolderEdge, style = Stroke(width = edge))
+        val fo = Offset(w * 0.07f, h * 0.36f)
+        val fs = Size(w * 0.86f, h * 0.46f)
+        val fr = CornerRadius(w * 0.04f)
+        drawRoundRect(Brush.verticalGradient(listOf(lightTop, MolinaTheme.FolderYellow)), fo, fs, fr)
+        drawRoundRect(FolderEdge, fo, fs, fr, style = Stroke(width = edge))
+        drawRoundRect(Color.White.copy(alpha = 0.35f), Offset(w * 0.12f, h * 0.40f), Size(w * 0.76f, h * 0.06f), CornerRadius(w * 0.03f))
+        if (star) {
+            val cx = w * 0.5f
+            val cy = h * 0.60f
+            val r = w * 0.15f
+            val sp = Path()
+            for (i in 0 until 10) {
+                val rad = if (i % 2 == 0) r else r * 0.45f
+                val ang = Math.toRadians((-90.0 + i * 36.0))
+                val x = cx + (rad * Math.cos(ang)).toFloat()
+                val y = cy + (rad * Math.sin(ang)).toFloat()
+                if (i == 0) sp.moveTo(x, y) else sp.lineTo(x, y)
+            }
+            sp.close()
+            drawPath(sp, Color(0xFF5A3F06))
+        }
     }
 }
 
-/** Folder akar Molina (/sdcard/Molina): emas lebih terang dengan bintang kecil sebagai pembeda. */
 @Composable
-internal fun Win7MolinaFolder(box: Dp) {
-    Canvas(Modifier.size(box)) {
-        val w = size.width
-        val h = size.height
-        drawRoundRect(Color(0xFF9A6F10), Offset(w * 0.04f, h * 0.14f), Size(w * 0.42f, h * 0.2f), CornerRadius(w * 0.05f))
-        drawRoundRect(
-            Brush.verticalGradient(listOf(Color(0xFFFFDC85), MolinaTheme.Brand)),
-            Offset(w * 0.04f, h * 0.26f), Size(w * 0.92f, h * 0.62f), CornerRadius(w * 0.07f)
-        )
-        val cx = w * 0.5f
-        val cy = h * 0.58f
-        val r = w * 0.17f
-        val star = Path()
-        for (i in 0 until 10) {
-            val rad = if (i % 2 == 0) r else r * 0.45f
-            val ang = Math.toRadians((-90.0 + i * 36.0))
-            val x = cx + (rad * Math.cos(ang)).toFloat()
-            val y = cy + (rad * Math.sin(ang)).toFloat()
-            if (i == 0) star.moveTo(x, y) else star.lineTo(x, y)
-        }
-        star.close()
-        drawPath(star, Color(0xFF5A3F06))
-    }
-}
+internal fun Win7Folder(box: Dp) = W7YellowFolder(box, Color(0xFFF8DB7B), false)
+
+/** Folder akar Molina (/sdcard/Molina): kuning lebih terang dengan bintang kecil sebagai pembeda. */
+@Composable
+internal fun Win7MolinaFolder(box: Dp) = W7YellowFolder(box, Color(0xFFFFE9A6), true)
 
 /** Berkas bergaya Home Theater: halaman gelap, garis tepi emas, lencana emas (video = putar, audio = not). */
 @Composable

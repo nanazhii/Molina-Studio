@@ -124,11 +124,14 @@ internal fun W7MenuIcon(ico: W7Ico, enabled: Boolean, sz: androidx.compose.ui.un
     val c = if (!enabled) Win7.Line else when (ico) {
         W7Ico.DELETE -> Color(0xFFE57373)
         W7Ico.STAR, W7Ico.STAR_OUT, W7Ico.LOCK -> Color(0xFFE0A800)
+        W7Ico.REFRESH -> MolinaTheme.Brand // [ICON-V2]
+        W7Ico.SORT -> MolinaTheme.FolderYellow
+        W7Ico.NAV -> MolinaTheme.Link
         else -> Win7.NavHeader
     }
     Canvas(Modifier.size(sz)) {
         val u = size.width / 16f
-        val sw = 1.4f * u
+        val sw = (if (ico == W7Ico.REFRESH || ico == W7Ico.SORT || ico == W7Ico.NAV) 2f else 1.4f) * u
         val st = Stroke(width = sw, cap = StrokeCap.Round)
         fun line(x1: Float, y1: Float, x2: Float, y2: Float) =
             drawLine(c, Offset(x1 * u, y1 * u), Offset(x2 * u, y2 * u), strokeWidth = sw, cap = StrokeCap.Round)
@@ -194,14 +197,30 @@ internal fun W7MenuIcon(ico: W7Ico, enabled: Boolean, sz: androidx.compose.ui.un
                 drawCircle(c, radius = 1.8f * u, center = Offset(12f * u, 12.5f * u), style = st)
                 line(5.6f, 7f, 10.4f, 4.5f); line(5.6f, 9f, 10.4f, 11.5f)
             }
-            W7Ico.REFRESH -> {
-                drawArc(c, startAngle = 40f, sweepAngle = 290f, useCenter = false,
-                    topLeft = Offset(3f * u, 3f * u), size = Size(10f * u, 10f * u), style = st)
-                line(12.3f, 5.5f, 12.3f, 2.5f); line(12.3f, 5.5f, 15.2f, 6f)
+            W7Ico.REFRESH -> { // panah melingkar 290 derajat dengan kepala panah terisi
+                val r = 4.8f
+                val a = 260.0 * PI / 180.0
+                val ex = 8f + r * cos(a).toFloat()
+                val ey = 8f + r * sin(a).toFloat()
+                val tx = -sin(a).toFloat()
+                val ty = cos(a).toFloat()
+                val nx = cos(a).toFloat()
+                val ny = sin(a).toFloat()
+                drawArc(c, startAngle = -30f, sweepAngle = 290f, useCenter = false,
+                    topLeft = Offset((8f - r) * u, (8f - r) * u), size = Size(2f * r * u, 2f * r * u), style = st)
+                val head = Path()
+                head.moveTo((ex + tx * 3f) * u, (ey + ty * 3f) * u)
+                head.lineTo((ex + nx * 2.6f) * u, (ey + ny * 2.6f) * u)
+                head.lineTo((ex - nx * 2.6f) * u, (ey - ny * 2.6f) * u)
+                head.close()
+                drawPath(head, c, style = Fill)
             }
-            W7Ico.SORT -> {
-                line(5f, 13f, 5f, 3f); line(5f, 3f, 3f, 5.5f); line(5f, 3f, 7f, 5.5f)
-                line(11f, 3f, 11f, 13f); line(11f, 13f, 9f, 10.5f); line(11f, 13f, 13f, 10.5f)
+            W7Ico.SORT -> { // tiga batang menurun + panah turun terisi
+                line(2f, 4f, 9f, 4f); line(2f, 8f, 7f, 8f); line(2f, 12f, 5f, 12f)
+                line(12.5f, 2.5f, 12.5f, 11f)
+                val ah = Path()
+                ah.moveTo(12.5f * u, 14.2f * u); ah.lineTo(9.8f * u, 10.6f * u); ah.lineTo(15.2f * u, 10.6f * u); ah.close()
+                drawPath(ah, c, style = Fill)
             }
             W7Ico.SELECT -> { box(2.5f, 2.5f, 11f, 11f); line(5f, 8.2f, 7.3f, 10.5f); line(7.3f, 10.5f, 11.2f, 5.5f) }
             W7Ico.SELECT_ALL -> {
@@ -222,7 +241,11 @@ internal fun W7MenuIcon(ico: W7Ico, enabled: Boolean, sz: androidx.compose.ui.un
                 drawCircle(c, radius = 1.2f * u, center = Offset(8f * u, 8f * u))
                 drawCircle(c, radius = 1.2f * u, center = Offset(8f * u, 12.5f * u))
             }
-            W7Ico.NAV -> { line(2.5f, 4f, 13.5f, 4f); line(2.5f, 8f, 13.5f, 8f); line(2.5f, 12f, 13.5f, 12f) } // [DROP-HAMBURGER]
+            W7Ico.NAV -> { // [DROP-HAMBURGER] panel lokasi: bingkai dengan panel kiri terisi
+                drawRoundRect(c, Offset(2f * u, 2.5f * u), Size(12f * u, 11f * u), CornerRadius(1.6f * u), style = st)
+                drawRect(c.copy(alpha = 0.35f), Offset(2.9f * u, 3.4f * u), Size(3.2f * u, 9.2f * u))
+                line(6.6f, 3.6f, 6.6f, 12.4f)
+            }
             W7Ico.LOCK -> { // MOLINA-H13-BRIDGE: gembok amber untuk Vault
                 box(3.5f, 7f, 9f, 7f)
                 line(5f, 7f, 5f, 5.5f); line(11f, 7f, 11f, 5.5f)

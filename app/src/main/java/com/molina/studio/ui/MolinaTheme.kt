@@ -26,6 +26,8 @@ object MolinaTheme {
     val Muted = Color(0xFF9AA0A6)
     val CardBg = Color(0xFF14161B)
     val CardLine = Color(0xFF2A2D35)
+    /** [FOLDER-KUNING] Kuning folder Penjelajah; nilainya SAMA dengan CodeColors.FolderYellow di editor Code. */
+    val FolderYellow = Color(0xFFE9B949)
 
     // [TOKEN-PUSAT] Warna kartu/status halaman Paket, dulu literal tersebar. Nilainya SAMA dengan sebelumnya (tanpa perubahan tampilan).
     /** Biru tautan dan tombol aksi Aero (#6CB4FF). */
