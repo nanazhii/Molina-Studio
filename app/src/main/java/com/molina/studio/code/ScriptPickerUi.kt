@@ -18,6 +18,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -116,6 +118,8 @@ internal fun ScriptRunHost() {
 @Composable
 internal fun ScriptPickerDialog(onDismiss: () -> Unit) {
     val all by ScriptStore.items.collectAsState()
+    // [SCRIPT-FOLDER] daftar disegarkan dari folder Scripts setiap pemilih dibuka
+    LaunchedEffect(Unit) { withContext(Dispatchers.IO) { ScriptStore.syncFromFolder() } }
     var query by remember { mutableStateOf("") }
     var toRun by remember { mutableStateOf<ScriptItem?>(null) }
     val sorted = remember(all, query) {

@@ -1,8 +1,19 @@
 package com.molina.studio.code
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import com.molina.code.preview.ScriptLaunch
+import com.molina.code.run.KnownScript
+import com.molina.code.run.ScanResult
+import com.molina.code.run.ScriptFolder
 import com.molina.code.run.ScriptShare
+import com.molina.code.run.Stamp
+import com.molina.core.common.MolinaDir
+import com.molina.core.common.TrashBin
+import com.molina.studio.AppPaths
+import com.molina.studio.ScriptShortcuts
+import com.molina.studio.settings.trashVolumes
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,6 +22,7 @@ import org.json.JSONObject
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** Satu skrip di Settings > Script execution. [sourceKey] = asal dari editor Code (null bila dibuat manual). */
 data class ScriptItem(
@@ -24,7 +36,9 @@ data class ScriptItem(
     val lastRunAt: Long,
     val favorite: Boolean = false,
     val args: String = "",
-    val trusted: Boolean = false
+    val trusted: Boolean = false,
+    /** Path berkas di folder Molina/Scripts (sumber nama + isi); null = entri lama yang belum dipindah ke folder. */
+    val path: String? = null
 )
 
 /** Hasil operasi toko skrip; [message] siap ditampilkan sebagai Toast. */
@@ -36,7 +50,7 @@ class ScriptResult(val ok: Boolean, val message: String, val id: String? = null)
  * kiriman dari editor Code. Semua mutasi diserialkan dengan @Synchronized.
  */
 object ScriptStore {
-    const val MAX_SCRIPTS = 50
+    const val MAX_SCRIPTS = 100
     const val MAX_ARGS = 300
     private const val MAX_BODY_CHARS = 300_000
     private const val FILE = "script-execution.json"
@@ -49,14 +63,247 @@ object ScriptStore {
 
     @Synchronized
     fun init(ctx: Context) {
+        appCtx = ctx.applicationContext
         val f = File(ctx.applicationContext.filesDir, FILE)
         file = f
         _items.value = load(f)
     }
 
-    /** Kiriman dari editor Code. Sumber yang sama memperbarui entri lama (catatan dipertahankan). */
+    // [SCRIPT-FOLDER] Daftar mengikuti folder Molina/Scripts: nama + isi entri = nama + isi berkas.
+
+    /** Keadaan folder Molina/Scripts untuk ditampilkan di Settings. */
+    enum class FolderStatus { Unknown, Ready, NoPermission, Unavailable }
+
+    @Volatile private var appCtx: Context? = null
+    private var stamps: Map<String, Stamp> = emptyMap()
+    private val syncing = AtomicBoolean(false)
+    private val _status = MutableStateFlow(FolderStatus.Unknown)
+    val status: StateFlow<FolderStatus> = _status.asStateFlow()
+    private val _skipped = MutableStateFlow(0)
+
+    /** Jumlah berkas di folder yang dilewati (terlalu besar, biner, atau melebihi [MAX_SCRIPTS]). */
+    val skipped: StateFlow<Int> = _skipped.asStateFlow()
+
+    private fun hasStorage(c: Context) =
+        c.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+
+    /** Folder Molina/Scripts, atau null bila belum bisa dipakai (belum init / izin storage belum ada). */
+    private fun usableDir(): File? {
+        val c = appCtx ?: return null
+        if (!hasStorage(c)) return null
+        val dir = AppPaths.get(c).dir(MolinaDir.Scripts)
+        return if (dir.isDirectory || dir.mkdirs()) dir else null
+    }
+
+    private fun prefixOf(dir: File) = dir.path.trimEnd('/') + "/"
+
+    private fun isScriptInFolder(path: String, dir: File): Boolean {
+        if (!path.startsWith(prefixOf(dir))) return false
+        val f = File(path)
+        if (!ScriptFolder.isScriptName(f.name)) return false
+        return runCatching { f.parentFile?.canonicalPath == dir.canonicalPath }.getOrDefault(false)
+    }
+
+    /**
+     * Samakan daftar dengan isi folder (nama dan isi mengikuti berkas). Operasi disk: panggil di luar main thread.
+     * Entri lama tanpa berkas ditulis jadi berkas baru (tidak menimpa apa pun). Folder yang tidak terbaca
+     * tidak pernah dianggap kosong. Mengembalikan true bila daftar berubah.
+     */
+    fun syncFromFolder(): Boolean {
+        val c = appCtx ?: return false
+        if (!syncing.compareAndSet(false, true)) return false
+        try {
+            if (!hasStorage(c)) { _status.value = FolderStatus.NoPermission; return false }
+            val dir = usableDir() ?: run { _status.value = FolderStatus.Unavailable; return false }
+            val scan = ScriptFolder.scan(dir, knownStamps()) ?: run { _status.value = FolderStatus.Unavailable; return false }
+            val removed = ArrayList<String>()
+            val changed = applyScan(scan, dir, removed)
+            _status.value = FolderStatus.Ready
+            for (id in removed) {
+                runCatching { ScriptRunner.cleanup(c, id) }
+                runCatching { ScriptShortcuts.onDeleted(c, id) }
+            }
+            return changed
+        } catch (e: Exception) {
+            _status.value = FolderStatus.Unavailable
+            return false
+        } finally {
+            syncing.set(false)
+        }
+    }
+
+    @Synchronized
+    private fun knownStamps(): Map<String, Stamp> {
+        val paths = _items.value.mapNotNull { it.path }.toSet()
+        return stamps.filterKeys { it in paths }
+    }
+
+    @Synchronized
+    private fun applyScan(scan: ScanResult, dir: File, removedOut: MutableList<String>): Boolean {
+        val list = _items.value
+        val plan = ScriptFolder.reconcile(
+            list.map { KnownScript(it.id, it.path, it.sourceKey, it.title, it.body) }, scan.files, prefixOf(dir)
+        )
+        val byPath = scan.files.associateBy { it.path }
+        val now = System.currentTimeMillis()
+        var changed = false
+        val out = ArrayList<ScriptItem>(list.size)
+        for (item in list) {
+            val linkedPath = plan.linked[item.id]
+            val keptFile = item.path?.takeIf { plan.kept[it] == item.id }?.let { byPath[it] }
+            when {
+                item.id in plan.removed -> {
+                    removedOut.add(item.id)
+                    changed = true
+                }
+                keptFile != null -> {
+                    val body = keptFile.body ?: item.body
+                    if (body != item.body || keptFile.name != item.title) {
+                        out.add(item.copy(title = keptFile.name, body = body, updatedAt = keptFile.modified))
+                        changed = true
+                    } else {
+                        out.add(item)
+                    }
+                }
+                linkedPath != null -> {
+                    val f = byPath.getValue(linkedPath)
+                    out.add(item.copy(title = f.name, body = f.body ?: item.body, path = f.path, sourceKey = item.sourceKey ?: f.path, updatedAt = f.modified))
+                    changed = true
+                }
+                item.id in plan.exported -> {
+                    val moved = exportToFolder(item, dir, now)
+                    if (moved != null) { out.add(moved); changed = true } else out.add(item)
+                }
+                else -> out.add(item)
+            }
+        }
+        var skippedNow = scan.skipped
+        for (f in plan.added) {
+            val body = f.body ?: continue
+            if (out.size >= MAX_SCRIPTS) { skippedNow++; continue }
+            out.add(ScriptItem(newId(out), f.name, "", body, f.path, f.modified, f.modified, 0L, path = f.path))
+            changed = true
+        }
+        stamps = scan.stamps
+        _skipped.value = skippedNow
+        if (changed) publish(out)
+        return changed
+    }
+
+    /** Entri lama (belum berupa berkas) ditulis jadi berkas baru di folder; tidak pernah menimpa berkas yang ada. */
+    private fun exportToFolder(item: ScriptItem, dir: File, now: Long): ScriptItem? {
+        val text = ScriptLaunch.normalizeEol(item.body)
+        val ext = ScriptLaunch.planFor(item.title, text).extension
+        val name = ScriptFolder.uniqueName(ScriptFolder.safeFileName(item.title, ext)) { File(dir, it).exists() }
+        val target = File(dir, name)
+        if (!writeNew(target, text)) return null
+        val modified = target.lastModified().takeIf { it > 0 } ?: now
+        return item.copy(title = name, body = text, path = target.path, sourceKey = item.sourceKey ?: target.path, updatedAt = modified)
+    }
+
+    private fun writeNew(target: File, text: String): Boolean = try {
+        if (target.exists()) {
+            false
+        } else {
+            val tmp = File(target.parentFile, "." + target.name + ".tmp")
+            tmp.writeText(text, Charsets.UTF_8)
+            if (tmp.renameTo(target)) true else { tmp.delete(); false }
+        }
+    } catch (e: Exception) {
+        false
+    }
+
+    private fun writeFile(target: File, text: String): Boolean = try {
+        val tmp = File(target.parentFile, "." + target.name + ".tmp")
+        tmp.writeText(text, Charsets.UTF_8)
+        if (tmp.renameTo(target) || (target.delete() && tmp.renameTo(target))) true else { tmp.delete(); false }
+    } catch (e: Exception) {
+        false
+    }
+
+    /** + TAMBAH: buat berkas skrip baru (dengan shebang) di folder. Pair(berkas, "") bila berhasil, Pair(null, pesan galat) bila gagal. */
+    fun createFile(rawName: String): Pair<File?, String> {
+        val dir = usableDir() ?: return Pair(null, "Folder Molina/Scripts belum bisa diakses (cek izin penyimpanan)")
+        val name = ScriptFolder.safeFileName(rawName, "sh")
+        val target = File(dir, name)
+        if (target.exists()) return Pair(null, "Sudah ada berkas bernama \"$name\" di folder Scripts")
+        val template = if (name.endsWith(".py", ignoreCase = true)) "#!/usr/bin/env python3\n\n" else "#!/bin/bash\n\n"
+        if (!writeNew(target, template)) return Pair(null, "Gagal membuat \"$name\"")
+        return Pair(target, "")
+    }
+
+    /**
+     * HAPUS dari Settings: berkas di folder dipindah ke Recycle Bin (bisa dipulihkan), lalu entrinya dibuang.
+     * Mengembalikan pesan galat, atau null bila berhasil.
+     */
+    fun deleteWithFile(id: String): String? {
+        val item = _items.value.firstOrNull { it.id == id } ?: return "Skrip tidak ditemukan (mungkin sudah dihapus)"
+        val c = appCtx
+        val p = item.path
+        if (p != null && c != null) {
+            val f = File(p)
+            if (f.exists()) {
+                try {
+                    TrashBin.trash(listOf(f), trashVolumes(c), emptySet())
+                } catch (e: Exception) {
+                    return "Gagal memindahkan ke Recycle Bin: ${e.message ?: e.javaClass.simpleName}"
+                }
+            }
+        }
+        delete(id)
+        return null
+    }
+
+    /** Muat ulang isi skrip dari berkasnya tepat sebelum dijalankan. null = berkas hilang. Entri lama tanpa berkas dikembalikan apa adanya. */
+    fun fresh(item: ScriptItem): ScriptItem? {
+        val p = item.path ?: return item
+        val f = File(p)
+        if (!f.isFile) return null
+        val text = runCatching { ScriptLaunch.normalizeEol(f.readText(Charsets.UTF_8)) }.getOrNull() ?: return item
+        return if (text == item.body && f.name == item.title) item else item.copy(title = f.name, body = text)
+    }
+
+    /**
+     * Kiriman dari editor Code. Isi ditulis ke berkas di folder Scripts (sumber yang sama memperbarui berkas
+     * yang sama, bukan menggandakan). Tanpa izin storage dipakai perilaku lama ([upsertLegacy]).
+     */
     @Synchronized
     fun upsertFromEditor(share: ScriptShare): ScriptResult {
+        val dir = usableDir() ?: return upsertLegacy(share)
+        val body = ScriptLaunch.normalizeEol(share.text)
+        checkBody(body)?.let { return ScriptResult(false, it) }
+        val title = share.title.trim().take(ScriptLaunch.MAX_TITLE).ifEmpty { "Skrip" }
+        val key = share.sourceKey
+        val list = _items.value
+        val old = list.firstOrNull { it.sourceKey == key || "script:${it.id}" == key || (it.path != null && it.path == key) }
+        val oldPath = old?.path
+        val target = when {
+            oldPath != null -> File(oldPath)
+            isScriptInFolder(key, dir) -> File(key)
+            else -> File(dir, ScriptFolder.uniqueName(ScriptFolder.safeFileName(title, ScriptLaunch.planFor(title, body).extension)) { File(dir, it).exists() })
+        }
+        val existing = old ?: list.firstOrNull { it.path == target.path }
+        if (existing == null && list.size >= MAX_SCRIPTS) {
+            return ScriptResult(false, "Script Execution penuh ($MAX_SCRIPTS skrip). Hapus satu di Settings dulu")
+        }
+        val current = if (target.isFile) runCatching { ScriptLaunch.normalizeEol(target.readText(Charsets.UTF_8)) }.getOrNull() else null
+        val same = current == body
+        if (!same && !writeFile(target, body)) return ScriptResult(false, "Gagal menulis \"${target.name}\" ke folder Scripts")
+        val name = target.name
+        val modified = target.lastModified().takeIf { it > 0 } ?: System.currentTimeMillis()
+        if (existing != null) {
+            val unchanged = same && existing.body == body && existing.title == name && existing.path == target.path
+            publish(list.map { if (it.id == existing.id) it.copy(title = name, body = body, path = target.path, updatedAt = modified) else it })
+            return ScriptResult(true, if (unchanged) "\"$name\" sudah sinkron di Script Execution" else "\"$name\" diperbarui di Script Execution", existing.id)
+        }
+        val item = ScriptItem(newId(list), name, "", body, key, modified, modified, 0L, path = target.path)
+        publish(list + item)
+        return ScriptResult(true, "\"$name\" disimpan di folder Scripts dan ditambahkan ke Script Execution", item.id)
+    }
+
+    /** Perilaku lama (tanpa folder): dipakai bila izin storage belum ada. */
+    @Synchronized
+    private fun upsertLegacy(share: ScriptShare): ScriptResult {
         val body = ScriptLaunch.normalizeEol(share.text)
         checkBody(body)?.let { return ScriptResult(false, it) }
         val title = share.title.trim().take(ScriptLaunch.MAX_TITLE).ifEmpty { "Skrip" }
@@ -195,6 +442,7 @@ object ScriptStore {
                     .put("source", s.sourceKey ?: JSONObject.NULL)
                     .put("created", s.createdAt).put("updated", s.updatedAt).put("lastRun", s.lastRunAt)
                     .put("fav", s.favorite).put("args", s.args).put("trust", s.trusted)
+                    .put("path", s.path ?: JSONObject.NULL)
             )
         }
         return JSONObject().put("v", 1).put("items", arr).toString()
@@ -234,7 +482,8 @@ object ScriptStore {
                             lastRunAt = o.optLong("lastRun"),
                             favorite = o.optBoolean("fav"),
                             args = o.optString("args").filter { it >= ' ' }.take(MAX_ARGS),
-                            trusted = o.optBoolean("trust")
+                            trusted = o.optBoolean("trust"),
+                            path = if (o.isNull("path")) null else o.optString("path").ifEmpty { null }
                         )
                     )
                 }

@@ -38,7 +38,10 @@ object AppPaths {
         scope.launch {
             val ok = try { paths.ensureDirs() } catch (e: Exception) { false }
             ready = ok
-            if (ok) BundledScripts.install(context.applicationContext)
+            if (ok) {
+                BundledScripts.install(context.applicationContext)
+                com.molina.studio.code.ScriptStore.syncFromFolder() // [SCRIPT-FOLDER] daftar Script Execution mengikuti folder Scripts sejak awal
+            }
             busy.set(false)
             val level = if (ok) LogLevel.Info else LogLevel.Warn
             AppLog.log("sistem", level, "AppPaths", "ensureDirs=$ok appRoot=${paths.appRoot.path}")

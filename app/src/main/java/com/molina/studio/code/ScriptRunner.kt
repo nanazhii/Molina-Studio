@@ -53,7 +53,10 @@ object ScriptRunner {
      * Mengembalikan pesan galat siap tampil, atau null bila perintah sudah dijadwalkan.
      * Panggil dari main thread.
      */
-    fun run(ctx: Context, item: ScriptItem, newSession: Boolean): String? {
+    fun run(ctx: Context, requested: ScriptItem, newSession: Boolean): String? {
+        // [SCRIPT-FOLDER] isi dibaca ulang dari berkas di folder Scripts tepat sebelum dijalankan
+        val item = ScriptStore.fresh(requested)
+            ?: return "Berkas skrip tidak ditemukan di folder Molina/Scripts (mungkin sudah dihapus)"
         val app = ctx.applicationContext
         RootfsManager.refresh(app)
         if (RootfsManager.state.value !is RootfsState.Ready) {

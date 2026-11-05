@@ -26,6 +26,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -64,6 +65,10 @@ import com.molina.studio.ui.MolinaTheme
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 private val Blue = MolinaTheme.Link // [TOKEN-PUSAT]
 private const val PREVIEW_LINES = 30
@@ -77,6 +82,15 @@ private const val PREVIEW_LINES = 30
 internal fun ScriptsPage() {
     val ctx = LocalContext.current
     val items by ScriptStore.items.collectAsState()
+    val folderStatus by ScriptStore.status.collectAsState()
+    val skippedFiles by ScriptStore.skipped.collectAsState()
+    // [SCRIPT-FOLDER] Daftar mengikuti folder Molina/Scripts: pindai tiap 2 dtk selama halaman terbuka (di luar main thread).
+    LaunchedEffect(Unit) {
+        while (true) {
+            withContext(Dispatchers.IO) { ScriptStore.syncFromFolder() }
+            delay(2000)
+        }
+    }
     var expandedId by rememberSaveable { mutableStateOf<String?>(null) }
     var toDelete by remember { mutableStateOf<ScriptItem?>(null) }
     var toRun by remember { mutableStateOf<ScriptItem?>(null) }
@@ -91,8 +105,9 @@ internal fun ScriptsPage() {
     }
 
     Text(
-        "Ketuk segitiga untuk menjalankan di Molina Terminal, ketuk judul untuk detail. EDIT membuka skrip di " +
-            "editor Code; simpan balik lewat menu titik tiga > Kirim ke Script Execution.",
+        "Daftar ini mengikuti isi folder Molina/Scripts: nama dan isi skrip sama dengan berkas di sana. Ketuk " +
+            "segitiga untuk menjalankan di Molina Terminal, ketuk judul untuk detail. EDIT membuka berkasnya di " +
+            "editor Code; menyimpan di editor langsung memperbarui daftar.",
         color = W7D.TextDim, fontSize = 13.sp, modifier = Modifier.padding(bottom = 8.dp)
     )
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -102,10 +117,27 @@ internal fun ScriptsPage() {
         )
         ActionText("+ TAMBAH", Blue) { adding = true }
     }
+    when (folderStatus) {
+        ScriptStore.FolderStatus.NoPermission -> Text(
+            "Izin penyimpanan belum diberikan, jadi daftar belum bisa mengikuti folder Molina/Scripts.",
+            color = MolinaTheme.Bad, fontSize = 12.sp, modifier = Modifier.padding(bottom = 6.dp)
+        )
+        ScriptStore.FolderStatus.Unavailable -> Text(
+            "Folder Molina/Scripts tidak bisa dibaca. Daftar tidak diubah.",
+            color = MolinaTheme.Bad, fontSize = 12.sp, modifier = Modifier.padding(bottom = 6.dp)
+        )
+        else -> Unit
+    }
+    if (skippedFiles > 0) {
+        Text(
+            "$skippedFiles berkas dilewati (terlalu besar, bukan teks, atau melebihi batas ${ScriptStore.MAX_SCRIPTS}).",
+            color = W7D.TextDim, fontSize = 12.sp, modifier = Modifier.padding(bottom = 6.dp)
+        )
+    }
     Spacer(Modifier.height(8.dp))
     if (items.isEmpty()) {
         Text(
-            "Belum ada skrip. Tekan + TAMBAH atau kirim dari editor Code.",
+            "Belum ada skrip di folder Molina/Scripts. Tekan + TAMBAH atau salin berkas .sh/.py ke folder itu.",
             color = W7D.TextDim, fontSize = 13.sp, modifier = Modifier.padding(vertical = 12.dp)
         )
     }
@@ -125,7 +157,12 @@ internal fun ScriptsPage() {
                 onFav = { ScriptStore.setFavorite(item.id, !item.favorite) },
                 onOpts = { optsOf = item },
                 onEdit = {
-                    CodeNav.pending = CodeOpenRequest(item.title, item.sourceKey ?: "script:${item.id}", item.body)
+                    val f = item.path?.let { File(it) }
+                    if (f != null && f.isFile) {
+                        CodeNav.pendingFiles = listOf(f)
+                    } else {
+                        CodeNav.pending = CodeOpenRequest(item.title, item.sourceKey ?: "script:${item.id}", item.body)
+                    }
                 },
                 onNote = { noteOf = item },
                 onPin = { toast(ctx, ScriptShortcuts.pin(ctx, item)) },
@@ -138,9 +175,8 @@ internal fun ScriptsPage() {
     if (adding) {
         NewScriptDialog(onDismiss = { adding = false }) { raw ->
             adding = false
-            val name = if (raw.substringAfterLast('.', "").lowercase() in setOf("sh", "bash", "py")) raw else "$raw.sh"
-            val body = if (name.endsWith(".py", ignoreCase = true)) "#!/usr/bin/env python3\n\n" else "#!/bin/bash\n\n"
-            CodeNav.pending = CodeOpenRequest(name, "script:new-${System.currentTimeMillis()}", body)
+            val (made, error) = ScriptStore.createFile(raw)
+            if (made != null) CodeNav.pendingFiles = listOf(made) else toast(ctx, error)
         }
     }
     toRun?.let { item -> ScriptRunDialog(item) { toRun = null } }
@@ -198,15 +234,24 @@ internal fun ScriptsPage() {
         AlertDialog(
             onDismissRequest = { toDelete = null },
             title = { Text("Hapus skrip?") },
-            text = { Text("\"${item.title}\" akan dihapus dari Script Execution. Berkas di editor Code tidak berubah.") },
+            text = {
+                Text(
+                    if (item.path != null) "Berkas \"${item.title}\" di folder Molina/Scripts dipindahkan ke Recycle Bin dan hilang dari daftar."
+                    else "\"${item.title}\" akan dihapus dari Script Execution. Berkas di editor Code tidak berubah."
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
                     toDelete = null
-                    if (expandedId == item.id) expandedId = null
-                    ScriptStore.delete(item.id)
-                    ScriptRunner.cleanup(ctx, item.id)
-                    ScriptShortcuts.onDeleted(ctx, item.id)
-                    toast(ctx, "\"${item.title}\" dihapus")
+                    val err = ScriptStore.deleteWithFile(item.id)
+                    if (err != null) {
+                        toast(ctx, err)
+                    } else {
+                        if (expandedId == item.id) expandedId = null
+                        ScriptRunner.cleanup(ctx, item.id)
+                        ScriptShortcuts.onDeleted(ctx, item.id)
+                        toast(ctx, "\"${item.title}\" dipindahkan ke Recycle Bin")
+                    }
                 }) { Text("HAPUS", color = MolinaTheme.Bad) }
             },
             dismissButton = { TextButton(onClick = { toDelete = null }) { Text("BATAL") } }
@@ -222,7 +267,7 @@ private fun NewScriptDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
         title = { Text("Skrip baru") },
         text = {
             Column {
-                Text("Nama skrip, mis. backup.sh atau tools.py. Isinya ditulis di editor Code.", fontSize = 13.sp)
+                Text("Nama skrip, mis. backup.sh atau tools.py. Berkas dibuat di folder Molina/Scripts lalu dibuka di editor Code.", fontSize = 13.sp)
                 Spacer(Modifier.height(8.dp))
                 W7Field(name, { name = it.take(ScriptLaunch.MAX_TITLE) }, singleLine = true)
             }
@@ -284,7 +329,13 @@ private fun ScriptAccordion(
         Column(Modifier.padding(12.dp)) {
             Text(item.note.ifBlank { firstLine(item.body) }, color = W7D.Ink, fontSize = 13.sp)
             Text(meta(item, lines), color = W7D.TextDim, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp, bottom = 8.dp))
-            if (item.sourceKey != null) {
+            if (item.path != null) {
+                Text(
+                    "Berkas: Molina/Scripts/${File(item.path).name}",
+                    color = W7D.TextDim, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            } else if (item.sourceKey != null) {
                 val from = when {
                     item.sourceKey.startsWith("tab:") -> "tab editor Code"
                     item.sourceKey.startsWith("script:") -> "skrip baru (editor Code)"
