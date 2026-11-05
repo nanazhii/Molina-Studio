@@ -1255,7 +1255,8 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         runStarting = true
         runIo {
             val snap = try {
-                RunReport.capture(RunReport.findRoot(dir), System.currentTimeMillis())
+                val ri = RunReport.findRootInfo(dir) // [CODE-SCANROOT]
+                RunReport.capture(ri.root, System.currentTimeMillis(), ri.how)
             } catch (e: Exception) {
                 null
             }

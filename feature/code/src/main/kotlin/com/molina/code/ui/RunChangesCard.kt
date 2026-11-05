@@ -73,6 +73,12 @@ internal fun RunChangesCard(session: CodeSession) {
         }
         if (expanded.value) {
             Column(Modifier.fillMaxWidth().heightIn(max = 220.dp).verticalScroll(rememberScrollState())) {
+                BasicText( // [CODE-SCANROOT] folder yang dipindai, supaya jelas proyek mana yang dilaporkan
+                    text = "Dipindai: " + c.snap.root.name.ifEmpty { c.snap.root.path } +
+                        " (" + (c.snap.how?.let { "ditandai $it" } ?: "tanpa penanda proyek") + ")",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    style = TextStyle(color = CodeColors.TextSecondary, fontSize = 11.sp)
+                )
                 if (rep.changes.any { it.kind == RunReport.Kind.MODIFIED }) {
                     BasicText(
                         text = "Ketuk berkas M untuk melihat baris yang berubah (Riwayat versi)",

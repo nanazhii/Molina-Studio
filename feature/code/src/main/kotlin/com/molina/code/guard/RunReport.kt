@@ -30,7 +30,9 @@ object RunReport {
     class Meta(val size: Long, val mtime: Long)
 
     /** Keadaan sebelum skrip: metadata semua berkas + isi berkas kecil. [startedAt] = waktu pindai (ms). */
-    class Snapshot(val root: File, val startedAt: Long, val meta: Map<String, Meta>, val backups: Map<String, ByteArray>)
+    class Snapshot(val root: File, val startedAt: Long, val meta: Map<String, Meta>, val backups: Map<String, ByteArray>,
+        /** [CODE-SCANROOT] Penanda akar proyek yang dipakai (mis. ".git"); null = tanpa penanda. */
+        val how: String? = null)
 
     enum class Kind { ADDED, MODIFIED, DELETED }
 
@@ -66,22 +68,43 @@ object RunReport {
 
     class UndoResult(val restored: Int, val removed: Int, val skipped: List<String>, val failed: List<String>)
 
-    /** Naik dari [start] mencari folder berisi `.git` (maks. 8 tingkat). Tidak ketemu: [start] sendiri. */
-    fun findRoot(start: File): File {
+    /** [CODE-SCANROOT] Akar proyek hasil [findRootInfo]; [how] = nama penanda yang dipakai, null bila tidak ada penanda. */
+    class RootInfo(val root: File, val how: String?)
+
+    // Penanda kuat: dicari di semua tingkat (maks. 8), yang paling dekat menang. Penanda lemah hanya dipakai bila tidak ada penanda kuat.
+    private val STRONG_MARKERS = listOf(".git", ".molina")
+    private val WEAK_MARKERS = listOf(
+        "settings.gradle.kts", "settings.gradle", "package.json", "pyproject.toml", "Cargo.toml", "go.mod", "pom.xml",
+        "CMakeLists.txt", "Makefile"
+    )
+    private val STORAGE_ROOTS = setOf("/", "/sdcard", "/storage", "/storage/emulated", "/storage/emulated/0", "/mnt/sdcard")
+
+    /**
+     * Naik dari [start] (maks. 8 tingkat) mencari akar proyek. Urutan: folder berisi `.git` (repo Git) atau `.molina`
+     * (penanda proyek lokal tanpa Git); bila tidak ada, folder terdekat berisi berkas proyek umum (settings.gradle,
+     * package.json, pyproject.toml, dst.; tidak pernah akar penyimpanan bersama). Tidak ketemu: [start] sendiri.
+     */
+    fun findRootInfo(start: File): RootInfo {
+        var weak: RootInfo? = null
         var d: File? = start
         var n = 0
         while (d != null && n < 8) {
-            if (File(d, ".git").exists()) return d
+            for (m in STRONG_MARKERS) if (File(d, m).exists()) return RootInfo(d, m)
+            if (weak == null && d.path.trimEnd('/').ifEmpty { "/" } !in STORAGE_ROOTS) {
+                for (m in WEAK_MARKERS) if (File(d, m).isFile) { weak = RootInfo(d, m); break }
+            }
             d = d.parentFile
             n++
         }
-        return start
+        return weak ?: RootInfo(start, null)
     }
 
+    fun findRoot(start: File): File = findRootInfo(start).root
+
     /** Pindai [root] dan simpan isi berkas kecil. Null bila folder terlalu besar (laporan dilewati). */
-    fun capture(root: File, now: Long): Snapshot? {
+    fun capture(root: File, now: Long, how: String? = null): Snapshot? {
         val w = walk(root, true) ?: return null
-        return Snapshot(root, now, w.first, w.second)
+        return Snapshot(root, now, w.first, w.second, how)
     }
 
     /** Bandingkan keadaan sekarang dengan [snap]. Null bila folder kini terlalu besar. */
