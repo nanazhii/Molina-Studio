@@ -951,16 +951,16 @@ private fun W7Toast(
     }
 }
 
-/** [HELP-PANEL] Tombol bantuan ringkas: lingkaran emas berisi "?" (hemat tempat di bilah alat). */
-private val W7_HELP_YELLOW = Color(0xFFFFF176) // kuning muda
+/** [HELP-PANEL] Tombol info ringkas: lingkaran biru tebal berisi "i" (hemat tempat di bilah alat). */
+private val W7_HELP_BLUE = MolinaTheme.Link // biru tautan #6CB4FF, sama dengan tombol aksi Paket
 
 @Composable
 internal fun W7HelpIcon(onClick: () -> Unit) {
     Box(Modifier.clickable(onClick = onClick).padding(horizontal = 6.dp, vertical = 5.dp)) {
         Box(
-            Modifier.size(15.dp).border(1.dp, W7_HELP_YELLOW, RoundedCornerShape(8.dp)),
+            Modifier.size(17.dp).border(2.dp, W7_HELP_BLUE, RoundedCornerShape(9.dp)),
             Alignment.Center
-        ) { Text("?", color = W7_HELP_YELLOW, fontSize = 10.sp, fontWeight = FontWeight.Bold) }
+        ) { Text("i", color = W7_HELP_BLUE, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold) }
     }
 }
 
