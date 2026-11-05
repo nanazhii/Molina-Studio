@@ -46,6 +46,7 @@ import com.molina.code.history.HistoryFormat
 import com.molina.code.history.HistoryStore
 import com.molina.code.history.HistoryVersion
 import com.molina.code.history.LineDiff
+import com.molina.code.history.VersionCompare
 import com.molina.code.history.VersionDelta
 import com.molina.code.history.WordDiff
 import java.io.File
@@ -141,7 +142,7 @@ internal fun HistoryDialog(session: CodeSession, tab: EditorTab, onDismiss: () -
                 )
             } else {
                 HistoryDiffPane(
-                    session = session, tab = tab, store = store, file = file, v = v, pinned = isPinned(v), now = now, maxH = maxH,
+                    session = session, tab = tab, store = store, file = file, v = v, prev = VersionCompare.previous(versions.orEmpty(), v), pinned = isPinned(v), now = now, maxH = maxH,
                     onTogglePin = { togglePin(v) }, onBack = { picked = null }, onDone = onDismiss
                 )
             }
@@ -360,15 +361,27 @@ private fun DiffBody(st: HistDiffState?, maxH: Dp, contrast: Boolean) {
 
 @Composable
 private fun HistoryDiffPane(
-    session: CodeSession, tab: EditorTab, store: HistoryStore, file: File, v: HistoryVersion, pinned: Boolean, now: Long, maxH: Dp,
+    session: CodeSession, tab: EditorTab, store: HistoryStore, file: File, v: HistoryVersion, prev: HistoryVersion?, pinned: Boolean, now: Long, maxH: Dp,
     onTogglePin: () -> Unit, onBack: () -> Unit, onDone: () -> Unit
 ) {
     // Teks editor diambil di thread utama (Sora bukan thread-safe); membaca snapshot dan diff di thread latar.
     val cur = remember(v) { tab.currentTextOrNull(HistoryStore.MAX_CHARS) }
-    val state by produceState<HistDiffState?>(null, v) {
+    // [CODE-HISTORY4] Tampilan utama = perubahan versi ini dibanding versi sebelumnya; ketuk chip untuk dibanding isi sekarang.
+    // Versi tertua (tanpa pembanding) langsung dibanding isi sekarang.
+    var vsNow by remember(v) { mutableStateOf(prev == null) }
+    val vsPrev = prev != null && !vsNow
+    val state by produceState<HistDiffState?>(null, v, vsNow) {
         value = withContext(Dispatchers.IO) {
             val old = store.read(file, v)
-            if (old == null || cur == null) {
+            if (vsPrev && prev != null) {
+                val before = store.read(file, prev)
+                if (old == null || before == null) {
+                    HistDiffState(old, null, emptyList(), before)
+                } else {
+                    val r = LineDiff.diff(before, old)
+                    HistDiffState(old, r, LineDiff.compact(r, 2), before, WordDiff.mark(r.lines))
+                }
+            } else if (old == null || cur == null) {
                 HistDiffState(old, null, emptyList())
             } else {
                 val r = LineDiff.diff(old, cur)
@@ -388,9 +401,14 @@ private fun HistoryDiffPane(
     val summary = when {
         st == null -> "Membaca versi\u2026"
         st.old == null -> "Versi ini tidak bisa dibaca (berkas snapshot hilang atau rusak)."
+        vsPrev && st.new == null -> "Versi sebelumnya tidak bisa dibaca (berkas snapshot hilang atau rusak)."
         st.result == null -> "Isi sekarang terlalu besar untuk dibandingkan."
-        !st.result.changed -> if (st.old == cur) "Sama dengan isi sekarang." else "Hanya beda baris kosong di akhir berkas."
-        else -> "\u2212" + st.result.removed + " +" + st.result.added + " baris dibanding isi sekarang" +
+        !st.result.changed -> when {
+            vsPrev -> if (st.old == st.new) "Sama dengan versi sebelumnya." else "Hanya beda baris kosong di akhir berkas."
+            else -> if (st.old == cur) "Sama dengan isi sekarang." else "Hanya beda baris kosong di akhir berkas."
+        }
+        else -> "\u2212" + st.result.removed + " +" + st.result.added +
+            (if (vsPrev) " baris, perubahan versi ini dibanding versi sebelumnya" else " baris dibanding isi sekarang") +
             (if (st.result.coarse) " (berkas besar: diff ringkas)" else "")
     }
     BasicText(
@@ -399,10 +417,17 @@ private fun HistoryDiffPane(
         style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 12.sp)
     )
     BasicText(
-        text = "Merah: ada di versi ini. Hijau: ada di isi sekarang. Latar pekat: kata yang berubah.",
+        text = if (vsPrev) "Merah: ada di versi sebelumnya. Hijau: baru di versi ini. Latar pekat: kata yang berubah."
+        else "Merah: ada di versi ini. Hijau: ada di isi sekarang. Latar pekat: kata yang berubah.",
         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 8.dp),
         style = TextStyle(color = CodeColors.SecondaryNeutral.copy(alpha = 0.7f), fontSize = 11.sp)
     )
+    if (prev != null) {
+        ChoiceChip(
+            "Dibanding isi sekarang", vsNow,
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+        ) { vsNow = !vsNow }
+    }
     Box(Modifier.fillMaxWidth().height(CodeDimens.Hairline).background(CodeColors.Hairline))
     DiffBody(st, maxH, session.diffContrast)
     val old = st?.old

@@ -4,6 +4,7 @@ import com.molina.code.history.HistoryKind
 import com.molina.code.history.HistoryStore
 import com.molina.code.history.HistoryVersion
 import com.molina.code.history.LineDiff
+import com.molina.code.history.VersionCompare
 import com.molina.code.history.VersionDelta
 import com.molina.code.history.WordDiff
 import java.io.File
@@ -182,6 +183,14 @@ fun main() {
         check("ringkasan versi", VersionDelta.between("a\nb\n", "a\nc\n") == "\u22121 +1" && VersionDelta.between("a\n", "a\n") == "sama" &&
             VersionDelta.between(null, "a") == "" && VersionDelta.between("a\nb", "a\nb\n") == "baris kosong" &&
             VersionDelta.between("x".repeat(VersionDelta.MAX_CHARS + 1), "y") == "besar")
+
+        // ---- [CODE-HISTORY4] versi pembanding (satu langkah lebih tua; daftar urut terbaru-dulu)
+        fun pvMk(n: String) = HistoryVersion(n, 0L, HistoryKind.SAVED, "fp", 1, 1, 1L)
+        val pvList = listOf(pvMk("c"), pvMk("b"), pvMk("a"))
+        check("pembanding: versi tengah -> yang lebih tua", VersionCompare.previous(pvList, pvList[0])?.name == "b" && VersionCompare.previous(pvList, pvList[1])?.name == "a")
+        check("pembanding: versi tertua = null", VersionCompare.previous(pvList, pvList[2]) == null)
+        check("pembanding: tidak ada di daftar / daftar kosong = null", VersionCompare.previous(pvList, pvMk("z")) == null && VersionCompare.previous(emptyList(), pvList[0]) == null)
+        check("pembanding: dicocokkan lewat nama, bukan objek", VersionCompare.previous(pvList, pvMk("c"))?.name == "b")
     } finally {
         tmp.deleteRecursively()
     }
