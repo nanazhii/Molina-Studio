@@ -5,7 +5,8 @@ import java.security.MessageDigest
 
 // [CODE-COMMIT] Commit manual untuk proyek bertanda `.molina`: membandingkan pohon proyek dengan indeks commit
 // terakhir (`.molina/index.tsv`: sha1, ukuran, waktu ubah, path per baris), lalu mencatat berkas yang berubah
-// (A/M/D) di log proyek ([ProjectLog]) dengan pesan dari pengguna. Belum menyimpan isi berkas (hanya sidik jari).
+// (A/M/D) di log proyek ([ProjectLog]) dengan pesan dari pengguna. [CODE-STORE] Isi berkas yang berubah juga disimpan
+// lokal sebagai blob ([ProjectStore]) sehingga +/- baris tercatat dan berkas dapat dipulihkan per catatan.
 // Kotlin murni (tanpa Android): scripts/code-tests/run_projcommit.sh. Hanya proyek `.molina`, bukan repo Git.
 
 object ProjectCommit {
@@ -21,30 +22,58 @@ object ProjectCommit {
 
     enum class Status { COMMITTED, NOTHING, DISABLED, TOO_BIG, FAILED }
 
-    class Result(val status: Status, val entry: ProjectLog.Entry? = null)
+    /** [unsaved] = jumlah berkas yang isinya tidak tersimpan (terlalu besar atau penyimpanan penuh). */
+    class Result(val status: Status, val entry: ProjectLog.Entry? = null, val unsaved: Int = 0)
 
     /**
      * Commit [root]: bandingkan dengan indeks terakhir, catat perubahannya di log, lalu perbarui indeks. Log ditulis
      * lebih dulu: bila indeks gagal ditulis hasilnya [Status.FAILED] dan commit berikutnya mungkin mencatat ulang
      * perubahan yang sama (lebih baik ganda daripada hilang). Memblokir: panggil dari thread IO.
+     * [CODE-STORE] Isi berkas disimpan lokal di `.molina/objects` dan manifest commit di `.molina/commits/<waktu>.tsv`.
      */
-    fun commit(root: File, message: String, now: Long, maxFiles: Int = RunReport.MAX_FILES): Result {
-        if (!ProjectLog.isEnabled(root)) return Result(Status.DISABLED)
-        val prev = readIndex(root)
-        val cur = scan(root, prev, maxFiles) ?: return Result(Status.TOO_BIG)
-        val changes = diff(prev, cur)
-        if (changes.isEmpty()) return Result(Status.NOTHING)
-        val text = message.ifBlank { DEFAULT_MESSAGE }
-        val base = ProjectLog.note(now, SRC, text) // memakai pemotongan pesan milik ProjectLog
-        val entry = ProjectLog.Entry(
-            now, SRC, base.message,
-            changes.take(ProjectLog.MAX_FILES_PER_ENTRY), maxOf(0, changes.size - ProjectLog.MAX_FILES_PER_ENTRY)
-        )
-        if (!ProjectLog.append(root, entry)) return Result(Status.FAILED)
-        val stored = cur.mapValues { (_, s) -> if (s.mtime > now - RACY_MS) Stat(s.size, -1L, s.sha) else s }
-        if (!writeIndex(root, stored)) return Result(Status.FAILED)
-        return Result(Status.COMMITTED, entry)
-    }
+    fun commit(root: File, message: String, now: Long, maxFiles: Int = RunReport.MAX_FILES): Result =
+        synchronized(ProjectStore.LOCK) {
+            if (!ProjectLog.isEnabled(root)) return@synchronized Result(Status.DISABLED)
+            val prev = readIndex(root)
+            val cur = scan(root, prev, maxFiles)?.toMutableMap() ?: return@synchronized Result(Status.TOO_BIG)
+            val cap = ProjectStore.capture(root, cur, prev) // [CODE-STORE] simpan isi + hitung +/- baris
+            val changes = diff(prev, cur).map { c ->
+                cap.lines[c.path]?.let { ProjectLog.FileChange(c.path, c.kind, it.first, it.second) } ?: c
+            }
+            if (changes.isEmpty()) return@synchronized Result(Status.NOTHING)
+            val text = message.ifBlank { DEFAULT_MESSAGE }
+            val time = ProjectStore.freeTime(root, now)
+            val base = ProjectLog.note(time, SRC, text) // memakai pemotongan pesan milik ProjectLog
+            val entry = ProjectLog.Entry(
+                time, SRC, base.message,
+                changes.take(ProjectLog.MAX_FILES_PER_ENTRY), maxOf(0, changes.size - ProjectLog.MAX_FILES_PER_ENTRY)
+            )
+            // Manifest gagal ditulis: commit tetap dicatat, hanya tidak bisa dipulihkan.
+            val manifest = ProjectStore.writeManifest(root, time, cur)
+            if (!ProjectLog.append(root, entry)) {
+                if (manifest) File(File(File(root, ProjectMarker.DIR), ProjectStore.COMMITS), "$time.tsv").delete()
+                return@synchronized Result(Status.FAILED)
+            }
+            val stored = cur.mapValues { (_, s) -> if (s.mtime > now - RACY_MS) Stat(s.size, -1L, s.sha) else s }
+            if (!writeIndex(root, stored)) return@synchronized Result(Status.FAILED)
+            ProjectStore.gc(root)
+            Result(Status.COMMITTED, entry, cap.unsaved)
+        }
+
+    /**
+     * Kembalikan [path] ke isinya pada commit [time] dan catat di log (sumber [ProjectStore.SRC_RESTORE]). Indeks tidak
+     * disentuh, jadi berkas yang dipulihkan muncul lagi sebagai perubahan belum di-commit. Memblokir: thread IO.
+     */
+    fun restoreFile(root: File, time: Long, path: String, now: Long): ProjectStore.RestoreStatus =
+        synchronized(ProjectStore.LOCK) {
+            if (!ProjectLog.isEnabled(root)) return@synchronized ProjectStore.RestoreStatus.BAD_PATH
+            val st = ProjectStore.restore(root, time, path)
+            if (st == ProjectStore.RestoreStatus.OK) {
+                val base = ProjectLog.note(now, ProjectStore.SRC_RESTORE, "Pulihkan $path")
+                ProjectLog.append(root, ProjectLog.Entry(now, ProjectStore.SRC_RESTORE, base.message, listOf(ProjectLog.FileChange(path, 'M', 0, 0))))
+            }
+            st
+        }
 
     /** Jumlah berkas yang berubah sejak commit terakhir; null bila belum pernah commit, bukan proyek, atau terlalu besar. */
     fun pending(root: File, maxFiles: Int = RunReport.MAX_FILES): Int? {
@@ -157,7 +186,7 @@ object ProjectCommit {
         null
     }
 
-    private fun esc(s: String): String {
+    internal fun esc(s: String): String {
         val sb = StringBuilder()
         for (c in s) when (c) {
             '\\' -> sb.append("\\\\")
@@ -170,7 +199,7 @@ object ProjectCommit {
     }
 
     /** Kebalikan [esc]; null bila urutan escape tidak dikenal. */
-    private fun unesc(s: String): String? {
+    internal fun unesc(s: String): String? {
         val sb = StringBuilder()
         var i = 0
         while (i < s.length) {

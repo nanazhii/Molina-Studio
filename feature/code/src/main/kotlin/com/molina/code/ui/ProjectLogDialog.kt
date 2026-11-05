@@ -32,6 +32,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.molina.code.guard.ProjectCommit
 import com.molina.code.guard.ProjectLog
+import com.molina.code.guard.ProjectStore
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -41,7 +42,13 @@ import java.util.Locale
 // terbaru dulu. Ketuk entri = buka/tutup daftar berkasnya; ketuk berkas = buka di editor.
 
 /** Potret log proyek [root] saat dialog dibuka (tidak menyegarkan sendiri; buka lagi untuk memperbarui). */
-internal class ProjectLogView(val root: File, val entries: List<ProjectLog.Entry>, val pending: Int? = null) // [CODE-COMMIT]
+// [CODE-STORE] snapshots = waktu commit yang punya manifest (isinya bisa dipulihkan)
+internal class ProjectLogView(
+    val root: File,
+    val entries: List<ProjectLog.Entry>,
+    val pending: Int? = null, // [CODE-COMMIT]
+    val snapshots: Set<Long> = emptySet()
+)
 
 @Composable
 internal fun ProjectLogDialog(session: CodeSession, view: ProjectLogView, onDismiss: () -> Unit) {
@@ -49,6 +56,7 @@ internal fun ProjectLogDialog(session: CodeSession, view: ProjectLogView, onDism
     val maxH = (LocalConfiguration.current.screenHeightDp * 0.6f).dp
     val open = remember(view) { mutableStateOf(-1) }
     val commitAsk = remember(view) { mutableStateOf(false) } // [CODE-COMMIT]
+    val fileSel = remember(view) { mutableStateOf<Pair<ProjectLog.Entry, ProjectLog.FileChange>?>(null) } // [CODE-STORE]
     val fmt = remember { SimpleDateFormat("dd MMM yyyy HH:mm", Locale("id", "ID")) }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp).win7DialogFrame(shape)) {
@@ -88,7 +96,7 @@ internal fun ProjectLogDialog(session: CodeSession, view: ProjectLogView, onDism
                                 style = TextStyle(color = CodeColors.TextPrimary, fontSize = 13.sp)
                             )
                             BasicText(
-                                text = fmt.format(Date(e.time)) + (if (e.source == ProjectCommit.SRC) " \u00B7 commit" else "") + summary(e),
+                                text = fmt.format(Date(e.time)) + sourceLabel(e.source) + summary(e),
                                 maxLines = 1,
                                 style = TextStyle(color = CodeColors.TextSecondary, fontSize = 11.sp)
                             )
@@ -96,7 +104,9 @@ internal fun ProjectLogDialog(session: CodeSession, view: ProjectLogView, onDism
                                 Spacer(Modifier.height(4.dp))
                                 for (c in e.files) FileRow(c) {
                                     val f = File(view.root, c.path)
-                                    if (c.kind != 'D' && f.isFile) {
+                                    if (e.source == ProjectCommit.SRC && e.time in view.snapshots && c.kind != 'D') {
+                                        fileSel.value = e to c // [CODE-STORE] buka atau kembalikan ke versi commit ini
+                                    } else if (c.kind != 'D' && f.isFile) {
                                         onDismiss()
                                         session.openFile(f)
                                     } else {
@@ -125,6 +135,16 @@ internal fun ProjectLogDialog(session: CodeSession, view: ProjectLogView, onDism
                 Win7DialogButton("Commit baru", { commitAsk.value = true })
                 Win7DialogButton("Tutup", onDismiss, isDefault = true)
                 if (commitAsk.value) CommitDialog(session, view.root) { commitAsk.value = false }
+                fileSel.value?.let { (en, ch) ->
+                    ProjectFileDialog(
+                        session, view.root, en.time, ch.path, fmt.format(Date(en.time)),
+                        onOpen = {
+                            val f = File(view.root, ch.path)
+                            if (f.isFile) { onDismiss(); session.openFile(f) } else session.toast("Berkas tidak ada lagi: ${ch.path}")
+                        },
+                        onDismiss = { fileSel.value = null }
+                    )
+                }
             }
         }
     }
@@ -134,6 +154,13 @@ internal fun ProjectLogDialog(session: CodeSession, view: ProjectLogView, onDism
 private fun summary(e: ProjectLog.Entry): String =
     if (e.fileCount == 0) ""
     else " \u00B7 ${e.fileCount} berkas" + if (e.omitted == 0) " (+${e.addedFiles} ~${e.modifiedFiles} \u2212${e.deletedFiles})" else ""
+
+/** [CODE-STORE] Label sumber entri di baris waktu; catatan skrip tidak diberi label. */
+private fun sourceLabel(src: String): String = when (src) {
+    ProjectCommit.SRC -> " \u00B7 commit"
+    ProjectStore.SRC_RESTORE -> " \u00B7 pulih"
+    else -> ""
+}
 
 /** [CODE-COMMIT] Ringkasan jumlah berkas yang belum di-commit; kosong bila belum pernah commit. */
 private fun pendingText(n: Int?): String = when {

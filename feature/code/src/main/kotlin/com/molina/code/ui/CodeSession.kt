@@ -12,6 +12,7 @@ import com.molina.code.guard.DiskGuard
 import com.molina.code.guard.DiskVerdict
 import com.molina.code.guard.ProjectCommit
 import com.molina.code.guard.ProjectLog
+import com.molina.code.guard.ProjectStore
 import com.molina.code.guard.RunReport
 import com.molina.code.guard.ScriptPrecheck
 import com.molina.code.history.HistoryKind
@@ -1024,7 +1025,8 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
             com.molina.code.guard.ProjectMarker.DIR -> runIo {
                 val list = ProjectLog.read(ri.root)
                 val pend = ProjectCommit.pending(ri.root) // [CODE-COMMIT] null bila belum pernah commit
-                mainHandler.post { projectLogView = ProjectLogView(ri.root, list, pend) }
+                val snaps = ProjectStore.snapshotTimes(ri.root) // [CODE-STORE]
+                mainHandler.post { projectLogView = ProjectLogView(ri.root, list, pend, snaps) }
             }
             ".git" -> toast("Folder ini repo Git: riwayatnya memakai Git")
             else -> toast("Belum proyek. Pakai menu Jadikan folder proyek dulu")
@@ -1041,17 +1043,57 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
             }
             val committed = res?.status == ProjectCommit.Status.COMMITTED
             val list = if (committed) ProjectLog.read(root) else null
+            val snaps = if (committed) ProjectStore.snapshotTimes(root) else emptySet() // [CODE-STORE]
             mainHandler.post {
                 toast(
                     when (res?.status) {
-                        ProjectCommit.Status.COMMITTED -> "Commit dibuat: ${res.entry?.fileCount ?: 0} berkas"
+                        ProjectCommit.Status.COMMITTED -> "Commit dibuat: ${res.entry?.fileCount ?: 0} berkas" +
+                            if (res.unsaved > 0) " (${res.unsaved} berkas isinya tidak tersimpan)" else ""
                         ProjectCommit.Status.NOTHING -> "Tidak ada perubahan sejak commit terakhir"
                         ProjectCommit.Status.DISABLED -> "Folder ini bukan proyek .molina"
                         ProjectCommit.Status.TOO_BIG -> "Proyek terlalu besar untuk di-commit"
                         else -> "Gagal membuat commit"
                     }
                 )
-                if (list != null) projectLogView = ProjectLogView(root, list, 0)
+                if (list != null) projectLogView = ProjectLogView(root, list, 0, snaps)
+            }
+        }
+    }
+
+    /**
+     * [CODE-STORE] Kembalikan [path] di proyek [root] ke isinya pada commit [time] (salinan lokal). Tab berkas itu yang
+     * masih berisi perubahan belum disimpan menolak pemulihan; tab bersih dimuat ulang setelahnya.
+     */
+    internal fun restoreProjectFile(root: File, time: Long, path: String) {
+        val target = File(root, path)
+        if (tabFor(target)?.dirty == true) {
+            toast("Simpan atau tutup tab $path dulu")
+            return
+        }
+        runIo {
+            val st = try {
+                ProjectCommit.restoreFile(root, time, path, System.currentTimeMillis())
+            } catch (e: Exception) {
+                ProjectStore.RestoreStatus.FAILED
+            }
+            val ok = st == ProjectStore.RestoreStatus.OK
+            val list = if (ok) ProjectLog.read(root) else null
+            val pend = if (ok) ProjectCommit.pending(root) else null
+            val snaps = if (ok) ProjectStore.snapshotTimes(root) else emptySet()
+            mainHandler.post {
+                toast(
+                    when (st) {
+                        ProjectStore.RestoreStatus.OK -> "Dipulihkan: $path"
+                        ProjectStore.RestoreStatus.NO_BLOB -> "Isi versi ini tidak tersimpan (berkas besar atau penyimpanan penuh)"
+                        ProjectStore.RestoreStatus.NO_SNAPSHOT, ProjectStore.RestoreStatus.NOT_IN_SNAPSHOT -> "Versi ini tidak tersedia lagi"
+                        ProjectStore.RestoreStatus.BAD_PATH -> "Path tidak aman, dibatalkan"
+                        ProjectStore.RestoreStatus.FAILED -> "Gagal memulihkan $path"
+                    }
+                )
+                if (ok) {
+                    tabFor(target)?.let { if (!it.dirty) doReload(it) }
+                    if (list != null) projectLogView = ProjectLogView(root, list, pend, snaps)
+                }
             }
         }
     }
