@@ -12,6 +12,7 @@ object LogcatReporter {
     private val LINE = Regex("""^\S+\s+\S+\s+\d+\s+\d+\s+([VDIWEFA])\s+(.+?)\s*:\s?(.*)$""")
 
     @Volatile private var proc: Process? = null
+    private var everStarted = false // [LOGCAT-TOGGLE] nyala ulang tidak memutar ulang 200 baris lama
 
     @Synchronized
     fun setEnabled(on: Boolean) { if (on) start() else stop() }
@@ -21,7 +22,7 @@ object LogcatReporter {
         if (proc != null) return
         val p = try {
             ProcessBuilder(
-                "logcat", "-v", "threadtime", "-T", "200",
+                "logcat", "-v", "threadtime", "-T", if (everStarted) "1" else "200",
                 "--pid=${android.os.Process.myPid()}"
             ).redirectErrorStream(true).start()
         } catch (e: Exception) {
@@ -29,11 +30,21 @@ object LogcatReporter {
             return
         }
         proc = p
+        everStarted = true
         Thread({
             try {
-                p.inputStream.bufferedReader().forEachLine { line -> handle(line) }
+                p.inputStream.bufferedReader().use { r -> r.forEachLine { line -> handle(line) } }
             } catch (e: Exception) {
                 // proses dihentikan (destroy) -> abaikan
+            } finally { // [LOGCAT-PULIH] bersihkan status agar bisa dinyalakan ulang bila logcat mati sendiri
+                val unexpected = synchronized(LogcatReporter) {
+                    if (proc === p) { proc = null; true } else false
+                }
+                try { p.destroy() } catch (e: Exception) { }
+                try { p.waitFor() } catch (e: InterruptedException) { }
+                if (unexpected) {
+                    LogBus.log("logcat", LogLevel.Warn, "reporter", "Logcat berhenti sendiri; nyalakan ulang di Settings > Terminal > Debugging")
+                }
             }
         }, "molina-logcat").apply { isDaemon = true }.start()
         LogBus.log("logcat", LogLevel.Info, "reporter", "Logcat reporter aktif")

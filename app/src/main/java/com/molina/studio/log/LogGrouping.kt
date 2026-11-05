@@ -69,8 +69,16 @@ object LogBus : LogSink {
         schedulePublish()
     }
 
-    private fun clean(s: String, max: Int): String =
-        s.map { if (it < ' ') ' ' else it }.joinToString("").take(max)
+    // [LOG-CLEAN-CEPAT] potong dulu, lalu ganti karakter kontrol; jalur cepat tanpa alokasi bila tidak ada karakter kontrol
+    private fun clean(s: String, max: Int): String {
+        val n = if (s.length > max) max else s.length
+        var i = 0
+        while (i < n && s[i] >= ' ') i++
+        if (i == n) return if (n == s.length) s else s.substring(0, n)
+        val ch = s.substring(0, n).toCharArray()
+        for (j in i until n) if (ch[j] < ' ') ch[j] = ' '
+        return String(ch)
+    }
 
     private fun schedulePublish() {
         if (pending.compareAndSet(false, true)) {
