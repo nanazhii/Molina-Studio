@@ -85,4 +85,18 @@
     <string name="scaler_filter">Jenis filter</string>
     <string name="interpolation_switch">Aktifkan gerakan lebih mulus</string>
     <string name="interpolation_video_sync">Sinkronisasi video</string>
+    <!-- [SUBTITLE-STYLE] -->
+    <string name="sub_style_btn">Gaya subtitle</string>
+    <string name="sub_speed_btn">Kecepatan subtitle</string>
+    <string name="sub_style_title">Gaya subtitle</string>
+    <string name="sub_style_size">Ukuran…</string>
+    <string name="sub_style_position">Posisi…</string>
+    <string name="sub_style_ass_off">Terapkan gaya ke subtitle ASS: mati</string>
+    <string name="sub_style_ass_on">Terapkan gaya ke subtitle ASS: hidup</string>
+    <string name="sub_preset_default">Bawaan mpv</string>
+    <string name="sub_preset_classic">Cinema Klasik</string>
+    <string name="sub_preset_anime">Anime</string>
+    <string name="sub_preset_contrast">Kontras tinggi</string>
+    <string name="sub_speed_title">Kecepatan subtitle (fps subtitle → fps video)</string>
+    <string name="sub_speed_normal">Normal (×1,0000)</string>
 </resources>

@@ -255,4 +255,19 @@
     <string name="tv_key_prev" translatable="false">Prev</string>
     <string name="tv_key_next" translatable="false">Next</string>
     <string name="tv_info_results" translatable="false">Hasil %1$03d dari %2$03d</string>
+    <!-- [SUBTITLE-STYLE] -->
+    <string name="sub_style_btn">Subtitle style</string>
+    <string name="sub_speed_btn">Subtitle speed</string>
+    <string name="sub_style_title">Subtitle style</string>
+    <string name="sub_style_size">Size…</string>
+    <string name="sub_style_position">Position…</string>
+    <string name="sub_style_ass_off">Apply style to ASS subtitles: off</string>
+    <string name="sub_style_ass_on">Apply style to ASS subtitles: on</string>
+    <string name="sub_preset_default">mpv default</string>
+    <string name="sub_preset_classic">Cinema Classic</string>
+    <string name="sub_preset_anime">Anime</string>
+    <string name="sub_preset_contrast">High contrast</string>
+    <string name="sub_speed_title">Subtitle speed (subtitle fps → video fps)</string>
+    <string name="sub_speed_normal">Normal (×1.0000)</string>
+    <string name="format_one_decimal" translatable="false">%.1f</string>
 </resources>

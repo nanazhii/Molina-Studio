@@ -2205,6 +2205,16 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             false
         })
 
+        // [SUBTITLE-STYLE] gaya & kecepatan subtitle (properti mpv; lihat SubStyleUi)
+        buttons.add(MenuItem(R.id.subStyleBtn) {
+            SubStyleUi.showStyleDialog(this, restoreState)
+            false
+        })
+        buttons.add(MenuItem(R.id.subSpeedBtn) {
+            SubStyleUi.showSpeedDialog(this, restoreState)
+            false
+        })
+
         buttons.add(MenuItem(R.id.sleepTimerBtn) {
             pickSleepTimer(restoreState)
             false
@@ -2215,7 +2225,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         if (player.aid == -1 || player.vid == -1)
             hiddenButtons.add(R.id.audioDelayBtn)
         if (player.sid == -1)
-            hiddenButtons.addAll(arrayOf(R.id.subDelayBtn, R.id.rowSubSeek))
+            hiddenButtons.addAll(arrayOf(R.id.subDelayBtn, R.id.rowSubSeek, R.id.rowSubStyle))
         /******/
 
         genericMenu(R.layout.dialog_advanced_menu, buttons, hiddenButtons, restoreState) { v ->

@@ -7,5 +7,5 @@ KC="${KOTLINC:-kotlinc}"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 M=feature/mpv/src/main/java/com/molina/cinema
-"$KC" -nowarn -d "$OUT" $M/LyricsTimeline.kt $M/SubtitleCodec.kt scripts/mpv-tests/LyricsTests.kt
+"$KC" -nowarn -d "$OUT" $M/LyricsTimeline.kt $M/SubtitleCodec.kt $M/SubStyle.kt scripts/mpv-tests/LyricsTests.kt
 java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" LyricsTestsKt

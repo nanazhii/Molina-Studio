@@ -47,6 +47,7 @@ internal class MPVView(context: Context, attrs: AttributeSet) : BaseMPVView(cont
         // opsi sederhana (bahasa, scale, dscale, tscale) dipetakan MpvPrefs
         for ((mpvOption, value) in cfg.options)
             MPVLib.setOptionString(mpvOption, value)
+        SubStyleUi.applySaved(context) // [SUBTITLE-STYLE]
 
         val debandMode = cfg.videoDebanding
         if (debandMode == "gradfun") {

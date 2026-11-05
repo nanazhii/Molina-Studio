@@ -51,7 +51,10 @@ internal object SrtCodec {
     fun shift(cues: List<SubCue>, deltaMs: Long): List<SubCue> =
         cues.map { it.copy(startMs = (it.startMs + deltaMs).coerceAtLeast(0), endMs = (it.endMs + deltaMs).coerceAtLeast(0)) }
 
-    /** Skala waktu (mis. 25/23.976 untuk beda FPS); setara properti mpv sub-speed. */
+    /**
+     * Kalikan timestamp berkas dengan [factor] (mis. 23.976/25 untuk mengubah subtitle 25 fps ke 23.976 fps).
+     * Perhatian: properti mpv sub-speed adalah KEBALIKANNYA (fps video / fps subtitle); lihat SubSpeeds.
+     */
     fun scale(cues: List<SubCue>, factor: Double): List<SubCue> {
         require(factor > 0.0 && factor.isFinite()) { "faktor harus > 0" }
         return cues.map { it.copy(startMs = (it.startMs * factor).roundToLong(), endMs = (it.endMs * factor).roundToLong()) }

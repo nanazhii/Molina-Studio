@@ -1,7 +1,7 @@
 import com.molina.cinema.*
 
 private var failed = 0
-private fun check(name: String, cond: Boolean) {
+internal fun check(name: String, cond: Boolean) {
     if (cond) println("OK   $name") else { println("GAGAL $name"); failed++ }
 }
 
@@ -67,6 +67,33 @@ fun main() {
     check("lirik -> SRT, kosong dilewati", SrtCodec.fromLyrics(multi.lines).size == 2)
     check("SRT tanpa nomor urut tetap terbaca", SrtCodec.parse("00:00:01,000 --> 00:00:02,000\nX").size == 1)
 
+    styleTests(::check)
+
     if (failed > 0) { println("$failed tes gagal"); kotlin.system.exitProcess(1) }
     println("Semua tes lulus")
+}
+
+// --- SubStyle & SubSpeeds (dipanggil dari main lewat styleTests)
+internal fun styleTests(check: (String, Boolean) -> Unit) {
+    val ids = SubStyles.PRESETS.map { it.id }
+    check("id preset unik", ids.toSet().size == ids.size)
+    check("preset bawaan ada", SubStyles.byId(SubStyles.DEFAULT_ID) != null)
+    val keys = SubStyles.PRESETS.map { p -> p.props.map { it.first }.toSet() }
+    check("semua preset memuat kunci yang sama", keys.toSet().size == 1)
+    check("tanpa kunci ganda dalam satu preset", SubStyles.PRESETS.all { p -> p.props.map { it.first }.toSet().size == p.props.size })
+    check("warna valid hex", SubStyles.PRESETS.all { p -> p.props.filter { it.first.endsWith("color") }.all { SubStyles.isHexColor(it.second) } })
+    check("angka valid", SubStyles.PRESETS.all { p -> p.props.filter { it.first.endsWith("size") || it.first.endsWith("offset") }.all { it.second.toDoubleOrNull() != null } })
+    check("flag bold yes/no", SubStyles.PRESETS.all { p -> p.props.first { it.first == "sub-bold" }.second in setOf("yes", "no") })
+    check("byId tak dikenal = null", SubStyles.byId("tidak-ada") == null && SubStyles.byId(null) == null)
+
+    check("NORMAL = 1.0", SubSpeeds.NORMAL.speed == 1.0)
+    // Contoh manual mpv: 25/23.976 untuk subtitle asumsi 23.976 diputar 25 fps
+    val ntscTo25 = SubSpeeds.PRESETS[1].speed
+    check("23.976 -> 25 = 1.0427", kotlin.math.abs(ntscTo25 - 1.042709) < 1e-5)
+    check("25 -> 23.976 = 0.95904", kotlin.math.abs(SubSpeeds.PRESETS[2].speed - 0.95904) < 1e-5)
+    check("preset berlawanan saling membalik", kotlin.math.abs(ntscTo25 * SubSpeeds.PRESETS[2].speed - 1.0) < 1e-9)
+    check("indexOf cocok", SubSpeeds.indexOf(1.0) == 0 && SubSpeeds.indexOf(25.0 / 24.0) == 3)
+    check("indexOf kustom/null = -1", SubSpeeds.indexOf(1.2) == -1 && SubSpeeds.indexOf(null) == -1)
+    check("label normal = null", SubSpeeds.label(SubSpeeds.NORMAL) == null)
+    check("label memuat fps & faktor", SubSpeeds.label(SubSpeeds.PRESETS[3])!!.let { "24" in it && "25" in it && "1.0417" in it.replace(',', '.') })
 }
