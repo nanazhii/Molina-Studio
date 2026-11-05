@@ -311,6 +311,9 @@ private fun W7Badge(top: Color, bottom: Color, label: String) {
 @Composable internal fun W7IconDebug() = W7Tinted(MolinaTheme.Link, "dbg")
 @Composable internal fun W7IconIo() = W7Tinted(MolinaTheme.Muted, "I/O")
 @Composable internal fun W7IconAa() = W7Tinted(MolinaTheme.Muted, "Aa")
+// [IKON-SISTEM] lencana halaman Sistem; warna dari token (Info = Link, Editor Code = Brand)
+@Composable internal fun W7IconSysInfo() = W7Tinted(MolinaTheme.Link, "i")
+@Composable internal fun W7IconCode() = W7Tinted(MolinaTheme.Brand, "</>")
 
 @Composable
 internal fun W7IconShield() {
@@ -323,8 +326,8 @@ internal fun W7IconShield() {
             quadraticBezierTo(w * 0.30f, h * 0.84f, w * 0.18f, h * 0.58f)
             lineTo(w * 0.12f, h * 0.20f); close()
         }
-        drawPath(p, Brush.verticalGradient(listOf(Color(0xFF8FD18A), Color(0xFF3F8F3A))))
-        drawPath(p, Color(0xFF2E6B2A), style = Stroke(width = 1.5f))
+        drawPath(p, Brush.verticalGradient(listOf(androidx.compose.ui.graphics.lerp(MolinaTheme.Link, Color.Black, 0.15f), androidx.compose.ui.graphics.lerp(MolinaTheme.Link, Color.Black, 0.55f)))) // [IKON-SISTEM]
+        drawPath(p, androidx.compose.ui.graphics.lerp(MolinaTheme.Link, Color.Black, 0.7f), style = Stroke(width = 1.5f))
     }
 }
 

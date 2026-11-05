@@ -36,7 +36,8 @@ menghasilkan `ManagedComponent(id, title, subtitle, state, badge)`. Dipakai oleh
 ## Ikon kartu (`settings/Win7SettingsUi.kt`, `slot icon`)
 
 `W7IconTerminal`, `W7IconLog`, `W7IconInfo`, `W7IconYtdlp`, `W7IconHit`, `W7IconShield`, serta `W7IconDebug`,
-`W7IconIo`, `W7IconAa` (lencana Terminal; warna dari `MolinaTheme.Link` dan `MolinaTheme.Muted`). Ikon besar beranda
+`W7IconIo`, `W7IconAa` (lencana Terminal; warna dari `MolinaTheme.Link` dan `MolinaTheme.Muted`), `W7IconSysInfo` dan
+`W7IconCode` (lencana Sistem; `Link` dan `Brand`). `W7IconShield` kini berwarna `Link`. Ikon besar beranda
 (`W7Icon*Big`) dipakai oleh `W7CategoryTile`, bukan oleh kartu.
 
 ## Aturan pakai

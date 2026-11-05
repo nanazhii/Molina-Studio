@@ -329,7 +329,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                     Page.System -> {
                         PackageStatusCard( // [BERANDA-KARTU]
                             "Info", "Kondisi Molina, versi aplikasi, info HP, dan pemeriksaan masalah", null,
-                            onClick = { open(Page.Info) }, icon = { W7IconInfo() } // [INFO-PAGE]
+                            onClick = { open(Page.Info) }, icon = { W7IconSysInfo() } // [INFO-PAGE]
                         )
                         Spacer(Modifier.height(8.dp))
                         PackageStatusCard(
@@ -339,7 +339,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                         Spacer(Modifier.height(8.dp))
                         PackageStatusCard(
                             "Editor Code", "Cara menampilkan pratinjau halaman web saat Anda mengedit kode", null,
-                            onClick = { open(Page.Code) }, icon = { W7IconTerminal() }
+                            onClick = { open(Page.Code) }, icon = { W7IconCode() }
                         )
                         Spacer(Modifier.height(8.dp))
                         PackageStatusCard(
