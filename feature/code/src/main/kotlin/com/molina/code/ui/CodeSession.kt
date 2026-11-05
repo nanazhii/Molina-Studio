@@ -390,6 +390,8 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
     var historyOpen by mutableStateOf(false)
     /** [CODE-HISTORY6] Bila terisi, dialog Riwayat langsung membuka versi terbaru berjenis ini (dari kartu perubahan skrip). */
     var historyFocus by mutableStateOf<HistoryKind?>(null)
+    /** [CODE-HISTORY8] Blok perubahan yang sedang ditampilkan di popup gutter (null = tertutup). */
+    internal var gutterTap by mutableStateOf<GutterTap?>(null)
     private var historyTrimmed = false
 
     /** [CODE-TEMPLATE] Template buatan pengguna (disimpan di folder draf privat). */

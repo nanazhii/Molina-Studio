@@ -3,6 +3,8 @@ import com.molina.code.history.HistoryFormat
 import com.molina.code.history.HistoryKind
 import com.molina.code.history.HistoryStore
 import com.molina.code.history.HistoryVersion
+import com.molina.code.history.GutterHunk
+import com.molina.code.history.GutterHunks
 import com.molina.code.history.HunkRevert
 import com.molina.code.history.LineDiff
 import com.molina.code.history.VersionCompare
@@ -231,6 +233,18 @@ fun main() {
         val hLines = LineDiff.diff(h9, h9y).lines
         val hStep = HunkRevert.revertAt(h9y, hLines, 1)
         check("blok: dua blok dikembalikan berurutan = isi lama", hStep != null && HunkRevert.revertAt(hStep, hLines, 0) == h9)
+        // ---- [CODE-HISTORY8] Ketuk gutter -> blok perubahan
+        fun gh(x: String, y: String, line: Int): GutterHunk? = GutterHunks.find(x, y, line, y.split('\n').size)
+        check("gutter: baris diubah", gh("a\nb\nc\n", "a\nB\nc\n", 1)?.let { it.oldLines == listOf("b") && it.newLines == listOf("B") && it.index == 0 } == true)
+        check("gutter: baris tanpa perubahan = null", gh("a\nb\nc\n", "a\nB\nc\n", 0) == null)
+        check("gutter: baris baru", gh("a\nc\n", "a\nb\nc\n", 1)?.let { it.oldLines.isEmpty() && it.newLines == listOf("b") } == true)
+        check("gutter: blok banyak baris dipetakan ke semua barisnya", gh("a\nz\n", "a\nx\ny\nz\n", 2)?.lineLabel() == "2\u20133")
+        check("gutter: penghapusan murni di tengah", gh("a\nb\nc\n", "a\nc\n", 1)?.let { it.pureDelete && it.oldLines == listOf("b") } == true)
+        check("gutter: penghapusan di akhir berkas tanpa newline", gh("a\nb", "a", 0)?.pureDelete == true)
+        check("gutter: nomor blok cocok dengan HunkRevert", gh(h9, h9y, 7)?.index == 1 && gh(h9, h9y, 1)?.index == 0)
+        check("gutter: berkas sama = null", gh("a\nb\n", "a\nb\n", 0) == null)
+        val gh7 = gh(h9, h9y, 7)
+        check("gutter: urungkan lewat nomor blok", gh7 != null && HunkRevert.revertAt(h9y, LineDiff.diff(h9, h9y).lines, gh7.index) == "1\nX\n3\n4\n5\n6\n7\n8\n9\n")
     } finally {
         tmp.deleteRecursively()
     }

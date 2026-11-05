@@ -33,6 +33,11 @@ internal fun EditorHost(session: CodeSession, modifier: Modifier = Modifier) {
             installActionPanel(editor, session) // [CODE-ACTIONS]
             (editor as? MolinaCodeEditor)?.let { me -> // [CODE-PLAYGUTTER]
                 me.onPlay = { session.playActive() }
+                me.onGutterTap = { line -> // [CODE-HISTORY8]
+                    ChangeGutter.hunkAt(tab, me, line) { t, msg ->
+                        if (t != null) session.gutterTap = t else if (msg.isNotEmpty()) session.toast(msg)
+                    }
+                }
                 me.playRunning = session.run.running
                 val en = tab.previewKind() == PreviewKind.SCRIPT
                 if (me.playEnabled != en) me.playEnabled = en

@@ -15,6 +15,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import com.molina.code.history.GutterHunks
+import com.molina.code.history.LineDiff
+import com.molina.code.history.WordDiff
 
 /** [CODE-GUTTER] Hasil diff per baris isi sekarang: [kind] 0 = sama, 1 = baru, 2 = diubah. [deleted] indeks i = ada baris dihapus tepat sebelum baris i (indeks terakhir = setelah baris terakhir). */
 internal class ChangeMarks(val kind: ByteArray, val deleted: BooleanArray)
@@ -110,6 +113,31 @@ internal class MolinaCodeEditor(context: Context) : CodeEditor(context) {
     private var downY = 0f
     private val slop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
 
+    /** [CODE-HISTORY8] Ketuk penanda perubahan di gutter: menerima indeks baris (basis 0). Null = nonaktif. */
+    internal var onGutterTap: ((Int) -> Unit)? = null
+    private var gutterLine = -1
+    private var gutterDownX = 0f
+    private var gutterDownY = 0f
+    private val hitRows = HashMap<Int, Long>()
+
+    /** Dicatat renderer: baris bertanda dan rentang vertikalnya (koordinat isi, bukan layar). */
+    internal fun recordHit(line: Int, top: Int, bottom: Int) {
+        hitRows[line] = (top.toLong() shl 32) or (bottom.toLong() and 0xFFFFFFFFL)
+    }
+
+    internal fun clearHits() = hitRows.clear()
+
+    private fun gutterHitLine(x: Float, y: Float): Int {
+        if (!isLineNumberEnabled || x > gutterRight()) return -1
+        val cy = y + offsetY
+        for ((line, v) in hitRows) {
+            val top = (v shr 32).toInt()
+            val bottom = v.toInt()
+            if (cy >= top && cy <= bottom) return line
+        }
+        return -1
+    }
+
     /** Tepi kanan gutter di layar (sama dengan awal area teks). */
     private fun gutterRight(): Float =
         measureTextRegionOffset() - (if (isWordwrap || !isLineNumberPinned) offsetX else 0)
@@ -139,6 +167,31 @@ internal class MolinaCodeEditor(context: Context) : CodeEditor(context) {
                 }
                 MotionEvent.ACTION_CANCEL -> if (playGesture) {
                     playGesture = false
+                    return true
+                }
+            }
+        }
+        // [CODE-HISTORY8] ketuk penanda perubahan di gutter -> onGutterTap(baris); menggeser membatalkan ketukan
+        if (onGutterTap != null) {
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    val l = gutterHitLine(event.x, event.y)
+                    if (l >= 0) {
+                        gutterLine = l
+                        gutterDownX = event.x
+                        gutterDownY = event.y
+                        return true
+                    }
+                }
+                MotionEvent.ACTION_MOVE -> if (gutterLine >= 0) return true
+                MotionEvent.ACTION_UP -> if (gutterLine >= 0) {
+                    val l = gutterLine
+                    gutterLine = -1
+                    if (abs(event.x - gutterDownX) <= slop && abs(event.y - gutterDownY) <= slop) onGutterTap?.invoke(l)
+                    return true
+                }
+                MotionEvent.ACTION_CANCEL -> if (gutterLine >= 0) {
+                    gutterLine = -1
                     return true
                 }
             }
@@ -185,6 +238,9 @@ private class GutterRenderer(private val ed: MolinaCodeEditor) : EditorRenderer(
         val m = ed.marks ?: return
         if (line < 0 || line >= m.kind.size) return
         val k = m.kind[line]
+        if (k != 0.toByte() || m.deleted[line] || (line == m.kind.size - 1 && m.deleted[m.kind.size])) {
+            ed.recordHit(line, ed.getRowTop(row).toInt(), ed.getRowBottom(row).toInt()) // [CODE-HISTORY8]
+        }
         if (k != 0.toByte()) {
             paint.color = if (k == ChangeDiff.ADDED) colAdded else colModified
             canvas.drawRect(left, top, left + 3f * dp, bottom, paint)
@@ -219,10 +275,50 @@ internal object ChangeGutter {
             ed.post {
                 if (tab.editor === ed) {
                     ed.marks = marks
+                    ed.clearHits() // [CODE-HISTORY8]
                     ed.invalidate()
                 }
             }
         }
+    }
+
+    /** [CODE-HISTORY8] Cari blok perubahan di baris [line] (basis 0) terhadap isi awal tab. Diff di thread latar; [done] dipanggil di thread utama dengan hasil atau pesan alasan. */
+    fun hunkAt(tab: EditorTab, ed: MolinaCodeEditor, line: Int, done: (GutterTap?, String) -> Unit) {
+        val cur: String? = if (tab.loading || ed.text.length > MAX_CHARS) null else ed.text.toString()
+        val lineCount = ed.text.lineCount
+        scope.launch {
+            var tap: GutterTap? = null
+            var msg = ""
+            try {
+                val base = if (cur == null) null else baseOf(tab)
+                if (cur == null || base == null) {
+                    msg = "Isi awal tidak tersedia untuk tab ini"
+                } else {
+                    val res = LineDiff.diff(base, cur)
+                    if (res.coarse) {
+                        msg = "Perubahan terlalu besar untuk dilihat per blok"
+                    } else {
+                        val h = GutterHunks.at(GutterHunks.all(res.lines), line, lineCount)
+                        if (h == null) msg = "Tidak ada perubahan di baris ini" else tap = GutterTap(tab, h, res.lines, WordDiff.mark(res.lines))
+                    }
+                }
+            } catch (e: Exception) {
+                msg = "Gagal membaca perubahan"
+            }
+            ed.post { if (tab.editor === ed) done(tap, msg) }
+        }
+    }
+
+    private fun baseOf(tab: EditorTab): String? {
+        var base = tab.baseText
+        if (base == null) {
+            val f = tab.file ?: return null
+            val t = FileStore.readForOpen(f).text ?: return null
+            if (t.length > MAX_CHARS || FileStore.fingerprint(t) != tab.baseFp) return null
+            tab.baseText = t
+            base = t
+        }
+        return if (base.length > MAX_CHARS) null else base
     }
 
     private fun compute(tab: EditorTab, cur: String?): ChangeMarks? {
