@@ -103,6 +103,11 @@ object ProjectStore {
             if (f.isFile && f.name.endsWith(".tsv")) f.name.removeSuffix(".tsv").toLongOrNull() else null
         }?.toSet() ?: emptySet()
 
+    /** Manifest terbaru yang lebih lama dari [time] di [snapshots], atau null (commit tertua yang tersisa). */
+    fun previousOf(snapshots: Set<Long>, time: Long): Long? = snapshots.filter { it < time }.maxOrNull()
+
+    fun previousSnapshot(root: File, time: Long): Long? = previousOf(snapshotTimes(root), time)
+
     /** Waktu terkecil >= [t] yang belum dipakai manifest (dua commit dalam milidetik yang sama). */
     fun freeTime(root: File, t: Long): Long {
         var x = t
@@ -210,6 +215,45 @@ object ProjectStore {
         } catch (e: Exception) {
             false
         }
+    }
+
+    // ------------------------------------------------------------------ diff per catatan
+
+    enum class DiffStatus { OK, BINARY, NO_BASE, NO_BLOB }
+
+    /** [result] terisi bila [status] = OK. */
+    class FileDiff(val status: DiffStatus, val result: com.molina.code.history.LineDiff.Result? = null)
+
+    /**
+     * Perubahan [path] pada commit [time] terhadap commit sebelumnya (manifest terdekat yang lebih lama). [kind] dari
+     * log: 'A' dibanding kosong, 'D' dibanding kosong dari sisi baru, 'M' dibanding versi sebelumnya. NO_BASE bila
+     * versi sebelumnya sudah dibuang, NO_BLOB bila isi salah satu sisi tidak tersimpan, BINARY bila bukan teks.
+     * Memblokir: panggil dari thread IO.
+     */
+    fun diffAt(root: File, time: Long, path: String, kind: Char): FileDiff {
+        if (!safePath(path)) return FileDiff(DiffStatus.NO_BLOB)
+        val empty = ByteArray(0)
+        val prevT = previousSnapshot(root, time)
+        val old: ByteArray
+        val new: ByteArray
+        when (kind) {
+            'A' -> {
+                old = empty
+                new = contentAt(root, time, path) ?: return FileDiff(DiffStatus.NO_BLOB)
+            }
+            'D' -> {
+                new = empty
+                if (prevT == null) return FileDiff(DiffStatus.NO_BASE)
+                old = contentAt(root, prevT, path) ?: return FileDiff(DiffStatus.NO_BLOB)
+            }
+            else -> {
+                if (prevT == null) return FileDiff(DiffStatus.NO_BASE)
+                new = contentAt(root, time, path) ?: return FileDiff(DiffStatus.NO_BLOB)
+                old = contentAt(root, prevT, path) ?: return FileDiff(DiffStatus.NO_BLOB)
+            }
+        }
+        if (!isText(old) || !isText(new)) return FileDiff(DiffStatus.BINARY)
+        return FileDiff(DiffStatus.OK, com.molina.code.history.LineDiff.diff(String(old, Charsets.UTF_8), String(new, Charsets.UTF_8)))
     }
 
     // ------------------------------------------------------------------ gc

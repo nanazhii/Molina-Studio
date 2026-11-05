@@ -21,7 +21,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -96,7 +100,11 @@ internal fun ProjectLogDialog(session: CodeSession, view: ProjectLogView, onDism
                                 style = TextStyle(color = CodeColors.TextPrimary, fontSize = 13.sp)
                             )
                             BasicText(
-                                text = fmt.format(Date(e.time)) + sourceLabel(e.source) + summary(e),
+                                text = buildAnnotatedString {
+                                    append(fmt.format(Date(e.time)))
+                                    sourceLabel(e.source)?.let { (label, color) -> withStyle(SpanStyle(color = color)) { append(label) } }
+                                    append(summary(e))
+                                },
                                 maxLines = 1,
                                 style = TextStyle(color = CodeColors.TextSecondary, fontSize = 11.sp)
                             )
@@ -104,8 +112,10 @@ internal fun ProjectLogDialog(session: CodeSession, view: ProjectLogView, onDism
                                 Spacer(Modifier.height(4.dp))
                                 for (c in e.files) FileRow(c) {
                                     val f = File(view.root, c.path)
-                                    if (e.source == ProjectCommit.SRC && e.time in view.snapshots && c.kind != 'D') {
-                                        fileSel.value = e to c // [CODE-STORE] buka atau kembalikan ke versi commit ini
+                                    if (e.source == ProjectCommit.SRC && e.time in view.snapshots &&
+                                        (c.kind != 'D' || ProjectStore.previousOf(view.snapshots, e.time) != null)
+                                    ) {
+                                        fileSel.value = e to c // [CODE-STORE] lihat perubahan, buka, atau kembalikan
                                     } else if (c.kind != 'D' && f.isFile) {
                                         onDismiss()
                                         session.openFile(f)
@@ -136,8 +146,12 @@ internal fun ProjectLogDialog(session: CodeSession, view: ProjectLogView, onDism
                 Win7DialogButton("Tutup", onDismiss, isDefault = true)
                 if (commitAsk.value) CommitDialog(session, view.root) { commitAsk.value = false }
                 fileSel.value?.let { (en, ch) ->
+                    // Berkas yang dihapus pada commit ini dikembalikan dari commit sebelumnya.
+                    val rt = if (ch.kind == 'D') ProjectStore.previousOf(view.snapshots, en.time) ?: en.time else en.time
                     ProjectFileDialog(
-                        session, view.root, en.time, ch.path, fmt.format(Date(en.time)),
+                        session, view.root, en.time, ch.kind, ch.path, fmt.format(Date(en.time)),
+                        restoreTime = rt, restoreWhen = fmt.format(Date(rt)),
+                        canOpen = ch.kind != 'D' && File(view.root, ch.path).isFile,
                         onOpen = {
                             val f = File(view.root, ch.path)
                             if (f.isFile) { onDismiss(); session.openFile(f) } else session.toast("Berkas tidak ada lagi: ${ch.path}")
@@ -156,10 +170,10 @@ private fun summary(e: ProjectLog.Entry): String =
     else " \u00B7 ${e.fileCount} berkas" + if (e.omitted == 0) " (+${e.addedFiles} ~${e.modifiedFiles} \u2212${e.deletedFiles})" else ""
 
 /** [CODE-STORE] Label sumber entri di baris waktu; catatan skrip tidak diberi label. */
-private fun sourceLabel(src: String): String = when (src) {
-    ProjectCommit.SRC -> " \u00B7 commit"
-    ProjectStore.SRC_RESTORE -> " \u00B7 pulih"
-    else -> ""
+private fun sourceLabel(src: String): Pair<String, Color>? = when (src) {
+    ProjectCommit.SRC -> " \u00B7 commit" to CodeColors.Brand
+    ProjectStore.SRC_RESTORE -> " \u00B7 pulih" to CodeColors.Warning
+    else -> null
 }
 
 /** [CODE-COMMIT] Ringkasan jumlah berkas yang belum di-commit; kosong bila belum pernah commit. */

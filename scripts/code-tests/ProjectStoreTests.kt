@@ -154,6 +154,22 @@ fun main() {
     put(tt, "a.txt", "2\n", OLD + 1000); val rt = ProjectCommit.commit(tt, "2", T1)
     check("waktu bentrok: manifest tidak menimpa (waktu digeser)", rt.entry!!.time == T1 + 1 && ProjectStore.snapshotTimes(tt) == setOf(T1, T1 + 1))
 
+    // --- diff per catatan
+    check("previousSnapshot: T2 -> T1, T1 -> null", ProjectStore.previousSnapshot(d, T2) == T1 && ProjectStore.previousSnapshot(d, T1) == null)
+    check("previousOf: murni terhadap himpunan", ProjectStore.previousOf(setOf(5L, 9L, 20L), 20L) == 9L && ProjectStore.previousOf(setOf(5L), 5L) == null)
+    val dm = ProjectStore.diffAt(d, T2, "a.txt", 'M')
+    check("diffAt M: OK dengan +2 -1", dm.status == ProjectStore.DiffStatus.OK && dm.result!!.added == 2 && dm.result!!.removed == 1)
+    val dd2 = ProjectStore.diffAt(d, T2, "src/b.kt", 'D')
+    check("diffAt D: OK, semua baris lama terhapus", dd2.status == ProjectStore.DiffStatus.OK && dd2.result!!.removed == 1 && dd2.result!!.added == 0)
+    val da = ProjectStore.diffAt(d, T1, "a.txt", 'A')
+    check("diffAt A: semua baris tambah", da.status == ProjectStore.DiffStatus.OK && da.result!!.added == 3 && da.result!!.removed == 0)
+    check("diffAt: biner -> BINARY", ProjectStore.diffAt(d, T1, "img.bin", 'A').status == ProjectStore.DiffStatus.BINARY)
+    check("diffAt M tanpa commit sebelumnya -> NO_BASE", ProjectStore.diffAt(d, T1, "a.txt", 'M').status == ProjectStore.DiffStatus.NO_BASE)
+    check("diffAt D tanpa commit sebelumnya -> NO_BASE", ProjectStore.diffAt(d, T1, "a.txt", 'D').status == ProjectStore.DiffStatus.NO_BASE)
+    check("diffAt: isi tidak tersimpan -> NO_BLOB", ProjectStore.diffAt(big, T1, "besar.txt", 'A').status == ProjectStore.DiffStatus.NO_BLOB)
+    check("diffAt: path tidak aman -> NO_BLOB", ProjectStore.diffAt(d, T1, "../x", 'A').status == ProjectStore.DiffStatus.NO_BLOB)
+    check("diffAt: tidak mengubah berkas proyek", File(d, "a.txt").readText() == "satu\ndua\ntiga\n")
+
     println(if (fails == 0) "SEMUA LULUS" else "$fails GAGAL")
     if (fails > 0) System.exit(1)
 }
