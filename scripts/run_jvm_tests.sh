@@ -9,7 +9,7 @@ export LOGS; LOGS="$(mktemp -d)"
 trap 'rm -rf "$LOGS"' EXIT
 : > "$LOGS/hasil"
 LIST=()
-for f in scripts/core-tests/run*.sh scripts/app-tests/run*.sh scripts/code-tests/run*.sh scripts/vault-tests/run*.sh; do
+for f in scripts/core-tests/run*.sh scripts/app-tests/run*.sh scripts/code-tests/run*.sh scripts/vault-tests/run*.sh scripts/mpv-tests/run*.sh; do
   [ -f "$f" ] || continue
   case "$SKIP" in *" $(basename "$f") "*) echo "LEWATI $f"; continue ;; esac
   LIST+=("$f")
