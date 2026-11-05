@@ -130,6 +130,7 @@ internal fun PreviewPage(session: CodeSession, onJump: (Int, Int) -> Unit, modif
         }
         Box(Modifier.fillMaxWidth().height(CodeDimens.Hairline).background(CodeColors.Hairline))
         if (output) RunStatusBar(run)
+        if (output) RunChangesCard(session) // [CODE-RUNREPORT]
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (output) OutputBody(session, run) else PreviewBody(preview.content, onJump, preview::takeAnchor)
         }

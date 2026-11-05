@@ -172,6 +172,7 @@ fun CodeScreen(session: CodeSession, modifier: Modifier = Modifier) {
     session.saveAs?.let { SaveAsDialog(session, it) }
     session.staleConflict?.let { StaleDiskDialog(session, it) } // [CODE-GUARD]
     session.scriptCheck?.let { ScriptCheckDialog(session, it) } // [CODE-GUARD]
+    if (session.undoRunOpen) UndoRunDialog(session) // [CODE-RUNREPORT]
 
     pendingClose?.let { tab ->
         ConfirmCloseDialog(

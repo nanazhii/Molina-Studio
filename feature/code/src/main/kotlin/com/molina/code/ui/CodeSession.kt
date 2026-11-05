@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.molina.code.guard.DiskGuard
 import com.molina.code.guard.DiskVerdict
+import com.molina.code.guard.RunReport
 import com.molina.code.guard.ScriptPrecheck
 import com.molina.code.history.HistoryKind
 import com.molina.code.history.HistoryStore
@@ -399,13 +400,19 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         set(value) { preview.htmlWebView = value }
 
     /** Status eksekusi skrip untuk panel Keluaran. */
-    internal val run = RunController(mainHandler).also { it.onRunFinished = { refreshExternal() } } // [CODE-GUARD]
+    internal val run = RunController(mainHandler).also { it.onRunFinished = { refreshExternal(); collectRunChanges() } } // [CODE-GUARD]
 
     /** [CODE-GUARD] Simpan ditahan: berkas berubah di disk sejak dibuka/disimpan. Dialog: Batal/Bandingkan/Muat ulang/Timpa. */
     internal var staleConflict by mutableStateOf<StaleConflict?>(null)
 
     /** [CODE-GUARD] Skrip yang tampak rusak (terpotong, kutip/kurung terbuka). Dialog: Tetap jalankan/Batal. */
     internal var scriptCheck by mutableStateOf<ScriptCheckPrompt?>(null)
+
+    /** [CODE-RUNREPORT] Perubahan berkas akibat skrip terakhir (kartu di panel Keluaran) dan dialog konfirmasi Urungkan. */
+    internal var runChanges by mutableStateOf<RunChanges?>(null)
+    internal var undoRunOpen by mutableStateOf(false)
+    private var runSnap: RunReport.Snapshot? = null
+    private var runStarting = false
 
     /** Dipasang :app (Debian PRoot). Null = tombol Play untuk skrip memberi tahu bahwa belum tersedia. */
     var scriptExecutor: ScriptExecutor?
@@ -1218,6 +1225,114 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
 
     // ---------------------------------------------------------------- [CODE-GUARD] Tab basi dan cek skrip
 
+    // ---------------------------------------------------------------- [CODE-RUNREPORT] Laporan perubahan setelah skrip
+
+    /** Mulai skrip setelah memindai folder proyek (thread IO), supaya perubahannya bisa dilaporkan dan diurungkan. */
+    private fun startScriptRun(title: String, body: String, plan: com.molina.code.preview.RunPlan, dir: File?, banner: String) {
+        if (run.running || runStarting) return
+        runChanges = null
+        runSnap = null
+        preview.mode = PaneMode.Output
+        preview.open = true
+        if (dir == null || !dir.isDirectory) {
+            run.start(title, body, plan, dir?.path, banner)
+            return
+        }
+        runStarting = true
+        runIo {
+            val snap = try {
+                RunReport.capture(RunReport.findRoot(dir), System.currentTimeMillis())
+            } catch (e: Exception) {
+                null
+            }
+            mainHandler.post {
+                runStarting = false
+                runSnap = snap
+                if (!run.start(title, body, plan, dir.path, banner)) runSnap = null
+            }
+        }
+    }
+
+    /** Dipanggil di thread utama saat skrip selesai: bandingkan folder dengan pindaian sebelum skrip. */
+    private fun collectRunChanges() {
+        val snap = runSnap ?: return
+        runIo {
+            val rep = try {
+                RunReport.compare(snap)
+            } catch (e: Exception) {
+                null
+            }
+            if (rep != null && !rep.isEmpty) recordScriptHistory(snap, rep)
+            mainHandler.post {
+                if (runSnap === snap && rep != null && !rep.isEmpty) runChanges = RunChanges(snap, rep)
+            }
+        }
+    }
+
+    /** Di thread IO: isi sebelum skrip dicatat di Riwayat ("Sebelum skrip") supaya tetap bisa dipulihkan setelah aplikasi ditutup. */
+    private fun recordScriptHistory(snap: RunReport.Snapshot, rep: RunReport.Report) {
+        val h = history ?: return
+        var n = 0
+        for (c in rep.changes) {
+            if (n >= MAX_SCRIPT_HISTORY) break
+            if (c.kind == RunReport.Kind.ADDED) continue
+            val bytes = snap.backups[c.path] ?: continue
+            try {
+                val text = String(bytes, Charsets.UTF_8)
+                if (text.indexOf('\uFFFD') >= 0) continue // bukan UTF-8 valid
+                h.record(File(snap.root, c.path), FileStore.normalizeLf(text), HistoryKind.SCRIPT)
+                n++
+            } catch (e: Exception) {
+                // best-effort
+            }
+        }
+    }
+
+    internal fun dismissRunChanges() {
+        runChanges = null
+    }
+
+    /** Ketuk berkas di kartu perubahan: buka di editor (berkas yang dihapus tidak bisa dibuka). */
+    internal fun openRunChange(path: String) {
+        val c = runChanges ?: return
+        val f = File(c.snap.root, path)
+        if (!f.isFile) {
+            toast("Berkas tidak ada lagi: $path")
+            return
+        }
+        preview.open = false
+        openFile(f)
+    }
+
+    /** Terapkan Urungkan. Berkas yang berubah lagi sejak skrip selesai dilewati, bukan ditimpa. */
+    internal fun undoRunConfirm() {
+        undoRunOpen = false
+        val c = runChanges ?: return
+        runIo {
+            val res = try {
+                RunReport.undo(c.snap, c.report)
+            } catch (e: Exception) {
+                null
+            }
+            mainHandler.post {
+                if (res == null) {
+                    toast("Gagal mengurungkan hasil skrip")
+                } else {
+                    if (runChanges === c) runChanges = null
+                    runSnap = null
+                    lastStaleCheck = 0L
+                    refreshExternal()
+                    val parts = ArrayList<String>()
+                    if (res.restored > 0) parts.add("${res.restored} dikembalikan")
+                    if (res.removed > 0) parts.add("${res.removed} dihapus")
+                    if (res.skipped.isNotEmpty()) parts.add("${res.skipped.size} dilewati")
+                    if (res.failed.isNotEmpty()) parts.add("${res.failed.size} gagal")
+                    toast(if (parts.isEmpty()) "Tidak ada yang diubah" else "Urungkan: " + parts.joinToString(", "))
+                }
+            }
+        }
+    }
+
     private var lastStaleCheck = 0L
 
     private fun kindOf(lang: TerminalRunLang): ScriptPrecheck.Kind =
@@ -1494,9 +1609,7 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         val kind = if (plan.needsPython) ScriptPrecheck.Kind.PY else ScriptPrecheck.Kind.SH
         guardedRun(tab.title, text, kind) { rep -> // [CODE-GUARD]
             if (rep.body.isBlank()) { toast("Tidak ada kode untuk dijalankan"); return@guardedRun }
-            preview.mode = PaneMode.Output
-            preview.open = true
-            run.start(tab.title, rep.body, plan, tab.file?.parentFile?.path, rep.banner())
+            startScriptRun(tab.title, rep.body, plan, tab.file?.parentFile, rep.banner()) // [CODE-RUNREPORT]
         }
     }
 
@@ -1564,6 +1677,7 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         private const val MAX_DRAFT_CHARS = 2_000_000
         private const val MAX_RUN_CHARS = 500_000
         private const val STALE_CHECK_MS = 1_500L // [CODE-GUARD]
+        private const val MAX_SCRIPT_HISTORY = 50 // [CODE-RUNREPORT]
         private const val MAX_LIVE_CHARS = 300_000
         internal const val LIVE_LABEL = "pylsp"
         private const val DEFINITION_TIMEOUT_MS = 5_000L // [CODE-LSP6] Jedi pertama kali bisa lambat

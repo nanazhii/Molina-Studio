@@ -14,6 +14,7 @@ import java.util.zip.GZIPOutputStream
 enum class HistoryKind(val code: Char, val label: String) {
     SAVED('s', "Disimpan"),
     BEFORE('b', "Sebelum simpan"),
+    SCRIPT('p', "Sebelum skrip"),
     RELOAD('r', "Sebelum muat ulang");
 
     companion object {
