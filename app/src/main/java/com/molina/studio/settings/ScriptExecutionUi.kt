@@ -1,7 +1,5 @@
 package com.molina.studio.settings
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.Canvas
@@ -18,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -38,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
@@ -66,7 +66,6 @@ import java.util.Date
 import java.util.Locale
 
 private val Blue = MolinaTheme.Link // [TOKEN-PUSAT]
-private val Red = Color(0xFFE8776B)
 private const val PREVIEW_LINES = 30
 
 /**
@@ -208,7 +207,7 @@ internal fun ScriptsPage() {
                     ScriptRunner.cleanup(ctx, item.id)
                     ScriptShortcuts.onDeleted(ctx, item.id)
                     toast(ctx, "\"${item.title}\" dihapus")
-                }) { Text("HAPUS", color = Red) }
+                }) { Text("HAPUS", color = MolinaTheme.Bad) }
             },
             dismissButton = { TextButton(onClick = { toDelete = null }) { Text("BATAL") } }
         )
@@ -296,18 +295,28 @@ private fun ScriptAccordion(
             val code = remember(item.body) { codePreview(item.body) }
             CommandBlock(code)
             Spacer(Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                ActionText("EDIT", Blue, onClick = onEdit)
-                ActionText("CATATAN", W7D.Ink, onClick = onNote)
-                ActionText("OPSI", W7D.Ink, onClick = onOpts)
-                ActionText("PINTASAN", W7D.Ink, onClick = onPin)
-                ActionText("SALIN", W7D.Ink) {
-                    val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    cm.setPrimaryClip(ClipData.newPlainText(item.title, item.body))
-                    toast(ctx, "Isi skrip disalin")
+            // [SCRIPT-ROW4] HAPUS dipatok di kanan (selalu terlihat); aksi lain bisa digulir, fade menandai ada isi tersembunyi
+            val actionScroll = rememberScrollState()
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) {
+                    Row(
+                        Modifier.horizontalScroll(actionScroll),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        ActionText("EDIT", Blue, onClick = onEdit)
+                        ActionText("CATATAN", W7D.Ink, onClick = onNote)
+                        ActionText("OPSI", W7D.Ink, onClick = onOpts)
+                        ActionText("PINTASAN", W7D.Ink, onClick = onPin)
+                    }
+                    if (actionScroll.canScrollForward) {
+                        Box(
+                            Modifier.align(Alignment.CenterEnd).width(28.dp).height(34.dp)
+                                .background(Brush.horizontalGradient(listOf(Color.Transparent, W7D.Card)))
+                        )
+                    }
                 }
-                Spacer(Modifier.weight(1f))
-                ActionText("HAPUS", Red, onClick = onDelete)
+                ActionText("HAPUS", MolinaTheme.Bad, onClick = onDelete)
             }
         }
     }
