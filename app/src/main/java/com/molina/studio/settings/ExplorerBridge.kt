@@ -163,6 +163,34 @@ internal object MolinaExplorer {
         return true
     }
 
+    /**
+     * [TERMINAL-CD] Ketuk Terminal di dock Penjelajah: perilakunya seperti salin path + Enter. Mengirim
+     * `cd <path>` + Enter ke sesi aktif (tanpa sesi baru), lalu minta MainActivity menampilkan tab Terminal.
+     * Tanpa sesi aktif, jatuh ke [openTerminalHere] (sesi baru). Ctrl+U (\u0015) membersihkan ketikan
+     * setengah jadi di prompt agar `cd` tidak tercampur.
+     */
+    fun cdHere(ctx: Context, f: File): Boolean {
+        val dir = (if (f.isDirectory) f else f.parentFile)
+        if (dir == null || !dir.isDirectory) {
+            Toast.makeText(ctx, "Folder tidak ditemukan.", Toast.LENGTH_SHORT).show()
+            return false
+        }
+        if (TerminalSessions.currentSession?.emulator == null) return openTerminalHere(ctx, f)
+        if (!visibleInDebian(dir)) {
+            Toast.makeText(
+                ctx,
+                "Folder ini tidak terlihat di Debian. Aktifkan \"Akses penyimpanan penuh\" di Setelan Terminal, atau pindahkan ke folder Molina.",
+                Toast.LENGTH_LONG
+            ).show()
+            return false
+        }
+        val target = debianPath(dir)
+        TerminalActions.send("\u0015cd " + quote(target) + "\r")
+        Toast.makeText(ctx, "cd " + target, Toast.LENGTH_SHORT).show()
+        ScriptNav.openTerminal = true
+        return true
+    }
+
     /** [SHARE-GUARD] Kunci tanda tangan dan kredensial tidak boleh keluar dari Molina lewat FileProvider. */
     private fun blockedSensitive(ctx: Context, files: List<File>): Boolean {
         val bad = files.any { f ->

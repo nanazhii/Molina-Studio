@@ -56,6 +56,7 @@ fun FilesTabScreen(modifier: Modifier = Modifier, onExit: () -> Unit = {}) {
         screenModifier = modifier,
         onCopyPath = { f -> MolinaExplorer.copyPath(ctx, f) },
         onOpenTerminal = { f -> MolinaExplorer.openTerminalHere(ctx, f) },
+        onCdTerminal = { f -> MolinaExplorer.cdHere(ctx, f) },
         onShare = { files -> MolinaExplorer.share(ctx, files) },
         onOpenWith = { f -> MolinaExplorer.openWith(ctx, f) },
         onInsertPaths = { fs -> MolinaExplorer.insertPaths(ctx, fs) },

@@ -196,6 +196,7 @@ fun Win7OpenDialog(
     screenModifier: Modifier = Modifier,
     onCopyPath: ((File) -> Unit)? = null,
     onOpenTerminal: ((File) -> Unit)? = null,
+    onCdTerminal: ((File) -> Unit)? = null, // [TERMINAL-CD]
     onShare: ((List<File>) -> Boolean)? = null,
     onOpenWith: ((File) -> Boolean)? = null,
     onInsertPaths: ((List<File>) -> Unit)? = null,
@@ -763,8 +764,6 @@ fun Win7OpenDialog(
                                                 picked = if (here.isNotEmpty() && picked.containsAll(here)) picked - here else picked + here
                                             }
                                             if (picked.isNotEmpty()) W7MenuItem(W7Ico.CLEAR, "Kosongkan pilihan", !busy) { menuOpen = false; picked = emptySet() }
-                                            W7MenuDivider() // [DROP-DIVIDER]
-                                            W7MenuItem(W7Ico.MORE, "Alat\u2026", !busy) { menuOpen = false; toolsOpen = true }
                                         }
                                     }
                                     sortPopup(true)
@@ -834,8 +833,10 @@ fun Win7OpenDialog(
                         val dkArc = !dkMedia && !dkText && !dkZip && dkFiles.size == 1 && dkFiles[0].isFile && ArchiveRoute.supports(dkFiles[0].name) // [ARCHIVE]
                         W7BrowseDock(
                             quickLabel = if (dkMedia) "Putar" else if (dkText) "Edit" else if (dkZip) "Buka ZIP" else if (dkArc) "Buka arsip" else "Properti",
+                            toolsEnabled = !busy,
                             insertEnabled = onInsertPaths != null,
-                            terminalEnabled = onOpenTerminal != null,
+                            terminalEnabled = onCdTerminal != null || onOpenTerminal != null,
+                            newSessionEnabled = onOpenTerminal != null,
                             onQuick = {
                                 if (dkMedia) {
                                     val fn = onPlay
@@ -848,8 +849,10 @@ fun Win7OpenDialog(
                                 else if (dkArc) sheet = W7Sheet.Archive(dkFiles[0], null) // [ARCHIVE]
                                 else sheet = W7Sheet.Info(dkFiles)
                             },
+                            onTools = { toolsOpen = true },
                             onInsert = { onInsertPaths?.invoke(dkFiles) },
-                            onTerminal = { onOpenTerminal?.invoke(dkTarget) },
+                            onTerminal = { (onCdTerminal ?: onOpenTerminal)?.invoke(dkTarget) },
+                            onNewSession = { onOpenTerminal?.invoke(dkTarget) },
                             onOpen = { if (dkTarget.isDirectory) go(dkTarget) else smartOpen(dkTarget) }
                         )
                     } else {
