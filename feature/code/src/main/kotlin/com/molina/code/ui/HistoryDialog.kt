@@ -46,6 +46,7 @@ import com.molina.code.history.HistoryFormat
 import com.molina.code.history.HistoryKind
 import com.molina.code.history.HistoryStore
 import com.molina.code.history.HistoryVersion
+import com.molina.code.history.HunkRevert
 import com.molina.code.history.LineDiff
 import com.molina.code.history.VersionCompare
 import com.molina.code.history.VersionDelta
@@ -292,15 +293,51 @@ private fun HistoryListPane(
     }
 }
 
+/** [CODE-HISTORY7] Penanda awal blok perubahan ke-[run] di daftar diff (tempat tombol "Kembalikan blok ini"). */
+private class HunkHead(val run: Int)
+
+@Composable
+private fun HunkBar(done: Boolean, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.End) {
+        BasicText(
+            text = if (done) "\u2713 dikembalikan" else "\u21B6 Kembalikan blok ini",
+            modifier = (if (done) Modifier else Modifier.clickable(onClick = onClick)).padding(horizontal = 8.dp, vertical = 7.dp),
+            style = TextStyle(color = if (done) CodeColors.SecondaryNeutral else CodeColors.Warning, fontSize = 11.sp)
+        )
+    }
+}
+
 /** [CODE-HISTORY2] Isi daftar perbedaan. [contrast] = diff kontras tinggi (Tema kode): latar lebih pekat, tanda berwarna tebal. */
 @Composable
-private fun DiffBody(st: HistDiffState?, maxH: Dp, contrast: Boolean) {
+private fun DiffBody(
+    st: HistDiffState?, maxH: Dp, contrast: Boolean,
+    onRevert: ((Int) -> Unit)? = null, reverted: Set<Int> = emptySet() // [CODE-HISTORY7]
+) {
     if (st == null || st.rows.isEmpty()) {
         Spacer(Modifier.height(4.dp))
         return
     }
+    // [CODE-HISTORY7] sisipkan penanda blok sebelum baris berubah pertama tiap blok (hanya bila pengembalian blok tersedia)
+    val entries = remember(st, onRevert != null) {
+        val res = st.result
+        val firstOf = HashMap<DiffLine, Int>()
+        if (onRevert != null && res != null && !res.coarse) {
+            HunkRevert.runs(res.lines).forEachIndexed { idx, r -> firstOf[res.lines[r.first]] = idx }
+        }
+        val out = ArrayList<Any>(st.rows.size + firstOf.size)
+        for (row in st.rows) {
+            val idx = row.line?.let { firstOf[it] }
+            if (idx != null) out.add(HunkHead(idx))
+            out.add(row)
+        }
+        out
+    }
     LazyColumn(Modifier.fillMaxWidth().heightIn(max = maxH)) {
-        items(st.rows) { row ->
+        items(entries) { e ->
+            if (e is HunkHead) {
+                HunkBar(done = e.run in reverted, onClick = { onRevert?.invoke(e.run) })
+            } else {
+            val row = e as DiffRow
             val ln = row.line
             if (ln == null) {
                 BasicText(
@@ -362,6 +399,7 @@ private fun DiffBody(st: HistDiffState?, maxH: Dp, contrast: Boolean) {
                     )
                 }
             }
+            } // [CODE-HISTORY7] tutup cabang baris diff
         }
     }
 }
@@ -372,12 +410,15 @@ private fun HistoryDiffPane(
     onTogglePin: () -> Unit, onBack: () -> Unit, onDone: () -> Unit
 ) {
     // Teks editor diambil di thread utama (Sora bukan thread-safe); membaca snapshot dan diff di thread latar.
-    val cur = remember(v, tab.loading) { tab.currentTextOrNull(HistoryStore.MAX_CHARS) } // [CODE-HISTORY6] ambil ulang setelah tab selesai dimuat
+    var rev by remember(v) { mutableStateOf(0) } // [CODE-HISTORY7] naik tiap blok dikembalikan: isi editor dibaca ulang
+    val cur = remember(v, tab.loading, rev) { tab.currentTextOrNull(HistoryStore.MAX_CHARS) } // [CODE-HISTORY6] ambil ulang setelah tab selesai dimuat
     // [CODE-HISTORY4] Tampilan utama = perubahan versi ini dibanding versi sebelumnya; ketuk chip untuk dibanding isi sekarang.
     // Versi tertua (tanpa pembanding) langsung dibanding isi sekarang.
     var vsNow by remember(v) { mutableStateOf(prev == null) }
     val vsPrev = prev != null && !vsNow
-    val state by produceState<HistDiffState?>(null, v, vsNow) {
+    // [CODE-HISTORY7] pada mode versi sebelumnya diff tidak berubah saat blok dikembalikan, jadi blok yang sudah dikembalikan ditandai
+    var revertedRuns by remember(v, vsNow) { mutableStateOf(setOf<Int>()) }
+    val state by produceState<HistDiffState?>(null, v, vsNow, if (vsPrev) 0 else rev) {
         value = withContext(Dispatchers.IO) {
             val old = store.read(file, v)
             if (vsPrev && prev != null) {
@@ -435,8 +476,30 @@ private fun HistoryDiffPane(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
         ) { vsNow = !vsNow }
     }
+    // [CODE-HISTORY7] skrip merusak berkas: pasang isi versi sebelumnya sekaligus ("Kembalikan" di bawah memasang versi INI)
+    val prevText = if (vsPrev) st?.new else null
+    if (prevText != null && !tab.readOnly && !tab.loading && tab.editor != null && prevText != cur) {
+        ChoiceChip(
+            "Kembalikan berkas ke versi sebelumnya", false,
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+        ) { session.restoreHistoryText(tab, prevText, HistoryFormat.time((prev ?: v).time, now)); onDone() }
+    }
     Box(Modifier.fillMaxWidth().height(CodeDimens.Hairline).background(CodeColors.Hairline))
-    DiffBody(st, maxH, session.diffContrast)
+    // [CODE-HISTORY7] "Kembalikan blok ini": baris hijau (isi sisi baru blok) di editor diganti baris merah, SATU langkah undo
+    val diffRes = st?.result
+    val curNow = cur
+    val canRevert = diffRes != null && !diffRes.coarse && curNow != null && !tab.readOnly && !tab.loading && tab.editor != null
+    val onRevert: ((Int) -> Unit)? = if (!canRevert || diffRes == null || curNow == null) null else fun(run: Int) {
+        val out = HunkRevert.revertAt(curNow, diffRes.lines, run)
+        if (out == null) {
+            session.toast("Blok ini sudah berubah di editor, tidak bisa dikembalikan otomatis. Pakai Kembalikan untuk seluruh berkas.")
+        } else {
+            session.applyHunkRevert(tab, out)
+            if (vsPrev) revertedRuns = revertedRuns + run
+            rev++
+        }
+    }
+    DiffBody(st, maxH, session.diffContrast, onRevert, if (vsPrev) revertedRuns else emptySet())
     val old = st?.old
     val canRestore = old != null && old != cur && !tab.readOnly && !tab.loading && tab.editor != null
     HistoryButtons {
@@ -517,6 +580,26 @@ private fun kindColor(k: HistoryKind): Color = when (k) {
     HistoryKind.SAVED -> CodeColors.Brand.copy(alpha = 0.85f)
     HistoryKind.SCRIPT, HistoryKind.AFTER_SCRIPT -> CodeColors.Warning
     HistoryKind.BEFORE, HistoryKind.RELOAD -> CodeColors.SecondaryNeutral
+}
+
+/** [CODE-HISTORY7] Pasang hasil pengembalian satu blok ke editor sebagai SATU langkah undo (tanpa menyimpan ke disk). */
+internal fun CodeSession.applyHunkRevert(tab: EditorTab, text: String) {
+    val ed = tab.editor
+    if (ed == null || tab.loading || tab.readOnly || tab !in tabs) {
+        toast("Editor belum siap atau tab hanya-baca")
+        return
+    }
+    try {
+        val line = ed.cursor.leftLine
+        val col = ed.cursor.leftColumn
+        val content = ed.text
+        content.replace(0, content.length, text)
+        val l = line.coerceIn(0, ed.text.lineCount - 1)
+        ed.setSelection(l, col.coerceAtMost(ed.text.getColumnCount(l)))
+        toast("Blok dikembalikan. Simpan untuk menerapkan, Urungkan untuk membatalkan")
+    } catch (e: Exception) {
+        toast("Gagal mengembalikan blok")
+    }
 }
 
 /**

@@ -3,6 +3,7 @@ import com.molina.code.history.HistoryFormat
 import com.molina.code.history.HistoryKind
 import com.molina.code.history.HistoryStore
 import com.molina.code.history.HistoryVersion
+import com.molina.code.history.HunkRevert
 import com.molina.code.history.LineDiff
 import com.molina.code.history.VersionCompare
 import com.molina.code.history.VersionDelta
@@ -210,6 +211,26 @@ fun main() {
                 VersionCompare.latestOfKind(scrL, HistoryKind.SCRIPT)?.name == scrL[1].name &&
                 VersionCompare.latestOfKind(scrL, HistoryKind.SAVED) == null &&
                 VersionCompare.latestOfKind(emptyList(), HistoryKind.SAVED) == null)
+
+        // ---- [CODE-HISTORY7] Kembalikan blok per hunk
+        fun hr(x: String, y: String, target: String = y, run: Int = 0): String? =
+            HunkRevert.revertAt(target, LineDiff.diff(x, y).lines, run)
+        val h9 = "1\n2\n3\n4\n5\n6\n7\n8\n9\n"
+        val h9y = "1\nX\n3\n4\n5\n6\n7\nY\n9\n"
+        check("blok: ganti satu baris", hr("a\nb\nc\n", "a\nB\nc\n") == "a\nb\nc\n")
+        check("blok: jumlah blok", HunkRevert.runs(LineDiff.diff(h9, h9y).lines).size == 2)
+        check("blok: hanya blok kedua dikembalikan", hr(h9, h9y, run = 1) == "1\nX\n3\n4\n5\n6\n7\n8\n9\n")
+        check("blok: nomor blok di luar jangkauan = null", hr(h9, h9y, run = 2) == null)
+        check("blok: baris tambahan dihapus", hr("a\nc\n", "a\nb\nc\n") == "a\nc\n")
+        check("blok: baris terhapus dipulihkan", hr("a\nb\nc\n", "a\nc\n") == "a\nb\nc\n")
+        check("blok: target bergeser tetap ketemu", hr("a\nb\nc\n", "a\nB\nc\n", target = "NEW\na\nB\nc\n") == "NEW\na\nb\nc\n")
+        check("blok: target sudah berubah = null", hr("a\nb\nc\n", "a\nB\nc\n", target = "a\nZ\nc\n") == null)
+        check("blok: ambigu = null", hr("k\nb\nk\n", "k\nB\nk\n", target = "m\nm\nk\nB\nk\nk\nB\nk\n") == null)
+        check("blok: tanpa baris baru di akhir tetap tanpa", hr("a\nb\nc\n", "a\nB\nc\n", target = "a\nB\nc") == "a\nb\nc")
+        check("blok: berkas kosong jadi berisi", hr("a\n", "", target = "") == "a\n")
+        val hLines = LineDiff.diff(h9, h9y).lines
+        val hStep = HunkRevert.revertAt(h9y, hLines, 1)
+        check("blok: dua blok dikembalikan berurutan = isi lama", hStep != null && HunkRevert.revertAt(hStep, hLines, 0) == h9)
     } finally {
         tmp.deleteRecursively()
     }
