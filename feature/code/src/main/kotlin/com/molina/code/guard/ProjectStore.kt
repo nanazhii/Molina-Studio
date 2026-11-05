@@ -261,9 +261,10 @@ object ProjectStore {
     /**
      * Buang manifest lama (> [MAX_SNAPSHOTS] atau melewati [MAX_MANIFEST_BYTES]; yang terbaru selalu dipertahankan),
      * berkas sementara, dan blob yang tidak dirujuk manifest tersisa. Bila ada manifest tersisa yang tak terbaca,
-     * blob tidak disentuh (lebih baik boros daripada kehilangan).
+     * blob tidak disentuh (lebih baik boros daripada kehilangan). Manifest [keep] (mis. sumber pemulihan proyek yang
+     * sedang berjalan) tidak pernah dibuang walau melewati batas.
      */
-    fun gc(root: File) {
+    fun gc(root: File, keep: Long? = null) {
         synchronized(LOCK) {
             try {
                 val cd = commitsDir(root)
@@ -275,7 +276,8 @@ object ProjectStore {
                 val kept = ArrayList<File>()
                 for ((i, f) in mans.withIndex()) {
                     bytes += f.length()
-                    if (i >= MAX_SNAPSHOTS || (i > 0 && bytes > MAX_MANIFEST_BYTES)) f.delete() else kept.add(f)
+                    val protectedOne = keep != null && f.name.removeSuffix(".tsv").toLong() == keep
+                    if (!protectedOne && (i >= MAX_SNAPSHOTS || (i > 0 && bytes > MAX_MANIFEST_BYTES))) f.delete() else kept.add(f)
                 }
                 val refs = HashSet<String>()
                 for (f in kept) {
@@ -314,16 +316,36 @@ object ProjectStore {
     fun restore(root: File, time: Long, path: String): RestoreStatus {
         if (!safePath(path)) return RestoreStatus.BAD_PATH
         val man = readManifest(root, time) ?: return RestoreStatus.NO_SNAPSHOT
+        return restoreWith(root, man, path)
+    }
+
+    /** Seperti [restore] dengan manifest [man] yang sudah dibaca (pemulihan banyak berkas tanpa baca ulang). */
+    fun restoreWith(root: File, man: Map<String, ProjectCommit.Stat>, path: String): RestoreStatus {
+        if (!safePath(path)) return RestoreStatus.BAD_PATH
         val st = man[path] ?: return RestoreStatus.NOT_IN_SNAPSHOT
         val bytes = get(root, st.sha) ?: return RestoreStatus.NO_BLOB
+        return writeFile(root, path, bytes)
+    }
+
+    /** True bila [dir] (yang mungkin belum ada) berada di dalam [root] setelah tautan simbolik diurai. */
+    private fun insideRoot(root: File, dir: File): Boolean {
+        var anc: File? = dir
+        while (anc != null && !anc.exists()) anc = anc.parentFile
+        val a = anc?.canonicalFile ?: return false
+        val rc = root.canonicalFile
+        return a == rc || a.path.startsWith(rc.path + File.separator)
+    }
+
+    /** Tulis [bytes] ke [path] di [root] secara atomik; folder induk dibuat bila perlu (hanya di dalam [root]). */
+    internal fun writeFile(root: File, path: String, bytes: ByteArray): RestoreStatus {
+        if (!safePath(path)) return RestoreStatus.BAD_PATH
         return try {
             val target = File(root, path)
             val parent = target.parentFile ?: return RestoreStatus.BAD_PATH
-            val rootCanon = root.canonicalFile
             if (java.nio.file.Files.isSymbolicLink(target.toPath()) || target.isDirectory) return RestoreStatus.BAD_PATH
+            if (!insideRoot(root, parent)) return RestoreStatus.BAD_PATH // sebelum mkdirs: jangan membuat folder di luar proyek
             if (!parent.exists() && !parent.mkdirs()) return RestoreStatus.FAILED
-            val pc = parent.canonicalFile
-            if (pc != rootCanon && !pc.path.startsWith(rootCanon.path + File.separator)) return RestoreStatus.BAD_PATH
+            if (!insideRoot(root, parent)) return RestoreStatus.BAD_PATH
             val tmp = File(parent, ".molina-restore$TMP")
             try {
                 tmp.writeBytes(bytes)
@@ -335,6 +357,21 @@ object ProjectStore {
             RestoreStatus.OK
         } catch (e: Exception) {
             RestoreStatus.FAILED
+        }
+    }
+
+    /** Hapus berkas [path] di [root] (bukan tautan simbolik, tidak keluar dari proyek). True bila sudah tidak ada. */
+    internal fun deleteFile(root: File, path: String): Boolean {
+        if (!safePath(path)) return false
+        return try {
+            val target = File(root, path)
+            if (java.nio.file.Files.isSymbolicLink(target.toPath()) || target.isDirectory) return false
+            if (!target.exists()) return true
+            val parent = target.parentFile ?: return false
+            if (!insideRoot(root, parent)) return false
+            target.delete()
+        } catch (e: Exception) {
+            false
         }
     }
 }

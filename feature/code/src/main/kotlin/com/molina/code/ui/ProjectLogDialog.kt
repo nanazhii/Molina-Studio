@@ -61,6 +61,7 @@ internal fun ProjectLogDialog(session: CodeSession, view: ProjectLogView, onDism
     val open = remember(view) { mutableStateOf(-1) }
     val commitAsk = remember(view) { mutableStateOf(false) } // [CODE-COMMIT]
     val fileSel = remember(view) { mutableStateOf<Pair<ProjectLog.Entry, ProjectLog.FileChange>?>(null) } // [CODE-STORE]
+    val projSel = remember(view) { mutableStateOf<ProjectLog.Entry?>(null) } // [CODE-RESTORE]
     val fmt = remember { SimpleDateFormat("dd MMM yyyy HH:mm", Locale("id", "ID")) }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp).win7DialogFrame(shape)) {
@@ -130,6 +131,13 @@ internal fun ProjectLogDialog(session: CodeSession, view: ProjectLogView, onDism
                                         style = TextStyle(color = CodeColors.TextSecondary, fontSize = 11.sp)
                                     )
                                 }
+                                if (e.source == ProjectCommit.SRC && e.time in view.snapshots) {
+                                    BasicText( // [CODE-RESTORE] pratinjau lalu pulihkan seluruh proyek ke commit ini
+                                        text = "Pulihkan seluruh proyek ke commit ini\u2026",
+                                        modifier = Modifier.clickable { projSel.value = e }.padding(vertical = 8.dp),
+                                        style = TextStyle(color = CodeColors.Brand, fontSize = 12.sp)
+                                    )
+                                }
                             }
                         }
                         Box(Modifier.fillMaxWidth().height(CodeDimens.Hairline).background(CodeColors.Hairline))
@@ -145,6 +153,9 @@ internal fun ProjectLogDialog(session: CodeSession, view: ProjectLogView, onDism
                 Win7DialogButton("Commit baru", { commitAsk.value = true })
                 Win7DialogButton("Tutup", onDismiss, isDefault = true)
                 if (commitAsk.value) CommitDialog(session, view.root) { commitAsk.value = false }
+                projSel.value?.let { en ->
+                    ProjectRestoreDialog(session, view.root, en.time, fmt.format(Date(en.time))) { projSel.value = null }
+                }
                 fileSel.value?.let { (en, ch) ->
                     // Berkas yang dihapus pada commit ini dikembalikan dari commit sebelumnya.
                     val rt = if (ch.kind == 'D') ProjectStore.previousOf(view.snapshots, en.time) ?: en.time else en.time

@@ -12,6 +12,7 @@ import com.molina.code.guard.DiskGuard
 import com.molina.code.guard.DiskVerdict
 import com.molina.code.guard.ProjectCommit
 import com.molina.code.guard.ProjectLog
+import com.molina.code.guard.ProjectRestore
 import com.molina.code.guard.ProjectStore
 import com.molina.code.guard.RunReport
 import com.molina.code.guard.ScriptPrecheck
@@ -1094,6 +1095,45 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
                     tabFor(target)?.let { if (!it.dirty) doReload(it) }
                     if (list != null) projectLogView = ProjectLogView(root, list, pend, snaps)
                 }
+            }
+        }
+    }
+
+    /**
+     * [CODE-RESTORE] Pulihkan seluruh proyek [root] ke commit [time] ([affected] = path dari pratinjau). Commit pengaman
+     * dibuat otomatis lebih dulu. Tab berkas terdampak yang masih berisi perubahan belum disimpan menolak pemulihan;
+     * tab bersih dimuat ulang setelahnya.
+     */
+    internal fun restoreProjectAll(root: File, time: Long, affected: List<String>) {
+        affected.firstOrNull { tabFor(File(root, it))?.dirty == true }?.let {
+            toast("Simpan atau tutup tab $it dulu")
+            return
+        }
+        runIo {
+            val res = try {
+                ProjectRestore.run(root, time, System.currentTimeMillis())
+            } catch (e: Exception) {
+                ProjectRestore.Result(ProjectRestore.Status.SAFETY_FAILED)
+            }
+            val ok = res.status == ProjectRestore.Status.OK
+            val list = ProjectLog.read(root)
+            val pend = ProjectCommit.pending(root)
+            val snaps = ProjectStore.snapshotTimes(root)
+            mainHandler.post {
+                toast(
+                    when (res.status) {
+                        ProjectRestore.Status.OK ->
+                            "Proyek dipulihkan: ${res.overwritten} ditimpa, ${res.created} dibuat, ${res.deleted} dihapus" +
+                                (if (res.skipped > 0) ", ${res.skipped} dilewati" else "") +
+                                (if (res.failed > 0) ", ${res.failed} gagal" else "")
+                        ProjectRestore.Status.NO_SNAPSHOT -> "Versi ini tidak tersedia lagi"
+                        ProjectRestore.Status.DISABLED -> "Folder ini bukan proyek"
+                        ProjectRestore.Status.TOO_BIG -> "Proyek terlalu besar untuk dipulihkan"
+                        ProjectRestore.Status.SAFETY_FAILED -> "Gagal membuat commit pengaman; tidak ada berkas yang diubah"
+                    }
+                )
+                if (ok) for (p in affected) tabFor(File(root, p))?.let { if (!it.dirty && File(root, p).isFile) doReload(it) }
+                projectLogView = ProjectLogView(root, list, pend, snaps)
             }
         }
     }

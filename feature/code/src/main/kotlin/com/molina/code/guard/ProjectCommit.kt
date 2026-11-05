@@ -31,7 +31,7 @@ object ProjectCommit {
      * perubahan yang sama (lebih baik ganda daripada hilang). Memblokir: panggil dari thread IO.
      * [CODE-STORE] Isi berkas disimpan lokal di `.molina/objects` dan manifest commit di `.molina/commits/<waktu>.tsv`.
      */
-    fun commit(root: File, message: String, now: Long, maxFiles: Int = RunReport.MAX_FILES): Result =
+    fun commit(root: File, message: String, now: Long, maxFiles: Int = RunReport.MAX_FILES, keepSnapshot: Long? = null): Result =
         synchronized(ProjectStore.LOCK) {
             if (!ProjectLog.isEnabled(root)) return@synchronized Result(Status.DISABLED)
             val prev = readIndex(root)
@@ -56,7 +56,7 @@ object ProjectCommit {
             }
             val stored = cur.mapValues { (_, s) -> if (s.mtime > now - RACY_MS) Stat(s.size, -1L, s.sha) else s }
             if (!writeIndex(root, stored)) return@synchronized Result(Status.FAILED)
-            ProjectStore.gc(root)
+            ProjectStore.gc(root, keepSnapshot)
             Result(Status.COMMITTED, entry, cap.unsaved)
         }
 
