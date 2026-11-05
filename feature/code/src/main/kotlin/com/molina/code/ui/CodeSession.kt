@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.molina.code.guard.DiskGuard
 import com.molina.code.guard.DiskVerdict
+import com.molina.code.guard.ProjectLog
 import com.molina.code.guard.RunReport
 import com.molina.code.guard.ScriptPrecheck
 import com.molina.code.history.HistoryKind
@@ -426,6 +427,9 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
     internal var runChanges by mutableStateOf<RunChanges?>(null)
     internal var undoRunOpen by mutableStateOf(false)
     private var runSnap: RunReport.Snapshot? = null
+    private var runTitle: String = "" // [CODE-PROJLOG] judul skrip yang sedang jalan, untuk pesan catatan proyek
+    /** [CODE-PROJLOG] Potret Riwayat proyek yang sedang ditampilkan (null = dialog tertutup). */
+    internal var projectLogView by mutableStateOf<ProjectLogView?>(null)
     private var runStarting = false
 
     /** Dipasang :app (Debian PRoot). Null = tombol Play untuk skrip memberi tahu bahwa belum tersedia. */
@@ -1012,6 +1016,19 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         picker = PickerRequest(PickMode.Folder, start, "Pilih folder proyek") { createProjectAt(it) }
     }
 
+    /** [CODE-PROJLOG] Menu "Riwayat proyek": tampilkan log proyek `.molina` yang memuat folder aktif. */
+    internal fun openProjectLog() {
+        val ri = RunReport.findRootInfo(defaultOpenDir())
+        when (ri.how) {
+            com.molina.code.guard.ProjectMarker.DIR -> runIo {
+                val list = ProjectLog.read(ri.root)
+                mainHandler.post { projectLogView = ProjectLogView(ri.root, list) }
+            }
+            ".git" -> toast("Folder ini repo Git: riwayatnya memakai Git")
+            else -> toast("Belum proyek. Pakai menu Jadikan folder proyek dulu")
+        }
+    }
+
     private fun createProjectAt(folder: File) {
         runIo {
             val mark = com.molina.code.guard.ProjectMarker.markerIn(folder)
@@ -1271,6 +1288,7 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         if (run.running || runStarting) return
         runChanges = null
         runSnap = null
+        runTitle = title // [CODE-PROJLOG]
         preview.mode = PaneMode.Output
         preview.open = true
         if (dir == null || !dir.isDirectory) {
@@ -1296,6 +1314,7 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
     /** Dipanggil di thread utama saat skrip selesai: bandingkan folder dengan pindaian sebelum skrip. */
     private fun collectRunChanges() {
         val snap = runSnap ?: return
+        val runTitleNow = runTitle // [CODE-PROJLOG]
         runIo {
             val rep = try {
                 RunReport.compare(snap)
@@ -1303,6 +1322,7 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
                 null
             }
             if (rep != null && !rep.isEmpty) recordScriptHistory(snap, rep)
+            if (rep != null && !rep.isEmpty) recordProjectLog(snap, rep, runTitleNow) // [CODE-PROJLOG]
             mainHandler.post {
                 if (runSnap === snap && rep != null && !rep.isEmpty) runChanges = RunChanges(snap, rep)
             }
@@ -1329,6 +1349,21 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
                 // best-effort
             }
         }
+    }
+
+    /** [CODE-PROJLOG] Di thread IO: catat hasil skrip di log proyek (hanya proyek bertanda `.molina`, bukan repo Git). */
+    private fun recordProjectLog(snap: RunReport.Snapshot, rep: RunReport.Report, title: String) {
+        if (snap.how != com.molina.code.guard.ProjectMarker.DIR) return
+        val label = if (title.isBlank()) "Skrip" else "Skrip: $title"
+        ProjectLog.append(snap.root, ProjectLog.fromReport(rep, System.currentTimeMillis(), ProjectLog.SRC_SCRIPT, label))
+    }
+
+    /** [CODE-PROJLOG] Di thread IO: catat Urungkan di log proyek. */
+    private fun recordUndoLog(snap: RunReport.Snapshot, res: RunReport.UndoResult) {
+        if (snap.how != com.molina.code.guard.ProjectMarker.DIR) return
+        val msg = "Urungkan skrip: ${res.restored} dikembalikan, ${res.removed} dihapus" +
+            (if (res.skipped.isNotEmpty()) ", ${res.skipped.size} dilewati" else "")
+        ProjectLog.append(snap.root, ProjectLog.note(System.currentTimeMillis(), ProjectLog.SRC_UNDO, msg))
     }
 
     internal fun dismissRunChanges() {
@@ -1372,6 +1407,7 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
             } catch (e: Exception) {
                 null
             }
+            if (res != null) recordUndoLog(c.snap, res) // [CODE-PROJLOG]
             mainHandler.post {
                 if (res == null) {
                     toast("Gagal mengurungkan hasil skrip")

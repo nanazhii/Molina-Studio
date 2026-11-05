@@ -19,7 +19,7 @@ object RunReport {
     private const val SHRINK_MIN_BYTES = 200
 
     private val SKIP_DIRS = setOf(
-        ".git", ".gradle", "build", ".idea", ".cxx", ".kotlin", "node_modules", "__pycache__", ".venv", "venv"
+        ".git", ".molina", ".gradle", "build", ".idea", ".cxx", ".kotlin", "node_modules", "__pycache__", ".venv", "venv"
     )
     private val BINARY_EXT = setOf(
         "png", "jpg", "jpeg", "webp", "gif", "ico", "so", "apk", "aab", "jar", "class", "dex", "zip", "gz", "xz",
