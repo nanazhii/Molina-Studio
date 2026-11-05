@@ -1,10 +1,6 @@
 name: Uji JVM
+# [JVM-OFF] Nonaktif otomatis; hanya bisa dijalankan manual (workflow_dispatch).
 on:
-  push:
-    branches: [main]
-    paths-ignore: ["**.md", "docs/**"]
-  pull_request:
-    paths-ignore: ["**.md", "docs/**"]
   workflow_dispatch:
 permissions:
   contents: read

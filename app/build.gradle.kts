@@ -57,6 +57,11 @@ android {
     packaging { jniLibs { useLegacyPackaging = true } }
 }
 
+// [DEBUG-OFF] Hanya varian release yang dibangun; varian debug (dan turunannya) dinonaktifkan.
+androidComponents {
+    beforeVariants(selector().withBuildType("debug")) { it.enable = false }
+}
+
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
     implementation(project(":terminal-view"))

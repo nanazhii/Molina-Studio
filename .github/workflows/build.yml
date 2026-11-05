@@ -64,18 +64,43 @@ jobs:
         run: bash scripts/fetch_native.sh
       - name: Pastikan NDK sesuai pin
         run: bash scripts/ensure_ndk.sh
-      - name: Build debug APK
+      - name: Build release APK (R8 full)
         env:
           MOLINA_KEYSTORE_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.MOLINA_KEYSTORE_PASSWORD || '' }}
-        run: gradle :app:assembleDebug --stacktrace
-      - name: Cetak sidik jari tanda tangan APK
+        run: gradle :app:assembleRelease --stacktrace
+      - name: Pastikan bukan debuggable
+        run: |
+          A=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
+          for f in app/build/outputs/apk/release/*.apk; do
+            if "$A" dump badging "$f" | grep -q "application-debuggable"; then
+              echo "::error::$f masih debuggable"; exit 1
+            fi
+            echo "OK bukan debuggable: $f"
+          done
+      - name: Pastikan tidak bertanda tangan kunci debug
         run: |
           A=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
-          "$A" verify --print-certs app/build/outputs/apk/debug/*.apk | grep -i "SHA-256" || true
+          for f in app/build/outputs/apk/release/*.apk; do
+            if "$A" verify --print-certs "$f" 2>/dev/null | grep -qi "Android Debug"; then
+              echo "::error::$f ditandatangani kunci debug"; exit 1
+            fi
+          done
+      - name: Pastikan APK bertanda tangan dan cetak sidik jari
+        if: github.event_name != 'pull_request'
+        run: |
+          A=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          for f in app/build/outputs/apk/release/*.apk; do
+            if ! "$A" verify --print-certs "$f" > "$RUNNER_TEMP/cert.txt" 2>&1; then
+              echo "::error::$f tidak bertanda tangan (secret kunci belum diisi?)"; exit 1
+            fi
+            grep -i "SHA-256" "$RUNNER_TEMP/cert.txt" || true
+          done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: molina-debug
-          path: app/build/outputs/apk/debug/*.apk
+          name: molina-release
+          path: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/mapping/release/
       - name: Hapus kunci sementara
         if: always()
         run: rm -f "$RUNNER_TEMP/molina.p12"

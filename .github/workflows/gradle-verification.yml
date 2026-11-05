@@ -28,7 +28,7 @@ jobs:
       - name: Pastikan NDK sesuai pin
         run: bash scripts/ensure_ndk.sh
       - name: Tulis metadata verifikasi
-        run: gradle --write-verification-metadata sha256 :app:assembleDebug :app:assembleRelease --stacktrace
+        run: gradle --write-verification-metadata sha256 :app:assembleRelease --stacktrace
       - name: Pastikan metadata terbentuk
         run: test -s gradle/verification-metadata.xml
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

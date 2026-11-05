@@ -1,8 +1,6 @@
 name: Vault bunker
+# [VAULT-OFF] Nonaktif otomatis; hanya bisa dijalankan manual (workflow_dispatch).
 on:
-  push:
-    branches: [main]
-    paths: ["vault/**", "scripts/**", "settings.gradle.kts", "build.gradle.kts", ".github/workflows/vault.yml"]
   workflow_dispatch:
 concurrency:
   group: vault-${{ github.ref }}
