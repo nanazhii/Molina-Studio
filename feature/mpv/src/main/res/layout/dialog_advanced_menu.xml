@@ -195,40 +195,6 @@
 
         </TableRow>
 
-        <TableRow
-            android:id="@+id/rowLyrics"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <Button
-                android:id="@+id/lyricsToggleBtn"
-                style="@style/Widget.AppCompat.Button.Borderless"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/lyrics_btn"
-                android:textAllCaps="false" />
-
-            <Button
-                android:id="@+id/lyricsOffsetBtn"
-                style="@style/Widget.AppCompat.Button.Borderless"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/lyrics_offset_btn"
-                android:textAllCaps="false" />
-
-            <Button
-                android:id="@+id/lyricsTapBtn"
-                style="@style/Widget.AppCompat.Button.Borderless"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/lyrics_tap_btn"
-                android:textAllCaps="false" />
-
-        </TableRow>
-
         <Button
             android:id="@+id/spectrumToggleBtn"
             style="@style/Widget.AppCompat.Button.Borderless"

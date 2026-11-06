@@ -59,12 +59,4 @@ internal object SrtCodec {
         require(factor > 0.0 && factor.isFinite()) { "faktor harus > 0" }
         return cues.map { it.copy(startMs = (it.startMs * factor).roundToLong(), endMs = (it.endMs * factor).roundToLong()) }
     }
-
-    /** Ubah lirik bertimestamp menjadi cue SRT; akhir tiap baris = awal baris berikut (maks [maxMs]). Baris kosong dilewati. */
-    fun fromLyrics(lines: List<LyricLine>, maxMs: Long = 8_000L): List<SubCue> =
-        lines.mapIndexedNotNull { i, l ->
-            if (l.text.isEmpty()) return@mapIndexedNotNull null
-            val next = lines.getOrNull(i + 1)?.startMs ?: (l.startMs + maxMs)
-            SubCue(l.startMs, minOf(next, l.startMs + maxMs).coerceAtLeast(l.startMs), l.text)
-        }
 }

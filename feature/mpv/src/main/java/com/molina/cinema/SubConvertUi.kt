@@ -131,7 +131,7 @@ internal object SubConvertUi {
         val media = SubConvertPlanner.localPath(MPVLib.getPropertyString("path"))
         when (val plan = SubConvertPlanner.plan(track, prefs(activity).getBoolean(PREF_EMBEDDED, false))) {
             is ConvertPlan.FromFile -> scope.launch {
-                val raw = withContext(Dispatchers.IO) { LyricsFiles.readText(File(plan.path)) }
+                val raw = withContext(Dispatchers.IO) { SubTextFiles.readText(File(plan.path)) }
                 openEditor(activity, raw, null, media, track.lang, restore)
             }
             is ConvertPlan.NeedsExtraction -> scope.launch {
@@ -145,7 +145,7 @@ internal object SubConvertUi {
                     if (!o.handled) toast(activity, o.error ?: activity.getString(R.string.sub_convert_unsupported))
                     restore(); return@launch
                 }
-                val raw = withContext(Dispatchers.IO) { LyricsFiles.readText(File(path)) }
+                val raw = withContext(Dispatchers.IO) { SubTextFiles.readText(File(path)) }
                 openEditor(activity, raw, path, media, track.lang, restore)
             }
             ConvertPlan.EmbeddedDisabled -> { toast(activity, R.string.sub_convert_embedded_hint); restore() }
@@ -191,7 +191,7 @@ internal object SubConvertUi {
     }
 
     private fun fromFile(a: Activity, src: String, target: SubFormat, style: AssStyle, media: String?, lang: String?): Outcome {
-        val raw = LyricsFiles.readText(File(src)) ?: return fail(a, R.string.sub_convert_read_failed)
+        val raw = SubTextFiles.readText(File(src)) ?: return fail(a, R.string.sub_convert_read_failed)
         if (SubtitleConvert.detect(raw) == target) return fail(a, R.string.sub_convert_same)
         val converted = SubtitleConvert.convert(raw, target, style) ?: return fail(a, R.string.sub_convert_unknown_format)
         val out = SubConvertPlanner.outputPath(OUT_DIR, media, lang, target) { File(it).exists() }

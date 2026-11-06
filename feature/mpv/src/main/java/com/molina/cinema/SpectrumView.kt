@@ -26,7 +26,7 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
     var positionMs: () -> Long = { 0L }
     var isPlaying: () -> Boolean = { false }
 
-    /** True = redupkan (mis. panel lirik tampil di atasnya); spektrum tetap hidup sebagai latar. */
+    /** True = redupkan (mis. ada panel lain di atasnya); spektrum tetap hidup sebagai latar. */
     var dimWhen: () -> Boolean = { false }
 
     var accent: Int = Color.parseColor("#2ECC71")

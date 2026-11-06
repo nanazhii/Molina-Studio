@@ -1009,22 +1009,21 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun controlsShouldBeVisible(): Boolean {
         if (lockedUI)
             return false
-        // [SPECTRUM] UI audio: potret = kontrol selalu tampil; landscape = auto-hide seperti video (kecuali sesi tap-sync lirik)
-        return (useAudioUI && (!isLandscapeNow() || lyrics.tapActive)) || btnSelected != -1 || userIsOperatingSeekbar
+        // [SPECTRUM] UI audio: potret = kontrol selalu tampil; landscape = auto-hide seperti video
+        return (useAudioUI && !isLandscapeNow()) || btnSelected != -1 || userIsOperatingSeekbar
     }
 
     private fun isLandscapeNow() = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     private var layoutControlsShown: Boolean? = null
 
-    /** [SPECTRUM] Selaraskan sampul, spektrum, dan lirik dengan status tampil/sembunyi kontrol (spektrum turun saat kontrol hilang). */
+    /** [SPECTRUM] Selaraskan sampul dan spektrum dengan status tampil/sembunyi kontrol (spektrum turun saat kontrol hilang). */
     private fun syncAudioLayout() {
         if (!useAudioUI) { layoutControlsShown = null; return }
         val shown = binding.controls.visibility == View.VISIBLE
         if (layoutControlsShown == shown) return
         layoutControlsShown = shown
         showNowPlayingArt(lastCover)
-        lyrics.refreshLayout()
     }
 
     /** Make controls visible, also controls the timeout until they fade. */
@@ -1155,7 +1154,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             if (binding.controls.visibility == View.VISIBLE && !fadeRunnable.hasStarted)
                 showControls()
             if (ev.action == MotionEvent.ACTION_UP) {
-                // [SPECTRUM] lirik tak tersinkron menelan ketukan: tetap munculkan kontrol (landscape) bila bukan gestur
+                // [SPECTRUM] mode audio landscape: ketukan non-gestur tetap memunculkan kontrol
                 if (useAudioUI && mightWantToToggleControls && binding.controls.visibility != View.VISIBLE)
                     showControls()
                 return true
@@ -1289,10 +1288,6 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun onBackPressedImpl() {
         if (lockedUI)
             return showUnlockControls()
-        if (lyrics.tapActive) { // [LYRICS-TAP] back = batalkan sesi cap waktu, bukan keluar pemutar
-            lyrics.cancelTap()
-            return
-        }
 
         val notYetPlayed = psc.playlistCount - psc.playlistPos - 1
         if (notYetPlayed <= 0 || !playlistExitWarning) {
@@ -2252,20 +2247,6 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             false
         })
 
-        // [LYRICS] tampil/sembunyi lirik dan offset
-        buttons.add(MenuItem(R.id.lyricsToggleBtn) {
-            showToast(getString(if (lyrics.toggle()) R.string.lyrics_shown else R.string.lyrics_hidden), true)
-            true
-        })
-        buttons.add(MenuItem(R.id.lyricsOffsetBtn) {
-            lyrics.showOffsetDialog(this, restoreState)
-            false
-        })
-        buttons.add(MenuItem(R.id.lyricsTapBtn) { // [LYRICS-TAP]
-            restoreState() // kembalikan status pause/keep-open dulu; sesi tap memutar sendiri dari awal
-            startTapSync()
-            false
-        })
         buttons.add(MenuItem(R.id.spectrumToggleBtn) { // [SPECTRUM]
             toggleSpectrum()
             true
@@ -2286,10 +2267,6 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             hiddenButtons.add(R.id.audioDelayBtn)
         if (player.sid == -1)
             hiddenButtons.addAll(arrayOf(R.id.subDelayBtn, R.id.rowSubSeek, R.id.rowSubStyle))
-        if (!lyrics.available)
-            hiddenButtons.add(R.id.rowLyrics)
-        if (!lyrics.canTapSync)
-            hiddenButtons.add(R.id.lyricsTapBtn) // [LYRICS-TAP]
         if (!useAudioUI)
             hiddenButtons.addAll(arrayOf(R.id.spectrumToggleBtn, R.id.spectrumColorBtn)) // [SPECTRUM]
         /******/
@@ -2448,66 +2425,6 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     // [COVER-ART] Layar "Now Playing": sampul dimuat di thread IO, hanya untuk berkas lokal pada mode UI audio.
     private var coverPath: String? = null
-    // [LYRICS] lirik tersinkron mode audio; dibuat saat pertama dipakai (binding sudah ada).
-    private val lyrics by lazy {
-        LyricsController(streamScope, binding.lyricsPanel, binding.lyricsList, binding.nowPlayingCover, binding.controls) {
-            activityIsForeground && useAudioUI
-        }.also { c -> c.onTapEnded = { binding.tapSyncPanel.visibility = View.GONE; binding.controls.isClickable = false; binding.topControls.isClickable = false; showControls() } } // [LYRICS-TAP]
-    }
-
-    // [LYRICS-TAP] Overlay cap waktu lirik. Inti logika: LyricsTapSync.kt; daftar baris: LyricsController.
-    private var tapWired = false
-
-    private fun wireTapPanel() {
-        if (tapWired) return
-        tapWired = true
-        binding.tapSyncPanel.setOnClickListener {
-            it.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
-            lyrics.tapNow()
-            updateTapUi()
-        }
-        binding.tapBreakBtn.setOnClickListener { lyrics.tapBreakNow(); updateTapUi() }
-        binding.tapUndoBtn.setOnClickListener { lyrics.undoTap(); updateTapUi() }
-        binding.tapCancelBtn.setOnClickListener { lyrics.cancelTap() }
-        binding.tapSaveBtn.setOnClickListener { saveTapSync() }
-    }
-
-    private fun startTapSync() {
-        if (!lyrics.startTap()) return
-        wireTapPanel()
-        showControls()
-        binding.controls.isClickable = true // [LYRICS-TAP] sela tombol tidak ikut tercap
-        binding.topControls.isClickable = true
-        binding.tapSyncPanel.visibility = View.VISIBLE
-        updateTapUi()
-        showToast(getString(R.string.lyrics_tap_hint), true)
-    }
-
-    private fun updateTapUi() {
-        val st = lyrics.tapStatus ?: return
-        binding.tapProgress.text = getString(R.string.lyrics_tap_progress, st.stamped, st.total)
-        binding.tapSaveBtn.isEnabled = st.complete
-        binding.tapSaveBtn.alpha = if (st.complete) 1f else 0.4f
-    }
-
-    private fun saveTapSync() {
-        val st = lyrics.tapStatus ?: return
-        if (!st.complete) {
-            showToast(getString(R.string.lyrics_tap_incomplete, st.stamped, st.total), true)
-            return
-        }
-        binding.tapSaveBtn.isEnabled = false
-        lyrics.saveTap { r ->
-            when (r) {
-                is LyricsSaver.Result.Saved -> showToast(getString(R.string.lyrics_tap_saved, r.file.name), true)
-                is LyricsSaver.Result.Failed -> {
-                    showToast(getString(R.string.lyrics_tap_failed, r.reason), true)
-                    updateTapUi()
-                }
-            }
-        }
-    }
-
     private var coverJob: Job? = null
 
     // [SPECTRUM] Visualizer spektrum di layar Now Playing: PCM berkas lokal dianalisis MediaCodec (SpectrumDecoder),
@@ -2555,40 +2472,14 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun layoutSpectrum(reserved: Int) {
         val lp = binding.spectrumView.layoutParams as? android.widget.FrameLayout.LayoutParams ?: return
         val total = reserved + topBarReserve()
-        applyLyricsClip(if (spectrumReserve) total + (SPECTRUM_HEIGHT_DP * resources.displayMetrics.density).toInt() else 0)
         if (lp.bottomMargin == total) return
         lp.bottomMargin = total
         binding.spectrumView.layoutParams = lp
     }
 
-    /** [SPECTRUM] Potong daftar lirik tepat di atas zona spektrum agar teks tidak bercampur dengan batang. */
-    private var lyricsClipWant = 0
-    private var lyricsClipHooked = false
-
-    private fun applyLyricsClip(want: Int) {
-        lyricsClipWant = want
-        if (!lyricsClipHooked) { // [FIX] panel lirik baru punya tinggi setelah tampil: hitung ulang batas potong saat itu
-            lyricsClipHooked = true
-            binding.lyricsPanel.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> binding.lyricsPanel.post { applyLyricsClip(lyricsClipWant) } }
-        }
-        val lp = binding.lyricsList.layoutParams as? MarginLayoutParams ?: return
-        // sisakan minimal ~96dp tinggi daftar lirik (landscape + kontrol tampil: zona spektrum nyaris menghabiskan layar)
-        val ph = binding.lyricsPanel.height
-        val px = if (ph > 0) want.coerceAtMost((ph - (96 * resources.displayMetrics.density).toInt()).coerceAtLeast(0)) else want
-        lyrics.clipBottom = { px }
-        if (lp.bottomMargin == px) return
-        lp.bottomMargin = px
-        binding.lyricsList.layoutParams = lp
-        lyrics.refreshLayout()
-    }
-
     private fun setSpectrumReserve(on: Boolean) {
         if (spectrumReserve == on) return
         spectrumReserve = on
-        lyrics.extraBottomReserve = { // [LYRICS] ruang untuk spektrum: lirik berhenti di atasnya
-            0 // [SPECTRUM] ruang spektrum kini dipotong lewat clipBottom (applyLyricsClip), bukan reserve
-        }
-        lyrics.refreshLayout()
         showNowPlayingArt(if (useAudioUI) lastCover else null)
     }
 
@@ -2602,7 +2493,6 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     }
 
     private fun updateSpectrum(path: String?) {
-        lyrics.spectrumRunning = { spectrumPath != null } // [LYRICS-AUTO] bagi hasil analisis dengan lirik
         if (path == null || !SpectrumPrefs.enabled(this)) { stopSpectrum(); return }
         if (path == spectrumPath) return
         stopSpectrum()
@@ -2613,16 +2503,13 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         view.colorMode = SpectrumPrefs.colorMode(this)
         view.positionMs = ::spectrumPositionMs
         view.isPlaying = { (!psc.pause || userIsOperatingSeekbar || pausedForSeek != 0 || SystemClock.uptimeMillis() < spectrumKickUntil) && activityIsForeground }
-        view.dimWhen = { false } // ruang sudah disediakan di bawah lirik, tidak perlu diredupkan
+        view.dimWhen = { false } // zona spektrum sudah dipisahkan dari konten lain, tidak perlu diredupkan
         spectrumJob = streamScope.launch {
-            var produced: SpectrumTrack? = null
             val ok = withContext(Dispatchers.Default) {
                 SpectrumDecoder.analyze(path, { isActive && spectrumPath == path }) { t ->
-                    produced = t
                     view.post { if (spectrumPath == path) { view.track = t; view.visibility = View.VISIBLE } }
                 }
             }
-            if (ok && spectrumPath == path) produced?.let { lyrics.onSpectrumComplete(path, it) } // [LYRICS-AUTO]
             if (!ok && spectrumPath == path && view.track == null) stopSpectrum() // format tidak didukung dekoder perangkat
         }
     }
@@ -2647,7 +2534,6 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     private fun updateNowPlayingArt() {
         val path = if (useAudioUI) localVideoPath() else null
-        lyrics.onTrack(path) // [LYRICS]
         updateSpectrum(path) // [SPECTRUM]
         if (path == null) {
             coverJob?.cancel()

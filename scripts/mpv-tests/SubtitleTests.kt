@@ -6,54 +6,6 @@ internal fun check(name: String, cond: Boolean) {
 }
 
 fun main() {
-    embeddedTests()
-    // --- LRC dasar, metadata, BOM, CRLF
-    val lrc = "\uFEFF[ti:Judul]\r\n[ar:Artis]\r\n[al:Album]\r\n[00:01.50]Satu\r\n[00:03.5]Dua\r\n[00:05.123]Tiga\r\n"
-    val d = LrcParser.parse(lrc)
-    check("metadata ti/ar/al", d.title == "Judul" && d.artist == "Artis" && d.album == "Album")
-    check("3 baris tersinkron", d.synced && d.lines.size == 3)
-    check("fraksi 2 digit = 10ms", d.lines[0].startMs == 1_500L)
-    check("fraksi 1 digit = 100ms", d.lines[1].startMs == 3_500L)
-    check("fraksi 3 digit = ms", d.lines[2].startMs == 5_123L)
-
-    // --- banyak tag per baris, urut, baris kosong dipertahankan
-    val multi = LrcParser.parse("[00:10.00][00:02.00]Reff\n[00:06.00]\n")
-    check("multi-tag terurut", multi.lines.map { it.startMs } == listOf(2_000L, 6_000L, 10_000L))
-    check("baris kosong (jeda) dipertahankan", multi.lines[1].text.isEmpty())
-
-    // --- offset: positif = lebih awal; tidak negatif
-    val off = LrcParser.parse("[offset:500]\n[00:01.00]A\n[00:00.20]B\n")
-    check("offset positif memajukan", off.lines.map { it.startMs } == listOf(0L, 500L))
-
-    // --- enhanced LRC per kata
-    val enh = LrcParser.parse("[00:10.00]<00:10.00>Ha <00:10.50>lo <00:11.00>dunia")
-    check("teks bersih tanpa tag kata", enh.lines[0].text == "Ha lo dunia")
-    check("3 kata bertimestamp", enh.lines[0].words.map { it.startMs } == listOf(10_000L, 10_500L, 11_000L))
-    check("kata aktif @10.7s = indeks 1", activeWordIndex(enh.lines[0], 10_700) == 1)
-    check("kata aktif sebelum mulai = -1", activeWordIndex(enh.lines[0], 9_000) == -1)
-
-    // --- lirik biasa tanpa timestamp
-    val plain = LrcParser.parse("Baris satu\nBaris dua\n")
-    check("tanpa timestamp = tidak tersinkron", !plain.synced && plain.plainLines.size == 2)
-
-    // --- sampah / injeksi: tidak crash, tag di tengah teks bukan penanda waktu
-    val junk = LrcParser.parse("[99:99.99]x\n[abc]y\nteks [00:01.00] di tengah\n")
-    check("tag di tengah bukan timestamp", junk.lines.none { it.text.contains("di tengah") })
-
-    // --- activeIndex & tracker
-    val ls = d.lines
-    check("sebelum baris pertama = -1", ls.activeIndex(0) == -1)
-    check("tepat di awal baris", ls.activeIndex(1_500) == 0)
-    check("di antara baris", ls.activeIndex(4_000) == 1)
-    check("setelah baris terakhir", ls.activeIndex(999_999) == 2)
-    val tr = LyricsTracker(ls)
-    check("emisi pertama", tr.update(1_600) == 0)
-    check("tidak emit bila indeks sama", tr.update(2_000) == null)
-    check("emit saat berganti", tr.update(3_600) == 1)
-    check("offset pengguna +500 memajukan", tr.update(3_000, 500) == null) // 3.5s => masih indeks 1
-    tr.reset()
-    check("reset memaksa emisi", tr.update(3_600) == 1)
-
     // --- SRT
     val srt = "1\r\n00:00:01,000 --> 00:00:03,500\r\nHalo\r\ndunia\r\n\r\n2\r\n00:01:00.250 --> 00:01:02,000\r\nKedua\r\n"
     val cues = SrtCodec.parse(srt)
@@ -65,14 +17,10 @@ fun main() {
     check("shift -2000 tidak negatif", SrtCodec.shift(cues, -2_000)[0].startMs == 0L)
     check("shift +1000", SrtCodec.shift(cues, 1_000)[1].startMs == 61_250L)
     check("scale 2x", SrtCodec.scale(cues, 2.0)[0].endMs == 7_000L)
-    check("lirik -> SRT, kosong dilewati", SrtCodec.fromLyrics(multi.lines).size == 2)
     check("SRT tanpa nomor urut tetap terbaca", SrtCodec.parse("00:00:01,000 --> 00:00:02,000\nX").size == 1)
 
     styleTests(::check)
-    filesTests(::check)
-    karaokeTests(::check)
-    fillTests(::check)
-    offsetsTests(::check)
+    textFileTests(::check)
     assTests(::check)
     convertPlanTests(::check)
     extractCommandTests(::check)
@@ -106,104 +54,18 @@ internal fun styleTests(check: (String, Boolean) -> Unit) {
     check("label memuat fps & faktor", SubSpeeds.label(SubSpeeds.PRESETS[3])!!.let { "24" in it && "25" in it && "1.0417" in it.replace(',', '.') })
 }
 
-// --- LyricsFiles (berkas sementara)
-internal fun filesTests(check: (String, Boolean) -> Unit) {
-    val root = java.nio.file.Files.createTempDirectory("molina-lrc").toFile()
+// --- SubTextFiles (berkas sementara)
+internal fun textFileTests(check: (String, Boolean) -> Unit) {
+    val root = java.nio.file.Files.createTempDirectory("molina-sub").toFile()
     try {
-        val music = java.io.File(root, "music").also { it.mkdirs() }
-        val lib = java.io.File(root, "lib").also { it.mkdirs() }
-        val song = java.io.File(music, "Lagu Satu.mp3").also { it.writeText("x") }
-        check("tanpa lrc = null", LyricsFiles.find(song.path, lib.path) == null)
-
-        java.io.File(lib, "Lagu Satu.lrc").writeText("[00:01.00]dari pustaka")
-        check("fallback ke folder pustaka", LyricsFiles.find(song.path, lib.path)?.parentFile == lib)
-
-        java.io.File(music, "lagu satu.LRC").writeText("[00:01.00]sebelah lagu")
-        check("sebelah lagu didahulukan, huruf tak dibedakan", LyricsFiles.find(song.path, lib.path)?.parentFile == music)
-
-        val utf8 = java.io.File(music, "u.lrc").also { it.writeText("[00:01.00]café", Charsets.UTF_8) }
-        check("UTF-8 terbaca", LyricsFiles.readText(utf8) == "[00:01.00]café")
-        val latin = java.io.File(music, "l.lrc").also { it.writeBytes("[00:01.00]caf\u00e9".toByteArray(charset("windows-1252"))) }
-        check("fallback windows-1252", LyricsFiles.readText(latin) == "[00:01.00]caf\u00e9")
-
-        val big = java.io.File(lib, "Besar.lrc").also { java.io.RandomAccessFile(it, "rw").use { r -> r.setLength(LyricsFiles.MAX_BYTES + 1) } }
-        check("berkas terlalu besar diabaikan", LyricsFiles.find(java.io.File(music, "Besar.mp3").path, lib.path) == null && LyricsFiles.readText(big) == null)
-        java.io.File(lib, "Kosong.lrc").createNewFile()
-        check("berkas kosong diabaikan", LyricsFiles.find(java.io.File(music, "Kosong.mp3").path, lib.path) == null)
-        check("nama menyerupai traversal tetap aman", LyricsFiles.find("/tidak/ada/../../x.mp3", lib.path) == null)
-        check("path kosong aman", LyricsFiles.find("", lib.path) == null)
+        val utf8 = java.io.File(root, "u.srt").also { it.writeText("1\ncaf\u00e9", Charsets.UTF_8) }
+        check("UTF-8 terbaca", SubTextFiles.readText(utf8) == "1\ncaf\u00e9")
+        val latin = java.io.File(root, "l.srt").also { it.writeBytes("1\ncaf\u00e9".toByteArray(charset("windows-1252"))) }
+        check("fallback windows-1252", SubTextFiles.readText(latin) == "1\ncaf\u00e9")
+        val big = java.io.File(root, "besar.srt").also { java.io.RandomAccessFile(it, "rw").use { r -> r.setLength(SubTextFiles.MAX_BYTES + 1) } }
+        check("berkas terlalu besar diabaikan", SubTextFiles.readText(big) == null)
+        check("berkas tidak ada = null", SubTextFiles.readText(java.io.File(root, "tidak-ada.srt")) == null)
     } finally { root.deleteRecursively() }
-}
-
-internal fun karaokeTests(check: (String, Boolean) -> Unit) {
-    val pre = LrcParser.parse("[00:10.00]Hai <00:10.50>dunia <00:11.00>baru").lines[0]
-    check("teks sebelum tag pertama jadi kata", pre.words.map { it.text } == listOf("Hai ", "dunia ", "baru"))
-    check("kata awalan di waktu baris", pre.words[0].startMs == 10_000L)
-    val sp = LrcParser.parse("[00:01.00]<00:01.00>A<00:01.50> <00:02.00>B").lines[0]
-    check("spasi mandiri digabung ke kata sebelumnya", sp.words.map { it.text } == listOf("A ", "B"))
-    check("gabungan kata = teks baris", pre.words.joinToString("") { it.text }.trim() == pre.text)
-
-    val line = LrcParser.parse("[00:10.00]<00:10.00>Ha <00:10.50>lo <00:11.00>dunia").lines[0]
-    check("belum ada kata mulai: semua belum", line.segments(-1).none { it.sung })
-    check("kata 1 aktif: dua pertama sung", line.segments(1).map { it.sung } == listOf(true, true, false))
-    check("kata terakhir: semua sung", line.segments(2).all { it.sung })
-    check("segmen mempertahankan teks", line.segments(0).joinToString("") { it.text } == "Ha lo dunia")
-    val plain = LyricLine(0, "tanpa kata")
-    check("tanpa kata: satu segmen utuh", plain.segments(-1) == listOf(LyricSegment("tanpa kata", true)))
-
-    val tr = LyricsTracker(listOf(line))
-    check("tracker.current awal = -1", tr.current == -1)
-    tr.update(10_600); check("tracker.current = 0", tr.current == 0)
-    tr.reset(); check("reset -> current -1", tr.current == -1)
-    // alur karaoke: kata aktif berubah sepanjang baris, offset pengguna ikut
-    val seq = listOf(9_900L, 10_100L, 10_600L, 11_200L).map { activeWordIndex(line, it) }
-    check("kata aktif berurutan", seq == listOf(-1, 0, 1, 2))
-    check("offset +500 memajukan kata", activeWordIndex(line, 10_100L + 500) == 1)
-}
-
-internal fun fillTests(check: (String, Boolean) -> Unit) {
-    val line = LrcParser.parse("[00:10.00]<00:10.00>Hai <00:11.00>dunia").lines[0] // "Hai " (1 s), "dunia" (kata terakhir)
-    check("fill: sebelum kata pertama = (-1,0)", karaokeFill(line, 14_000, 9_000) == KaraokeFill(-1, 0))
-    check("fill: awal kata 0 = 0 huruf", karaokeFill(line, 14_000, 10_000) == KaraokeFill(0, 0))
-    check("fill: kata 0 terisi bertahap (1 -> 2 -> 3 huruf)", listOf(10_340L, 10_700L, 10_990L).map { karaokeFill(line, 14_000, it).chars } == listOf(1, 2, 3))
-    check("fill: kata terakhir dibatasi estimasi, bukan jeda sampai baris berikutnya", karaokeFill(line, 14_000, 12_000) == KaraokeFill(1, 5))
-    check("fill: kata terakhir tanpa batas baris memakai estimasi", karaokeFill(line, null, 11_150) == KaraokeFill(1, 1))
-    check("fill: awal baris berikutnya lebih dekat dari estimasi", karaokeFill(line, 11_400, 11_200) == KaraokeFill(1, 3))
-    check("fill: spasi akhir tidak dihitung", karaokeFill(line, 14_000, 10_999).chars <= 3)
-    check("fill: segmen kata aktif terpecah", line.fillSegments(KaraokeFill(0, 1)).map { it.text to it.sung } == listOf("H" to true, "ai " to false, "dunia" to false))
-    check("fill: kata sebelumnya sung penuh, sesudahnya belum", line.fillSegments(KaraokeFill(1, 0)).map { it.text to it.sung } == listOf("Hai " to true, "dunia" to false))
-    check("fill: semua sung di akhir", line.fillSegments(KaraokeFill(1, 5)).all { it.sung })
-    check("fill: teks utuh untuk semua kombinasi", (-1..1).all { w -> (0..5).all { c -> line.fillSegments(KaraokeFill(w, c)).joinToString("") { it.text } == "Hai dunia" } })
-    check("fill: tanpa kata = satu segmen utuh", LyricLine(0, "x").fillSegments(KaraokeFill(-1, 0)) == listOf(LyricSegment("x", true)))
-    val emo = LyricLine(0, "\uD83D\uDE00a", listOf(LyricWord(0, "\uD83D\uDE00a")))
-    check("fill: pasangan surrogate tidak dibelah", emo.fillSegments(KaraokeFill(0, 1)).first().text == "\uD83D\uDE00")
-    val seq = (9_000L..15_000L step 50L).map { karaokeFill(line, 14_000, it) }
-    check("fill: monoton naik sepanjang waktu", seq.zipWithNext().all { (a, b) -> b.word > a.word || (b.word == a.word && b.chars >= a.chars) })
-}
-
-internal fun offsetsTests(check: (String, Boolean) -> Unit) {
-    val o = LyricsOffsets(3)
-    check("default 0", o.get("/a.mp3") == 0L)
-    o.put("/a.mp3", 1_500); check("put/get", o.get("/a.mp3") == 1_500L)
-    o.put("/a.mp3", 0); check("0 menghapus entri", o.size == 0)
-    o.put("/b", 100_000); check("dijepit ke +-60 s", o.get("/b") == 60_000L)
-    o.put("/b", -100_000); check("negatif dijepit", o.get("/b") == -60_000L)
-
-    val e = LyricsOffsets(3)
-    for (k in listOf("1", "2", "3")) e.put(k, 10)
-    e.put("2", 20) // 2 menjadi yang terbaru
-    e.put("4", 10) // buang yang terlama (1)
-    check("entri terlama dibuang", e.get("1") == 0L && e.get("2") == 20L && e.get("3") == 10L && e.get("4") == 10L)
-    check("ukuran dibatasi", e.size == 3)
-
-    val weird = "/sdcard/Lagu\ttab\nbaris%25 dan 100%.mp3"
-    val r = LyricsOffsets()
-    r.put(weird, -750); r.put("/biasa.mp3", 300)
-    val back = LyricsOffsets.parse(r.serialize())
-    check("serialisasi bolak-balik (kunci aneh)", back.get(weird) == -750L && back.get("/biasa.mp3") == 300L)
-    val bad = LyricsOffsets.parse("tanpa-tab\n\t5\n/x\tabc\n/ok\t42\n")
-    check("baris rusak diabaikan", bad.size == 1 && bad.get("/ok") == 42L)
-    check("parse null/kosong aman", LyricsOffsets.parse(null).size == 0 && LyricsOffsets.parse("").size == 0)
 }
 
 internal fun assTests(check: (String, Boolean) -> Unit) {
@@ -310,14 +172,4 @@ internal fun extractCommandTests(check: (String, Boolean) -> Unit) {
     check("errorLine: baris terakhir yang tidak kosong", C.errorLine("a\r\nGalat: stream 3 tidak ada\r\n\r\n") == "Galat: stream 3 tidak ada")
     check("errorLine: kosong", C.errorLine("") == "" && C.errorLine(" \n \n") == "")
     check("errorLine: dipotong 160", C.errorLine("x".repeat(500)).length == 160)
-}
-
-private fun embeddedTests() {
-    val E = LyricsEmbedded
-    check("tertanam: tanpa tag lirik -> null", E.pick(listOf("title" to "x", "artist" to "y")) == null)
-    check("tertanam: kunci lyrics/USLT dikenali", E.pick(listOf("USLT" to "Halo")) == "Halo" && E.pick(listOf("lyrics-eng" to "Hai")) == "Hai")
-    check("tertanam: nilai kosong diabaikan", E.pick(listOf("lyrics" to "  \n ")) == null)
-    check("tertanam: utamakan yang bertimestamp", E.pick(listOf("unsyncedlyrics" to "polos", "lyrics" to "[00:01.00]Satu")) == "[00:01.00]Satu")
-    check("tertanam: BOM dibuang", E.pick(listOf("lyrics" to "\uFEFFabc")) == "abc")
-    check("tertanam: dipotong MAX_CHARS", E.pick(listOf("lyrics" to "x".repeat(E.MAX_CHARS + 50)))!!.length == E.MAX_CHARS)
 }
