@@ -77,11 +77,11 @@ private enum class Page {
 
 private fun parentOf(p: Page): Page? = when (p) {
     Page.Home -> null
-    Page.System, Page.Scripts, Page.Packages, Page.TerminalApp, Page.Downloads, Page.Player, Page.Stats -> Page.Home
+    Page.System, Page.Scripts, Page.Packages, Page.TerminalApp, Page.Downloads, Page.Monitor, Page.Player, Page.Stats -> Page.Home
     Page.Stream, Page.Bundle -> Page.Packages
     Page.Debugging, Page.TerminalIO, Page.TerminalView, Page.Tampilan -> Page.Terminal
     Page.CrashReports -> Page.Debugging
-    Page.Log, Page.Monitor, Page.Licenses, Page.AboutMolina -> Page.Info // [INFO-PAGE]
+    Page.Log, Page.Licenses, Page.AboutMolina -> Page.Info // [INFO-PAGE]
     else -> Page.System
 }
 
@@ -321,6 +321,13 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                             selected = lastTile == Page.Downloads,
                             onOpen = { lastTile = Page.Downloads; open(Page.Downloads) }
                         )
+                        W7CategoryTile( // [MONITOR-ROOT] sejajar Sistem, Paket, Unduhan
+                            icon = { W7IconMonitor(52.dp) },
+                            title = "Monitor Sistem",
+                            links = emptyList(),
+                            selected = lastTile == Page.Monitor,
+                            onOpen = { lastTile = Page.Monitor; open(Page.Monitor) }
+                        )
                         W7CategoryTile(
                             icon = { W7IconPlayerBig(52.dp) },
                             title = "Pemutar",
@@ -389,7 +396,6 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                         onAutomation = { open(Page.System) }, // [SETELAN-PUSAT] cadangan kini di Sistem
                         onDiagnostics = { showDiag = true },
                         onLog = { open(Page.Log) },
-                        onMonitor = { open(Page.Monitor) },
                         onAbout = { open(Page.AboutMolina) },
                         onLicenses = { open(Page.Licenses) }
                     )

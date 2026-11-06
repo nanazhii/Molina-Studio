@@ -38,7 +38,6 @@ internal fun HubInfoPage(
     onAutomation: () -> Unit,
     onDiagnostics: () -> Unit,
     onLog: () -> Unit,
-    onMonitor: () -> Unit,
     onAbout: () -> Unit,
     onLicenses: () -> Unit
 ) {
@@ -94,8 +93,6 @@ internal fun HubInfoPage(
     }
     Spacer(Modifier.height(8.dp))
     PackageStatusCard("Log", "Log aktivitas mpv, Terminal, dan sistem", null, onClick = onLog, icon = { W7IconLog() })
-    Spacer(Modifier.height(8.dp))
-    PackageStatusCard("Monitor Sistem", "Unduh, unggah, CPU, dan RAM secara langsung", null, onClick = onMonitor, icon = { W7IconMonitor(32.dp) })
 
     Spacer(Modifier.height(16.dp))
     PackageSectionHeader("Tentang")
