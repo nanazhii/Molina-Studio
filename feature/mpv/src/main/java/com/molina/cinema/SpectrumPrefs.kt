@@ -16,11 +16,11 @@ internal object SpectrumPrefs {
         PreferenceManager.getDefaultSharedPreferences(ctx.applicationContext).edit().putBoolean(KEY, on).apply()
     }
 
-    /** Mode warna batang. Bila belum pernah dipilih, mewarisi opsi boolean lama (KEY_FREQ_COLORS). */
+    /** Mode warna batang. Bawaan CINEMA; pemakai lama mewarisi opsi boolean lama (KEY_FREQ_COLORS) bila pernah diatur. */
     fun colorMode(ctx: Context): SpectrumColorMode {
         val sp = PreferenceManager.getDefaultSharedPreferences(ctx.applicationContext)
-        SpectrumColorMode.fromName(sp.getString(KEY_COLOR_MODE, null))?.let { return it }
-        return if (sp.getBoolean(KEY_FREQ_COLORS, true)) SpectrumColorMode.FREQUENCY else SpectrumColorMode.ACCENT
+        val legacy = if (sp.contains(KEY_FREQ_COLORS)) sp.getBoolean(KEY_FREQ_COLORS, true) else null
+        return SpectrumColorMode.resolve(sp.getString(KEY_COLOR_MODE, null), legacy)
     }
 
     fun setColorMode(ctx: Context, mode: SpectrumColorMode) {

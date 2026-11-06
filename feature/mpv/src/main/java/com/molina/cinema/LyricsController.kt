@@ -45,25 +45,25 @@ private class LyricsAdapter : RecyclerView.Adapter<LyricsAdapter.VH>() {
     var synced = true
     private var lines: List<LyricLine> = emptyList()
     private var active = -1
-    private var activeWord = -1
+    private var fill = KaraokeFill(-1, 0)
 
     fun reset(newItems: List<String>, isSynced: Boolean, newLines: List<LyricLine> = emptyList()) {
-        items = newItems; synced = isSynced; lines = newLines; active = -1; activeWord = -1
+        items = newItems; synced = isSynced; lines = newLines; active = -1; fill = KaraokeFill(-1, 0)
         notifyDataSetChanged()
     }
 
     fun setActive(index: Int) {
         val old = active
         active = index
-        activeWord = -1
+        fill = KaraokeFill(-1, 0)
         if (old in items.indices) notifyItemChanged(old)
         if (index in items.indices) notifyItemChanged(index)
     }
 
-    /** Kata aktif pada baris aktif (karaoke). Hanya menggambar ulang satu baris, dan hanya bila berubah. */
-    fun setWord(word: Int) {
-        if (word == activeWord) return
-        activeWord = word
+    /** Isian karaoke pada baris aktif. Hanya menggambar ulang satu baris, dan hanya bila (kata, huruf) berubah. */
+    fun setFill(f: KaraokeFill) {
+        if (f == fill) return
+        fill = f
         if (active in items.indices) notifyItemChanged(active)
     }
 
@@ -91,7 +91,7 @@ private class LyricsAdapter : RecyclerView.Adapter<LyricsAdapter.VH>() {
         val line = lines.getOrNull(position)
         if (isActive && line != null && line.words.isNotEmpty()) {
             // LRC enhanced: kata yang sudah dinyanyikan berwarna aksen, sisanya warna teks utama
-            holder.tv.text = karaoke(line.segments(activeWord))
+            holder.tv.text = karaoke(line.fillSegments(fill))
             holder.tv.setTextColor(LyricsController.COLOR_PENDING)
         } else {
             holder.tv.text = items[position].ifEmpty { "♪" } // baris kosong = jeda instrumental
@@ -236,15 +236,16 @@ internal class LyricsController(
             delay(when {
                 !visible -> 1_000L // di latar belakang: hemat daya
                 MPVLib.getPropertyBoolean("pause") == true -> 400L
-                hasWords -> 100L // karaoke: kata berganti lebih sering daripada baris
+                hasWords -> 70L // karaoke: isian huruf demi huruf, perlu lebih rapat dari pergantian baris
                 else -> 150L
             })
         }
     }
 
     private fun updateWord(lineIndex: Int, positionMs: Long) {
-        val line = doc?.lines?.getOrNull(lineIndex) ?: return
-        if (line.words.isNotEmpty()) adapter.setWord(activeWordIndex(line, positionMs))
+        val lines = doc?.lines ?: return
+        val line = lines.getOrNull(lineIndex) ?: return
+        if (line.words.isNotEmpty()) adapter.setFill(karaokeFill(line, lines.getOrNull(lineIndex + 1)?.startMs, positionMs))
     }
 
     private fun onIndex(index: Int) {

@@ -187,6 +187,12 @@ private fun spectrumTests() {
     check("SpectrumColorMode.fromName", SpectrumColorMode.fromName("CINEMA") == SpectrumColorMode.CINEMA && SpectrumColorMode.fromName("xyz") == null && SpectrumColorMode.fromName(null) == null)
     check("blend: ujung t=0 dan t=1, t di luar rentang dijepit", SpectrumColors.blend(acc, SpectrumColors.GOLD, 0f) == acc && SpectrumColors.blend(acc, SpectrumColors.GOLD, 1f) == SpectrumColors.GOLD && SpectrumColors.blend(acc, SpectrumColors.GOLD, 5f) == SpectrumColors.GOLD)
 
+    // --- bawaan mode warna: pemakai baru = CINEMA, pemakai lama tetap
+    check("resolve: pemakai baru (belum pernah memilih) = CINEMA", SpectrumColorMode.resolve(null, null) == SpectrumColorMode.CINEMA)
+    check("resolve: warisi opsi lama true = FREQUENCY, false = ACCENT", SpectrumColorMode.resolve(null, true) == SpectrumColorMode.FREQUENCY && SpectrumColorMode.resolve(null, false) == SpectrumColorMode.ACCENT)
+    check("resolve: pilihan baru mengalahkan opsi lama", SpectrumColorMode.resolve("ACCENT", true) == SpectrumColorMode.ACCENT && SpectrumColorMode.resolve("CINEMA", false) == SpectrumColorMode.CINEMA)
+    check("resolve: nilai rusak = jatuh ke opsi lama / CINEMA", SpectrumColorMode.resolve("xyz", null) == SpectrumColorMode.CINEMA && SpectrumColorMode.resolve("xyz", false) == SpectrumColorMode.ACCENT)
+
     // --- SpectrumTrack: tulis, tumbuh, interpolasi, batas
     val hop = sr / SpectrumMath.FPS
     val tr = SpectrumTrack(sr, hop, initialFrames = 2, maxFrames = 8)

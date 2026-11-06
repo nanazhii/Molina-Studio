@@ -70,6 +70,7 @@ fun main() {
     styleTests(::check)
     filesTests(::check)
     karaokeTests(::check)
+    fillTests(::check)
     offsetsTests(::check)
     assTests(::check)
     convertPlanTests(::check)
@@ -157,6 +158,26 @@ internal fun karaokeTests(check: (String, Boolean) -> Unit) {
     val seq = listOf(9_900L, 10_100L, 10_600L, 11_200L).map { activeWordIndex(line, it) }
     check("kata aktif berurutan", seq == listOf(-1, 0, 1, 2))
     check("offset +500 memajukan kata", activeWordIndex(line, 10_100L + 500) == 1)
+}
+
+internal fun fillTests(check: (String, Boolean) -> Unit) {
+    val line = LrcParser.parse("[00:10.00]<00:10.00>Hai <00:11.00>dunia").lines[0] // "Hai " (1 s), "dunia" (kata terakhir)
+    check("fill: sebelum kata pertama = (-1,0)", karaokeFill(line, 14_000, 9_000) == KaraokeFill(-1, 0))
+    check("fill: awal kata 0 = 0 huruf", karaokeFill(line, 14_000, 10_000) == KaraokeFill(0, 0))
+    check("fill: kata 0 terisi bertahap (1 -> 2 -> 3 huruf)", listOf(10_340L, 10_700L, 10_990L).map { karaokeFill(line, 14_000, it).chars } == listOf(1, 2, 3))
+    check("fill: kata terakhir dibatasi estimasi, bukan jeda sampai baris berikutnya", karaokeFill(line, 14_000, 12_000) == KaraokeFill(1, 5))
+    check("fill: kata terakhir tanpa batas baris memakai estimasi", karaokeFill(line, null, 11_150) == KaraokeFill(1, 1))
+    check("fill: awal baris berikutnya lebih dekat dari estimasi", karaokeFill(line, 11_400, 11_200) == KaraokeFill(1, 3))
+    check("fill: spasi akhir tidak dihitung", karaokeFill(line, 14_000, 10_999).chars <= 3)
+    check("fill: segmen kata aktif terpecah", line.fillSegments(KaraokeFill(0, 1)).map { it.text to it.sung } == listOf("H" to true, "ai " to false, "dunia" to false))
+    check("fill: kata sebelumnya sung penuh, sesudahnya belum", line.fillSegments(KaraokeFill(1, 0)).map { it.text to it.sung } == listOf("Hai " to true, "dunia" to false))
+    check("fill: semua sung di akhir", line.fillSegments(KaraokeFill(1, 5)).all { it.sung })
+    check("fill: teks utuh untuk semua kombinasi", (-1..1).all { w -> (0..5).all { c -> line.fillSegments(KaraokeFill(w, c)).joinToString("") { it.text } == "Hai dunia" } })
+    check("fill: tanpa kata = satu segmen utuh", LyricLine(0, "x").fillSegments(KaraokeFill(-1, 0)) == listOf(LyricSegment("x", true)))
+    val emo = LyricLine(0, "\uD83D\uDE00a", listOf(LyricWord(0, "\uD83D\uDE00a")))
+    check("fill: pasangan surrogate tidak dibelah", emo.fillSegments(KaraokeFill(0, 1)).first().text == "\uD83D\uDE00")
+    val seq = (9_000L..15_000L step 50L).map { karaokeFill(line, 14_000, it) }
+    check("fill: monoton naik sepanjang waktu", seq.zipWithNext().all { (a, b) -> b.word > a.word || (b.word == a.word && b.chars >= a.chars) })
 }
 
 internal fun offsetsTests(check: (String, Boolean) -> Unit) {

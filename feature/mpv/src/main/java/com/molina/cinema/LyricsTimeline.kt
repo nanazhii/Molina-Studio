@@ -173,3 +173,45 @@ internal data class LyricSegment(val text: String, val sung: Boolean)
 internal fun LyricLine.segments(activeWord: Int): List<LyricSegment> =
     if (words.isEmpty()) listOf(LyricSegment(text, true))
     else words.mapIndexed { i, w -> LyricSegment(w.text, i <= activeWord) }
+
+/** Sorotan karaoke progresif: kata [word] (indeks, -1 = belum mulai) sudah terisi [chars] huruf pertamanya. */
+internal data class KaraokeFill(val word: Int, val chars: Int)
+
+/**
+ * Posisi isian karaoke pada [positionMs]. Kata aktif terisi huruf demi huruf sepanjang durasinya: jarak ke kata
+ * berikutnya; kata terakhir = yang lebih dulu antara [lineEndMs] (awal baris berikutnya) dan estimasi dari panjang
+ * teks, supaya jeda instrumental panjang tidak membuat isian merayap.
+ */
+internal fun karaokeFill(line: LyricLine, lineEndMs: Long?, positionMs: Long): KaraokeFill {
+    val i = activeWordIndex(line, positionMs)
+    if (i < 0) return KaraokeFill(-1, 0)
+    val w = line.words[i]
+    val len = w.text.trimEnd().length // spasi akhir tidak ikut animasi
+    val estimateEnd = w.startMs + 300L + 90L * len
+    val next = line.words.getOrNull(i + 1)?.startMs
+    val end = when {
+        next != null -> next
+        lineEndMs != null -> minOf(lineEndMs, estimateEnd)
+        else -> estimateEnd
+    }
+    val dur = (end - w.startMs).coerceAtLeast(1L)
+    val frac = ((positionMs - w.startMs).toDouble() / dur).coerceIn(0.0, 1.0)
+    return KaraokeFill(i, Math.round(frac * len).toInt())
+}
+
+/** Segmen untuk digambar dengan isian progresif: kata aktif dipecah menjadi bagian sudah/belum dinyanyikan. */
+internal fun LyricLine.fillSegments(fill: KaraokeFill): List<LyricSegment> {
+    if (words.isEmpty()) return listOf(LyricSegment(text, true))
+    val out = ArrayList<LyricSegment>(words.size + 1)
+    for ((i, w) in words.withIndex()) when {
+        i < fill.word -> out.add(LyricSegment(w.text, true))
+        i == fill.word -> {
+            var n = fill.chars.coerceIn(0, w.text.length)
+            if (n in 1 until w.text.length && Character.isHighSurrogate(w.text[n - 1])) n++ // jangan belah pasangan surrogate (emoji)
+            if (n > 0) out.add(LyricSegment(w.text.substring(0, n), true))
+            if (n < w.text.length) out.add(LyricSegment(w.text.substring(n), false))
+        }
+        else -> out.add(LyricSegment(w.text, false))
+    }
+    return out
+}

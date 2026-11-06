@@ -94,3 +94,15 @@ Warna sintaks (`Json*`, `Ext*`) dan nomor baris terakota adalah identitas editor
 - Aksen biru `Accent` privat di `CinemaResults.kt` dan `W7D.Accent` belum dipetakan ke token.
 - Lencana ikon lama di `Win7SettingsUi.kt` (`W7IconTerminal` netral dan `W7IconToolList` oranye di `PackageScriptUi.kt`) dan sparkline `SystemMonitorUi` masih memakai hex langsung; petakan ke token bila tampilannya boleh disesuaikan. Lencana baru (`W7IconDebug`, `W7IconIo`, `W7IconAa`, `W7IconSysInfo`, `W7IconCode`, `W7IconDiag`), serta `W7IconShield`, `W7IconLog`, `W7IconHit` sudah memakai token. [LENCANA-HEX]
 - `OrbTop` dan `OrbBottom` (biru Aero) di `CinemaWin7Home.kt` masih hex; ini tampilan jendela Home Theater bergaya Windows 7, petakan ke token hanya bila tampilannya boleh bergeser. Latar kartu Lanjutkan sudah memakai `Brand`. [CINEMA-ORB]
+
+## Visualizer spektrum (Molina Cinema, `SpectrumColors` di `SpectrumMath.kt`)
+
+Mode warna dipilih pengguna di menu lanjutan mode audio; bawaan = Cinema.
+
+| Mode | Warna | Catatan |
+|---|---|---|
+| Aksen tunggal | `Brand` (`player_playlist_active`) | Selaras dengan prinsip satu aksen merek |
+| Per frekuensi | `#FF8A3D` (bass) -> aksen -> `#3FA9F5` (treble) | Pengecualian dari prinsip satu aksen |
+| Cinema | `#9B1B30` marun (dasar) -> `#FFC94D` emas (ujung) | Bukan token `Cinema` (`#B388FF`); emas dekat `Warn`, jangan dipakai sebagai penanda status |
+
+Dua mode berwarna adalah pengecualian terdokumentasi untuk visualisasi, bukan aksen antarmuka.

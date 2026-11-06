@@ -33,7 +33,7 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
         set(value) { field = value; rebuildShaders(); invalidate() }
 
     /** Mode warna batang: aksen tunggal, gradasi per frekuensi, atau Cinema (marun -> emas). */
-    var colorMode: SpectrumColorMode = SpectrumColorMode.FREQUENCY
+    var colorMode: SpectrumColorMode = SpectrumColorMode.CINEMA
         set(value) { field = value; rebuildShaders(); invalidate() }
 
     private val bands = SpectrumMath.BANDS

@@ -265,6 +265,17 @@ internal enum class SpectrumColorMode {
 
     companion object {
         fun fromName(name: String?): SpectrumColorMode? = values().firstOrNull { it.name == name }
+
+        /**
+         * Mode efektif: pilihan baru ([saved]) menang; bila belum ada, warisi opsi boolean lama ([legacyFreqColors]:
+         * true = FREQUENCY, false = ACCENT); bila keduanya belum pernah diatur (pemakai baru) = CINEMA.
+         */
+        fun resolve(saved: String?, legacyFreqColors: Boolean?): SpectrumColorMode =
+            fromName(saved) ?: when (legacyFreqColors) {
+                true -> FREQUENCY
+                false -> ACCENT
+                null -> CINEMA
+            }
     }
 }
 
