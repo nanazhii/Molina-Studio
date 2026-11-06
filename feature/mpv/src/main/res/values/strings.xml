@@ -336,4 +336,7 @@
     <string name="spectrum_btn">Spectrum visualizer</string>
     <string name="spectrum_on">Spectrum visualizer on</string>
     <string name="spectrum_off">Spectrum visualizer off</string>
+    <string name="spectrum_colors_btn">Spectrum colors</string>
+    <string name="spectrum_colors_freq">Spectrum colors: by frequency</string>
+    <string name="spectrum_colors_accent">Spectrum colors: single accent</string>
 </resources>

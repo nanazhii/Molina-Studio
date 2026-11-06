@@ -2233,6 +2233,10 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             toggleSpectrum()
             true
         })
+        buttons.add(MenuItem(R.id.spectrumColorBtn) { // [SPECTRUM]
+            toggleSpectrumColors()
+            true
+        })
 
         buttons.add(MenuItem(R.id.sleepTimerBtn) {
             pickSleepTimer(restoreState)
@@ -2248,7 +2252,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         if (!lyrics.available)
             hiddenButtons.add(R.id.rowLyrics)
         if (!useAudioUI)
-            hiddenButtons.add(R.id.spectrumToggleBtn) // [SPECTRUM]
+            hiddenButtons.addAll(arrayOf(R.id.spectrumToggleBtn, R.id.spectrumColorBtn)) // [SPECTRUM]
         /******/
 
         genericMenu(R.layout.dialog_advanced_menu, buttons, hiddenButtons, restoreState) { v ->
@@ -2468,6 +2472,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         setSpectrumReserve(true)
         val view = binding.spectrumView
         view.accent = ContextCompat.getColor(this, R.color.player_playlist_active)
+        view.frequencyColors = SpectrumPrefs.frequencyColors(this)
         view.positionMs = ::spectrumPositionMs
         view.isPlaying = { !psc.pause && !psc.cachePause && activityIsForeground }
         view.hideWhen = { binding.lyricsPanel.visibility == View.VISIBLE }
@@ -2479,6 +2484,13 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             }
             if (!ok && spectrumPath == path && view.track == null) stopSpectrum() // format tidak didukung dekoder perangkat
         }
+    }
+
+    private fun toggleSpectrumColors() { // [SPECTRUM] warna per frekuensi <-> satu warna aksen
+        val on = !SpectrumPrefs.frequencyColors(this)
+        SpectrumPrefs.setFrequencyColors(this, on)
+        binding.spectrumView.frequencyColors = on
+        showToast(getString(if (on) R.string.spectrum_colors_freq else R.string.spectrum_colors_accent), true)
     }
 
     private fun toggleSpectrum() {

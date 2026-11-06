@@ -165,4 +165,7 @@
     <string name="spectrum_btn">Visualizer spektrum</string>
     <string name="spectrum_on">Visualizer spektrum hidup</string>
     <string name="spectrum_off">Visualizer spektrum mati</string>
+    <string name="spectrum_colors_btn">Warna spektrum</string>
+    <string name="spectrum_colors_freq">Warna spektrum: per frekuensi</string>
+    <string name="spectrum_colors_accent">Warna spektrum: aksen tunggal</string>
 </resources>
