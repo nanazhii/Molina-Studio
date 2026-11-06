@@ -199,8 +199,23 @@ internal class SpectrumTrack(
         i
     }
 
-    /** Frame kosong pertama dari awal trek = ujung "kepala" analisis berurutan. */
-    fun firstGap(): Int = nextUnfilled(0)
+    /** Frame kosong pertama pada atau setelah [from]; tanpa argumen = ujung "kepala" analisis berurutan. */
+    fun firstGap(from: Int = 0): Int = nextUnfilled(from)
+
+    /** Awal rentang terisi berikutnya setelah [from] (frame terisi pertama di atas [from]); Int.MAX_VALUE bila tidak ada. */
+    fun nextStart(from: Int): Int = synchronized(lock) {
+        var i = from.coerceAtLeast(-1) + 1
+        // lewati sisa rentang terisi yang sedang ditempati [from], lalu cari frame terisi berikutnya
+        while (i < filled.size && i > 0 && filled[i].toInt() != 0 && filled[i - 1].toInt() != 0) i++
+        while (i < filled.size && filled[i].toInt() == 0) i++
+        if (i < filled.size) i else Int.MAX_VALUE
+    }
+
+    /** Batas atas frame terisi (eksklusif) = indeks tertinggi + 1. */
+    fun maxEnd(): Int = highWater
+
+    /** Alias [put] untuk penulisan per-segmen oleh dekoder lompat. */
+    fun writeAt(index: Int, frame: ByteArray, offset: Int = 0): Boolean = put(index, frame, offset)
 
     /** Catat bahwa trek berakhir setelah [frames] frame (dipakai nilai terbesar). */
     fun markEnd(frames: Int) { synchronized(lock) { if (frames > endFrame) endFrame = frames } }
