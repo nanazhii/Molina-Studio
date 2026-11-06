@@ -135,8 +135,9 @@ internal object SpectrumMath {
 }
 
 /**
- * Hasil analisis seluruh trek: [bands] byte per frame. Ditulis bertahap oleh dekoder (thread latar) dan dibaca
- * renderer (thread UI); [ready] = jumlah frame lengkap yang sudah boleh dibaca.
+ * Hasil analisis trek: [bands] byte per frame. Ditulis per segmen oleh dekoder (kepala berurutan dari awal, plus dekoder
+ * lompat setelah seek) dan dibaca renderer (thread UI). Tiap frame punya penanda terisi; [ready] = jumlah frame terisi.
+ * Semua akses ke penyimpanan memakai satu kunci (kritis pendek), jadi aman dari banyak thread. [SPECTRUM-JUMP]
  */
 internal class SpectrumTrack(
     val sampleRate: Int,
@@ -146,45 +147,110 @@ internal class SpectrumTrack(
     initialFrames: Int = 4_096,
     private val maxFrames: Int = 216_000, // 2 jam pada 30 fps = ~6,9 MB
 ) {
-    @Volatile var data: ByteArray = ByteArray(initialFrames.coerceIn(1, maxFrames) * bands)
-        private set
+    private val lock = Any()
+    private var buf = ByteArray(initialFrames.coerceIn(1, maxFrames) * bands)
+    private var filled = ByteArray(buf.size / bands)
+    private var appendAt = 0
+
+    /** Penyimpanan frame mentah (bands byte per frame); hanya frame yang [has]-nya true yang berisi data. */
+    val data: ByteArray get() = synchronized(lock) { buf }
+
+    /** Jumlah frame yang sudah terisi (semua segmen). */
     @Volatile var ready: Int = 0
         private set
+
+    /** Indeks frame terisi tertinggi + 1. */
+    @Volatile var highWater: Int = 0
+        private set
+
+    /** Jumlah frame total setelah akhir berkas tercapai; -1 = belum diketahui. */
+    @Volatile var endFrame: Int = -1
+        private set
+
     @Volatile var complete: Boolean = false
 
-    /** Tambah satu frame. false bila sudah mencapai batas. Hanya satu penulis. */
-    fun append(frame: ByteArray, offset: Int = 0): Boolean {
-        val n = ready
-        if (n >= maxFrames) return false
-        var d = data
-        if ((n + 1) * bands > d.size) {
-            d = d.copyOf((minOf(maxFrames, (d.size / bands) * 2)) * bands)
-            data = d
+    /** Tulis frame ke [index]. false bila [index] di luar batas maxFrames. Boleh dari beberapa thread. */
+    fun put(index: Int, frame: ByteArray, offset: Int = 0): Boolean = synchronized(lock) {
+        if (index < 0 || index >= maxFrames) return false
+        if (index >= filled.size) {
+            val cap = minOf(maxFrames, maxOf(index + 1, filled.size * 2))
+            buf = buf.copyOf(cap * bands)
+            filled = filled.copyOf(cap)
         }
-        System.arraycopy(frame, offset, d, n * bands, bands)
-        ready = n + 1
-        return true
+        System.arraycopy(frame, offset, buf, index * bands, bands)
+        if (filled[index].toInt() == 0) { filled[index] = 1; ready++ }
+        if (index + 1 > highWater) highWater = index + 1
+        true
+    }
+
+    /** Tambah satu frame berurutan (kompatibel dengan penulis lama). false bila sudah mencapai batas. */
+    fun append(frame: ByteArray, offset: Int = 0): Boolean = synchronized(lock) {
+        val ok = put(appendAt, frame, offset)
+        if (ok) appendAt++
+        ok
+    }
+
+    fun has(index: Int): Boolean = synchronized(lock) { index >= 0 && index < filled.size && filled[index].toInt() != 0 }
+
+    /** Indeks frame kosong pertama pada atau setelah [from]. */
+    fun nextUnfilled(from: Int): Int = synchronized(lock) {
+        var i = from.coerceAtLeast(0)
+        while (i < filled.size && filled[i].toInt() != 0) i++
+        i
+    }
+
+    /** Frame kosong pertama dari awal trek = ujung "kepala" analisis berurutan. */
+    fun firstGap(): Int = nextUnfilled(0)
+
+    /** Catat bahwa trek berakhir setelah [frames] frame (dipakai nilai terbesar). */
+    fun markEnd(frames: Int) { synchronized(lock) { if (frames > endFrame) endFrame = frames } }
+
+    /** Indeks frame untuk waktu [timeMs] (pusat jendela analisis), sama dengan yang dipakai [sample]. */
+    fun frameFor(timeMs: Long): Int {
+        val f = (timeMs * sampleRate / 1000.0 - windowSamples / 2.0) / hopSamples
+        return Math.floor(f).toInt().coerceAtLeast(0)
     }
 
     /**
      * Isi [out] (BANDS float 0..1) untuk waktu [timeMs] dengan interpolasi linear antar frame. Waktu dipetakan
-     * ke pusat jendela analisis. false bila frame belum tersedia (dekoder belum sampai).
+     * ke pusat jendela analisis. false bila frame belum terisi (dekoder belum sampai).
      */
     fun sample(timeMs: Long, out: FloatArray): Boolean {
-        val count = ready
-        if (count == 0 || timeMs < 0) return false
+        if (timeMs < 0) return false
         val f = (timeMs * sampleRate / 1000.0 - windowSamples / 2.0) / hopSamples
         val i0 = Math.floor(f).toInt().coerceAtLeast(0)
-        if (i0 >= count) return false
-        val i1 = minOf(i0 + 1, count - 1)
         val t = (f - i0).coerceIn(0.0, 1.0).toFloat()
-        val d = data
-        for (b in 0 until bands) {
-            val a = (d[i0 * bands + b].toInt() and 0xFF) / 255f
-            val c = (d[i1 * bands + b].toInt() and 0xFF) / 255f
-            out[b] = a + (c - a) * t
+        synchronized(lock) {
+            if (i0 >= filled.size || filled[i0].toInt() == 0) return false
+            val i1 = if (i0 + 1 < filled.size && filled[i0 + 1].toInt() != 0) i0 + 1 else i0
+            for (b in 0 until bands) {
+                val a = (buf[i0 * bands + b].toInt() and 0xFF) / 255f
+                val c = (buf[i1 * bands + b].toInt() and 0xFF) / 255f
+                out[b] = a + (c - a) * t
+            }
         }
         return true
+    }
+}
+
+/**
+ * [SPECTRUM-JUMP] Kebijakan dekoder lompat (logika murni, diuji di scripts/mpv-tests). Setelah seek, bila posisi putar
+ * jauh di depan kepala analisis dan belum ada datanya, mulai dekoder kedua dari posisi itu.
+ */
+internal object SpectrumJump {
+    const val NEAR = 90  // ~3 dtk: kepala berurutan (4x waktu nyata) akan tiba sendiri
+    const val LEAD = 45  // ~1,5 dtk data harus ada di depan posisi agar dianggap aman
+    const val BACK = 4   // mulai sedikit sebelum posisi
+
+    /** Frame awal untuk dekoder lompat, atau -1 bila tidak perlu. */
+    fun plan(t: SpectrumTrack, frame: Int, jumpRunning: Boolean, jumpStart: Int): Int {
+        if (frame < 0) return -1
+        if (frame < t.firstGap() + NEAR) return -1
+        if (t.has(frame) && t.has(frame + LEAD)) return -1
+        if (jumpRunning && jumpStart >= 0 && frame >= jumpStart && frame < t.nextUnfilled(jumpStart) + NEAR) return -1
+        val start = t.nextUnfilled((frame - BACK).coerceAtLeast(0))
+        if (t.endFrame > 0 && start >= t.endFrame) return -1
+        return start
     }
 }
 
@@ -217,8 +283,13 @@ internal class SpectrumSmoother(val bands: Int, private val attackMs: Float = 35
  * Pembangun frame: menerima sampel mono berurutan, menghasilkan satu frame tiap hop sampel. Pita bass (pusat <
  * LOW_CUTOFF_HZ) dianalisis dengan FFT_LOW_SIZE; pusat jendelanya diselaraskan dengan jendela utama (FFT_SIZE)
  * lewat lookahead (FFT_LOW_SIZE - FFT_SIZE) / 2 sampel, sehingga SpectrumTrack.sample() tetap benar untuk semua pita.
+ *
+ * [SPECTRUM-JUMP] [baseSample] > 0 = sampel pertama yang di-push berada di posisi itu (mulai dari tengah berkas setelah
+ * seek). Frame tetap sejajar grid global (jendela frame k mulai di k * hop); frame pertama dilewatkan sampai jendelanya
+ * (termasuk bass) sepenuhnya berada di dalam sampel yang diterima, jadi hasilnya identik dengan analisis berurutan.
+ * Frame yang sudah terisi dilewati tanpa ditimpa; [metFilled] menyala bila bertemu frame terisi setelah menulis.
  */
-internal class SpectrumFrameBuilder(val sampleRate: Int, val track: SpectrumTrack) {
+internal class SpectrumFrameBuilder(val sampleRate: Int, val track: SpectrumTrack, baseSample: Long = 0L) {
     private val n = SpectrumMath.FFT_SIZE
     private val nl = SpectrumMath.FFT_LOW_SIZE
     private val lookahead = ((nl - n) / 2).toLong()
@@ -233,10 +304,25 @@ internal class SpectrumFrameBuilder(val sampleRate: Int, val track: SpectrumTrac
     private val edges = SpectrumMath.bandEdges(sampleRate)
     private val edgesLow = SpectrumMath.bandEdges(sampleRate, fftSize = nl)
     private val lowCount = SpectrumMath.lowBandCount(sampleRate)
-    private var total = 0L
-    private var nextEnd = n.toLong() + lookahead
+    private var total = baseSample
+    private var nextEnd = 0L
+    private var wrote = 0
+
+    /** Indeks frame berikutnya yang akan dihasilkan. */
+    var frame: Int = 0
+        private set
     var full = false
         private set
+    var metFilled = false
+        private set
+
+    init {
+        if (baseSample > 0L) {
+            val hop = track.hopSamples.toLong()
+            frame = ((baseSample + nl + hop - 1) / hop).toInt()
+        }
+        nextEnd = frame.toLong() * track.hopSamples + n + lookahead
+    }
 
     private fun slot(p: Long) = (((p % nl) + nl) % nl).toInt() // posisi < 0 (sebelum trek) = slot belum terisi = 0
 
@@ -244,14 +330,19 @@ internal class SpectrumFrameBuilder(val sampleRate: Int, val track: SpectrumTrac
         ring[slot(total)] = s
         total++
         if (total != nextEnd) return
-        val endMain = total - lookahead
-        for (i in 0 until n) window[i] = ring[slot(endMain - n + i)]
-        SpectrumMath.frame(window, sampleRate, edges, re, im, out, 0)
-        if (lowCount > 0) {
-            for (i in 0 until nl) windowLow[i] = ring[slot(total - nl + i)]
-            SpectrumMath.frameLow(windowLow, sampleRate, edgesLow, lowCount, reLow, imLow, out, 0)
+        if (track.has(frame)) {
+            if (wrote > 0) metFilled = true
+        } else {
+            val endMain = total - lookahead
+            for (i in 0 until n) window[i] = ring[slot(endMain - n + i)]
+            SpectrumMath.frame(window, sampleRate, edges, re, im, out, 0)
+            if (lowCount > 0) {
+                for (i in 0 until nl) windowLow[i] = ring[slot(total - nl + i)]
+                SpectrumMath.frameLow(windowLow, sampleRate, edgesLow, lowCount, reLow, imLow, out, 0)
+            }
+            if (!track.put(frame, out)) full = true else wrote++
         }
-        if (!track.append(out)) full = true
+        frame++
         nextEnd += track.hopSamples
     }
 }

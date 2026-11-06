@@ -2430,21 +2430,25 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     // [SPECTRUM] Visualizer spektrum di layar Now Playing: PCM berkas lokal dianalisis MediaCodec (SpectrumDecoder),
     // digambar SpectrumView menurut posisi putar mpv. Tidak menyentuh JNI/native mpv.
     @Volatile private var spectrumPath: String? = null
-    private var spectrumJob: Job? = null
+    @Volatile private var spectrumAnalyzer: SpectrumAnalyzer? = null // [SPECTRUM-JUMP]
     private var spectrumReserve = false
     @Volatile private var spectrumKickUntil = 0L
 
     /** [SPECTRUM] Jaga spektrum tetap bergerak sesaat setelah seek, apa pun status pause/cache mpv. */
     private fun kickSpectrum(ms: Long = 1200L) { spectrumKickUntil = SystemClock.uptimeMillis() + ms }
 
-    /** [SPECTRUM-DIAG] Bandingkan posisi hasil seek dengan kemajuan analisis dekoder; dicatat ke log mandiri Molina. */
+    /** [SPECTRUM-JUMP] Event seek mpv: minta dekoder lompat (didebounce di analyzer) dan catat ke log mandiri (maks 1x/500 ms). */
+    @Volatile private var lastSeekLog = 0L
     private fun logSpectrumSeek(eventId: Int) {
+        spectrumAnalyzer?.onSeek()
+        val now = SystemClock.uptimeMillis()
+        if (now - lastSeekLog < 500L) return
+        lastSeekLog = now
         val t = binding.spectrumView.track ?: return
         val name = if (eventId == MpvEvent.MPV_EVENT_SEEK) "SEEK" else "RESTART"
         val pos = MPVLib.getPropertyDouble("time-pos/full")
-        val readySec = t.ready.toDouble() / SpectrumMath.FPS
-        val gap = if (pos == null) "?" else (Math.round((pos - readySec) * 10) / 10.0).toString()
-        MpvLog.d("spectrum", "event=$name pos=${pos ?: "null"}s ready=${Math.round(readySec * 10) / 10.0}s selisih=${gap}s selesai=${t.complete}")
+        val frame = if (pos == null) -1 else t.frameFor((pos * 1000).toLong())
+        MpvLog.d("spectrum", "event=$name pos=${pos ?: "null"}s frame=$frame terisi=${t.has(frame)} kepala=${t.firstGap()} akhir=${t.endFrame}")
     }
     private var lastCover: CoverArt.Cover? = null
     private var specPosMs = 0L
@@ -2456,8 +2460,12 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         if (now - specPosTick >= 33) {
             MPVLib.getPropertyDouble("time-pos/full")?.let { specPosMs = (it * 1000).toLong(); specPosTick = now }
         }
-        return specPosMs + ((now - specPosTick) * psc.speed).toLong()
+        val p = specPosMs + ((now - specPosTick) * psc.speed).toLong()
+        spectrumPlayhead = p // [SPECTRUM] dibaca dekoder (thread latar) untuk melompat ke posisi seek
+        return p
     }
+
+    @Volatile private var spectrumPlayhead = 0L // playhead terakhir (ms) untuk SpectrumDecoder; nilai biasa, tanpa JNI di thread dekoder
 
     private fun controlsReserved(): Int {
         val d = resources.displayMetrics.density
@@ -2494,8 +2502,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     }
 
     private fun stopSpectrum() {
-        spectrumJob?.cancel()
-        spectrumJob = null
+        spectrumAnalyzer?.cancel() // [SPECTRUM-JUMP]
+        spectrumAnalyzer = null
         spectrumPath = null
         binding.spectrumView.track = null
         binding.spectrumView.visibility = View.GONE
@@ -2514,14 +2522,12 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         view.positionMs = ::spectrumPositionMs
         view.isPlaying = { (!psc.pause || userIsOperatingSeekbar || pausedForSeek != 0 || SystemClock.uptimeMillis() < spectrumKickUntil) && activityIsForeground }
         view.dimWhen = { false } // zona spektrum sudah dipisahkan dari konten lain, tidak perlu diredupkan
-        spectrumJob = streamScope.launch {
-            val ok = withContext(Dispatchers.Default) {
-                SpectrumDecoder.analyze(path, { isActive && spectrumPath == path }) { t ->
-                    view.post { if (spectrumPath == path) { view.track = t; view.visibility = View.VISIBLE } }
-                }
-            }
-            if (!ok && spectrumPath == path && view.track == null) stopSpectrum() // format tidak didukung dekoder perangkat
-        }
+        spectrumAnalyzer = SpectrumAnalyzer( // [SPECTRUM-JUMP] kepala berurutan + dekoder lompat setelah seek
+            path = path,
+            positionMs = { MPVLib.getPropertyDouble("time-pos/full")?.let { (it * 1000).toLong() } ?: -1L },
+            onTrack = { t -> view.post { if (spectrumPath == path) { view.track = t; view.visibility = View.VISIBLE } } },
+            onUnsupported = { view.post { if (spectrumPath == path && view.track == null) stopSpectrum() } }, // format tidak didukung dekoder perangkat
+        ).also { it.start() }
     }
 
     private fun toggleSpectrumColors() { // [SPECTRUM] putar mode: aksen tunggal -> per frekuensi -> Cinema

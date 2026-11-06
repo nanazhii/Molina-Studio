@@ -20,7 +20,7 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
 
     /** Hasil analisis trek yang sedang diputar; null = tidak ada data (batang diam/idle). */
     var track: SpectrumTrack? = null
-        set(value) { field = value; smoother.reset(); wake() }
+        set(value) { field = value; smoother.reset(); holdLevels.fill(0f); wake() }
 
     /** Posisi putar saat ini (ms) dan status memutar; disuplai Activity dari mpv. */
     var positionMs: () -> Long = { 0L }
@@ -39,6 +39,7 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
     private val bands = SpectrumMath.BANDS
     private val smoother = SpectrumSmoother(bands)
     private val target = FloatArray(bands)
+    private val holdLevels = FloatArray(bands) // [SPECTRUM-JUMP] level terakhir; dipudarkan pelan saat menunggu dekoder
     private val barPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val reflectPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val capPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(215, 255, 255, 255) }
@@ -96,13 +97,18 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
         lastTick = now
         val t = track
         val live = t != null && isPlaying() && t.sample(positionMs() - latencyMs, target)
+        // [SPECTRUM-JUMP] data belum ada (dekoder belum sampai): tahan level terakhir lalu pudar pelan, bukan jatuh ke nol
+        val waiting = t != null && !live && isPlaying()
+        if (live) System.arraycopy(target, 0, holdLevels, 0, bands)
+        else if (waiting) { val k = Math.exp(-dt / 900.0).toFloat(); for (b in 0 until bands) holdLevels[b] *= k }
+        else holdLevels.fill(0f)
         diagnose(t, live, now) // [SPECTRUM-DIAG]
-        smoother.step(if (live) target else null, dt)
+        smoother.step(if (live) target else if (waiting) holdLevels else null, dt)
         val a = if (dimWhen()) 0.35f else 1f
         if (alpha != a) alpha = a
         invalidate()
         if (live || !smoother.settled()) postOnAnimation(this)
-        else postDelayed(this, 150) // diam: cek ringan apakah pemutaran dilanjutkan
+        else postDelayed(this, if (waiting) 50L else 150L) // diam: cek ringan apakah pemutaran/data tersedia
     }
 
     private companion object { const val DIAG_TAG = "spectrum" } // [SPECTRUM-DIAG]
@@ -116,23 +122,19 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
      */
     private fun diagnose(t: SpectrumTrack?, live: Boolean, now: Long) {
         val pos = positionMs() - latencyMs
-        val ready = t?.ready ?: 0
         val state = when {
             t == null -> "NO_TRACK"
             live -> "OK"
             !isPlaying() -> "PAUSED"
             pos < 0 -> "NEG_POS"
-            ready == 0 -> "EMPTY"
+            t.ready == 0 -> "EMPTY"
             else -> "BEHIND"
         }
         if (state == diagState && !(state == "BEHIND" && now - diagAt >= 2000)) return
         diagState = state
         diagAt = now
         if (t == null) { MpvLog.d(DIAG_TAG, "state=$state pos=${pos}ms"); return }
-        val need = ((pos * t.sampleRate / 1000.0 - t.windowSamples / 2.0) / t.hopSamples).toInt()
-        val readySec = ready.toDouble() / SpectrumMath.FPS
-        val needSec = need.toDouble() / SpectrumMath.FPS
-        MpvLog.d(DIAG_TAG, "state=$state pos=${pos}ms butuh_frame=$need ready=$ready (${r1(readySec)}s) selisih=${r1(needSec - readySec)}s selesai=${t.complete}")
+        MpvLog.d(DIAG_TAG, "state=$state pos=${pos}ms frame=${t.frameFor(pos)} terisi=${t.ready} kepala=${t.firstGap()} akhir=${t.endFrame}") // [SPECTRUM-JUMP]
     }
 
     override fun onDraw(canvas: Canvas) {

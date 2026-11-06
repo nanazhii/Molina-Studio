@@ -207,6 +207,77 @@ private fun spectrumTests() {
     repeat(10) { tr.append(fr1) }
     check("dibatasi maxFrames", tr.ready == 8 && !tr.append(fr1))
 
+    // --- [SPECTRUM-JUMP] SpectrumTrack per segmen, builder dari offset, kebijakan dekoder lompat
+    run {
+        val hp = sr / SpectrumMath.FPS
+        val fm = ByteArray(32) { 7 }
+        val tk = SpectrumTrack(sr, hp, initialFrames = 4, maxFrames = 1_000)
+        check("put acak: frame 10 terisi, 9 kosong", tk.put(10, fm) && tk.has(10) && !tk.has(9) && tk.ready == 1 && tk.highWater == 11)
+        check("firstGap = 0 selama frame 0 kosong", tk.firstGap() == 0)
+        for (i in 0 until 10) tk.put(i, fm)
+        check("firstGap/nextUnfilled setelah 0..10 terisi", tk.firstGap() == 11 && tk.nextUnfilled(5) == 11 && tk.nextUnfilled(12) == 12)
+        tk.put(3, fm)
+        check("put ulang tidak menggandakan ready", tk.ready == 11)
+        check("put di batas maxFrames", !tk.put(1_000, fm) && tk.put(999, fm))
+        tk.markEnd(500); tk.markEnd(300)
+        check("markEnd menyimpan nilai terbesar", tk.endFrame == 500)
+        fun msOf(frame: Int) = ((frame * hp + SpectrumMath.FFT_SIZE / 2.0) * 1000.0 / sr).toLong()
+        check("sample: frame kosong = false, terisi = true", !tk.sample(msOf(20), FloatArray(32)) && tk.sample(msOf(10), FloatArray(32)))
+        check("frameFor kebalikan sample (frame 10)", Math.abs(tk.frameFor(msOf(10)) - 10) <= 1)
+
+        // frame hasil segmen (mulai dari offset acak) identik byte-per-byte dengan analisis berurutan
+        val total = 5 * sr
+        val sig = FloatArray(total) { (0.5 * Math.sin(2.0 * Math.PI * (200.0 + 300.0 * it / total) * it / sr) + 0.3 * Math.sin(2.0 * Math.PI * 3_000.0 * it / sr)).toFloat() }
+        val seqTrack = SpectrumTrack(sr, hp, initialFrames = 16)
+        val seqB = SpectrumFrameBuilder(sr, seqTrack)
+        for (s in sig) seqB.push(s)
+        val baseS = 2L * sr + 123L
+        val segTrack = SpectrumTrack(sr, hp, initialFrames = 16)
+        val segB = SpectrumFrameBuilder(sr, segTrack, baseS)
+        for (i in baseS.toInt() until total) segB.push(sig[i])
+        val first = ((baseS + SpectrumMath.FFT_LOW_SIZE + hp - 1) / hp).toInt()
+        check("builder dari offset: frame pertama sejajar grid ($first)", segTrack.has(first) && !segTrack.has(first - 1))
+        val sd = segTrack.data; val qd = seqTrack.data
+        var same = true; var cnt = 0
+        for (i in 0 until segTrack.highWater) if (segTrack.has(i)) { cnt++; for (b in 0 until 32) if (sd[i * 32 + b] != qd[i * 32 + b]) same = false }
+        check("frame segmen identik dengan berurutan ($cnt frame)", same && cnt > 100)
+        check("jumlah frame segmen = berurutan - frame pertama", segTrack.highWater == seqTrack.highWater && cnt == seqTrack.highWater - first)
+
+        // frame terisi dilewati tanpa ditimpa, lubang diisi, berhenti saat bertemu frame terisi
+        val mark = ByteArray(32) { 9 }
+        val pre = SpectrumTrack(sr, hp, initialFrames = 16)
+        val hole = first + 40
+        for (i in 0 until hole) pre.put(i, mark)
+        for (i in hole + 20 until hole + 400) pre.put(i, mark)
+        val bm = SpectrumFrameBuilder(sr, pre, baseS)
+        for (i in baseS.toInt() until total) { bm.push(sig[i]); if (bm.metFilled) break }
+        val pd = pre.data
+        check("frame terisi di awal tidak ditimpa", (0 until 32).all { pd[first * 32 + it] == 9.toByte() })
+        check("lubang 20 frame terisi data nyata", (hole until hole + 20).all { f -> pre.has(f) && (0 until 32).any { pd[f * 32 + it] != 9.toByte() } })
+        check("berhenti saat bertemu frame terisi (metFilled, frame=${bm.frame})", bm.metFilled && bm.frame == hole + 21)
+
+        // batas panjang: full
+        val small = SpectrumTrack(sr, hp, initialFrames = 4, maxFrames = 10)
+        val sb2 = SpectrumFrameBuilder(sr, small)
+        for (s in sig) { sb2.push(s); if (sb2.full) break }
+        check("builder melapor full di maxFrames", sb2.full && small.ready == 10)
+
+        // kebijakan lompat
+        val pt = SpectrumTrack(sr, hp, initialFrames = 64, maxFrames = 10_000)
+        for (i in 0 until 300) pt.put(i, fm)
+        check("plan: di area terisi = tidak perlu", SpectrumJump.plan(pt, 100, false, -1) == -1)
+        check("plan: tepat di depan kepala (< NEAR) = tidak perlu", SpectrumJump.plan(pt, 300 + SpectrumJump.NEAR - 1, false, -1) == -1)
+        val far = 300 + SpectrumJump.NEAR + 500
+        check("plan: jauh di depan = mulai BACK frame sebelum posisi", SpectrumJump.plan(pt, far, false, -1) == far - SpectrumJump.BACK)
+        for (i in far - SpectrumJump.BACK until far + 200) pt.put(i, fm)
+        check("plan: di dalam segmen hasil lompat = tidak perlu", SpectrumJump.plan(pt, far + 10, false, -1) == -1)
+        check("plan: dekat ujung segmen = lanjut dari ujungnya", SpectrumJump.plan(pt, far + 190, false, -1) == far + 200)
+        check("plan: lompat berjalan dan akan sampai = tidak perlu", SpectrumJump.plan(pt, far + 260, true, far - SpectrumJump.BACK) == -1)
+        check("plan: lompat berjalan tapi posisi baru jauh = lompat baru", SpectrumJump.plan(pt, far + 2_000, true, far - SpectrumJump.BACK) == far + 2_000 - SpectrumJump.BACK)
+        pt.markEnd(far + 250)
+        check("plan: melewati akhir trek = tidak perlu", SpectrumJump.plan(pt, far + 300, false, -1) == -1)
+    }
+
     // --- SpectrumSmoother: naik cepat, turun lambat, puncak tertahan
     val sm = SpectrumSmoother(4)
     val hi = FloatArray(4) { 1f }
