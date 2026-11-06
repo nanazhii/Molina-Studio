@@ -483,7 +483,7 @@ internal class LyricsController(
             else -> (180 * d).toInt()
         }
         val bottomReserve = (controlsBase - clipBottom()).coerceAtLeast(0) + extraBottomReserve()
-        centerY = (top + (h - top - bottomReserve).coerceAtLeast(0) / 2).coerceIn(top, h)
+        centerY = (top + (h - top - bottomReserve).coerceAtLeast(0) / 2).coerceIn(minOf(top, h), h) // [FIX] h < top (daftar sangat pendek, mis. landscape) melempar IllegalArgumentException
         list.clipToPadding = false
         list.setPadding(0, centerY, 0, (h - centerY).coerceAtLeast(0))
     }

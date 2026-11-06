@@ -47,6 +47,7 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
     private val reflectShaders = arrayOfNulls<Shader>(bands)
     private val capColors = IntArray(bands)
     private var lastTick = 0L
+    private var lastLog = 0L // [DEBUG-SEEK]
     private var running = false
     private val d = resources.displayMetrics.density
 
@@ -85,7 +86,7 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
         postOnAnimation(this)
     }
 
-    private fun stop() { running = false; removeCallbacks(this) }
+    private fun stop() { android.util.Log.d("MolinaSpectrum", "stop()"); running = false; removeCallbacks(this) } // [DEBUG-SEEK]
 
     override fun run() {
         if (!running) return
@@ -94,6 +95,10 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
         lastTick = now
         val t = track
         val live = t != null && isPlaying() && t.sample(positionMs() - latencyMs, target)
+        if (now - lastLog >= 400) { // [DEBUG-SEEK] sementara: hapus setelah masalah seek selesai
+            lastLog = now
+            android.util.Log.d("MolinaSpectrum", "tick live=$live playing=${isPlaying()} ready=${t?.ready} pos=${positionMs()} shown=$isShown")
+        }
         smoother.step(if (live) target else null, dt)
         val a = if (dimWhen()) 0.35f else 1f
         if (alpha != a) alpha = a

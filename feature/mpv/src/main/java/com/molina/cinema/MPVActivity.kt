@@ -2562,7 +2562,15 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     }
 
     /** [SPECTRUM] Potong daftar lirik tepat di atas zona spektrum agar teks tidak bercampur dengan batang. */
+    private var lyricsClipWant = 0
+    private var lyricsClipHooked = false
+
     private fun applyLyricsClip(want: Int) {
+        lyricsClipWant = want
+        if (!lyricsClipHooked) { // [FIX] panel lirik baru punya tinggi setelah tampil: hitung ulang batas potong saat itu
+            lyricsClipHooked = true
+            binding.lyricsPanel.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> binding.lyricsPanel.post { applyLyricsClip(lyricsClipWant) } }
+        }
         val lp = binding.lyricsList.layoutParams as? MarginLayoutParams ?: return
         // sisakan minimal ~96dp tinggi daftar lirik (landscape + kontrol tampil: zona spektrum nyaris menghabiskan layar)
         val ph = binding.lyricsPanel.height
