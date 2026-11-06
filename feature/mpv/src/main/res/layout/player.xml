@@ -38,6 +38,17 @@
             android:layout_height="match_parent"
             android:importantForAccessibility="no"
             android:scaleType="fitCenter" />
+
+        <!-- [SPECTRUM] Visualizer spektrum audio; tinggi tetap, bottomMargin diatur kode agar di atas bilah kontrol. -->
+        <com.molina.cinema.SpectrumView
+            android:id="@+id/spectrumView"
+            android:layout_width="match_parent"
+            android:layout_height="96dp"
+            android:layout_gravity="bottom"
+            android:importantForAccessibility="no"
+            android:paddingLeft="24dp"
+            android:paddingRight="24dp"
+            android:visibility="gone" />
     </FrameLayout>
 
     <!-- [LYRICS] Lirik tersinkron mode audio: di atas latar buram, menggantikan kartu sampul. Tidak clickable

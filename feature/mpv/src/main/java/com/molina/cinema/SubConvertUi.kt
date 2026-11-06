@@ -65,7 +65,9 @@ internal object SubConvertUi {
             activity.getString(R.string.sub_convert_ass),
             activity.getString(R.string.sub_convert_ass_style),
             activity.getString(if (embedded) R.string.sub_convert_embedded_on else R.string.sub_convert_embedded_off),
+            activity.getString(R.string.sub_edit_menu), // [SUBTITLE-EDIT]
         )
+        var handoff = false // [SUBTITLE-EDIT] editor mengambil alih restore() dan memanggilnya saat ditutup
         AlertDialog.Builder(activity, R.style.AppTheme_PlayerDialog).apply {
             setTitle(R.string.sub_convert_title)
             setItems(items.toTypedArray()) { _, i ->
@@ -73,13 +75,17 @@ internal object SubConvertUi {
                     0 -> convert(activity, scope, SubFormat.SRT, AssStyle())
                     1 -> convert(activity, scope, SubFormat.ASS, AssStyle())
                     2 -> convert(activity, scope, SubFormat.ASS, currentStyle(sp))
-                    else -> {
+                    3 -> {
                         sp.edit().putBoolean(PREF_EMBEDDED, !embedded).apply()
                         toast(activity, if (!embedded) R.string.sub_convert_embedded_now_on else R.string.sub_convert_embedded_now_off)
                     }
+                    else -> {
+                        handoff = true
+                        edit(activity, scope, restore)
+                    }
                 }
             }
-            setOnDismissListener { restore() }
+            setOnDismissListener { if (!handoff) restore() }
         }.create().show()
     }
 
@@ -114,6 +120,75 @@ internal object SubConvertUi {
     }
 
     private fun fail(a: Activity, @StringRes id: Int) = Outcome(null, a.getString(id))
+
+    /**
+     * [SUBTITLE-EDIT] Editor subtitle untuk subtitle aktif. Berkas eksternal dibaca langsung; subtitle tertanam diekstrak
+     * dulu ke SRT (dengan dialog Batal). Aksi gagal selalu memanggil [restore]; bila editor terbuka, editor yang memanggilnya.
+     */
+    private fun edit(activity: Activity, scope: CoroutineScope, restore: StateRestoreCallback) {
+        val track = activeTrack()
+        if (track == null) { toast(activity, R.string.sub_convert_none); restore(); return }
+        val media = SubConvertPlanner.localPath(MPVLib.getPropertyString("path"))
+        when (val plan = SubConvertPlanner.plan(track, prefs(activity).getBoolean(PREF_EMBEDDED, false))) {
+            is ConvertPlan.FromFile -> scope.launch {
+                val raw = withContext(Dispatchers.IO) { LyricsFiles.readText(File(plan.path)) }
+                openEditor(activity, raw, null, media, track.lang, restore)
+            }
+            is ConvertPlan.NeedsExtraction -> scope.launch {
+                val o = try {
+                    extract(activity, plan.streamIndex, SubFormat.SRT, media, track.lang)
+                } catch (e: CancellationException) {
+                    restore(); throw e
+                }
+                val path = o.savedPath
+                if (path == null) {
+                    if (!o.handled) toast(activity, o.error ?: activity.getString(R.string.sub_convert_unsupported))
+                    restore(); return@launch
+                }
+                val raw = withContext(Dispatchers.IO) { LyricsFiles.readText(File(path)) }
+                openEditor(activity, raw, path, media, track.lang, restore)
+            }
+            ConvertPlan.EmbeddedDisabled -> { toast(activity, R.string.sub_convert_embedded_hint); restore() }
+            ConvertPlan.Bitmap -> { toast(activity, R.string.sub_convert_bitmap); restore() }
+            ConvertPlan.Unsupported -> { toast(activity, R.string.sub_convert_unsupported); restore() }
+        }
+    }
+
+    /**
+     * [SUBTITLE-EDIT] [ownedPath] = berkas hasil ekstraksi kita sendiri (boleh ditimpa saat simpan berikutnya).
+     * Berkas sumber milik pengguna tidak pernah ditimpa: simpan pertama membuat berkas baru di OUT_DIR, simpan
+     * berikutnya menimpa berkas baru itu lalu memuat ulang trek (sub-reload).
+     */
+    private fun openEditor(activity: Activity, raw: String?, ownedPath: String?, media: String?, lang: String?, restore: StateRestoreCallback) {
+        val cues = raw?.let { SubtitleConvert.parseAny(it) }.orEmpty()
+        if (raw == null || cues.isEmpty() || activity.isFinishing) {
+            if (!activity.isFinishing) toast(activity, if (raw == null) R.string.sub_convert_read_failed else R.string.sub_convert_unknown_format)
+            restore(); return
+        }
+        val sp = prefs(activity)
+        var out: String? = ownedPath
+        var loaded = false
+        val saver: (List<SubCue>, SubFormat) -> String? = lambda@{ list, fmt ->
+            val text = if (fmt == SubFormat.ASS) AssCodec.write(list, currentStyle(sp)) else SrtCodec.write(list)
+            val path = out ?: SubConvertPlanner.outputPath(OUT_DIR, media, lang, fmt) { File(it).exists() }
+            try {
+                val dir = File(OUT_DIR)
+                if (!dir.isDirectory && !dir.mkdirs()) return@lambda null
+                File(path).writeText(text, Charsets.UTF_8)
+            } catch (e: Exception) {
+                return@lambda null
+            }
+            if (!loaded) {
+                MPVLib.command(arrayOf("sub-add", path, "select"))
+                loaded = true
+            } else {
+                MPVLib.getPropertyInt("sid")?.let { MPVLib.command(arrayOf("sub-reload", it.toString())) }
+            }
+            out = path
+            path
+        }
+        SubEditorDialog(activity, SubtitleConvert.detect(raw), cues, saver, restore).show()
+    }
 
     private fun fromFile(a: Activity, src: String, target: SubFormat, style: AssStyle, media: String?, lang: String?): Outcome {
         val raw = LyricsFiles.readText(File(src)) ?: return fail(a, R.string.sub_convert_read_failed)

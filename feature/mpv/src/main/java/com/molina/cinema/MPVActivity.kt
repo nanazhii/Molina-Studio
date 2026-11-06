@@ -2228,6 +2228,10 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             lyrics.showOffsetDialog(this, restoreState)
             false
         })
+        buttons.add(MenuItem(R.id.spectrumToggleBtn) { // [SPECTRUM]
+            toggleSpectrum()
+            true
+        })
 
         buttons.add(MenuItem(R.id.sleepTimerBtn) {
             pickSleepTimer(restoreState)
@@ -2242,6 +2246,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             hiddenButtons.addAll(arrayOf(R.id.subDelayBtn, R.id.rowSubSeek, R.id.rowSubStyle))
         if (!lyrics.available)
             hiddenButtons.add(R.id.rowLyrics)
+        if (!useAudioUI)
+            hiddenButtons.add(R.id.spectrumToggleBtn) // [SPECTRUM]
         /******/
 
         genericMenu(R.layout.dialog_advanced_menu, buttons, hiddenButtons, restoreState) { v ->
@@ -2406,9 +2412,85 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     }
     private var coverJob: Job? = null
 
+    // [SPECTRUM] Visualizer spektrum di layar Now Playing: PCM berkas lokal dianalisis MediaCodec (SpectrumDecoder),
+    // digambar SpectrumView menurut posisi putar mpv. Tidak menyentuh JNI/native mpv.
+    @Volatile private var spectrumPath: String? = null
+    private var spectrumJob: Job? = null
+    private var spectrumReserve = false
+    private var lastCover: CoverArt.Cover? = null
+    private var specPosMs = 0L
+    private var specPosTick = 0L
+
+    /** Posisi putar dalam ms: dibaca dari mpv tiap ~33 ms, di antaranya diekstrapolasi (hemat panggilan JNI). */
+    private fun spectrumPositionMs(): Long {
+        val now = SystemClock.uptimeMillis()
+        if (now - specPosTick >= 33) {
+            MPVLib.getPropertyDouble("time-pos/full")?.let { specPosMs = (it * 1000).toLong(); specPosTick = now }
+        }
+        return specPosMs + ((now - specPosTick) * psc.speed).toLong()
+    }
+
+    private fun controlsReserved(): Int {
+        val d = resources.displayMetrics.density
+        val c = binding.controls
+        val bottomMargin = (c.layoutParams as? MarginLayoutParams)?.bottomMargin ?: 0
+        return if (c.height > 0) c.height + bottomMargin else (180 * d).toInt()
+    }
+
+    private fun layoutSpectrum(reserved: Int) {
+        val lp = binding.spectrumView.layoutParams as? android.widget.FrameLayout.LayoutParams ?: return
+        if (lp.bottomMargin == reserved) return
+        lp.bottomMargin = reserved
+        binding.spectrumView.layoutParams = lp
+    }
+
+    private fun setSpectrumReserve(on: Boolean) {
+        if (spectrumReserve == on) return
+        spectrumReserve = on
+        showNowPlayingArt(if (useAudioUI) lastCover else null)
+    }
+
+    private fun stopSpectrum() {
+        spectrumJob?.cancel()
+        spectrumJob = null
+        spectrumPath = null
+        binding.spectrumView.track = null
+        binding.spectrumView.visibility = View.GONE
+        setSpectrumReserve(false)
+    }
+
+    private fun updateSpectrum(path: String?) {
+        if (path == null || !SpectrumPrefs.enabled(this)) { stopSpectrum(); return }
+        if (path == spectrumPath) return
+        stopSpectrum()
+        spectrumPath = path
+        setSpectrumReserve(true)
+        val view = binding.spectrumView
+        view.accent = ContextCompat.getColor(this, R.color.player_playlist_active)
+        view.positionMs = ::spectrumPositionMs
+        view.isPlaying = { !psc.pause && !psc.cachePause && activityIsForeground }
+        view.hideWhen = { binding.lyricsPanel.visibility == View.VISIBLE }
+        spectrumJob = streamScope.launch {
+            val ok = withContext(Dispatchers.Default) {
+                SpectrumDecoder.analyze(path, { isActive && spectrumPath == path }) { t ->
+                    view.post { if (spectrumPath == path) { view.track = t; view.visibility = View.VISIBLE } }
+                }
+            }
+            if (!ok && spectrumPath == path && view.track == null) stopSpectrum() // format tidak didukung dekoder perangkat
+        }
+    }
+
+    private fun toggleSpectrum() {
+        val on = !SpectrumPrefs.enabled(this)
+        SpectrumPrefs.set(this, on)
+        updateSpectrum(if (useAudioUI) localVideoPath() else null)
+        showToast(getString(if (on) R.string.spectrum_on else R.string.spectrum_off), true)
+    }
+
     private fun updateNowPlayingArt() {
         val path = if (useAudioUI) localVideoPath() else null
         lyrics.onTrack(path) // [LYRICS]
+        updateSpectrum(path) // [SPECTRUM]
         if (path == null) {
             coverJob?.cancel()
             coverPath = null
@@ -2431,10 +2513,13 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     }
 
     private fun showNowPlayingArt(cover: CoverArt.Cover?) {
+        lastCover = cover // [SPECTRUM]
         if (cover == null) {
-            binding.nowPlayingArt.visibility = View.GONE
+            // [SPECTRUM] tanpa sampul tetap tampil (latar gelap) bila visualizer aktif
+            binding.nowPlayingArt.visibility = if (spectrumReserve) View.VISIBLE else View.GONE
             binding.nowPlayingCover.setImageDrawable(null)
             binding.nowPlayingBackdrop.setImageDrawable(null)
+            layoutSpectrum(controlsReserved())
             return
         }
         // Sisakan ruang untuk bilah kontrol agar kartu sampul tidak tertimpa.
@@ -2443,7 +2528,9 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         val bottomMargin = (c.layoutParams as? MarginLayoutParams)?.bottomMargin ?: 0
         val reserved = if (c.height > 0) c.height + bottomMargin else (180 * d).toInt()
         val side = (32 * d).toInt()
-        binding.nowPlayingCover.setPadding(side, (24 * d).toInt(), side, reserved + (12 * d).toInt())
+        val spectrumSpace = if (spectrumReserve) (SPECTRUM_HEIGHT_DP * d).toInt() else 0 // [SPECTRUM]
+        binding.nowPlayingCover.setPadding(side, (24 * d).toInt(), side, reserved + spectrumSpace + (12 * d).toInt())
+        layoutSpectrum(reserved)
         binding.nowPlayingCover.setImageBitmap(cover.art)
         binding.nowPlayingBackdrop.setImageBitmap(cover.backdrop)
         binding.nowPlayingArt.visibility = View.VISIBLE
@@ -3026,6 +3113,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         private const val CONTROLS_FADE_DURATION = 500L
         // smallest aspect ratio that is considered non-square
         private const val ASPECT_RATIO_MIN = 1.2f // covers 5:4 and up
+        private const val SPECTRUM_HEIGHT_DP = 96 // [SPECTRUM] samakan dengan tinggi spectrumView di player.xml
         // fraction to which audio volume is ducked on loss of audio focus
         private const val AUDIO_FOCUS_DUCKING = 0.5f
         // action of result intent
