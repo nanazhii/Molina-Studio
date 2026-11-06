@@ -23,6 +23,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -131,6 +132,13 @@ internal class LyricsController(
     private var centerY = 0
     private var lastHeight = -1
     private var autoPlain: List<String>? = null // [LYRICS-AUTO] lirik polos asal bila sedang ditampilkan sebagai estimasi
+    private var autoDurMs = 0L
+    private var alignJob: Job? = null  // analisis audio milik lirik sendiri (bila spektrum mati)
+    private var refineJob: Job? = null // penyelarasan (DP) di thread Default
+    private var readyTrack: SpectrumTrack? = null
+
+    /** Diset Activity: true bila analisis spektrum lagu ini sedang berjalan (hasilnya dipakai bersama, tanpa decode ganda). */
+    var spectrumRunning: () -> Boolean = { false }
 
     /** [SPECTRUM] Ruang bawah tambahan (px) untuk visualizer; diset Activity. */
     var extraBottomReserve: () -> Int = { 0 }
@@ -177,6 +185,7 @@ internal class LyricsController(
             val shownDoc = autoSynced(parsed) // [LYRICS-AUTO]
             if (path != newPath) return@launch
             display(shownDoc)
+            startRefine() // [LYRICS-AUTO]
             poll()
         }
     }
@@ -203,6 +212,50 @@ internal class LyricsController(
         return null
     }
 
+    /** [LYRICS-AUTO] Dipanggil Activity saat analisis spektrum [forPath] selesai (energi vokal dipakai menyelaraskan lirik). */
+    fun onSpectrumComplete(forPath: String, track: SpectrumTrack) {
+        if (forPath != path) return
+        readyTrack = track
+        if (autoPlain != null) refine(track)
+    }
+
+    /** [LYRICS-AUTO] Setelah estimasi tampil: pakai data spektrum bila ada; bila spektrum mati, decode sendiri. */
+    private fun startRefine() {
+        val p = path ?: return
+        val plain = autoPlain ?: return
+        readyTrack?.let { refine(it); return }
+        if (spectrumRunning()) return // menunggu analisis spektrum yang sama
+        alignJob?.cancel()
+        alignJob = scope.launch {
+            var produced: SpectrumTrack? = null
+            val ok = withContext(Dispatchers.Default) {
+                SpectrumDecoder.analyze(p, { isActive && path == p }) { t -> produced = t }
+            }
+            val t = produced
+            if (ok && t != null && path == p && autoPlain === plain) refine(t)
+        }
+    }
+
+    private fun refine(track: SpectrumTrack) {
+        val p = path ?: return
+        val plain = autoPlain ?: return
+        val dur = autoDurMs
+        if (dur <= 0L) return
+        refineJob?.cancel()
+        refineJob = scope.launch {
+            val lines = withContext(Dispatchers.Default) { LyricsAutoSync.alignFromTrack(plain, track, dur) }
+            if (lines == null || path != p || autoPlain !== plain || tap != null) return@launch
+            val d = doc ?: return@launch
+            doc = d.copy(lines = lines)
+            lastIndex = -1
+            adapter.reset(lines.map { it.text }, true, lines)
+            tracker = LyricsTracker(lines)
+            job?.cancel()
+            job = scope.launch { poll() } // poll() menangkap tracker saat mulai: jalankan ulang dengan tracker baru
+            MpvLog.d(TAG, "[LYRICS-AUTO] diselaraskan dari spektrum: ${lines.size} baris")
+        }
+    }
+
     /** [LYRICS-AUTO] Lirik polos -> perkiraan tersinkron otomatis (butuh durasi dari mpv, maks ~3 dtk menunggu). */
     private suspend fun autoSynced(d: LrcDocument): LrcDocument {
         autoPlain = null
@@ -217,6 +270,7 @@ internal class LyricsController(
         val lines = LyricsAutoSync.estimate(d.plainLines, (durSec * 1000).toLong())
         if (lines.isEmpty()) return d
         autoPlain = d.plainLines
+        autoDurMs = (durSec * 1000).toLong()
         return d.copy(lines = lines, plainLines = emptyList())
     }
 
@@ -225,6 +279,7 @@ internal class LyricsController(
         if (tap != null) { tap = null; onTapEnded?.invoke() } // [LYRICS-TAP] reset di clear
         doc = null; tracker = null; offsetMs = 0L; lastIndex = -1
         autoPlain = null // [LYRICS-AUTO]
+        alignJob?.cancel(); alignJob = null; refineJob?.cancel(); refineJob = null; readyTrack = null
         list.interactive = false
         adapter.reset(emptyList(), true)
         applyVisibility()

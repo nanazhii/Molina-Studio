@@ -2546,6 +2546,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     }
 
     private fun updateSpectrum(path: String?) {
+        lyrics.spectrumRunning = { spectrumPath != null } // [LYRICS-AUTO] bagi hasil analisis dengan lirik
         if (path == null || !SpectrumPrefs.enabled(this)) { stopSpectrum(); return }
         if (path == spectrumPath) return
         stopSpectrum()
@@ -2558,11 +2559,14 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         view.isPlaying = { (!psc.pause || userIsOperatingSeekbar || pausedForSeek != 0) && activityIsForeground }
         view.dimWhen = { false } // ruang sudah disediakan di bawah lirik, tidak perlu diredupkan
         spectrumJob = streamScope.launch {
+            var produced: SpectrumTrack? = null
             val ok = withContext(Dispatchers.Default) {
                 SpectrumDecoder.analyze(path, { isActive && spectrumPath == path }) { t ->
+                    produced = t
                     view.post { if (spectrumPath == path) { view.track = t; view.visibility = View.VISIBLE } }
                 }
             }
+            if (ok && spectrumPath == path) produced?.let { lyrics.onSpectrumComplete(path, it) } // [LYRICS-AUTO]
             if (!ok && spectrumPath == path && view.track == null) stopSpectrum() // format tidak didukung dekoder perangkat
         }
     }
