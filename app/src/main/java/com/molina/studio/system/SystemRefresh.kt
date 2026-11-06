@@ -3,11 +3,16 @@ package com.molina.studio.system
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.os.Process
 import com.molina.core.common.AppLog
 import com.molina.core.common.LogLevel
 import com.molina.core.common.RefreshReport
 import com.molina.core.common.Refreshable
 import com.molina.core.common.Refreshers
+import com.molina.core.common.RssDelta
+import com.molina.core.common.TaskGroup
+import com.molina.core.common.TaskProbe
+import com.molina.core.common.TaskTable
 import com.molina.studio.cinema.MemoryRefresh
 import com.molina.studio.code.ProotScriptExecutor
 import com.molina.studio.stream.StreamCache
@@ -48,7 +53,25 @@ internal class MpvRefreshable(private val app: Context) : Refreshable {
     override fun activeCount(): Int =
         (if (MpvControl.isActive()) 1 else 0) + (if (YtdlpRunner.isRunning()) 1 else 0)
 
-    override fun memoryKb(): Long = -1L
+    private val inProcess = RssDelta()
+
+    /**
+     * [MEM-MPV] mpv berjalan di dalam proses aplikasi (tanpa PID sendiri), jadi RAM-nya diperkirakan dari selisih
+     * RSS proses terhadap dasar saat pemutar tidak aktif, ditambah RSS proses yt-dlp/ffmpeg yang terukur nyata.
+     */
+    override fun memoryKb(): Long =
+        RssDelta.combine(inProcess.estimate(MpvControl.isActive(), MemoryRefresh.rssKb()), downloaderRssKb())
+
+    private fun downloaderRssKb(): Long = try {
+        val uid = Process.myUid()
+        val procs = AndroidProcessOps.list().filter { it.uid == uid && it.alive }
+        val cmds = procs.associate { it.pid to TaskProbe.cmdline(it.pid) }
+        TaskTable.build(procs, Process.myPid(), uid, cmds, emptyMap())
+            .filter { it.group == TaskGroup.Unduhan }
+            .sumOf { it.rssKb }
+    } catch (e: Exception) {
+        0L
+    }
 
     override fun refresh(): RefreshReport {
         var killed = 0
