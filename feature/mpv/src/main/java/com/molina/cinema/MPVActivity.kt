@@ -2436,6 +2436,16 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     /** [SPECTRUM] Jaga spektrum tetap bergerak sesaat setelah seek, apa pun status pause/cache mpv. */
     private fun kickSpectrum(ms: Long = 1200L) { spectrumKickUntil = SystemClock.uptimeMillis() + ms }
+
+    /** [SPECTRUM-DIAG] Bandingkan posisi hasil seek dengan kemajuan analisis dekoder; dicatat ke log mandiri Molina. */
+    private fun logSpectrumSeek(eventId: Int) {
+        val t = binding.spectrumView.track ?: return
+        val name = if (eventId == MpvEvent.MPV_EVENT_SEEK) "SEEK" else "RESTART"
+        val pos = MPVLib.getPropertyDouble("time-pos/full")
+        val readySec = t.ready.toDouble() / SpectrumMath.FPS
+        val gap = if (pos == null) "?" else (Math.round((pos - readySec) * 10) / 10.0).toString()
+        MpvLog.d("spectrum", "event=$name pos=${pos ?: "null"}s ready=${Math.round(readySec * 10) / 10.0}s selisih=${gap}s selesai=${t.complete}")
+    }
     private var lastCover: CoverArt.Cover? = null
     private var specPosMs = 0L
     private var specPosTick = 0L
@@ -2993,6 +3003,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     }
 
     override fun event(eventId: Int) {
+        if (eventId == MpvEvent.MPV_EVENT_SEEK || eventId == MpvEvent.MPV_EVENT_PLAYBACK_RESTART) logSpectrumSeek(eventId) // [SPECTRUM-DIAG]
         if (eventId == MpvEvent.MPV_EVENT_END_FILE) {
             WatchStats.onEnd()
             PlaybackLog.onEnd(psc.position, psc.duration)

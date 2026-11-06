@@ -5,6 +5,7 @@ import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.os.Build
 import android.os.Process
+import android.os.SystemClock
 import java.nio.ByteOrder
 
 /**
@@ -15,6 +16,7 @@ import java.nio.ByteOrder
  */
 internal object SpectrumDecoder {
     private const val TIMEOUT_US = 10_000L
+    private const val DIAG = "spectrum" // [SPECTRUM-DIAG]
 
     /**
      * Analisis [path]. Blocking; panggil dari thread latar. [active] dicek berkala (false = berhenti segera).
@@ -23,6 +25,8 @@ internal object SpectrumDecoder {
      */
     fun analyze(path: String, active: () -> Boolean, onTrack: (SpectrumTrack) -> Unit): Boolean {
         runCatching { Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND) }
+        val t0 = SystemClock.elapsedRealtime() // [SPECTRUM-DIAG]
+        var lastProg = t0
         val extractor = MediaExtractor()
         var codec: MediaCodec? = null
         var builder: SpectrumFrameBuilder? = null
@@ -44,6 +48,7 @@ internal object SpectrumDecoder {
                 it.configure(inFmt, null, null, 0)
                 it.start()
             }
+            MpvLog.i(DIAG, "analisis mulai: mime=$mime sr=$sampleRate ch=$channels durasi~${estFrames / SpectrumMath.FPS}s")
             val info = MediaCodec.BufferInfo()
             var inputDone = false
             var outputDone = false
@@ -56,7 +61,14 @@ internal object SpectrumDecoder {
             }
 
             while (!outputDone) {
-                if (!active()) return false
+                if (!active()) { MpvLog.d(DIAG, "analisis dibatalkan (decode=${(builder?.track?.ready ?: 0) / SpectrumMath.FPS}s)"); return false }
+                val nowMs = SystemClock.elapsedRealtime()
+                if (nowMs - lastProg >= 10_000L) {
+                    lastProg = nowMs
+                    val dec = (builder?.track?.ready ?: 0).toDouble() / SpectrumMath.FPS
+                    val wall = (nowMs - t0) / 1000.0
+                    MpvLog.d(DIAG, "progres: decode=${Math.round(dec)}s dari ~${estFrames / SpectrumMath.FPS}s, kecepatan=${Math.round(dec / wall * 10) / 10.0}x waktu nyata")
+                }
                 if (!inputDone) {
                     val ib = codec.dequeueInputBuffer(TIMEOUT_US)
                     if (ib >= 0) {
@@ -80,7 +92,7 @@ internal object SpectrumDecoder {
                         floatPcm = Build.VERSION.SDK_INT >= 24 && f.containsKey(MediaFormat.KEY_PCM_ENCODING) &&
                             f.getInteger(MediaFormat.KEY_PCM_ENCODING) == 4 /* ENCODING_PCM_FLOAT */
                         val b = builder
-                        if (b != null && b.sampleRate != sampleRate) return false // laju sampel berubah di tengah trek: tidak didukung
+                        if (b != null && b.sampleRate != sampleRate) { MpvLog.w(DIAG, "analisis gagal: laju sampel berubah ${b.sampleRate} -> $sampleRate"); return false } // laju sampel berubah di tengah trek: tidak didukung
                     }
                     ob >= 0 -> {
                         val out = codec.getOutputBuffer(ob)
@@ -104,7 +116,7 @@ internal object SpectrumDecoder {
                                     b.push(sum / (channels * 32768f))
                                 }
                             }
-                            if (b.full) { codec.releaseOutputBuffer(ob, false); builder?.track?.complete = true; return true }
+                            if (b.full) { codec.releaseOutputBuffer(ob, false); builder?.track?.complete = true; MpvLog.i(DIAG, "analisis selesai (batas panjang) dalam ${(SystemClock.elapsedRealtime() - t0) / 1000.0}s"); return true }
                         }
                         codec.releaseOutputBuffer(ob, false)
                         if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) outputDone = true
@@ -112,8 +124,10 @@ internal object SpectrumDecoder {
                 }
             }
             builder?.track?.complete = true
+            MpvLog.i(DIAG, "analisis selesai: ${(builder?.track?.ready ?: 0) / SpectrumMath.FPS}s audio dalam ${(SystemClock.elapsedRealtime() - t0) / 1000.0}s")
             return builder != null
         } catch (e: Exception) {
+            MpvLog.w(DIAG, "analisis gagal: ${e.javaClass.simpleName}: ${e.message}")
             return false
         } finally {
             runCatching { codec?.stop() }

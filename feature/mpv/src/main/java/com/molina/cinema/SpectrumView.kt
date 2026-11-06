@@ -47,7 +47,8 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
     private val reflectShaders = arrayOfNulls<Shader>(bands)
     private val capColors = IntArray(bands)
     private var lastTick = 0L
-    private var lastLog = 0L // [DEBUG-SEEK]
+    private var diagState = "" // [SPECTRUM-DIAG]
+    private var diagAt = 0L // [SPECTRUM-DIAG]
     private var running = false
     private val d = resources.displayMetrics.density
 
@@ -86,7 +87,7 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
         postOnAnimation(this)
     }
 
-    private fun stop() { android.util.Log.d("MolinaSpectrum", "stop()"); running = false; removeCallbacks(this) } // [DEBUG-SEEK]
+    private fun stop() { MpvLog.d(DIAG_TAG, "loop berhenti (shown=$isShown attached=$isAttachedToWindow)"); running = false; removeCallbacks(this) } // [SPECTRUM-DIAG]
 
     override fun run() {
         if (!running) return
@@ -95,16 +96,43 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
         lastTick = now
         val t = track
         val live = t != null && isPlaying() && t.sample(positionMs() - latencyMs, target)
-        if (now - lastLog >= 400) { // [DEBUG-SEEK] sementara: hapus setelah masalah seek selesai
-            lastLog = now
-            android.util.Log.d("MolinaSpectrum", "tick live=$live playing=${isPlaying()} ready=${t?.ready} pos=${positionMs()} shown=$isShown")
-        }
+        diagnose(t, live, now) // [SPECTRUM-DIAG]
         smoother.step(if (live) target else null, dt)
         val a = if (dimWhen()) 0.35f else 1f
         if (alpha != a) alpha = a
         invalidate()
         if (live || !smoother.settled()) postOnAnimation(this)
         else postDelayed(this, 150) // diam: cek ringan apakah pemutaran dilanjutkan
+    }
+
+    private companion object { const val DIAG_TAG = "spectrum" } // [SPECTRUM-DIAG]
+
+    private fun r1(v: Double) = Math.round(v * 10) / 10.0
+
+    /**
+     * [SPECTRUM-DIAG] Catat ke log mandiri Molina (MpvLog -> LogBus) hanya saat status berubah, bukan tiap frame.
+     * BEHIND = posisi putar sudah melewati frame yang selesai dianalisis dekoder (penyebab spektrum nol setelah seek maju);
+     * diulang paling cepat tiap 2 dtk agar terlihat apakah dekoder menyusul.
+     */
+    private fun diagnose(t: SpectrumTrack?, live: Boolean, now: Long) {
+        val pos = positionMs() - latencyMs
+        val ready = t?.ready ?: 0
+        val state = when {
+            t == null -> "NO_TRACK"
+            live -> "OK"
+            !isPlaying() -> "PAUSED"
+            pos < 0 -> "NEG_POS"
+            ready == 0 -> "EMPTY"
+            else -> "BEHIND"
+        }
+        if (state == diagState && !(state == "BEHIND" && now - diagAt >= 2000)) return
+        diagState = state
+        diagAt = now
+        if (t == null) { MpvLog.d(DIAG_TAG, "state=$state pos=${pos}ms"); return }
+        val need = ((pos * t.sampleRate / 1000.0 - t.windowSamples / 2.0) / t.hopSamples).toInt()
+        val readySec = ready.toDouble() / SpectrumMath.FPS
+        val needSec = need.toDouble() / SpectrumMath.FPS
+        MpvLog.d(DIAG_TAG, "state=$state pos=${pos}ms butuh_frame=$need ready=$ready (${r1(readySec)}s) selisih=${r1(needSec - readySec)}s selesai=${t.complete}")
     }
 
     override fun onDraw(canvas: Canvas) {
