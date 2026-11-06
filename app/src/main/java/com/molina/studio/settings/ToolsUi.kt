@@ -25,6 +25,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
@@ -106,6 +108,7 @@ private fun scriptOf(t: ToolItem, a: ToolAction): String = when (a) {
  * (Python 3, Git, FFmpeg) dan alat buatan pengguna memakai tiga skrip yang dijalankan di Debian PRoot.
  * Skrip umum ada di Script execution.
  */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class) // [SUBTITLE-EXTRACT-SCROLL]
 @Composable
 internal fun PackagesPage(
     onOpenYtdlp: () -> Unit,
@@ -120,6 +123,14 @@ internal fun PackagesPage(
     val ytInstall by YtdlpInstaller.state.collectAsState() // [PAKET-SERAGAM]
     var expandedId by rememberSaveable { mutableStateOf<String?>(null) }
     var pending by remember { mutableStateOf<PendingRun?>(null) }
+    val toolsRequester = remember { BringIntoViewRequester() } // [SUBTITLE-EXTRACT-SCROLL] dari tombol di pemutar
+    androidx.compose.runtime.LaunchedEffect(SettingsNav.scrollToTools) {
+        if (SettingsNav.scrollToTools) {
+            androidx.compose.runtime.withFrameNanos { } // tunggu tata letak pertama selesai
+            toolsRequester.bringIntoView()
+            SettingsNav.scrollToTools = false
+        }
+    }
     var draft by remember { mutableStateOf<ToolDraft?>(null) }
     var toDrop by remember { mutableStateOf<ToolItem?>(null) }
     var needPython by remember { mutableStateOf<ToolItem?>(null) } // [PAKET-DEPEN]
@@ -183,7 +194,7 @@ internal fun PackagesPage(
         null, onClick = onManageDebian // [TERM-ROOTFS2]
     )
     Spacer(Modifier.height(16.dp))
-    PackageSectionHeader("Alat")
+    Box(Modifier.bringIntoViewRequester(toolsRequester)) { PackageSectionHeader("Alat") }
     // [YTDLP-PUSAT] status dan pasang/versi/hapus yt-dlp hanya di kartu "Alat tambahan di Debian"; kartu ini tautan ke sakelar
     PackageStatusCard(
         "Pengaturan pengunduh tambahan (yt-dlp)",

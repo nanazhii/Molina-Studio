@@ -209,6 +209,7 @@ class MainActivity : ComponentActivity() {
                 }
                 "packages" -> { // [SUBTITLE-EXTRACT] hanya navigasi (tanpa efek samping), jadi tidak perlu token
                     com.molina.studio.settings.SettingsNav.openPackages = true
+                    com.molina.studio.settings.SettingsNav.scrollToTools = true // [SUBTITLE-EXTRACT-SCROLL]
                     Tab.Settings.ordinal
                 }
                 "files" -> Tab.Files.ordinal

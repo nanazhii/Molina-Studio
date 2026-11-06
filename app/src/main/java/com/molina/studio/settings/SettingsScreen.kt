@@ -65,6 +65,8 @@ object SettingsNav {
     var openStorage by mutableStateOf(false)
     /** [SUBTITLE-EXTRACT] Buka halaman Paket (mis. dari tombol di pemutar saat FFmpeg belum terpasang). */
     var openPackages by mutableStateOf(false)
+    /** [SUBTITLE-EXTRACT-SCROLL] Setelah halaman Paket terbuka, gulir ke bagian Alat lalu kembalikan ke false. */
+    var scrollToTools by mutableStateOf(false)
     /** Buka halaman Terminal (sesi Debian) di dalam Settings; dulu tab nav bawah. */
     var openTerminalApp by mutableStateOf(false)
 }
