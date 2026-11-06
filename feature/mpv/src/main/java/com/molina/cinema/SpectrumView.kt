@@ -42,11 +42,9 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
     private val holdLevels = FloatArray(bands) // [SPECTRUM-JUMP] level terakhir; dipudarkan pelan saat menunggu dekoder
     private val barPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val reflectPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val capPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(215, 255, 255, 255) }
     private val rect = RectF()
     private val barShaders = arrayOfNulls<Shader>(bands)
     private val reflectShaders = arrayOfNulls<Shader>(bands)
-    private val capColors = IntArray(bands)
     private var lastTick = 0L
     private var diagState = "" // [SPECTRUM-DIAG]
     private var diagAt = 0L // [SPECTRUM-DIAG]
@@ -71,8 +69,6 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
             val r = Color.red(bottom); val g = Color.green(bottom); val bl = Color.blue(bottom)
             barShaders[b] = LinearGradient(0f, base, 0f, 0f, bottom, top, Shader.TileMode.CLAMP)
             reflectShaders[b] = LinearGradient(0f, base, 0f, height.toFloat(), Color.argb(90, r, g, bl), Color.argb(0, r, g, bl), Shader.TileMode.CLAMP)
-            val cap = SpectrumColors.cap(colorMode, b, bands, accent)
-            capColors[b] = Color.argb(215, Color.red(cap), Color.green(cap), Color.blue(cap))
         }
     }
 
@@ -145,7 +141,6 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
         val radius = barW / 2f
         val minH = 3f * d
         val maxH = base - 4f * d
-        val capH = 3f * d
         for (b in 0 until bands) {
             val x = b * slot + (slot - barW) / 2f
             val h = minH + (maxH - minH) * smoother.level[b]
@@ -157,13 +152,6 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
             rect.set(x, base + 2f * d, x + barW, base + 2f * d + rh)
             reflectPaint.shader = reflectShaders[b]
             canvas.drawRoundRect(rect, radius, radius, reflectPaint)
-            // penanda puncak
-            val py = base - (minH + (maxH - minH) * smoother.peak[b]) - capH - 2f * d
-            if (smoother.peak[b] > 0.02f) {
-                rect.set(x, py, x + barW, py + capH)
-                capPaint.color = capColors[b]
-                canvas.drawRoundRect(rect, capH / 2f, capH / 2f, capPaint)
-            }
         }
     }
 }

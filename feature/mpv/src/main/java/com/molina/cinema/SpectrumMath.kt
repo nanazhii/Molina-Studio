@@ -291,7 +291,7 @@ internal class SpectrumSmoother(val bands: Int, private val attackMs: Float = 35
     fun reset() { level.fill(0f); peak.fill(0f); hold.fill(0f) }
 
     /** True bila semua batang praktis diam (renderer boleh berhenti menggambar ulang). */
-    fun settled(): Boolean = level.all { it < 0.004f } && peak.all { it < 0.004f }
+    fun settled(): Boolean = level.all { it < 0.004f }
 }
 
 /**
