@@ -98,6 +98,10 @@ private class LyricsAdapter : RecyclerView.Adapter<LyricsAdapter.VH>() {
             holder.tv.setTextColor(if (isActive) LyricsController.COLOR_ACTIVE else LyricsController.COLOR_DIM)
         }
         holder.tv.textSize = if (isActive) 24f else 18f
+        // Glow lembut aksen Cinema pada baris aktif; radius 8dp muat di padding vertikal item (tidak terpotong)
+        val dens = holder.tv.resources.displayMetrics.density
+        if (isActive) holder.tv.setShadowLayer(8f * dens, 0f, 0f, LyricsController.COLOR_GLOW)
+        else holder.tv.setShadowLayer(0f, 0f, 0f, 0)
         holder.tv.setTypeface(null, if (isActive) Typeface.BOLD else Typeface.NORMAL)
         holder.tv.alpha = if (isActive || !synced) 1f else 0.8f
     }
@@ -150,18 +154,46 @@ internal class LyricsController(
         if (newPath == path) return
         path = newPath
         clear()
+        MpvLog.d(TAG, "[LYRICS-DIAG] onTrack path=$newPath")
         if (newPath == null) return
         job = scope.launch {
             val parsed = withContext(Dispatchers.IO) {
                 runCatching {
-                    LyricsFiles.find(newPath)?.let { LyricsFiles.readText(it) }?.let { LrcParser.parse(it) }
-                }.getOrNull()
+                    val f = LyricsFiles.find(newPath)
+                    val dir = java.io.File(newPath).parentFile
+                    MpvLog.d(TAG, "[LYRICS-DIAG] find=$f dir=${dir?.path} canList=${dir?.listFiles() != null}")
+                    val text = f?.let { LyricsFiles.readText(it) } ?: readEmbedded(newPath)
+                    text?.let { LrcParser.parse(it) }
+                }.onFailure { MpvLog.e(TAG, "[LYRICS-DIAG] gagal baca/parse", it) }.getOrNull()
             }
+            MpvLog.d(TAG, "[LYRICS-DIAG] parsed synced=${parsed?.synced} lines=${parsed?.lines?.size} plain=${parsed?.plainLines?.size}")
             if (path != newPath || parsed == null) return@launch
             if (!parsed.synced && parsed.plainLines.isEmpty()) return@launch
             display(parsed)
             poll()
         }
+    }
+
+    /**
+     * [LYRICS] Cadangan: lirik di tag audio lewat properti metadata mpv. Metadata bisa terlambat terisi
+     * setelah file dimuat, jadi dicoba hingga 3 kali (jeda 300 ms); berhenti bila lagu sudah berganti.
+     */
+    private suspend fun readEmbedded(forPath: String): String? {
+        repeat(3) { attempt ->
+            if (path != forPath) return null
+            val n = MPVLib.getPropertyInt("metadata/list/count") ?: 0
+            val entries = ArrayList<Pair<String, String>>()
+            for (i in 0 until n.coerceAtMost(200)) {
+                val k = MPVLib.getPropertyString("metadata/list/$i/key") ?: continue
+                val v = MPVLib.getPropertyString("metadata/list/$i/value") ?: continue
+                entries.add(k to v)
+            }
+            val hit = LyricsEmbedded.pick(entries)
+            MpvLog.d(TAG, "[LYRICS-DIAG] embedded percobaan=${attempt + 1} tag=$n hasil=${hit?.length}")
+            if (hit != null) return hit
+            delay(300L)
+        }
+        return null
     }
 
     private fun clear() {
@@ -192,6 +224,7 @@ internal class LyricsController(
 
     private fun applyVisibility() {
         val on = shown && doc != null
+        MpvLog.d(TAG, "[LYRICS-DIAG] applyVisibility on=$on shown=$shown doc=${doc != null}")
         panel.visibility = if (on) View.VISIBLE else View.GONE
         cover.visibility = if (on) View.INVISIBLE else View.VISIBLE
     }
@@ -285,9 +318,11 @@ internal class LyricsController(
 
     companion object {
         private const val PREF_OFFSETS = "lyrics_offsets"
+        private const val TAG = "LyricsController"
         // Sesuai docs/branding/panduan-warna.md: Cinema = #B388FF (kontras 7,4:1), Muted = #9AA0A6.
         const val COLOR_ACTIVE = 0xFFB388FF.toInt()
         const val COLOR_DIM = 0xFF9AA0A6.toInt()
+        val COLOR_GLOW = 0x99B388FF.toInt() // aksen Cinema ~60% alpha untuk glow baris aktif
         const val COLOR_PENDING = 0xFFEDEDED.toInt() // OnBackground: kata yang belum dinyanyikan pada baris aktif
     }
 }

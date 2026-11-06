@@ -6,6 +6,7 @@ internal fun check(name: String, cond: Boolean) {
 }
 
 fun main() {
+    embeddedTests()
     // --- LRC dasar, metadata, BOM, CRLF
     val lrc = "\uFEFF[ti:Judul]\r\n[ar:Artis]\r\n[al:Album]\r\n[00:01.50]Satu\r\n[00:03.5]Dua\r\n[00:05.123]Tiga\r\n"
     val d = LrcParser.parse(lrc)
@@ -309,4 +310,14 @@ internal fun extractCommandTests(check: (String, Boolean) -> Unit) {
     check("errorLine: baris terakhir yang tidak kosong", C.errorLine("a\r\nGalat: stream 3 tidak ada\r\n\r\n") == "Galat: stream 3 tidak ada")
     check("errorLine: kosong", C.errorLine("") == "" && C.errorLine(" \n \n") == "")
     check("errorLine: dipotong 160", C.errorLine("x".repeat(500)).length == 160)
+}
+
+private fun embeddedTests() {
+    val E = LyricsEmbedded
+    check("tertanam: tanpa tag lirik -> null", E.pick(listOf("title" to "x", "artist" to "y")) == null)
+    check("tertanam: kunci lyrics/USLT dikenali", E.pick(listOf("USLT" to "Halo")) == "Halo" && E.pick(listOf("lyrics-eng" to "Hai")) == "Hai")
+    check("tertanam: nilai kosong diabaikan", E.pick(listOf("lyrics" to "  \n ")) == null)
+    check("tertanam: utamakan yang bertimestamp", E.pick(listOf("unsyncedlyrics" to "polos", "lyrics" to "[00:01.00]Satu")) == "[00:01.00]Satu")
+    check("tertanam: BOM dibuang", E.pick(listOf("lyrics" to "\uFEFFabc")) == "abc")
+    check("tertanam: dipotong MAX_CHARS", E.pick(listOf("lyrics" to "x".repeat(E.MAX_CHARS + 50)))!!.length == E.MAX_CHARS)
 }
