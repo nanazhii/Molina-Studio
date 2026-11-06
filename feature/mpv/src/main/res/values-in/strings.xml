@@ -128,4 +128,7 @@
     <string name="sub_convert_extract_unavailable">Mengekstrak subtitle tertanam butuh FFmpeg di Debian (Setelan > Paket > Alat), dan bagian itu belum tersedia di build ini</string>
     <string name="sub_convert_open_tools">Buka Paket > Alat</string>
     <string name="sub_convert_extracting">Mengekstrak subtitle…</string>
+    <string name="sub_convert_cancel">Batal</string>
+    <string name="sub_convert_cancelled">Ekstraksi dibatalkan.</string>
+    <string name="sub_convert_extracting_elapsed">Mengekstrak subtitle… %1$d dtk</string>
 </resources>

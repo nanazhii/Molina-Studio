@@ -67,6 +67,7 @@ internal class ProotSubtitleExtractor(context: Context) : EmbeddedSubtitleExtrac
                 }
 
                 override fun onFinished(result: RunResult) {
+                    if (result.cancelled) runCatching { File(outPath).delete() } // [SUBTITLE-CANCEL] proses sudah mati; buang sisa keluaran
                     if (cont.isActive) cont.resume(result)
                 }
             })

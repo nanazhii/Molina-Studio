@@ -2,13 +2,21 @@ package com.molina.cinema
 
 import android.app.Activity
 import android.content.SharedPreferences
+import android.view.ViewGroup
+import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AlertDialog
 import androidx.preference.PreferenceManager
 import java.io.File
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -132,6 +140,24 @@ internal object SubConvertUi {
             .show()
     }
 
+    /** [SUBTITLE-CANCEL] Dialog progres tak-tentu; tombol Batal membatalkan [job]. Tidak bisa ditutup dengan sentuhan di luar. */
+    private fun showExtractProgress(a: Activity, job: Job?): AlertDialog {
+        val pad = (20 * a.resources.displayMetrics.density).toInt()
+        val bar = ProgressBar(a, null, android.R.attr.progressBarStyleHorizontal).apply { isIndeterminate = true }
+        val box = LinearLayout(a).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(pad, pad / 2, pad, 0)
+            addView(bar, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        }
+        return AlertDialog.Builder(a, R.style.AppTheme_PlayerDialog)
+            .setMessage(R.string.sub_convert_extracting)
+            .setView(box)
+            .setCancelable(false)
+            .setNegativeButton(R.string.sub_convert_cancel) { _, _ -> job?.cancel() }
+            .create()
+            .also { it.show() }
+    }
+
     private suspend fun extract(a: Activity, streamIndex: Int, target: SubFormat, media: String?, lang: String?): Outcome {
         val provider = SubtitleExtractors.provider ?: return fail(a, R.string.sub_convert_extract_unavailable)
         if (media == null) return fail(a, R.string.sub_convert_unsupported)
@@ -139,10 +165,33 @@ internal object SubConvertUi {
             showBlocked(a, block) // [SUBTITLE-EXTRACT]
             return Outcome(null, null, handled = true)
         }
-        toast(a, R.string.sub_convert_extracting)
         val out = SubConvertPlanner.outputPath(OUT_DIR, media, lang, target) { File(it).exists() }
         if (!File(OUT_DIR).let { it.isDirectory || it.mkdirs() }) return fail(a, R.string.sub_convert_write_failed)
-        val err = withContext(Dispatchers.IO) { provider.extract(media, streamIndex, target, out) }
+        // [SUBTITLE-CANCEL] Dialog progres dengan tombol Batal; membatalkan job ini -> provider mematikan pohon proses FFmpeg.
+        val self = currentCoroutineContext()[Job]
+        val dialog = showExtractProgress(a, self)
+        val err = try {
+            coroutineScope {
+                val ticker = launch {
+                    var sec = 0
+                    while (true) {
+                        delay(1_000)
+                        sec++
+                        dialog.setMessage(a.getString(R.string.sub_convert_extracting_elapsed, sec))
+                    }
+                }
+                try {
+                    withContext(Dispatchers.IO) { provider.extract(media, streamIndex, target, out) }
+                } finally {
+                    ticker.cancel()
+                }
+            }
+        } catch (e: CancellationException) {
+            toast(a, R.string.sub_convert_cancelled)
+            throw e
+        } finally {
+            runCatching { dialog.dismiss() }
+        }
         return if (err == null && File(out).isFile) Outcome(out, null) else Outcome(null, err ?: a.getString(R.string.sub_convert_write_failed))
     }
 }

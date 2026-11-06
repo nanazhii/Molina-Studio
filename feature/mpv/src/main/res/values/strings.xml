@@ -299,4 +299,7 @@
     <string name="sub_convert_extract_unavailable">Extracting embedded subtitles needs FFmpeg in Debian (Settings > Packages > Tools), and that part isn’t available in this build yet</string>
     <string name="sub_convert_open_tools">Open Packages > Tools</string>
     <string name="sub_convert_extracting">Extracting subtitle…</string>
+    <string name="sub_convert_cancel">Cancel</string>
+    <string name="sub_convert_cancelled">Extraction cancelled.</string>
+    <string name="sub_convert_extracting_elapsed">Extracting subtitle… %1$d s</string>
 </resources>
