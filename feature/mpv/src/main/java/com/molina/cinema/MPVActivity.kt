@@ -275,6 +275,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
             if (!fromUser)
                 return
+            kickSpectrum() // [SPECTRUM]
             player.timePos = progress.toDouble() / SEEK_BAR_PRECISION
             updateSeekPreview(progress.toDouble() / SEEK_BAR_PRECISION)
             // Note: don't call updatePlaybackPos() here either
@@ -2487,6 +2488,10 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     @Volatile private var spectrumPath: String? = null
     private var spectrumJob: Job? = null
     private var spectrumReserve = false
+    @Volatile private var spectrumKickUntil = 0L
+
+    /** [SPECTRUM] Jaga spektrum tetap bergerak sesaat setelah seek, apa pun status pause/cache mpv. */
+    private fun kickSpectrum(ms: Long = 1200L) { spectrumKickUntil = SystemClock.uptimeMillis() + ms }
     private var lastCover: CoverArt.Cover? = null
     private var specPosMs = 0L
     private var specPosTick = 0L
@@ -2521,16 +2526,27 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun layoutSpectrum(reserved: Int) {
         val lp = binding.spectrumView.layoutParams as? android.widget.FrameLayout.LayoutParams ?: return
         val total = reserved + topBarReserve()
+        applyLyricsClip(if (spectrumReserve) total + (SPECTRUM_HEIGHT_DP * resources.displayMetrics.density).toInt() else 0)
         if (lp.bottomMargin == total) return
         lp.bottomMargin = total
         binding.spectrumView.layoutParams = lp
+    }
+
+    /** [SPECTRUM] Potong daftar lirik tepat di atas zona spektrum agar teks tidak bercampur dengan batang. */
+    private fun applyLyricsClip(px: Int) {
+        val lp = binding.lyricsList.layoutParams as? MarginLayoutParams ?: return
+        lyrics.clipBottom = { px }
+        if (lp.bottomMargin == px) return
+        lp.bottomMargin = px
+        binding.lyricsList.layoutParams = lp
+        lyrics.refreshLayout()
     }
 
     private fun setSpectrumReserve(on: Boolean) {
         if (spectrumReserve == on) return
         spectrumReserve = on
         lyrics.extraBottomReserve = { // [LYRICS] ruang untuk spektrum: lirik berhenti di atasnya
-            if (spectrumReserve) topBarReserve() + (96 * resources.displayMetrics.density).toInt() else 0
+            0 // [SPECTRUM] ruang spektrum kini dipotong lewat clipBottom (applyLyricsClip), bukan reserve
         }
         lyrics.refreshLayout()
         showNowPlayingArt(if (useAudioUI) lastCover else null)
@@ -2556,7 +2572,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         view.accent = ContextCompat.getColor(this, R.color.player_playlist_active)
         view.colorMode = SpectrumPrefs.colorMode(this)
         view.positionMs = ::spectrumPositionMs
-        view.isPlaying = { (!psc.pause || userIsOperatingSeekbar || pausedForSeek != 0) && activityIsForeground }
+        view.isPlaying = { (!psc.pause || userIsOperatingSeekbar || pausedForSeek != 0 || SystemClock.uptimeMillis() < spectrumKickUntil) && activityIsForeground }
         view.dimWhen = { false } // ruang sudah disediakan di bawah lirik, tidak perlu diredupkan
         spectrumJob = streamScope.launch {
             var produced: SpectrumTrack? = null
@@ -3143,6 +3159,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                         player.paused = true
                 }
 
+                kickSpectrum() // [SPECTRUM]
                 val newPosExact = (initialSeek + diff).coerceIn(0f, duration)
                 val newPos = newPosExact.roundToInt()
                 val newDiff = (newPosExact - initialSeek).roundToInt()
@@ -3183,6 +3200,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
             /* Tap gestures */
             PropertyChange.SeekFixed -> {
+                kickSpectrum() // [SPECTRUM]
                 val seekTime = diff * 10f
                 val newPos = psc.positionSec + seekTime.toInt() // only for display
                 MPVLib.command(arrayOf("seek", seekTime.toString(), "relative"))

@@ -142,6 +142,9 @@ internal class LyricsController(
 
     /** [SPECTRUM] Ruang bawah tambahan (px) untuk visualizer; diset Activity. */
     var extraBottomReserve: () -> Int = { 0 }
+
+    /** [SPECTRUM] Tinggi (px) dari tepi bawah yang sudah dipotong dari daftar lirik (mis. zona spektrum); dikurangkan dari reserve bawah. */
+    var clipBottom: () -> Int = { 0 }
     fun refreshLayout() { lastHeight = -1; list.post { relayout() } }
 
     var offsetMs = 0L
@@ -474,7 +477,7 @@ internal class LyricsController(
         lastHeight = h
         val d = list.resources.displayMetrics.density
         val top = (48 * d).toInt()
-        val bottomReserve = (if (controls.height > 0) controls.height + (60 * d).toInt() else (180 * d).toInt()) + extraBottomReserve()
+        val bottomReserve = ((if (controls.height > 0) controls.height + (60 * d).toInt() else (180 * d).toInt()) - clipBottom()).coerceAtLeast(0) + extraBottomReserve()
         centerY = (top + (h - top - bottomReserve).coerceAtLeast(0) / 2).coerceIn(top, h)
         list.clipToPadding = false
         list.setPadding(0, centerY, 0, (h - centerY).coerceAtLeast(0))
