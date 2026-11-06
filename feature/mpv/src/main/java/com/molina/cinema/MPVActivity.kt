@@ -65,6 +65,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.doOnNextLayout
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.media.AudioAttributesCompat
@@ -1008,7 +1009,22 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun controlsShouldBeVisible(): Boolean {
         if (lockedUI)
             return false
-        return useAudioUI || btnSelected != -1 || userIsOperatingSeekbar
+        // [SPECTRUM] UI audio: potret = kontrol selalu tampil; landscape = auto-hide seperti video (kecuali sesi tap-sync lirik)
+        return (useAudioUI && (!isLandscapeNow() || lyrics.tapActive)) || btnSelected != -1 || userIsOperatingSeekbar
+    }
+
+    private fun isLandscapeNow() = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    private var layoutControlsShown: Boolean? = null
+
+    /** [SPECTRUM] Selaraskan sampul, spektrum, dan lirik dengan status tampil/sembunyi kontrol (spektrum turun saat kontrol hilang). */
+    private fun syncAudioLayout() {
+        if (!useAudioUI) { layoutControlsShown = null; return }
+        val shown = binding.controls.visibility == View.VISIBLE
+        if (layoutControlsShown == shown) return
+        layoutControlsShown = shown
+        showNowPlayingArt(lastCover)
+        lyrics.refreshLayout()
     }
 
     /** Make controls visible, also controls the timeout until they fade. */
@@ -1031,6 +1047,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         if (binding.controls.visibility != View.VISIBLE) {
             binding.controls.visibility = View.VISIBLE
             binding.topControls.visibility = View.VISIBLE
+            binding.controls.doOnNextLayout { syncAudioLayout() } // [SPECTRUM] tinggi kontrol baru valid setelah layout
 
             if (this.statsFPS) {
                 updateStats()
@@ -1058,6 +1075,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
         val insetsController = WindowCompat.getInsetsController(window, window.decorView)
         insetsController.hide(WindowInsetsCompat.Type.systemBars())
+        syncAudioLayout() // [SPECTRUM]
     }
 
     /** Start fading out the controls */
@@ -1136,8 +1154,12 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             // ideally we'd want to know if the event was delivered to controls, but we can't
             if (binding.controls.visibility == View.VISIBLE && !fadeRunnable.hasStarted)
                 showControls()
-            if (ev.action == MotionEvent.ACTION_UP)
+            if (ev.action == MotionEvent.ACTION_UP) {
+                // [SPECTRUM] lirik tak tersinkron menelan ketukan: tetap munculkan kontrol (landscape) bila bukan gestur
+                if (useAudioUI && mightWantToToggleControls && binding.controls.visibility != View.VISIBLE)
+                    showControls()
                 return true
+            }
         }
         if (ev.action == MotionEvent.ACTION_DOWN)
             mightWantToToggleControls = true
@@ -1319,6 +1341,11 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                 0
             }
             rightMargin = leftMargin
+        }
+
+        if (useAudioUI) { // [SPECTRUM] rotasi: tampilkan kontrol sebentar (landscape lalu auto-hide) dan hitung ulang tata letak
+            showControls()
+            binding.controls.doOnNextLayout { layoutControlsShown = null; syncAudioLayout() }
         }
     }
 
@@ -2425,7 +2452,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private val lyrics by lazy {
         LyricsController(streamScope, binding.lyricsPanel, binding.lyricsList, binding.nowPlayingCover, binding.controls) {
             activityIsForeground && useAudioUI
-        }.also { c -> c.onTapEnded = { binding.tapSyncPanel.visibility = View.GONE; binding.controls.isClickable = false; binding.topControls.isClickable = false } } // [LYRICS-TAP]
+        }.also { c -> c.onTapEnded = { binding.tapSyncPanel.visibility = View.GONE; binding.controls.isClickable = false; binding.topControls.isClickable = false; showControls() } } // [LYRICS-TAP]
     }
 
     // [LYRICS-TAP] Overlay cap waktu lirik. Inti logika: LyricsTapSync.kt; daftar baris: LyricsController.
@@ -2508,6 +2535,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun controlsReserved(): Int {
         val d = resources.displayMetrics.density
         val c = binding.controls
+        if (c.visibility != View.VISIBLE) return (24 * d).toInt() // [SPECTRUM] kontrol tersembunyi: spektrum turun ke bawah
         val bottomMargin = (c.layoutParams as? MarginLayoutParams)?.bottomMargin ?: 0
         return if (c.height > 0) c.height + bottomMargin else (180 * d).toInt()
     }
@@ -2519,6 +2547,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun topBarReserve(): Int {
         val d = resources.displayMetrics.density
         val tb = binding.topControls
+        if (tb.visibility != View.VISIBLE) return 0
         val mb = (tb.layoutParams as? MarginLayoutParams)?.bottomMargin ?: 0
         return (if (tb.height > 0) tb.height else (48 * d).toInt()) + mb + (8 * d).toInt()
     }
@@ -2533,8 +2562,11 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     }
 
     /** [SPECTRUM] Potong daftar lirik tepat di atas zona spektrum agar teks tidak bercampur dengan batang. */
-    private fun applyLyricsClip(px: Int) {
+    private fun applyLyricsClip(want: Int) {
         val lp = binding.lyricsList.layoutParams as? MarginLayoutParams ?: return
+        // sisakan minimal ~96dp tinggi daftar lirik (landscape + kontrol tampil: zona spektrum nyaris menghabiskan layar)
+        val ph = binding.lyricsPanel.height
+        val px = if (ph > 0) want.coerceAtMost((ph - (96 * resources.displayMetrics.density).toInt()).coerceAtLeast(0)) else want
         lyrics.clipBottom = { px }
         if (lp.bottomMargin == px) return
         lp.bottomMargin = px
@@ -2642,9 +2674,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         }
         // Sisakan ruang untuk bilah kontrol agar kartu sampul tidak tertimpa.
         val d = resources.displayMetrics.density
-        val c = binding.controls
-        val bottomMargin = (c.layoutParams as? MarginLayoutParams)?.bottomMargin ?: 0
-        val reserved = if (c.height > 0) c.height + bottomMargin else (180 * d).toInt()
+        val reserved = controlsReserved() // [SPECTRUM] ikut status tampil/sembunyi kontrol
         val side = (32 * d).toInt()
         val spectrumSpace = if (spectrumReserve) (SPECTRUM_HEIGHT_DP * d).toInt() else 0 // [SPECTRUM]
         binding.nowPlayingCover.setPadding(side, (24 * d).toInt(), side, reserved + spectrumSpace + (if (spectrumReserve) topBarReserve() else 0) + (12 * d).toInt())

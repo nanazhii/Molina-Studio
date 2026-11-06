@@ -477,7 +477,12 @@ internal class LyricsController(
         lastHeight = h
         val d = list.resources.displayMetrics.density
         val top = (48 * d).toInt()
-        val bottomReserve = ((if (controls.height > 0) controls.height + (60 * d).toInt() else (180 * d).toInt()) - clipBottom()).coerceAtLeast(0) + extraBottomReserve()
+        val controlsBase = when {
+            controls.visibility != View.VISIBLE -> (24 * d).toInt() // [SPECTRUM] kontrol tersembunyi (landscape): lirik pakai hampir seluruh layar
+            controls.height > 0 -> controls.height + (60 * d).toInt()
+            else -> (180 * d).toInt()
+        }
+        val bottomReserve = (controlsBase - clipBottom()).coerceAtLeast(0) + extraBottomReserve()
         centerY = (top + (h - top - bottomReserve).coerceAtLeast(0) / 2).coerceIn(top, h)
         list.clipToPadding = false
         list.setPadding(0, centerY, 0, (h - centerY).coerceAtLeast(0))
