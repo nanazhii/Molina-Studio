@@ -23,7 +23,7 @@ internal object SubConvertUi {
     const val PREF_EMBEDDED = "sub_convert_embedded"
     const val OUT_DIR = "/storage/emulated/0/Molina/Subtitles"
 
-    private class Outcome(val savedPath: String?, val error: String?)
+    private class Outcome(val savedPath: String?, val error: String?, val handled: Boolean = false) // [SUBTITLE-EXTRACT] handled = pesan sudah ditampilkan
 
     private fun prefs(a: Activity): SharedPreferences = PreferenceManager.getDefaultSharedPreferences(a.applicationContext)
 
@@ -99,6 +99,7 @@ internal object SubConvertUi {
     }
 
     private fun finish(activity: Activity, r: Outcome) {
+        if (r.handled) return
         if (r.savedPath == null) return toast(activity, r.error ?: activity.getString(R.string.sub_convert_unsupported))
         MPVLib.command(arrayOf("sub-add", r.savedPath, "select")) // muat hasil langsung ke pemutar
         toast(activity, activity.getString(R.string.sub_convert_done, r.savedPath))
@@ -121,10 +122,24 @@ internal object SubConvertUi {
         }
     }
 
+    /** [SUBTITLE-EXTRACT] Alasan ekstraksi belum bisa: dialog dengan tombol "Buka Paket > Alat" bila ada aksinya, selain itu toast. */
+    private fun showBlocked(a: Activity, block: ExtractBlock) {
+        val open = block.openTools ?: return toast(a, block.message)
+        AlertDialog.Builder(a, R.style.AppTheme_PlayerDialog)
+            .setMessage(block.message)
+            .setPositiveButton(R.string.sub_convert_open_tools) { _, _ -> open() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
     private suspend fun extract(a: Activity, streamIndex: Int, target: SubFormat, media: String?, lang: String?): Outcome {
         val provider = SubtitleExtractors.provider ?: return fail(a, R.string.sub_convert_extract_unavailable)
         if (media == null) return fail(a, R.string.sub_convert_unsupported)
-        provider.unavailableReason(media)?.let { return Outcome(null, it) }
+        provider.unavailableReason(media)?.let { block ->
+            showBlocked(a, block) // [SUBTITLE-EXTRACT]
+            return Outcome(null, null, handled = true)
+        }
+        toast(a, R.string.sub_convert_extracting)
         val out = SubConvertPlanner.outputPath(OUT_DIR, media, lang, target) { File(it).exists() }
         if (!File(OUT_DIR).let { it.isDirectory || it.mkdirs() }) return fail(a, R.string.sub_convert_write_failed)
         val err = withContext(Dispatchers.IO) { provider.extract(media, streamIndex, target, out) }

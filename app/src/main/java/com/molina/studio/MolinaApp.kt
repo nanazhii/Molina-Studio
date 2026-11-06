@@ -34,6 +34,7 @@ class MolinaApp : Application() {
         MpvControl.install(this)
         com.molina.studio.cmd.CommandServer.start(this)
         SystemRefresh.install(this)
+        com.molina.cinema.SubtitleExtractors.provider = com.molina.studio.cinema.ProotSubtitleExtractor(this) // [SUBTITLE-EXTRACT]
         com.molina.studio.automation.AutoPrefs.init(this)
         com.molina.studio.automation.AutoWork.sync(this)
         // NewPipe lebih dulu; yt-dlp (default mati, lihat Pengaturan) hanya untuk URL yang tak dikenalinya.

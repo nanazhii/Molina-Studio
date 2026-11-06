@@ -73,6 +73,7 @@ fun main() {
     offsetsTests(::check)
     assTests(::check)
     convertPlanTests(::check)
+    extractCommandTests(::check)
 
     if (failed > 0) { println("$failed tes gagal"); kotlin.system.exitProcess(1) }
     println("Semua tes lulus")
@@ -263,4 +264,28 @@ internal fun convertPlanTests(check: (String, Boolean) -> Unit) {
     check("bahasa disaring (; dan spasi dibuang, - boleh)", P.outputPath("/d", "/m/f.mkv", "ja;rm -rf", SubFormat.SRT, none) == "/d/f.jarm-rf.srt")
     check("bahasa dibatasi 8 karakter", P.outputPath("/d", "/m/f.mkv", "abcdefghijkl", SubFormat.SRT, none) == "/d/f.abcdefgh.srt")
     check("localPath relatif = null", P.localPath("sub.srt") == null && P.localPath("/") == null && P.localPath(null) == null)
+}
+
+internal fun extractCommandTests(check: (String, Boolean) -> Unit) {
+    val C = SubtitleExtractCommand
+    val IN = "/sdcard/Molina/Film Bagus.mkv"
+    val OUT = "/sdcard/Molina/Subtitles/Film Bagus.id.srt"
+    check("argv SRT lengkap", C.argv(IN, 3, SubFormat.SRT, OUT) == listOf(
+        "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
+        "-i", IN, "-map", "0:3", "-c:s", "srt", "-f", "srt", OUT))
+    val ass = C.argv(IN, 0, SubFormat.ASS, "/sdcard/Molina/Subtitles/a.ass")
+    check("argv ASS: codec dan muxer ass", ass != null && ass.contains("ass") && ass.indexOf("-c:s") + 1 == ass.indexOf("ass"))
+    check("target UNKNOWN ditolak", C.argv(IN, 3, SubFormat.UNKNOWN, OUT) == null)
+    check("indeks negatif ditolak", C.argv(IN, -1, SubFormat.SRT, OUT) == null)
+    check("indeks 1023 boleh, 1024 ditolak", C.argv(IN, 1023, SubFormat.SRT, OUT) != null && C.argv(IN, 1024, SubFormat.SRT, OUT) == null)
+    check("jalur relatif ditolak", C.argv("film.mkv", 3, SubFormat.SRT, OUT) == null && C.argv(IN, 3, SubFormat.SRT, "out.srt") == null)
+    check("traversal .. ditolak", C.argv("/sdcard/Molina/../DCIM/x.mkv", 3, SubFormat.SRT, OUT) == null)
+    check("baris baru / NUL ditolak", C.argv("/sdcard/a\nb.mkv", 3, SubFormat.SRT, OUT) == null && C.argv(IN, 3, SubFormat.SRT, "/sdcard/a\u0000.srt") == null)
+    check("masuk == keluar ditolak (tidak menimpa video)", C.argv(IN, 3, SubFormat.SRT, IN) == null)
+    val odd = "/sdcard/Molina/a b;rm -rf \"x\" \$(id).mkv"
+    check("spasi, ; dan kutip tetap harfiah (tanpa shell)", C.argv(odd, 2, SubFormat.SRT, OUT)?.contains(odd) == true)
+    check("tidak ada argumen berawalan - dari jalur", C.argv(IN, 3, SubFormat.SRT, OUT)!!.filter { it.startsWith("/") }.size == 2)
+    check("errorLine: baris terakhir yang tidak kosong", C.errorLine("a\r\nGalat: stream 3 tidak ada\r\n\r\n") == "Galat: stream 3 tidak ada")
+    check("errorLine: kosong", C.errorLine("") == "" && C.errorLine(" \n \n") == "")
+    check("errorLine: dipotong 160", C.errorLine("x".repeat(500)).length == 160)
 }

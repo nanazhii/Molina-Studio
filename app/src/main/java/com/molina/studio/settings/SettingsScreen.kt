@@ -63,6 +63,8 @@ object SettingsNav {
     var openTerminal by mutableStateOf(false)
     var openDownloads by mutableStateOf(false)
     var openStorage by mutableStateOf(false)
+    /** [SUBTITLE-EXTRACT] Buka halaman Paket (mis. dari tombol di pemutar saat FFmpeg belum terpasang). */
+    var openPackages by mutableStateOf(false)
     /** Buka halaman Terminal (sesi Debian) di dalam Settings; dulu tab nav bawah. */
     var openTerminalApp by mutableStateOf(false)
 }
@@ -229,6 +231,12 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
         if (SettingsNav.openStorage) {
             open(Page.Storage)
             SettingsNav.openStorage = false
+        }
+    }
+    LaunchedEffect(SettingsNav.openPackages) { // [SUBTITLE-EXTRACT]
+        if (SettingsNav.openPackages) {
+            open(Page.Packages)
+            SettingsNav.openPackages = false
         }
     }
     // Penanda untuk lencana tab Settings: halaman Unduhan sedang dilihat.

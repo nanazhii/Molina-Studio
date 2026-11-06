@@ -126,4 +126,6 @@
     <string name="sub_convert_unknown_format">Format subtitle tidak dikenali (hanya SRT dan ASS)</string>
     <string name="sub_convert_write_failed">Gagal menyimpan hasil</string>
     <string name="sub_convert_extract_unavailable">Mengekstrak subtitle tertanam butuh FFmpeg di Debian (Setelan > Paket > Alat), dan bagian itu belum tersedia di build ini</string>
+    <string name="sub_convert_open_tools">Buka Paket > Alat</string>
+    <string name="sub_convert_extracting">Mengekstrak subtitle…</string>
 </resources>

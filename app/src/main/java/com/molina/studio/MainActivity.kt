@@ -207,6 +207,10 @@ class MainActivity : ComponentActivity() {
                     }
                     Tab.Mpv.ordinal
                 }
+                "packages" -> { // [SUBTITLE-EXTRACT] hanya navigasi (tanpa efek samping), jadi tidak perlu token
+                    com.molina.studio.settings.SettingsNav.openPackages = true
+                    Tab.Settings.ordinal
+                }
                 "files" -> Tab.Files.ordinal
                 "code" -> Tab.Code.ordinal
                 else -> -1

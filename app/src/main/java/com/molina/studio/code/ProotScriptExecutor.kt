@@ -42,7 +42,7 @@ import java.util.concurrent.atomic.AtomicLong
  * - isi skrip tidak pernah masuk log (hanya kode keluar dan lamanya).
  */
 internal class ProotScriptExecutor(context: Context, private val lane: Lane = Lane.CODE) : ScriptExecutor, StreamExecutor {
-    enum class Lane { CODE, DOWNLOAD, AUTO, FORMAT, CHECK, LSP, TOOLS } // [PAKET-LANE] TOOLS = cek versi alat di halaman Paket, terpisah dari Run (CODE)
+    enum class Lane { CODE, DOWNLOAD, AUTO, FORMAT, CHECK, LSP, TOOLS, SUBTITLE } // [PAKET-LANE] TOOLS = cek versi alat di halaman Paket, terpisah dari Run (CODE)
 
     private val app = context.applicationContext
 
@@ -81,12 +81,7 @@ internal class ProotScriptExecutor(context: Context, private val lane: Lane = La
     private fun failed(msg: String) = RunResult(-1, false, false, false, 0L, msg)
 
     /** [CODE-FORMAT] True bila [cmd] ada di rootfs. Symlink dihitung ada (banyak yang absolut di dalam rootfs). */
-    private fun guestHasCommand(rootfsDir: File, cmd: String): Boolean {
-        if (cmd.startsWith("/")) return File(rootfsDir, cmd.removePrefix("/")).let { it.exists() || java.nio.file.Files.isSymbolicLink(it.toPath()) }
-        return GUEST_BIN_DIRS.any { dir ->
-            File(rootfsDir, "$dir/$cmd").let { it.exists() || java.nio.file.Files.isSymbolicLink(it.toPath()) }
-        }
-    }
+    private fun guestHasCommand(rootfsDir: File, cmd: String): Boolean = hasGuestCommand(rootfsDir, cmd)
 
     private fun runSync(req: RunRequest, out: RunListener, handle: Handle): RunResult {
         ScriptCommand.validate(req.args + (req.guestArgv ?: emptyList()), req.env)?.let { return failed(it) }
@@ -506,6 +501,14 @@ internal class ProotScriptExecutor(context: Context, private val lane: Lane = La
     }
 
     companion object {
+        /** [SUBTITLE-EXTRACT] True bila [cmd] ada di rootfs (symlink dihitung ada). Dipakai juga di luar kelas ini. */
+        fun hasGuestCommand(rootfsDir: File, cmd: String): Boolean {
+            if (cmd.startsWith("/")) return File(rootfsDir, cmd.removePrefix("/")).let { it.exists() || java.nio.file.Files.isSymbolicLink(it.toPath()) }
+            return GUEST_BIN_DIRS.any { dir ->
+                File(rootfsDir, "$dir/$cmd").let { it.exists() || java.nio.file.Files.isSymbolicLink(it.toPath()) }
+            }
+        }
+
         private val GUEST_BIN_DIRS = listOf("usr/local/sbin", "usr/local/bin", "usr/sbin", "usr/bin", "sbin", "bin")
         private val busyFlags: Map<Lane, AtomicBoolean> = Lane.values().associateWith { AtomicBoolean(false) }
         private val active = ConcurrentHashMap<Lane, Handle>()

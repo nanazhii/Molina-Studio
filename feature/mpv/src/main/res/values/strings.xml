@@ -297,4 +297,6 @@
     <string name="sub_convert_unknown_format">Unrecognized subtitle format (SRT and ASS only)</string>
     <string name="sub_convert_write_failed">Couldn’t save the result</string>
     <string name="sub_convert_extract_unavailable">Extracting embedded subtitles needs FFmpeg in Debian (Settings > Packages > Tools), and that part isn’t available in this build yet</string>
+    <string name="sub_convert_open_tools">Open Packages > Tools</string>
+    <string name="sub_convert_extracting">Extracting subtitle…</string>
 </resources>
