@@ -16,33 +16,6 @@ import java.nio.ByteOrder
 internal object SpectrumDecoder {
     private const val TIMEOUT_US = 10_000L
 
-    /** Pembangun frame: menerima sampel mono berurutan, menghasilkan satu frame tiap [hop] sampel setelah jendela penuh. */
-    private class FrameBuilder(val sampleRate: Int, val track: SpectrumTrack) {
-        private val n = SpectrumMath.FFT_SIZE
-        private val ring = FloatArray(n)
-        private val window = FloatArray(n)
-        private val re = DoubleArray(n)
-        private val im = DoubleArray(n)
-        private val out = ByteArray(track.bands)
-        private val edges = SpectrumMath.bandEdges(sampleRate)
-        private var total = 0L
-        private var nextEnd = n.toLong()
-        var full = false
-            private set
-
-        fun push(s: Float) {
-            ring[(total % n).toInt()] = s
-            total++
-            if (total == nextEnd) {
-                val start = (total % n).toInt() // sampel tertua
-                for (i in 0 until n) window[i] = ring[(start + i) % n]
-                SpectrumMath.frame(window, sampleRate, edges, re, im, out, 0)
-                if (!track.append(out)) full = true
-                nextEnd += track.hopSamples
-            }
-        }
-    }
-
     /**
      * Analisis [path]. Blocking; panggil dari thread latar. [active] dicek berkala (false = berhenti segera).
      * [onTrack] dipanggil sekali begitu track dibuat; frame berikutnya terus ditambahkan ke objek yang sama.
@@ -52,7 +25,7 @@ internal object SpectrumDecoder {
         runCatching { Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND) }
         val extractor = MediaExtractor()
         var codec: MediaCodec? = null
-        var builder: FrameBuilder? = null
+        var builder: SpectrumFrameBuilder? = null
         try {
             extractor.setDataSource(path)
             val idx = (0 until extractor.trackCount).firstOrNull {
@@ -75,11 +48,11 @@ internal object SpectrumDecoder {
             var inputDone = false
             var outputDone = false
 
-            fun ensureBuilder(): FrameBuilder {
+            fun ensureBuilder(): SpectrumFrameBuilder {
                 builder?.let { return it }
                 val hop = (sampleRate / SpectrumMath.FPS).coerceAtLeast(1)
                 val t = SpectrumTrack(sampleRate, hop, initialFrames = estFrames.coerceAtLeast(64))
-                return FrameBuilder(sampleRate, t).also { builder = it; onTrack(t) }
+                return SpectrumFrameBuilder(sampleRate, t).also { builder = it; onTrack(t) }
             }
 
             while (!outputDone) {

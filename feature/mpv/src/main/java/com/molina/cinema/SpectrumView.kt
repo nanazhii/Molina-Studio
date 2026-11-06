@@ -32,6 +32,13 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
     var accent: Int = Color.parseColor("#2ECC71")
         set(value) { field = value; rebuildShaders(); invalidate() }
 
+    /** True = warna batang bergradasi menurut frekuensi (bass hangat -> aksen -> treble dingin); false = satu warna aksen. */
+    var frequencyColors: Boolean = true
+        set(value) { field = value; rebuildShaders(); invalidate() }
+
+    private val warmColor = Color.parseColor("#FF8A3D")
+    private val coolColor = Color.parseColor("#3FA9F5")
+
     private val bands = SpectrumMath.BANDS
     private val smoother = SpectrumSmoother(bands)
     private val target = FloatArray(bands)
@@ -39,6 +46,9 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
     private val reflectPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val capPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(215, 255, 255, 255) }
     private val rect = RectF()
+    private val barShaders = arrayOfNulls<Shader>(bands)
+    private val reflectShaders = arrayOfNulls<Shader>(bands)
+    private val capColors = IntArray(bands)
     private var lastTick = 0L
     private var running = false
     private val d = resources.displayMetrics.density
@@ -52,14 +62,23 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
 
     private fun baseline() = height * 0.78f
 
+    private fun bandColor(b: Int): Int {
+        if (!frequencyColors) return accent
+        val t = b / (bands - 1).toFloat()
+        return if (t < 0.5f) blend(warmColor, accent, t / 0.5f) else blend(accent, coolColor, (t - 0.5f) / 0.5f)
+    }
+
     private fun rebuildShaders() {
         if (height <= 0) return
         val base = baseline()
-        val light = blend(accent, Color.WHITE, 0.35f)
-        barPaint.shader = LinearGradient(0f, base, 0f, 0f, accent, light, Shader.TileMode.CLAMP)
-        reflectPaint.shader = LinearGradient(0f, base, 0f, height.toFloat(),
-            Color.argb(90, Color.red(accent), Color.green(accent), Color.blue(accent)), Color.argb(0, Color.red(accent), Color.green(accent), Color.blue(accent)),
-            Shader.TileMode.CLAMP)
+        for (b in 0 until bands) {
+            val c = bandColor(b)
+            val r = Color.red(c); val g = Color.green(c); val bl = Color.blue(c)
+            barShaders[b] = LinearGradient(0f, base, 0f, 0f, c, blend(c, Color.WHITE, 0.35f), Shader.TileMode.CLAMP)
+            reflectShaders[b] = LinearGradient(0f, base, 0f, height.toFloat(), Color.argb(90, r, g, bl), Color.argb(0, r, g, bl), Shader.TileMode.CLAMP)
+            val cap = blend(c, Color.WHITE, 0.75f)
+            capColors[b] = Color.argb(215, Color.red(cap), Color.green(cap), Color.blue(cap))
+        }
     }
 
     private fun blend(a: Int, b: Int, t: Float): Int = Color.rgb(
@@ -109,15 +128,18 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
             val x = b * slot + (slot - barW) / 2f
             val h = minH + (maxH - minH) * smoother.level[b]
             rect.set(x, base - h, x + barW, base)
+            barPaint.shader = barShaders[b]
             canvas.drawRoundRect(rect, radius, radius, barPaint)
             // pantulan: cermin pendek di bawah garis dasar
             val rh = (h * 0.32f).coerceAtMost(height - base)
             rect.set(x, base + 2f * d, x + barW, base + 2f * d + rh)
+            reflectPaint.shader = reflectShaders[b]
             canvas.drawRoundRect(rect, radius, radius, reflectPaint)
             // penanda puncak
             val py = base - (minH + (maxH - minH) * smoother.peak[b]) - capH - 2f * d
             if (smoother.peak[b] > 0.02f) {
                 rect.set(x, py, x + barW, py + capH)
+                capPaint.color = capColors[b]
                 canvas.drawRoundRect(rect, capH / 2f, capH / 2f, capPaint)
             }
         }

@@ -20,6 +20,11 @@ import kotlin.math.sqrt
 internal object SpectrumMath {
     const val BANDS = 32
     const val FFT_SIZE = 4096 // resolusi ~10,8 Hz @44,1 kHz: pita bass selaras dengan nada
+    /** FFT beresolusi tinggi (~5,4 Hz/bin @44,1 kHz) khusus pita bass (pusat < LOW_CUTOFF_HZ). */
+    const val FFT_LOW_SIZE = 8192
+    const val LOW_CUTOFF_HZ = 250.0
+    const val F_MIN_HZ = 40.0
+    const val F_MAX_HZ = 16_000.0
     const val FPS = 30
     const val MIN_DB = -75.0
     const val MAX_DB = -12.0
@@ -66,7 +71,7 @@ internal object SpectrumMath {
     }
 
     /** Batas bin untuk [bands] pita log antara [fMin] dan [fMax] (ukuran bands+1), naik ketat dan <= fftSize/2. */
-    fun bandEdges(sampleRate: Int, bands: Int = BANDS, fftSize: Int = FFT_SIZE, fMin: Double = 40.0, fMaxWanted: Double = 16_000.0): IntArray {
+    fun bandEdges(sampleRate: Int, bands: Int = BANDS, fftSize: Int = FFT_SIZE, fMin: Double = F_MIN_HZ, fMaxWanted: Double = F_MAX_HZ): IntArray {
         val maxBin = fftSize / 2
         val fMax = minOf(fMaxWanted, sampleRate / 2.0 * 0.95)
         val binHz = sampleRate.toDouble() / fftSize
@@ -79,20 +84,40 @@ internal object SpectrumMath {
         return edges
     }
 
+    /** Jumlah pita dari bawah yang memakai FFT_LOW_SIZE: pita yang pusat geometrisnya < LOW_CUTOFF_HZ. */
+    fun lowBandCount(sampleRate: Int, bands: Int = BANDS): Int {
+        val fMax = minOf(F_MAX_HZ, sampleRate / 2.0 * 0.95)
+        var count = 0
+        for (b in 0 until bands) {
+            val lo = F_MIN_HZ * (fMax / F_MIN_HZ).pow(b.toDouble() / bands)
+            val hi = F_MIN_HZ * (fMax / F_MIN_HZ).pow((b + 1).toDouble() / bands)
+            if (sqrt(lo * hi) < LOW_CUTOFF_HZ) count++ else break
+        }
+        return count
+    }
+
     /**
      * Satu frame: [samples] (mono, FFT_SIZE) -> [out] (BANDS byte tak bertanda 0..255) mulai [outOffset].
      * [re]/[im] adalah buffer kerja berukuran FFT_SIZE (dipakai ulang oleh pemanggil).
      */
-    fun frame(samples: FloatArray, sampleRate: Int, edges: IntArray, re: DoubleArray, im: DoubleArray, out: ByteArray, outOffset: Int) {
-        val n = FFT_SIZE
+    fun frame(samples: FloatArray, sampleRate: Int, edges: IntArray, re: DoubleArray, im: DoubleArray, out: ByteArray, outOffset: Int) =
+        analyze(FFT_SIZE, samples, sampleRate, edges, edges.size - 1, re, im, out, outOffset)
+
+    /**
+     * Resolusi bass: menimpa [bandCount] pita terbawah di [out] memakai FFT_LOW_SIZE. [samples]/[re]/[im] berukuran
+     * FFT_LOW_SIZE; [edges] dari bandEdges(sampleRate, fftSize = FFT_LOW_SIZE).
+     */
+    fun frameLow(samples: FloatArray, sampleRate: Int, edges: IntArray, bandCount: Int, re: DoubleArray, im: DoubleArray, out: ByteArray, outOffset: Int) =
+        analyze(FFT_LOW_SIZE, samples, sampleRate, edges, bandCount.coerceIn(0, edges.size - 1), re, im, out, outOffset)
+
+    private fun analyze(n: Int, samples: FloatArray, sampleRate: Int, edges: IntArray, bandCount: Int, re: DoubleArray, im: DoubleArray, out: ByteArray, outOffset: Int) {
         val w = hann(n)
         for (i in 0 until n) { re[i] = (samples[i] * w[i]).toDouble(); im[i] = 0.0 }
         fft(re, im)
         val norm = n / 4.0 // sinus skala penuh dengan jendela Hann menghasilkan puncak ~ N/4
         val binHz = sampleRate.toDouble() / n
-        val bands = edges.size - 1
         val maxBin = n / 2
-        for (b in 0 until bands) {
+        for (b in 0 until bandCount) {
             val hi = maxOf(edges[b + 1], edges[b] + 1).coerceAtMost(maxBin)
             val lo = edges[b].coerceAtMost(hi - 1)
             var peak = 0.0
@@ -186,4 +211,47 @@ internal class SpectrumSmoother(val bands: Int, private val attackMs: Float = 35
 
     /** True bila semua batang praktis diam (renderer boleh berhenti menggambar ulang). */
     fun settled(): Boolean = level.all { it < 0.004f } && peak.all { it < 0.004f }
+}
+
+/**
+ * Pembangun frame: menerima sampel mono berurutan, menghasilkan satu frame tiap hop sampel. Pita bass (pusat <
+ * LOW_CUTOFF_HZ) dianalisis dengan FFT_LOW_SIZE; pusat jendelanya diselaraskan dengan jendela utama (FFT_SIZE)
+ * lewat lookahead (FFT_LOW_SIZE - FFT_SIZE) / 2 sampel, sehingga SpectrumTrack.sample() tetap benar untuk semua pita.
+ */
+internal class SpectrumFrameBuilder(val sampleRate: Int, val track: SpectrumTrack) {
+    private val n = SpectrumMath.FFT_SIZE
+    private val nl = SpectrumMath.FFT_LOW_SIZE
+    private val lookahead = ((nl - n) / 2).toLong()
+    private val ring = FloatArray(nl)
+    private val window = FloatArray(n)
+    private val windowLow = FloatArray(nl)
+    private val re = DoubleArray(n)
+    private val im = DoubleArray(n)
+    private val reLow = DoubleArray(nl)
+    private val imLow = DoubleArray(nl)
+    private val out = ByteArray(track.bands)
+    private val edges = SpectrumMath.bandEdges(sampleRate)
+    private val edgesLow = SpectrumMath.bandEdges(sampleRate, fftSize = nl)
+    private val lowCount = SpectrumMath.lowBandCount(sampleRate)
+    private var total = 0L
+    private var nextEnd = n.toLong() + lookahead
+    var full = false
+        private set
+
+    private fun slot(p: Long) = (((p % nl) + nl) % nl).toInt() // posisi < 0 (sebelum trek) = slot belum terisi = 0
+
+    fun push(s: Float) {
+        ring[slot(total)] = s
+        total++
+        if (total != nextEnd) return
+        val endMain = total - lookahead
+        for (i in 0 until n) window[i] = ring[slot(endMain - n + i)]
+        SpectrumMath.frame(window, sampleRate, edges, re, im, out, 0)
+        if (lowCount > 0) {
+            for (i in 0 until nl) windowLow[i] = ring[slot(total - nl + i)]
+            SpectrumMath.frameLow(windowLow, sampleRate, edgesLow, lowCount, reLow, imLow, out, 0)
+        }
+        if (!track.append(out)) full = true
+        nextEnd += track.hopSamples
+    }
 }

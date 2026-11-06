@@ -133,6 +133,46 @@ private fun spectrumTests() {
     val quiet = frameOf(sine(1_000.0, sr, 0.01), sr)
     check("amplitudo kecil jelas lebih rendah", u(quiet[peakBand]) < u(f1k[peakBand]) - 40)
 
+    // --- resolusi bass: FFT 8192 untuk pita dengan pusat < 250 Hz
+    val lowCountT = SpectrumMath.lowBandCount(sr)
+    check("lowBandCount @44,1 kHz = 10 pita (pusat < 250 Hz)", lowCountT == 10)
+    check("lowBandCount selalu dalam 0..BANDS", intArrayOf(8_000, 22_050, 48_000, 96_000).all { SpectrumMath.lowBandCount(it) in 0..SpectrumMath.BANDS })
+    val edgesLowT = SpectrumMath.bandEdges(sr, fftSize = SpectrumMath.FFT_LOW_SIZE)
+    fun lowFrame(freq: Double): ByteArray {
+        val x = FloatArray(SpectrumMath.FFT_LOW_SIZE) { Math.sin(2.0 * Math.PI * freq * it / sr).toFloat() }
+        val o = ByteArray(SpectrumMath.BANDS)
+        SpectrumMath.frameLow(x, sr, edgesLowT, lowCountT, DoubleArray(SpectrumMath.FFT_LOW_SIZE), DoubleArray(SpectrumMath.FFT_LOW_SIZE), o, 0)
+        return o
+    }
+    fun idealBand(freq: Double) = Math.floor(Math.log(freq / 40.0) / Math.log(400.0) * 32).toInt()
+    for ((name, f) in listOf("A1" to 55.0, "A2" to 110.0, "A3" to 220.0)) {
+        val o = lowFrame(f)
+        check("frameLow $name (${f.toInt()} Hz): puncak di pita ideal ${idealBand(f)}", (0 until lowCountT).maxByOrNull { u(o[it]) } == idealBand(f))
+    }
+    check("frameLow tidak menyentuh pita di atas batas bass", (lowCountT until SpectrumMath.BANDS).all { u(lowFrame(110.0)[it]) == 0 })
+
+    // --- penyelarasan waktu: pusat jendela bass (8192) = pusat jendela utama (4096)
+    run {
+        val hopA = sr / SpectrumMath.FPS
+        val trk = SpectrumTrack(sr, hopA, initialFrames = 64)
+        val fb = SpectrumFrameBuilder(sr, trk)
+        val burstCenter = 20 * hopA + SpectrumMath.FFT_SIZE / 2 + 300 // sedikit setelah pusat frame 20
+        for (i in 0 until 60_000) {
+            val inBurst = Math.abs(i - burstCenter) <= 441
+            fb.push(if (inBurst) (0.4 * Math.sin(2.0 * Math.PI * 100.0 * i / sr) + 0.4 * Math.sin(2.0 * Math.PI * 1_000.0 * i / sr)).toFloat() else 0f)
+        }
+        val d = trk.data
+        fun best(range: IntRange): Int { // frame dengan nilai tertinggi pada pita terkuat di [range]
+            var bf = -1; var bv = -1
+            for (b in range) for (f in 0 until trk.ready) { val v = u(d[f * trk.bands + b]); if (v > bv) { bv = v; bf = f } }
+            return bf
+        }
+        val fLow = best(0 until lowCountT)
+        val fMain = best(lowCountT until SpectrumMath.BANDS)
+        check("burst 100 Hz + 1 kHz: puncak bass = puncak utama (bass=$fLow, utama=$fMain)", fLow == fMain)
+        check("puncak di frame 20 (pusat jendela terdekat burst)", fMain == 20)
+    }
+
     // --- SpectrumTrack: tulis, tumbuh, interpolasi, batas
     val hop = sr / SpectrumMath.FPS
     val tr = SpectrumTrack(sr, hop, initialFrames = 2, maxFrames = 8)
