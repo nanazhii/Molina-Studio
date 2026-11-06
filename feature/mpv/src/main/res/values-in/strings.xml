@@ -106,6 +106,16 @@
     <string name="lyrics_unsynced">Lirik belum tersinkronisasi</string>
     <string name="lyrics_shown">Lirik ditampilkan</string>
     <string name="lyrics_hidden">Lirik disembunyikan</string>
+    <string name="lyrics_tap_btn">Sinkronkan lirik</string>
+    <string name="lyrics_tap_hint">Ketuk layar tepat saat baris dinyanyikan</string>
+    <string name="lyrics_tap_undo">Urungkan</string>
+    <string name="lyrics_tap_break">♪ Jeda</string>
+    <string name="lyrics_tap_save">Simpan</string>
+    <string name="lyrics_tap_cancel">Batal</string>
+    <string name="lyrics_tap_progress">%1$d / %2$d</string>
+    <string name="lyrics_tap_incomplete">Belum semua baris diketuk (%1$d/%2$d)</string>
+    <string name="lyrics_tap_saved">Lirik tersimpan: %1$s</string>
+    <string name="lyrics_tap_failed">Gagal menyimpan lirik (%1$s)</string>
     <!-- [SUBTITLE-CONVERT] -->
     <string name="sub_convert_btn">Konversi subtitle</string>
     <string name="sub_convert_title">Konversi subtitle</string>

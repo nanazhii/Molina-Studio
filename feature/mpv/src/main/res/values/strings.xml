@@ -277,6 +277,16 @@
     <string name="lyrics_unsynced">Lyrics are not synchronized</string>
     <string name="lyrics_shown">Lyrics shown</string>
     <string name="lyrics_hidden">Lyrics hidden</string>
+    <string name="lyrics_tap_btn">Sync lyrics</string>
+    <string name="lyrics_tap_hint">Tap anywhere as each line is sung</string>
+    <string name="lyrics_tap_undo">Undo</string>
+    <string name="lyrics_tap_break">♪ Break</string>
+    <string name="lyrics_tap_save">Save</string>
+    <string name="lyrics_tap_cancel">Cancel</string>
+    <string name="lyrics_tap_progress">%1$d / %2$d</string>
+    <string name="lyrics_tap_incomplete">Not all lines are tapped yet (%1$d/%2$d)</string>
+    <string name="lyrics_tap_saved">Lyrics saved: %1$s</string>
+    <string name="lyrics_tap_failed">Could not save lyrics (%1$s)</string>
     <!-- [SUBTITLE-CONVERT] -->
     <string name="sub_convert_btn">Convert subtitle</string>
     <string name="sub_convert_title">Convert subtitle</string>

@@ -1266,6 +1266,10 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun onBackPressedImpl() {
         if (lockedUI)
             return showUnlockControls()
+        if (lyrics.tapActive) { // [LYRICS-TAP] back = batalkan sesi cap waktu, bukan keluar pemutar
+            lyrics.cancelTap()
+            return
+        }
 
         val notYetPlayed = psc.playlistCount - psc.playlistPos - 1
         if (notYetPlayed <= 0 || !playlistExitWarning) {
@@ -2229,6 +2233,11 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             lyrics.showOffsetDialog(this, restoreState)
             false
         })
+        buttons.add(MenuItem(R.id.lyricsTapBtn) { // [LYRICS-TAP]
+            restoreState() // kembalikan status pause/keep-open dulu; sesi tap memutar sendiri dari awal
+            startTapSync()
+            false
+        })
         buttons.add(MenuItem(R.id.spectrumToggleBtn) { // [SPECTRUM]
             toggleSpectrum()
             true
@@ -2251,6 +2260,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             hiddenButtons.addAll(arrayOf(R.id.subDelayBtn, R.id.rowSubSeek, R.id.rowSubStyle))
         if (!lyrics.available)
             hiddenButtons.add(R.id.rowLyrics)
+        if (!lyrics.canTapSync)
+            hiddenButtons.add(R.id.lyricsTapBtn) // [LYRICS-TAP]
         if (!useAudioUI)
             hiddenButtons.addAll(arrayOf(R.id.spectrumToggleBtn, R.id.spectrumColorBtn)) // [SPECTRUM]
         /******/
@@ -2413,8 +2424,60 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private val lyrics by lazy {
         LyricsController(streamScope, binding.lyricsPanel, binding.lyricsList, binding.nowPlayingCover, binding.controls) {
             activityIsForeground && useAudioUI
+        }.also { c -> c.onTapEnded = { binding.tapSyncPanel.visibility = View.GONE } } // [LYRICS-TAP]
+    }
+
+    // [LYRICS-TAP] Overlay cap waktu lirik. Inti logika: LyricsTapSync.kt; daftar baris: LyricsController.
+    private var tapWired = false
+
+    private fun wireTapPanel() {
+        if (tapWired) return
+        tapWired = true
+        binding.tapSyncPanel.setOnClickListener {
+            it.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+            lyrics.tapNow()
+            updateTapUi()
+        }
+        binding.tapBreakBtn.setOnClickListener { lyrics.tapBreakNow(); updateTapUi() }
+        binding.tapUndoBtn.setOnClickListener { lyrics.undoTap(); updateTapUi() }
+        binding.tapCancelBtn.setOnClickListener { lyrics.cancelTap() }
+        binding.tapSaveBtn.setOnClickListener { saveTapSync() }
+    }
+
+    private fun startTapSync() {
+        if (!lyrics.startTap()) return
+        wireTapPanel()
+        hideControls()
+        binding.tapSyncPanel.visibility = View.VISIBLE
+        updateTapUi()
+        showToast(getString(R.string.lyrics_tap_hint), true)
+    }
+
+    private fun updateTapUi() {
+        val st = lyrics.tapStatus ?: return
+        binding.tapProgress.text = getString(R.string.lyrics_tap_progress, st.stamped, st.total)
+        binding.tapSaveBtn.isEnabled = st.complete
+        binding.tapSaveBtn.alpha = if (st.complete) 1f else 0.4f
+    }
+
+    private fun saveTapSync() {
+        val st = lyrics.tapStatus ?: return
+        if (!st.complete) {
+            showToast(getString(R.string.lyrics_tap_incomplete, st.stamped, st.total), true)
+            return
+        }
+        binding.tapSaveBtn.isEnabled = false
+        lyrics.saveTap { r ->
+            when (r) {
+                is LyricsSaver.Result.Saved -> showToast(getString(R.string.lyrics_tap_saved, r.file.name), true)
+                is LyricsSaver.Result.Failed -> {
+                    showToast(getString(R.string.lyrics_tap_failed, r.reason), true)
+                    updateTapUi()
+                }
+            }
         }
     }
+
     private var coverJob: Job? = null
 
     // [SPECTRUM] Visualizer spektrum di layar Now Playing: PCM berkas lokal dianalisis MediaCodec (SpectrumDecoder),

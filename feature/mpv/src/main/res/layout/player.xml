@@ -489,6 +489,92 @@
             android:visibility="gone"
             app:srcCompat="@drawable/ic_lock_open_24dp" />
 
+        <!-- [LYRICS-TAP] Overlay cap waktu lirik: ketuk di mana saja = cap baris berikutnya. Clickable agar
+             sentuhan tidak sampai ke gestur player. Di dalam "outside" supaya inset sistem ikut berlaku. -->
+        <FrameLayout
+            android:id="@+id/tapSyncPanel"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#33000000"
+            android:clickable="true"
+            android:focusable="true"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top"
+                android:layout_marginLeft="12dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginRight="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                tools:ignore="RtlHardcoded">
+
+                <TextView
+                    android:id="@+id/tapProgress"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginRight="8dp"
+                    android:textColor="#B388FF"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/tapUndoBtn"
+                    style="@style/Widget.AppCompat.Button.Borderless"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:minWidth="0dp"
+                    android:text="@string/lyrics_tap_undo"
+                    android:textAllCaps="false"
+                    android:textColor="#EDEDED" />
+
+                <Button
+                    android:id="@+id/tapBreakBtn"
+                    style="@style/Widget.AppCompat.Button.Borderless"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:minWidth="0dp"
+                    android:text="@string/lyrics_tap_break"
+                    android:textAllCaps="false"
+                    android:textColor="#EDEDED" />
+
+                <Button
+                    android:id="@+id/tapSaveBtn"
+                    style="@style/Widget.AppCompat.Button.Borderless"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:minWidth="0dp"
+                    android:text="@string/lyrics_tap_save"
+                    android:textAllCaps="false"
+                    android:textColor="#B388FF" />
+
+                <Button
+                    android:id="@+id/tapCancelBtn"
+                    style="@style/Widget.AppCompat.Button.Borderless"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:minWidth="0dp"
+                    android:text="@string/lyrics_tap_cancel"
+                    android:textAllCaps="false"
+                    android:textColor="#EDEDED" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginBottom="48dp"
+                android:text="@string/lyrics_tap_hint"
+                android:textColor="#9AA0A6"
+                android:textSize="14sp" />
+        </FrameLayout>
+
     </RelativeLayout>
 
 </RelativeLayout>

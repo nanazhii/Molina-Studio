@@ -198,6 +198,7 @@ internal class LyricsController(
 
     private fun clear() {
         job?.cancel(); job = null
+        if (tap != null) { tap = null; onTapEnded?.invoke() } // [LYRICS-TAP] reset di clear
         doc = null; tracker = null; offsetMs = 0L; lastIndex = -1
         list.interactive = false
         adapter.reset(emptyList(), true)
@@ -227,6 +228,105 @@ internal class LyricsController(
         MpvLog.d(TAG, "[LYRICS-DIAG] applyVisibility on=$on shown=$shown doc=${doc != null}")
         panel.visibility = if (on) View.VISIBLE else View.GONE
         cover.visibility = if (on) View.INVISIBLE else View.VISIBLE
+    }
+
+    // ---- [LYRICS-TAP] editor cap waktu: lirik polos + ketukan -> .lrc tersinkron (logika di LyricsTapSync.kt) ----
+    private var tap: TapSession? = null
+
+    /** Dipanggil saat sesi tap berakhir tanpa lewat tombol (ganti lagu) atau setelah simpan berhasil. */
+    var onTapEnded: (() -> Unit)? = null
+
+    data class TapStatus(val stamped: Int, val total: Int, val complete: Boolean)
+
+    val tapActive: Boolean get() = tap != null
+
+    /** Lirik polos siap dicap: bukan tersinkron, ada path lagu lokal. */
+    val canTapSync: Boolean
+        get() = path != null && doc?.let { !it.synced && it.plainLines.isNotEmpty() } == true
+
+    val tapStatus: TapStatus? get() = tap?.let { TapStatus(it.stampedCount, it.size, it.isComplete) }
+
+    fun startTap(): Boolean {
+        val d = doc ?: return false
+        if (!canTapSync) return false
+        val s = TapSession(d.plainLines)
+        if (s.size == 0) return false
+        tap = s
+        lastIndex = -1
+        shown = true
+        list.interactive = false
+        applyVisibility()
+        refreshTap()
+        // mulai dari awal lagu dan putar; ketukan dihitung dari time-pos saat itu
+        MPVLib.command(arrayOf("seek", "0", "absolute"))
+        MPVLib.setPropertyBoolean("pause", false)
+        return true
+    }
+
+    private fun refreshTap() {
+        val s = tap ?: return
+        adapter.reset(List(s.size) { s.textOf(it) }, true)
+        if (s.isComplete) adapter.setActive(-1) else onIndex(s.cursor)
+    }
+
+    private fun nowMs(): Long? = MPVLib.getPropertyDouble("time-pos/full")?.let { (it * 1000).toLong() }
+
+    /** Cap baris berikutnya pada posisi putar sekarang. True bila ketukan tercatat. */
+    fun tapNow(): Boolean {
+        val s = tap ?: return false
+        val pos = nowMs() ?: return false
+        if (s.tap(pos) !is TapResult.Ok) return false
+        refreshTap()
+        return true
+    }
+
+    fun tapBreakNow(): Boolean {
+        val s = tap ?: return false
+        val pos = nowMs() ?: return false
+        if (s.tapBreak(pos) !is TapResult.Ok) return false
+        refreshTap()
+        return true
+    }
+
+    /** Urungkan ketukan terakhir, lalu putar ulang dari awal baris sebelumnya supaya bisa diketuk lagi. */
+    fun undoTap(): Boolean {
+        val s = tap ?: return false
+        if (!s.undo()) return false
+        val back = if (s.cursor > 0) s.stampOf(s.cursor - 1) ?: 0L else 0L
+        MPVLib.command(arrayOf("seek", (back / 1000.0).toString(), "absolute"))
+        refreshTap()
+        return true
+    }
+
+    fun cancelTap() {
+        if (tap == null) return
+        tap = null
+        doc?.let { display(it) }
+        onTapEnded?.invoke()
+    }
+
+    /** Simpan hasil ketukan (hanya bila lengkap). Hasil dilaporkan lewat [onResult] di thread utama. */
+    fun saveTap(onResult: (LyricsSaver.Result) -> Unit): Boolean {
+        val s = tap ?: return false
+        val p = path ?: return false
+        val lrc = s.toLrc() ?: return false
+        scope.launch {
+            val r = withContext(Dispatchers.IO) { LyricsSaver.save(p, lrc) }
+            if (r is LyricsSaver.Result.Saved && path == p && tap === s) {
+                tap = null
+                reload()
+                onTapEnded?.invoke()
+            }
+            onResult(r)
+        }
+        return true
+    }
+
+    /** Muat ulang lirik lagu yang sedang aktif (setelah berkas .lrc ditulis). */
+    private fun reload() {
+        val p = path
+        path = null
+        onTrack(p)
     }
 
     fun toggle(): Boolean {
