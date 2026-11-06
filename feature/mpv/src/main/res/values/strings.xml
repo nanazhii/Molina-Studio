@@ -277,4 +277,24 @@
     <string name="lyrics_unsynced">Lyrics are not synchronized</string>
     <string name="lyrics_shown">Lyrics shown</string>
     <string name="lyrics_hidden">Lyrics hidden</string>
+    <!-- [SUBTITLE-CONVERT] -->
+    <string name="sub_convert_btn">Convert subtitle</string>
+    <string name="sub_convert_title">Convert subtitle</string>
+    <string name="sub_convert_srt">To SRT (plain text)</string>
+    <string name="sub_convert_ass">To ASS</string>
+    <string name="sub_convert_ass_style">To ASS with the current style</string>
+    <string name="sub_convert_embedded_off">Embedded subtitles: extract with FFmpeg (off)</string>
+    <string name="sub_convert_embedded_on">Embedded subtitles: extract with FFmpeg (on)</string>
+    <string name="sub_convert_embedded_now_on">Extracting embedded subtitles is on</string>
+    <string name="sub_convert_embedded_now_off">Extracting embedded subtitles is off</string>
+    <string name="sub_convert_done">Saved and loaded: %1$s</string>
+    <string name="sub_convert_none">No active subtitle</string>
+    <string name="sub_convert_embedded_hint">This subtitle is embedded in the video. Turn on “Embedded subtitles” in this menu to extract it.</string>
+    <string name="sub_convert_bitmap">Image-based subtitles (PGS, VobSub) can’t be turned into text without OCR</string>
+    <string name="sub_convert_unsupported">This subtitle can’t be converted</string>
+    <string name="sub_convert_same">The subtitle is already in that format</string>
+    <string name="sub_convert_read_failed">Couldn’t read the subtitle file</string>
+    <string name="sub_convert_unknown_format">Unrecognized subtitle format (SRT and ASS only)</string>
+    <string name="sub_convert_write_failed">Couldn’t save the result</string>
+    <string name="sub_convert_extract_unavailable">Extracting embedded subtitles needs FFmpeg in Debian (Settings > Packages > Tools), and that part isn’t available in this build yet</string>
 </resources>

@@ -106,4 +106,24 @@
     <string name="lyrics_unsynced">Lirik belum tersinkronisasi</string>
     <string name="lyrics_shown">Lirik ditampilkan</string>
     <string name="lyrics_hidden">Lirik disembunyikan</string>
+    <!-- [SUBTITLE-CONVERT] -->
+    <string name="sub_convert_btn">Konversi subtitle</string>
+    <string name="sub_convert_title">Konversi subtitle</string>
+    <string name="sub_convert_srt">Ke SRT (teks polos)</string>
+    <string name="sub_convert_ass">Ke ASS</string>
+    <string name="sub_convert_ass_style">Ke ASS dengan gaya saat ini</string>
+    <string name="sub_convert_embedded_off">Subtitle tertanam: ekstrak dengan FFmpeg (mati)</string>
+    <string name="sub_convert_embedded_on">Subtitle tertanam: ekstrak dengan FFmpeg (hidup)</string>
+    <string name="sub_convert_embedded_now_on">Ekstrak subtitle tertanam dihidupkan</string>
+    <string name="sub_convert_embedded_now_off">Ekstrak subtitle tertanam dimatikan</string>
+    <string name="sub_convert_done">Disimpan dan dimuat: %1$s</string>
+    <string name="sub_convert_none">Tidak ada subtitle aktif</string>
+    <string name="sub_convert_embedded_hint">Subtitle ini tertanam di video. Hidupkan “Subtitle tertanam” di menu ini untuk mengekstraknya.</string>
+    <string name="sub_convert_bitmap">Subtitle berbasis gambar (PGS, VobSub) tidak bisa dijadikan teks tanpa OCR</string>
+    <string name="sub_convert_unsupported">Subtitle ini tidak bisa dikonversi</string>
+    <string name="sub_convert_same">Subtitle sudah berformat itu</string>
+    <string name="sub_convert_read_failed">Gagal membaca file subtitle</string>
+    <string name="sub_convert_unknown_format">Format subtitle tidak dikenali (hanya SRT dan ASS)</string>
+    <string name="sub_convert_write_failed">Gagal menyimpan hasil</string>
+    <string name="sub_convert_extract_unavailable">Mengekstrak subtitle tertanam butuh FFmpeg di Debian (Setelan > Paket > Alat), dan bagian itu belum tersedia di build ini</string>
 </resources>

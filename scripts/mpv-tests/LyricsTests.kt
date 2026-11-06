@@ -72,6 +72,7 @@ fun main() {
     karaokeTests(::check)
     offsetsTests(::check)
     assTests(::check)
+    convertPlanTests(::check)
 
     if (failed > 0) { println("$failed tes gagal"); kotlin.system.exitProcess(1) }
     println("Semua tes lulus")
@@ -226,4 +227,40 @@ internal fun assTests(check: (String, Boolean) -> Unit) {
     val anime = AssStyle.fromPreset(SubStyles.byId("anime")!!)
     check("preset anime: kuning, tebal, outline 3.5", anime.primaryHex == "#FFEB3B" && anime.bold && anime.outline == 3.5)
     check("tebal -> -1 di ASS", AssCodec.write(emptyList(), anime).contains(",&H80000000,-1,0,0,0,"))
+}
+
+internal fun convertPlanTests(check: (String, Boolean) -> Unit) {
+    fun tr(external: Boolean, file: String? = null, codec: String? = "subrip", ff: Int? = 3, lang: String? = "id") =
+        SubTrackInfo(1, external, file, codec, ff, lang)
+    val P = SubConvertPlanner
+    check("eksternal lokal -> FromFile", P.plan(tr(true, "/sdcard/a.srt"), false) == ConvertPlan.FromFile("/sdcard/a.srt"))
+    check("eksternal file:// dinormalkan", P.plan(tr(true, "file:///sdcard/a.ass"), false) == ConvertPlan.FromFile("/sdcard/a.ass"))
+    check("eksternal memory:// tidak didukung", P.plan(tr(true, "memory://x"), true) == ConvertPlan.Unsupported)
+    check("eksternal http tidak didukung", P.plan(tr(true, "https://x/a.srt"), true) == ConvertPlan.Unsupported)
+    check("eksternal tanpa nama tidak didukung", P.plan(tr(true, null), true) == ConvertPlan.Unsupported)
+    check("tertanam + toggle mati", P.plan(tr(false), false) == ConvertPlan.EmbeddedDisabled)
+    check("tertanam + toggle hidup", P.plan(tr(false), true) == ConvertPlan.NeedsExtraction(3))
+    check("tertanam ASS + toggle hidup", P.plan(tr(false, codec = "ass", ff = 5), true) == ConvertPlan.NeedsExtraction(5))
+    check("PGS = bitmap (tak peduli toggle)", P.plan(tr(false, codec = "hdmv_pgs_subtitle"), true) == ConvertPlan.Bitmap)
+    check("VobSub = bitmap", P.plan(tr(false, codec = "dvd_subtitle"), false) == ConvertPlan.Bitmap)
+    check("bitmap eksternal juga bitmap", P.plan(tr(true, "/sdcard/a.sup", codec = "hdmv_pgs_subtitle"), true) == ConvertPlan.Bitmap)
+    check("kodek asing tidak didukung", P.plan(tr(false, codec = "aneh"), true) == ConvertPlan.Unsupported)
+    check("tanpa ff-index tidak bisa diekstrak", P.plan(tr(false, ff = null), true) == ConvertPlan.Unsupported)
+    check("kodek huruf besar dikenali", P.plan(tr(false, codec = "SubRip"), true) == ConvertPlan.NeedsExtraction(3))
+    check("kodek null tertanam tetap diproses", P.plan(tr(false, codec = null), true) == ConvertPlan.NeedsExtraction(3))
+
+    val none: (String) -> Boolean = { false }
+    check("nama dasar dari media + bahasa", P.outputPath("/d", "/m/Film Bagus.mkv", "id", SubFormat.SRT, none) == "/d/Film Bagus.id.srt")
+    check("ekstensi ASS", P.outputPath("/d", "/m/f.mkv", null, SubFormat.ASS, none) == "/d/f.ass")
+    check("dir berakhiran / dirapikan", P.outputPath("/d/", "/m/f.mkv", null, SubFormat.SRT, none) == "/d/f.srt")
+    check("tanpa media = subtitle", P.outputPath("/d", null, null, SubFormat.SRT, none) == "/d/subtitle.srt")
+    val taken = setOf("/d/f.srt", "/d/f-2.srt")
+    check("tidak menimpa: -2, -3", P.outputPath("/d", "/m/f.mkv", null, SubFormat.SRT) { it in taken } == "/d/f-3.srt")
+    check("berhenti di -99", P.outputPath("/d", "/m/f.mkv", null, SubFormat.SRT) { true } == "/d/f-99.srt")
+    check("karakter terlarang disanitasi", P.sanitize("a/b:c*d?\"e<f>g|h") == "a_b_c_d__e_f_g_h")
+    check("titik di tepi dibuang", P.sanitize("..rahasia..") == "rahasia")
+    check("nama traversal tetap di dir", !P.outputPath("/d", "/m/../../etc/passwd.mkv", "../x", SubFormat.SRT, none).removePrefix("/d/").contains('/'))
+    check("bahasa disaring (; dan spasi dibuang, - boleh)", P.outputPath("/d", "/m/f.mkv", "ja;rm -rf", SubFormat.SRT, none) == "/d/f.jarm-rf.srt")
+    check("bahasa dibatasi 8 karakter", P.outputPath("/d", "/m/f.mkv", "abcdefghijkl", SubFormat.SRT, none) == "/d/f.abcdefgh.srt")
+    check("localPath relatif = null", P.localPath("sub.srt") == null && P.localPath("/") == null && P.localPath(null) == null)
 }

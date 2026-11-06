@@ -2214,6 +2214,10 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             SubStyleUi.showSpeedDialog(this, restoreState)
             false
         })
+        buttons.add(MenuItem(R.id.subConvertBtn) {
+            SubConvertUi.show(this, streamScope, restoreState)
+            false
+        })
 
         // [LYRICS] tampil/sembunyi lirik dan offset
         buttons.add(MenuItem(R.id.lyricsToggleBtn) {

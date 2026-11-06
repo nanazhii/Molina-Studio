@@ -34,7 +34,7 @@ internal data class AssStyle(
     }
 }
 
-internal enum class SubFormat { SRT, ASS, UNKNOWN }
+enum class SubFormat { SRT, ASS, UNKNOWN }
 
 internal object AssCodec {
     private const val MAX_CUES = 50_000
