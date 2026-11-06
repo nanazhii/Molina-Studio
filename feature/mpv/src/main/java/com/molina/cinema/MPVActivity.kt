@@ -2442,10 +2442,22 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         return if (c.height > 0) c.height + bottomMargin else (180 * d).toInt()
     }
 
+    /**
+     * [SPECTRUM] Ruang untuk bilah tool (shield/cari/kunci/PiP/pengaturan) yang menempel tepat di atas controls,
+     * supaya spektrum berada di atasnya dan tidak tertutup. Memakai tinggi terukur bila ada, jika belum 48dp.
+     */
+    private fun topBarReserve(): Int {
+        val d = resources.displayMetrics.density
+        val tb = binding.topControls
+        val mb = (tb.layoutParams as? MarginLayoutParams)?.bottomMargin ?: 0
+        return (if (tb.height > 0) tb.height else (48 * d).toInt()) + mb + (8 * d).toInt()
+    }
+
     private fun layoutSpectrum(reserved: Int) {
         val lp = binding.spectrumView.layoutParams as? android.widget.FrameLayout.LayoutParams ?: return
-        if (lp.bottomMargin == reserved) return
-        lp.bottomMargin = reserved
+        val total = reserved + topBarReserve()
+        if (lp.bottomMargin == total) return
+        lp.bottomMargin = total
         binding.spectrumView.layoutParams = lp
     }
 
@@ -2546,7 +2558,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         val reserved = if (c.height > 0) c.height + bottomMargin else (180 * d).toInt()
         val side = (32 * d).toInt()
         val spectrumSpace = if (spectrumReserve) (SPECTRUM_HEIGHT_DP * d).toInt() else 0 // [SPECTRUM]
-        binding.nowPlayingCover.setPadding(side, (24 * d).toInt(), side, reserved + spectrumSpace + (12 * d).toInt())
+        binding.nowPlayingCover.setPadding(side, (24 * d).toInt(), side, reserved + spectrumSpace + (if (spectrumReserve) topBarReserve() else 0) + (12 * d).toInt())
         layoutSpectrum(reserved)
         binding.nowPlayingCover.setImageBitmap(cover.art)
         binding.nowPlayingBackdrop.setImageBitmap(cover.backdrop)
