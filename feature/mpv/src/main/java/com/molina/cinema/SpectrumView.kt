@@ -26,8 +26,8 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
     var positionMs: () -> Long = { 0L }
     var isPlaying: () -> Boolean = { false }
 
-    /** True = jangan gambar (mis. panel lirik sedang tampil di atasnya). */
-    var hideWhen: () -> Boolean = { false }
+    /** True = redupkan (mis. panel lirik tampil di atasnya); spektrum tetap hidup sebagai latar. */
+    var dimWhen: () -> Boolean = { false }
 
     var accent: Int = Color.parseColor("#2ECC71")
         set(value) { field = value; rebuildShaders(); invalidate() }
@@ -95,6 +95,8 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
         val t = track
         val live = t != null && isPlaying() && t.sample(positionMs() - latencyMs, target)
         smoother.step(if (live) target else null, dt)
+        val a = if (dimWhen()) 0.35f else 1f
+        if (alpha != a) alpha = a
         invalidate()
         if (live || !smoother.settled()) postOnAnimation(this)
         else postDelayed(this, 150) // diam: cek ringan apakah pemutaran dilanjutkan

@@ -2549,8 +2549,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         view.accent = ContextCompat.getColor(this, R.color.player_playlist_active)
         view.colorMode = SpectrumPrefs.colorMode(this)
         view.positionMs = ::spectrumPositionMs
-        view.isPlaying = { !psc.pause && !psc.cachePause && activityIsForeground }
-        view.hideWhen = { binding.lyricsPanel.visibility == View.VISIBLE }
+        view.isPlaying = { (!psc.pause || userIsOperatingSeekbar || pausedForSeek != 0) && activityIsForeground }
+        view.dimWhen = { binding.lyricsPanel.visibility == View.VISIBLE }
         spectrumJob = streamScope.launch {
             val ok = withContext(Dispatchers.Default) {
                 SpectrumDecoder.analyze(path, { isActive && spectrumPath == path }) { t ->
