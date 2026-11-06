@@ -3,6 +3,9 @@ package com.molina.cinema
 import android.app.Activity
 import android.content.Context
 import android.graphics.Typeface
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
 import android.util.AttributeSet
 import android.util.DisplayMetrics
 import android.view.Gravity
@@ -10,6 +13,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.LinearSmoothScroller
 import androidx.recyclerview.widget.RecyclerView
@@ -39,18 +43,37 @@ private class LyricsAdapter : RecyclerView.Adapter<LyricsAdapter.VH>() {
 
     var items: List<String> = emptyList()
     var synced = true
+    private var lines: List<LyricLine> = emptyList()
     private var active = -1
+    private var activeWord = -1
 
-    fun reset(newItems: List<String>, isSynced: Boolean) {
-        items = newItems; synced = isSynced; active = -1
+    fun reset(newItems: List<String>, isSynced: Boolean, newLines: List<LyricLine> = emptyList()) {
+        items = newItems; synced = isSynced; lines = newLines; active = -1; activeWord = -1
         notifyDataSetChanged()
     }
 
     fun setActive(index: Int) {
         val old = active
         active = index
+        activeWord = -1
         if (old in items.indices) notifyItemChanged(old)
         if (index in items.indices) notifyItemChanged(index)
+    }
+
+    /** Kata aktif pada baris aktif (karaoke). Hanya menggambar ulang satu baris, dan hanya bila berubah. */
+    fun setWord(word: Int) {
+        if (word == activeWord) return
+        activeWord = word
+        if (active in items.indices) notifyItemChanged(active)
+    }
+
+    private fun karaoke(segments: List<LyricSegment>): CharSequence = SpannableStringBuilder().apply {
+        for (seg in segments) {
+            val start = length
+            append(seg.text)
+            val color = if (seg.sung) LyricsController.COLOR_ACTIVE else LyricsController.COLOR_PENDING
+            setSpan(ForegroundColorSpan(color), start, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -65,8 +88,15 @@ private class LyricsAdapter : RecyclerView.Adapter<LyricsAdapter.VH>() {
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val isActive = synced && position == active
-        holder.tv.text = items[position].ifEmpty { "♪" } // baris kosong = jeda instrumental
-        holder.tv.setTextColor(if (isActive) LyricsController.COLOR_ACTIVE else LyricsController.COLOR_DIM)
+        val line = lines.getOrNull(position)
+        if (isActive && line != null && line.words.isNotEmpty()) {
+            // LRC enhanced: kata yang sudah dinyanyikan berwarna aksen, sisanya warna teks utama
+            holder.tv.text = karaoke(line.segments(activeWord))
+            holder.tv.setTextColor(LyricsController.COLOR_PENDING)
+        } else {
+            holder.tv.text = items[position].ifEmpty { "♪" } // baris kosong = jeda instrumental
+            holder.tv.setTextColor(if (isActive) LyricsController.COLOR_ACTIVE else LyricsController.COLOR_DIM)
+        }
         holder.tv.textSize = if (isActive) 24f else 18f
         holder.tv.setTypeface(null, if (isActive) Typeface.BOLD else Typeface.NORMAL)
         holder.tv.alpha = if (isActive || !synced) 1f else 0.8f
@@ -100,6 +130,10 @@ internal class LyricsController(
     var offsetMs = 0L
         private set
     private var shown = true
+
+    // Offset per lagu (kunci = path), dibatasi 200 entri; lihat LyricsOffsets.
+    private val prefs by lazy { PreferenceManager.getDefaultSharedPreferences(list.context.applicationContext) }
+    private val offsets by lazy { LyricsOffsets.parse(prefs.getString(PREF_OFFSETS, null)) }
 
     /** Ada lirik untuk lagu ini (dipakai menu untuk menampilkan/menyembunyikan tombol). */
     val available: Boolean get() = doc != null
@@ -141,8 +175,9 @@ internal class LyricsController(
     private fun display(d: LrcDocument) {
         doc = d
         lastIndex = -1
+        offsetMs = path?.let { offsets.get(it) } ?: 0L
         if (d.synced) {
-            adapter.reset(d.lines.map { it.text }, true)
+            adapter.reset(d.lines.map { it.text }, true, d.lines)
             tracker = LyricsTracker(d.lines)
             list.interactive = false
         } else {
@@ -170,6 +205,10 @@ internal class LyricsController(
     fun setOffsetMs(ms: Long) {
         offsetMs = ms
         tracker?.reset() // paksa emisi berikutnya
+        path?.let {
+            offsets.put(it, ms)
+            prefs.edit().putString(PREF_OFFSETS, offsets.serialize()).apply()
+        }
     }
 
     fun showOffsetDialog(activity: Activity, restore: StateRestoreCallback) {
@@ -182,19 +221,30 @@ internal class LyricsController(
 
     private suspend fun poll() {
         val tr = tracker ?: return
+        val hasWords = doc?.lines?.any { it.words.isNotEmpty() } == true
         while (true) {
             val visible = isVisible()
             // list.height > 0 && centerY > 0: tunggu tata letak pertama supaya lirik langsung berpusat dengan benar
             if (shown && visible && list.height > 0 && centerY > 0) {
                 val sec = MPVLib.getPropertyDouble("time-pos/full")
-                if (sec != null) tr.update((sec * 1000).toLong(), offsetMs)?.let { onIndex(it) }
+                if (sec != null) {
+                    val posMs = (sec * 1000).toLong()
+                    tr.update(posMs, offsetMs)?.let { onIndex(it) }
+                    if (hasWords) updateWord(tr.current, posMs + offsetMs)
+                }
             }
             delay(when {
                 !visible -> 1_000L // di latar belakang: hemat daya
                 MPVLib.getPropertyBoolean("pause") == true -> 400L
+                hasWords -> 100L // karaoke: kata berganti lebih sering daripada baris
                 else -> 150L
             })
         }
+    }
+
+    private fun updateWord(lineIndex: Int, positionMs: Long) {
+        val line = doc?.lines?.getOrNull(lineIndex) ?: return
+        if (line.words.isNotEmpty()) adapter.setWord(activeWordIndex(line, positionMs))
     }
 
     private fun onIndex(index: Int) {
@@ -233,8 +283,10 @@ internal class LyricsController(
     }
 
     companion object {
+        private const val PREF_OFFSETS = "lyrics_offsets"
         // Sesuai docs/branding/panduan-warna.md: Cinema = #B388FF (kontras 7,4:1), Muted = #9AA0A6.
         const val COLOR_ACTIVE = 0xFFB388FF.toInt()
         const val COLOR_DIM = 0xFF9AA0A6.toInt()
+        const val COLOR_PENDING = 0xFFEDEDED.toInt() // OnBackground: kata yang belum dinyanyikan pada baris aktif
     }
 }

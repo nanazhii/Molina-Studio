@@ -69,6 +69,9 @@ fun main() {
 
     styleTests(::check)
     filesTests(::check)
+    karaokeTests(::check)
+    offsetsTests(::check)
+    assTests(::check)
 
     if (failed > 0) { println("$failed tes gagal"); kotlin.system.exitProcess(1) }
     println("Semua tes lulus")
@@ -126,4 +129,101 @@ internal fun filesTests(check: (String, Boolean) -> Unit) {
         check("nama menyerupai traversal tetap aman", LyricsFiles.find("/tidak/ada/../../x.mp3", lib.path) == null)
         check("path kosong aman", LyricsFiles.find("", lib.path) == null)
     } finally { root.deleteRecursively() }
+}
+
+internal fun karaokeTests(check: (String, Boolean) -> Unit) {
+    val pre = LrcParser.parse("[00:10.00]Hai <00:10.50>dunia <00:11.00>baru").lines[0]
+    check("teks sebelum tag pertama jadi kata", pre.words.map { it.text } == listOf("Hai ", "dunia ", "baru"))
+    check("kata awalan di waktu baris", pre.words[0].startMs == 10_000L)
+    val sp = LrcParser.parse("[00:01.00]<00:01.00>A<00:01.50> <00:02.00>B").lines[0]
+    check("spasi mandiri digabung ke kata sebelumnya", sp.words.map { it.text } == listOf("A ", "B"))
+    check("gabungan kata = teks baris", pre.words.joinToString("") { it.text }.trim() == pre.text)
+
+    val line = LrcParser.parse("[00:10.00]<00:10.00>Ha <00:10.50>lo <00:11.00>dunia").lines[0]
+    check("belum ada kata mulai: semua belum", line.segments(-1).none { it.sung })
+    check("kata 1 aktif: dua pertama sung", line.segments(1).map { it.sung } == listOf(true, true, false))
+    check("kata terakhir: semua sung", line.segments(2).all { it.sung })
+    check("segmen mempertahankan teks", line.segments(0).joinToString("") { it.text } == "Ha lo dunia")
+    val plain = LyricLine(0, "tanpa kata")
+    check("tanpa kata: satu segmen utuh", plain.segments(-1) == listOf(LyricSegment("tanpa kata", true)))
+
+    val tr = LyricsTracker(listOf(line))
+    check("tracker.current awal = -1", tr.current == -1)
+    tr.update(10_600); check("tracker.current = 0", tr.current == 0)
+    tr.reset(); check("reset -> current -1", tr.current == -1)
+    // alur karaoke: kata aktif berubah sepanjang baris, offset pengguna ikut
+    val seq = listOf(9_900L, 10_100L, 10_600L, 11_200L).map { activeWordIndex(line, it) }
+    check("kata aktif berurutan", seq == listOf(-1, 0, 1, 2))
+    check("offset +500 memajukan kata", activeWordIndex(line, 10_100L + 500) == 1)
+}
+
+internal fun offsetsTests(check: (String, Boolean) -> Unit) {
+    val o = LyricsOffsets(3)
+    check("default 0", o.get("/a.mp3") == 0L)
+    o.put("/a.mp3", 1_500); check("put/get", o.get("/a.mp3") == 1_500L)
+    o.put("/a.mp3", 0); check("0 menghapus entri", o.size == 0)
+    o.put("/b", 100_000); check("dijepit ke +-60 s", o.get("/b") == 60_000L)
+    o.put("/b", -100_000); check("negatif dijepit", o.get("/b") == -60_000L)
+
+    val e = LyricsOffsets(3)
+    for (k in listOf("1", "2", "3")) e.put(k, 10)
+    e.put("2", 20) // 2 menjadi yang terbaru
+    e.put("4", 10) // buang yang terlama (1)
+    check("entri terlama dibuang", e.get("1") == 0L && e.get("2") == 20L && e.get("3") == 10L && e.get("4") == 10L)
+    check("ukuran dibatasi", e.size == 3)
+
+    val weird = "/sdcard/Lagu\ttab\nbaris%25 dan 100%.mp3"
+    val r = LyricsOffsets()
+    r.put(weird, -750); r.put("/biasa.mp3", 300)
+    val back = LyricsOffsets.parse(r.serialize())
+    check("serialisasi bolak-balik (kunci aneh)", back.get(weird) == -750L && back.get("/biasa.mp3") == 300L)
+    val bad = LyricsOffsets.parse("tanpa-tab\n\t5\n/x\tabc\n/ok\t42\n")
+    check("baris rusak diabaikan", bad.size == 1 && bad.get("/ok") == 42L)
+    check("parse null/kosong aman", LyricsOffsets.parse(null).size == 0 && LyricsOffsets.parse("").size == 0)
+}
+
+internal fun assTests(check: (String, Boolean) -> Unit) {
+    val ass = "\uFEFF[Script Info]\r\nTitle: x\r\n\r\n[V4+ Styles]\r\nFormat: Name\r\nStyle: Default\r\n\r\n[Events]\r\n" +
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\r\n" +
+        "Dialogue: 0,0:00:01.50,0:00:03.00,Default,,0,0,0,,{\\i1}Halo{\\i0}, dunia\\Nbaris dua\r\n" +
+        "Comment: 0,0:00:04.00,0:00:05.00,Default,,0,0,0,,diabaikan\r\n" +
+        "Dialogue: 0,0:00:00.20,0:00:01.00,Default,,0,0,0,,Awal\\hspasi\r\n"
+    val c = AssCodec.parse(ass)
+    check("2 dialog (komentar dilewati)", c.size == 2)
+    check("terurut waktu", c[0].startMs == 200L && c[1].startMs == 1_500L)
+    check("tag override dibuang, koma di teks utuh", c[1].text == "Halo, dunia\nbaris dua")
+    check("\\h jadi spasi", c[0].text == "Awal spasi")
+
+    // Format kustom: urutan kolom berbeda
+    val custom = "[Events]\nFormat: Start, End, Text\nDialogue: 0:00:01.00,0:00:02.00,Satu, dua\n"
+    check("Format kustom dihormati", AssCodec.parse(custom).let { it.size == 1 && it[0].text == "Satu, dua" })
+    check("tanpa [Events] = kosong", AssCodec.parse("Dialogue: 0,0:00:01.00,0:00:02.00,D,,0,0,0,,x").isEmpty())
+
+    check("waktu 1 digit pecahan", AssCodec.parseTime("0:00:01.5") == 1_500L)
+    check("waktu salah = null", AssCodec.parseTime("abc") == null)
+    check("format sentisekon dibulatkan", AssCodec.formatTime(1_234) == "0:00:01.23" && AssCodec.formatTime(1_235) == "0:00:01.24")
+    check("format jam", AssCodec.formatTime(3_723_450) == "1:02:03.45")
+    check("pembulatan carry ke detik", AssCodec.formatTime(1_999) == "0:00:02.00")
+
+    // SRT -> ASS -> SRT
+    val srt = "1\n00:00:01,000 --> 00:00:03,500\nHalo\ndunia\n\n2\n00:01:00,250 --> 00:01:02,000\n{kurung} & koma, ok\n"
+    val toAss = SubtitleConvert.convert(srt, SubFormat.ASS)!!
+    check("hasil ASS dikenali", SubtitleConvert.detect(toAss) == SubFormat.ASS && toAss.contains("[Events]") && toAss.contains("Style: Default"))
+    check("baris baru jadi \\N", toAss.contains("Halo\\Ndunia"))
+    val back = SrtCodec.parse(SubtitleConvert.convert(toAss, SubFormat.SRT)!!)
+    check("bolak-balik: jumlah & teks", back.size == 2 && back[0].text == "Halo\ndunia")
+    check("kurung kurawal tidak hilang diam-diam", back[1].text == "(kurung) & koma, ok")
+    check("waktu bolak-balik dalam 10 ms", back.zip(SrtCodec.parse(srt)).all { (a, b) -> kotlin.math.abs(a.startMs - b.startMs) <= 10 && kotlin.math.abs(a.endMs - b.endMs) <= 10 })
+
+    check("deteksi SRT", SubtitleConvert.detect(srt) == SubFormat.SRT)
+    check("deteksi tak dikenal", SubtitleConvert.detect("teks biasa") == SubFormat.UNKNOWN)
+    check("convert sumber tak dikenal = null", SubtitleConvert.convert("teks biasa", SubFormat.SRT) == null)
+    check("convert kosong = null", SubtitleConvert.convert("[Events]\nFormat: Start, End, Text\n", SubFormat.SRT) == null)
+
+    // Gaya
+    check("warna #FFEB3B -> &H003BEBFF (BGR)", AssCodec.write(listOf(SubCue(0, 1, "x")), AssStyle(primaryHex = "#FFEB3B")).contains("&H003BEBFF"))
+    check("warna rusak aman", AssCodec.write(listOf(SubCue(0, 1, "x")), AssStyle(primaryHex = "bukan-warna")).contains("&H00FFFFFF"))
+    val anime = AssStyle.fromPreset(SubStyles.byId("anime")!!)
+    check("preset anime: kuning, tebal, outline 3.5", anime.primaryHex == "#FFEB3B" && anime.bold && anime.outline == 3.5)
+    check("tebal -> -1 di ASS", AssCodec.write(emptyList(), anime).contains(",&H80000000,-1,0,0,0,"))
 }

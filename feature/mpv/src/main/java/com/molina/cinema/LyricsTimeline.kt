@@ -67,7 +67,7 @@ internal object LrcParser {
                 continue
             }
             val body = t.substring(tags.last().range.last + 1)
-            val words = parseWords(body)
+            val words = parseWords(body, ms(tags.first().groupValues[1], tags.first().groupValues[2], tags.first().groupValues[3]))
             val text = body.replace(WORD_TAG, "").trim()
             for (m in tags) {
                 val (mm, ss, frac) = m.destructured
@@ -97,14 +97,23 @@ internal object LrcParser {
         return out
     }
 
-    private fun parseWords(body: String): List<LyricWord> {
+    /**
+     * Kata per timestamp. Teks SEBELUM tag kata pertama menjadi kata di [lineStartMs]; spasi yang berdiri
+     * sendiri digabung ke kata sebelumnya supaya jarak antar kata tidak hilang.
+     */
+    private fun parseWords(body: String, lineStartMs: Long): List<LyricWord> {
         val marks = WORD_TAG.findAll(body).toList()
         if (marks.isEmpty()) return emptyList()
-        val out = ArrayList<LyricWord>(marks.size)
+        val out = ArrayList<LyricWord>(marks.size + 1)
+        val prefix = body.substring(0, marks.first().range.first)
+        if (prefix.isNotBlank()) out.add(LyricWord(lineStartMs, prefix))
         for ((i, m) in marks.withIndex()) {
             val end = if (i + 1 < marks.size) marks[i + 1].range.first else body.length
             val w = body.substring(m.range.last + 1, end)
-            if (w.isBlank()) continue
+            if (w.isBlank()) {
+                if (out.isNotEmpty()) out[out.lastIndex] = out.last().copy(text = out.last().text + w)
+                continue
+            }
             val (mm, ss, frac) = m.destructured
             out.add(LyricWord(ms(mm, ss, frac), w))
         }
@@ -147,6 +156,20 @@ internal class LyricsTracker(private val lines: List<LyricLine>) {
         return idx
     }
 
+    /** Indeks baris aktif terakhir yang dilaporkan, atau -1 bila belum ada. */
+    val current: Int get() = if (last == Int.MIN_VALUE) -1 else last
+
     /** Panggil setelah seek/ganti lagu agar emisi berikutnya selalu terkirim. */
     fun reset() { last = Int.MIN_VALUE }
 }
+
+/** Potongan teks satu baris untuk sorotan karaoke: [sung] true = sudah dinyanyikan (diwarnai aksen). */
+internal data class LyricSegment(val text: String, val sung: Boolean)
+
+/**
+ * Segmen untuk digambar. Tanpa timestamp per kata: satu segmen utuh. Dengan kata: kata 0..[activeWord]
+ * dianggap sudah dinyanyikan (isi dimulai saat kata mulai); [activeWord] -1 = belum ada yang dimulai.
+ */
+internal fun LyricLine.segments(activeWord: Int): List<LyricSegment> =
+    if (words.isEmpty()) listOf(LyricSegment(text, true))
+    else words.mapIndexed { i, w -> LyricSegment(w.text, i <= activeWord) }
