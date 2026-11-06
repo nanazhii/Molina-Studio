@@ -103,7 +103,6 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
     }
 
     override fun onDraw(canvas: Canvas) {
-        if (hideWhen()) return
         val w = width.toFloat()
         val base = baseline()
         val slot = w / bands
