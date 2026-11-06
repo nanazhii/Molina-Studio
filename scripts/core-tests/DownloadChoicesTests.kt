@@ -96,6 +96,23 @@ fun main() {
     check("modeLabel: urutan sub, poster, per kanal, batas",
         DownloadHistoryEntry(1, DownloadChoices(subs = listOf("id"), sidecar = true, perChannel = true, limitRate = "2M"), false, null, ep.items).modeLabel() == "Video Terbaik MP4 · sub ID · poster · per kanal · maks 2M/dtk")
 
+    // lirik dari deskripsi
+    check("bawaan: lirik mati", !d.lyrics)
+    check("sanitize: lyrics dipertahankan", DownloadChoices.sanitize(null, null, null, null, null, lyrics = true).lyrics)
+    check("sanitize: lyrics null -> mati", !DownloadChoices.sanitize(null, null, null, null, null, lyrics = null).lyrics)
+    check("args: bawaan tanpa --lyrics", !DownloadCommand.args(DownloadRequest(U)).contains("--lyrics"))
+    val lOn = DownloadCommand.args(DownloadRequest(U, lyrics = true))
+    check("args: lyrics memuat --lyrics sebelum --", lOn.contains("--lyrics") && lOn.indexOf("--lyrics") < lOn.indexOf("--"))
+    check("args: audio juga memuat --lyrics", DownloadCommand.args(DownloadRequest(U, mode = DownloadMode.AUDIO, lyrics = true)).contains("--lyrics"))
+    check("args: lyrics lolos validasi", DownloadCommand.validate(DownloadRequest(U, lyrics = true)) == null)
+    val el = DownloadHistory.build(9L, DownloadRequest(U, lyrics = true), DownloadSessionState())!!
+    check("build: lyrics tercatat", el.choices.lyrics)
+    val bl = DownloadHistory.decode(DownloadHistory.encode(listOf(el)))
+    check("encode/decode: lyrics utuh", bl.size == 1 && bl[0].choices.lyrics && bl[0].choices == el.choices)
+    check("decode: riwayat lama (tanpa kunci ly) -> lyrics mati", !o[0].choices.lyrics)
+    check("retry: membawa lyrics ke argumen", el.retryRequest().lyrics && DownloadCommand.args(el.retryRequest()).contains("--lyrics"))
+    check("modeLabel: lirik tampil", el.modeLabel() == "Video Terbaik MP4 · lirik")
+
     if (fails > 0) { println("$fails pemeriksaan GAGAL"); System.exit(1) }
     println("semua uji lulus")
 }

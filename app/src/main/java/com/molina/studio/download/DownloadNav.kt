@@ -44,6 +44,7 @@ internal object DownloadForm {
     val limitRate = mutableStateOf("")
     val sidecar = mutableStateOf(false)
     val perChannel = mutableStateOf(false)
+    val lyrics = mutableStateOf(false)
 
     /** [WIFI-ONLY] Hanya mulai unduhan di jaringan tidak berkuota. Disimpan lewat DownloadPrefs.setWifiOnly. */
     val wifiOnly = mutableStateOf(false)
@@ -54,10 +55,11 @@ internal object DownloadForm {
         subs.value = c.subs; subsMode.value = c.subsMode; cover.value = c.cover; limitRate.value = c.limitRate
         sidecar.value = c.sidecar
         perChannel.value = c.perChannel
+        lyrics.value = c.lyrics
     }
 
     fun choices() = DownloadChoices(
         video.value, height.value, videoExt.value, audioFmt.value, bitrate.value,
-        subs.value, subsMode.value, cover.value, limitRate.value, sidecar.value, perChannel.value,
+        subs.value, subsMode.value, cover.value, limitRate.value, sidecar.value, perChannel.value, lyrics.value,
     )
 }

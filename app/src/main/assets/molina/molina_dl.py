@@ -18,6 +18,7 @@ Mode non-interaktif (dipakai halaman Unduhan native; stdout hanya berisi JSON, s
     python3 molina_dl.py --json URL --limit-rate 2M                         (batasi kecepatan, mis. 500K, 2M)
     python3 molina_dl.py --json URL --per-channel                           (simpan ke subfolder per kanal: <folder>/<Nama Kanal>/)
     python3 molina_dl.py --json URL --sidecar                               (video: poster .jpg + metadata ringkas .info.json di samping video)
+    python3 molina_dl.py --json URL --lyrics                                (simpan lirik dari deskripsi video sebagai .lrc di samping media; hanya bila ditemukan)
     python3 molina_dl.py --json --doctor        (cek yt-dlp, ffmpeg, folder, ruang kosong)
     python3 molina_dl.py --json --update-ytdlp  (perbarui atau pasang yt-dlp)
     python3 molina_dl.py --version
@@ -925,6 +926,8 @@ def run_item(ytdlp, rep, i, n, url, spec, outdir, has_ffmpeg, info=None, _retry=
         result = [ensure_compat(rep, i, n_, p_, s_) for n_, p_, s_ in result]
     if spec["mode"] == "video" and spec.get("subs") and not existed:
         warn_missing_subs(rep, result, spec, has_ffmpeg)
+    if spec.get("lyrics"):
+        save_lyrics(rep, info, result)  # [DL-LYRICS] lirik dari deskripsi -> .lrc di samping media
     sidecars = []
     if spec["mode"] == "video" and spec.get("sidecar"):
         sidecars = collect_sidecars(result)
@@ -932,6 +935,162 @@ def run_item(ytdlp, rep, i, n, url, spec, outdir, has_ffmpeg, info=None, _retry=
             rep.warn("no_poster", "Poster tidak tersedia untuk video ini; hanya metadata yang disimpan.")
     rep.done(i, item_dir, result, existed, sidecars)
     return "ok"
+
+
+# ---------------------------------------------------------------- lirik dari deskripsi (--lyrics)
+
+LYRIC_MIN_LINES = 8          # minimal baris lirik bila ada penanda "Lirik"/"Lyrics"
+LYRIC_MIN_LINES_BARE = 12    # minimal bila tanpa penanda (lebih ketat agar teks biasa tidak lolos)
+LYRIC_MAX_LINES = 200
+LYRIC_MAX_LINE_CHARS = 90
+LYRIC_TIMED_MAX_MEDIAN_GAP = 15   # detik; di atas ini daftar penanda waktu dianggap bab (chapter), bukan lirik
+LYRICS_MEDIA_EXTS = (".mp3", ".m4a", ".flac", ".opus", ".ogg", ".mp4", ".mkv", ".webm")
+_TS_LINE = re.compile(r"^\s*[\[(]?(?:(\d{1,2}):)?(\d{1,2}):(\d{2})[\])]?\s*[-\u2013\u2014.:]?\s*(.*)$")
+_LYRIC_HEAD = re.compile(r"^[\s\W]*(lirik|lyrics?|lyric video)\b[^\n]{0,40}$", re.I)
+_LYRIC_STOP = re.compile(
+    r"(https?://|www\.|\S+@\S+\.\S+|^\s*#|\bsubscribe\b|\bfollow (us|me)\b|instagram|tiktok|facebook|spotify|apple music"
+    r"|\bstream (on|now|the)\b|\bdownload (on|now|here)\b|produced by|written by|composed|composer|arranged by"
+    r"|\u00a9|\u2117|all rights|copyright|\bcredits?\b|music video|directed by|vocals?\s*:|lyrics? by|terima kasih|thanks for)",
+    re.I)
+_SECTION_TAG = re.compile(
+    r"^[\[(]\s*(verse|chorus|reff?|refrain|bridge|intro|outro|pre[- ]?chorus|hook|bait|interlude|instrumental|solo)\b[^\])]{0,20}[\])]\s*:?$",
+    re.I)
+_CREDIT_LINE = re.compile(r"^[^\W\d_][\w .&'/-]{0,24}:\s*\S")
+
+
+def _lyrics_timed(lines):
+    """Deskripsi yang sudah memuat lirik bertimestamp ('00:12 baris...') -> teks LRC; None bila bukan lirik."""
+    out = []
+    for ln in lines:
+        m = _TS_LINE.match(ln)
+        if not m:
+            continue
+        h, mi, s = int(m.group(1) or 0), int(m.group(2)), int(m.group(3))
+        if s > 59:
+            continue
+        out.append((h * 3600 + mi * 60 + s, m.group(4).strip()))
+    if len(out) < LYRIC_MIN_LINES or sum(1 for _t, x in out if x) < LYRIC_MIN_LINES:
+        return None
+    if any(b[0] < a[0] for a, b in zip(out, out[1:])):
+        return None
+    gaps = sorted(b[0] - a[0] for a, b in zip(out, out[1:]) if b[0] > a[0])
+    if not gaps or gaps[len(gaps) // 2] > LYRIC_TIMED_MAX_MEDIAN_GAP:
+        return None  # jarak menit-an = daftar bab/trek, bukan baris lirik
+    return "\n".join(f"[{t // 60:02d}:{t % 60:02d}.00]{x}" for t, x in out[:LYRIC_MAX_LINES]) + "\n"
+
+
+def _finish_block(block, min_lines):
+    """Rapikan dan validasi satu blok kandidat lirik polos. None bila tidak layak."""
+    out = []
+    for ln in block:
+        if _SECTION_TAG.match(ln):
+            continue
+        if ln == "" and (not out or out[-1] == ""):
+            continue
+        out.append(ln)
+    while out and out[-1] == "":
+        out.pop()
+    real = [ln for ln in out if ln]
+    if not (min_lines <= len(real) <= LYRIC_MAX_LINES):
+        return None
+    if sum(1 for ln in real if ln.endswith(".")) / len(real) >= 0.4:
+        return None  # kalimat berimbuhan titik = prosa, bukan lirik
+    if sum(1 for ln in real if _CREDIT_LINE.match(ln)) / len(real) >= 0.3:
+        return None  # daftar kredit
+    return "\n".join(out) + "\n"
+
+
+def lyrics_from_description(desc):
+    """Ambil lirik dari teks deskripsi video. Mengembalikan teks .lrc (bertimestamp bila deskripsi memuatnya,
+    selain itu lirik polos) atau None. Sengaja konservatif: lebih baik tidak menulis apa pun daripada salah."""
+    if not isinstance(desc, str) or not desc.strip():
+        return None
+    text = desc.replace("\u200b", "").replace("\ufeff", "").replace("\r\n", "\n").replace("\r", "\n")
+    lines = [ln.strip() for ln in text.split("\n")]
+    timed = _lyrics_timed(lines)
+    if timed:
+        return timed
+
+    def stop(ln):
+        return bool(_LYRIC_STOP.search(ln))
+
+    def ok(ln):
+        # baris berawalan penanda waktu = daftar bab/trek atau lirik bertimestamp (sudah ditangani di atas), bukan lirik polos
+        return len(ln) <= LYRIC_MAX_LINE_CHARS and not stop(ln) and not _TS_LINE.match(ln)
+
+    n = len(lines)
+    # 1) blok tepat setelah penanda "Lirik"/"Lyrics"
+    for i, ln in enumerate(lines):
+        if not (ln and _LYRIC_HEAD.match(ln) and not stop(ln)):
+            continue
+        blk, blanks, j = [], 0, i + 1
+        while j < n:
+            cur = lines[j]
+            if not cur:
+                blanks += 1
+                if blanks >= 2:
+                    break
+                blk.append("")
+            else:
+                blanks = 0
+                if not ok(cur):
+                    break
+                blk.append(cur)
+            j += 1
+        res = _finish_block(blk, LYRIC_MIN_LINES)
+        if res:
+            return res
+    # 2) tanpa penanda: blok baris-lirik-mirip terpanjang
+    runs, cur, blanks = [], [], 0
+    for ln in lines:
+        if not ln:
+            blanks += 1
+            if blanks >= 2 and cur:
+                runs.append(cur); cur = []
+            elif cur:
+                cur.append("")
+            continue
+        blanks = 0
+        if ok(ln):
+            cur.append(ln)
+        elif cur:
+            runs.append(cur); cur = []
+    if cur:
+        runs.append(cur)
+    for blk in sorted(runs, key=lambda b: -sum(1 for x in b if x)):
+        res = _finish_block(blk, LYRIC_MIN_LINES_BARE)
+        if res:
+            return res
+    return None
+
+
+def save_lyrics(rep, info, result):
+    """Tulis '<nama-media>.lrc' di samping berkas media hasil unduhan, dari deskripsi video. Tidak pernah menimpa
+    .lrc yang sudah ada (bisa saja hasil suntingan pengguna) dan tidak menulis apa pun bila lirik tidak ditemukan.
+    Pemutar Molina Cinema membaca berkas ini apa adanya. Mengembalikan path berkas atau None."""
+    media = next((p_ for _n, p_, _s in result if p_.lower().endswith(LYRICS_MEDIA_EXTS)), None)
+    if not media:
+        return None
+    target = os.path.splitext(media)[0] + ".lrc"
+    if os.path.exists(target):
+        return None
+    text = lyrics_from_description((info or {}).get("description"))
+    if not text:
+        rep.warn("no_lyrics", "Lirik tidak ditemukan di deskripsi video; berkas .lrc tidak dibuat.")
+        return None
+    tmp = target + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+        os.replace(tmp, target)
+    except OSError:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        rep.warn("lyrics_write_failed", "Berkas lirik tidak bisa ditulis di folder tujuan.")
+        return None
+    return target
 
 
 # ---------------------------------------------------------------- sidecar poster + metadata
@@ -1450,6 +1609,8 @@ def parse_args(argv):
     ap.add_argument("--no-cover", action="store_true", dest="no_cover", help="audio tanpa sampul")
     ap.add_argument("--sidecar", action="store_true",
                     help="video: tulis poster (.jpg) dan metadata ringkas (.info.json) di samping video")
+    ap.add_argument("--lyrics", action="store_true",
+                    help="simpan lirik dari deskripsi video sebagai .lrc di samping media (bila ditemukan; atau MOLINA_DL_LYRICS=1)")
     ap.add_argument("--limit-rate", default="", dest="limit_rate", help="batas kecepatan, mis. 500K atau 2M")
     ap.add_argument("--per-channel", action="store_true", dest="per_channel",
                     help="simpan ke subfolder per kanal: <folder>/<Nama Kanal>/ (atau MOLINA_DL_PER_CHANNEL=1)")
@@ -1513,6 +1674,7 @@ def run_cli(args, ytdlp, has_ffmpeg, urls):
             "afmt": args.afmt, "bitrate": args.bitrate, "compat": not args.no_compat,
             "subs": subs, "subs_mode": args.subs_mode if has_ffmpeg else "file",
             "cover": not args.no_cover, "limit": args.limit_rate or None, "sidecar": sidecar,
+            "lyrics": bool(args.lyrics) or env_flag("MOLINA_DL_LYRICS"),
             "per_channel": bool(args.per_channel) or env_flag("MOLINA_DL_PER_CHANNEL")}
     if args.mode == "audio" and has_ffmpeg and spec["cover"] and not cover_supported(args.afmt):
         rep.warn("no_cover", f"Sampul {args.afmt.upper()} butuh mutagen (apt install -y python3-mutagen); audio diunduh tanpa sampul.")

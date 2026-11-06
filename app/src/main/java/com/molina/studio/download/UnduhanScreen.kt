@@ -109,6 +109,7 @@ fun UnduhanScreen(modifier: Modifier = Modifier) {
     var limitRate by remember { DownloadForm.limitRate }
     var sidecar by remember { DownloadForm.sidecar }
     var perChannel by remember { DownloadForm.perChannel }
+    var lyrics by remember { DownloadForm.lyrics }
     var wifiOnly by remember { DownloadForm.wifiOnly } // [WIFI-ONLY]
     var error by remember { mutableStateOf<String?>(null) }
     var openDir by remember { mutableStateOf<File?>(null) }
@@ -221,7 +222,7 @@ fun UnduhanScreen(modifier: Modifier = Modifier) {
                     }
                     // [win7-preset] preset cepat; pilihan tetap bisa disesuaikan lewat chip di bawahnya.
                     Text("Preset", color = W7D.TextDim, fontSize = 12.sp)
-                    val now = DownloadChoices(video, height, videoExt, audioFmt, bitrate, subs, subsMode, cover, limitRate, sidecar, perChannel)
+                    val now = DownloadChoices(video, height, videoExt, audioFmt, bitrate, subs, subsMode, cover, limitRate, sidecar, perChannel, lyrics)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         DownloadPreset.values().forEach { p ->
                             Chip(p.label, p.matches(now), !run.running) {
@@ -301,6 +302,16 @@ fun UnduhanScreen(modifier: Modifier = Modifier) {
                                 color = W7D.TextDim, fontSize = 11.sp,
                             )
                         }
+                        // [DL-LYRICS] lirik dari deskripsi video -> .lrc di samping media (hanya bila ada di deskripsi)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Chip("Simpan lirik", lyrics, !run.running) { lyrics = !lyrics }
+                        }
+                        if (lyrics) {
+                            Text(
+                                "Lirik diambil dari deskripsi video bila ada dan disimpan sebagai .lrc di samping medianya. Tidak semua video menyertakan lirik; untuk pemakaian pribadi.",
+                                color = W7D.TextDim, fontSize = 11.sp,
+                            )
+                        }
                         // [WIFI-ONLY] hemat kuota: unduhan baru hanya mulai di jaringan tidak berkuota
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Chip("Hanya Wi-Fi", wifiOnly, !run.running) {
@@ -337,6 +348,7 @@ fun UnduhanScreen(modifier: Modifier = Modifier) {
                                     limitRate = limitRate.ifEmpty { null },
                                     sidecar = video && sidecar,
                                     perChannel = perChannel,
+                                    lyrics = lyrics,
                                 )
                                 val msg = DownloadRunner.start(ctx.applicationContext, req)
                                 error = msg

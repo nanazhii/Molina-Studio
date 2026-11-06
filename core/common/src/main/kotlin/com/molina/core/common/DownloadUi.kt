@@ -95,6 +95,8 @@ data class DownloadChoices(
     val sidecar: Boolean = false,
     /** Simpan ke subfolder per kanal untuk dibaca sebagai baris rak di Molina Cinema. Berlaku untuk video dan audio; bawaan mati. */
     val perChannel: Boolean = false,
+    /** [DL-LYRICS] Simpan lirik dari deskripsi video sebagai .lrc di samping media. Video dan audio; bawaan mati. */
+    val lyrics: Boolean = false,
 ) {
     companion object {
         /** Sama dengan chip tinggi di UnduhanScreen: 0 = Terbaik. */
@@ -114,7 +116,7 @@ data class DownloadChoices(
         fun sanitize(
             video: Boolean?, height: Int?, videoExt: String?, audioFmt: String?, bitrate: String?,
             subs: List<String>? = null, subsMode: String? = null, cover: Boolean? = null, limitRate: String? = null,
-            sidecar: Boolean? = null, perChannel: Boolean? = null,
+            sidecar: Boolean? = null, perChannel: Boolean? = null, lyrics: Boolean? = null,
         ): DownloadChoices {
             val d = DownloadChoices()
             return DownloadChoices(
@@ -129,6 +131,7 @@ data class DownloadChoices(
                 limitRate = limitRate?.takeIf { it in LIMIT_RATES } ?: d.limitRate,
                 sidecar = sidecar ?: d.sidecar,
                 perChannel = perChannel ?: d.perChannel,
+                lyrics = lyrics ?: d.lyrics,
             )
         }
     }

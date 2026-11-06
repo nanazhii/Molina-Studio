@@ -29,6 +29,7 @@ internal object DownloadPrefs {
             limitRate = safe { s.getString("limit_rate", null) },
             sidecar = if (s.contains("sidecar")) safe { s.getBoolean("sidecar", false) } else null,
             perChannel = if (s.contains("per_channel")) safe { s.getBoolean("per_channel", false) } else null,
+            lyrics = if (s.contains("lyrics")) safe { s.getBoolean("lyrics", false) } else null,
         )
     }
 
@@ -39,7 +40,8 @@ internal object DownloadPrefs {
             .putString("bitrate", c.bitrate)
             .putString("subs", c.subs.joinToString(",")).putString("subs_mode", c.subsMode)
             .putBoolean("cover", c.cover).putString("limit_rate", c.limitRate)
-            .putBoolean("sidecar", c.sidecar).putBoolean("per_channel", c.perChannel).apply()
+            .putBoolean("sidecar", c.sidecar).putBoolean("per_channel", c.perChannel)
+            .putBoolean("lyrics", c.lyrics).apply()
     }
 
     /** [WIFI-ONLY] Tidak ikut [DownloadChoices]: ini pilihan jaringan dan berlaku untuk mulai, ulangi, dan ulangi riwayat. */

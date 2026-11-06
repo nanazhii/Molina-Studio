@@ -25,6 +25,8 @@ data class DownloadRequest(
     val perChannel: Boolean = false,
     /** [DL-NETGUARD] Izinkan alamat jaringan lokal/privat (dari NetworkPolicy.allowLan). Loopback tetap ditolak. */
     val allowLan: Boolean = false,
+    /** [DL-LYRICS] Simpan lirik dari deskripsi video sebagai .lrc di samping media (hanya bila ditemukan). Bawaan mati. */
+    val lyrics: Boolean = false,
 )
 
 /** Argumen `molina_dl.py --json ...` untuk halaman Unduhan. Murni (tanpa Android). */
@@ -112,6 +114,7 @@ object DownloadCommand {
         if (req.mode == DownloadMode.AUDIO && !req.cover) add("--no-cover")
         if (req.mode == DownloadMode.VIDEO && req.sidecar) add("--sidecar")
         if (req.perChannel) add("--per-channel")
+        if (req.lyrics) add("--lyrics")
         if (req.allowLan) add("--allow-lan")
         req.limitRate?.let { add("--limit-rate"); add(it) }
         req.dir?.let { add("--dir"); add(it) }

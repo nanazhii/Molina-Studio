@@ -696,6 +696,81 @@ class PerChannelRunTests(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(self.out, "Kanal_ A_B", "v [1].mp4")))
 
 
+class LyricsFromDescriptionTests(unittest.TestCase):
+    PLAIN = ("Maafkan Aku - Enda Ungu\n\nStream di semua platform: https://x.test/a\n\nLirik:\n"
+             "Baris satu lagu ini\nBaris dua lagu ini\nBaris tiga lagu ini\nBaris empat lagu ini\n\n"
+             "[Chorus]\nAku akan follow you sampai akhir\nBaris enam lagu ini\nBaris tujuh lagu ini\nBaris delapan lagu ini\n\n"
+             "Follow us on Instagram @x\nSubscribe!\n")
+
+    def test_plain_after_marker(self):
+        t = dl.lyrics_from_description(self.PLAIN)
+        self.assertIsNotNone(t)
+        real = [x for x in t.splitlines() if x]
+        self.assertEqual(len(real), 8)
+        self.assertIn("Aku akan follow you sampai akhir", t)  # kata 'follow' dalam lirik tidak memutus blok
+        for bad in ("Chorus", "Instagram", "https", "Subscribe", "Stream di"):
+            self.assertNotIn(bad, t)
+
+    def test_timed_description_becomes_lrc(self):
+        d = "Lirik\n" + "\n".join(f"{i * 5 // 60:02d}:{i * 5 % 60:02d} baris {i}" for i in range(2, 14))
+        t = dl.lyrics_from_description(d)
+        self.assertTrue(t.startswith("[00:10.00]baris 2\n"))
+        self.assertEqual(len(t.splitlines()), 12)
+
+    def test_chapters_are_not_lyrics(self):
+        d = "\n".join(f"{i * 3:02d}:{(i * 17) % 60:02d} Lagu nomor {i}" for i in range(12))
+        self.assertIsNone(dl.lyrics_from_description(d))
+
+    def test_rejects_short_credits_prose_and_empty(self):
+        self.assertIsNone(dl.lyrics_from_description(None))
+        self.assertIsNone(dl.lyrics_from_description("Lirik:\nsatu\ndua\ntiga"))
+        credits = "\n".join(f"Peran {i}: Nama Orang {i}" for i in range(12))
+        self.assertIsNone(dl.lyrics_from_description("Lirik\n" + credits))
+        prose = "\n".join(f"Ini kalimat deskripsi biasa nomor {i}." for i in range(14))
+        self.assertIsNone(dl.lyrics_from_description(prose))
+
+    def test_bare_block_needs_more_lines(self):
+        bare8 = "\n".join(f"Baris lirik ke {i} lagu" for i in range(8))
+        bare12 = "\n".join(f"Baris lirik ke {i} lagu" for i in range(12))
+        self.assertIsNone(dl.lyrics_from_description("Judul\n\n" + bare8))
+        self.assertIsNotNone(dl.lyrics_from_description("Judul\n\n" + bare12))
+
+    def test_save_lyrics_writes_once_and_never_overwrites(self):
+        d = tempfile.mkdtemp()
+        try:
+            media = os.path.join(d, "a [id].mp3")
+            open(media, "wb").write(b"x")
+            rep = Recorder()
+            out = dl.save_lyrics(rep, {"description": self.PLAIN}, [("a [id].mp3", media, 1)])
+            self.assertEqual(out, os.path.join(d, "a [id].lrc"))
+            self.assertIn("Baris satu lagu ini", open(out, encoding="utf-8").read())
+            open(out, "w", encoding="utf-8").write("suntingan saya")
+            self.assertIsNone(dl.save_lyrics(rep, {"description": self.PLAIN}, [("a [id].mp3", media, 1)]))
+            self.assertEqual(open(out, encoding="utf-8").read(), "suntingan saya")
+            self.assertFalse([e for e in rep.events if e[0] == "warn"])
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_save_lyrics_warns_when_absent_and_skips_non_media(self):
+        d = tempfile.mkdtemp()
+        try:
+            media = os.path.join(d, "b.mp4")
+            open(media, "wb").write(b"x")
+            rep = Recorder()
+            self.assertIsNone(dl.save_lyrics(rep, {"description": "tanpa lirik"}, [("b.mp4", media, 1)]))
+            self.assertEqual([e[1] for e in rep.events if e[0] == "warn"], ["no_lyrics"])
+            self.assertFalse(os.path.exists(os.path.join(d, "b.lrc")))
+            sub_only = os.path.join(d, "b.srt")
+            open(sub_only, "w").write("x")
+            self.assertIsNone(dl.save_lyrics(Recorder(), {"description": self.PLAIN}, [("b.srt", sub_only, 1)]))
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_cli_flag_parsed(self):
+        self.assertTrue(dl.parse_args(["--json", "--lyrics", "http://x/1"]).lyrics)
+        self.assertFalse(dl.parse_args(["--json", "http://x/1"]).lyrics)
+
+
 @unittest.skipUnless(HAVE_TOOLS, "butuh yt-dlp, ffmpeg, ffprobe")
 class IntegrationTests(unittest.TestCase):
     @classmethod
