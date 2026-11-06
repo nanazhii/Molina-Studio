@@ -40,6 +40,25 @@
             android:scaleType="fitCenter" />
     </FrameLayout>
 
+    <!-- [LYRICS] Lirik tersinkron mode audio: di atas latar buram, menggantikan kartu sampul. Tidak clickable
+         (LyricsRecycler tidak menelan sentuhan saat tersinkron) agar gestur tetap sampai ke player. -->
+    <FrameLayout
+        android:id="@+id/lyricsPanel"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone"
+        tools:visibility="gone">
+
+        <com.molina.cinema.LyricsRecycler
+            android:id="@+id/lyricsList"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:fadingEdgeLength="72dp"
+            android:overScrollMode="never"
+            android:requiresFadingEdge="vertical" />
+    </FrameLayout>
+
     <!-- so that insets can be applied as margins -->
     <RelativeLayout
         android:id="@+id/outside"

@@ -2215,6 +2215,16 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             false
         })
 
+        // [LYRICS] tampil/sembunyi lirik dan offset
+        buttons.add(MenuItem(R.id.lyricsToggleBtn) {
+            showToast(getString(if (lyrics.toggle()) R.string.lyrics_shown else R.string.lyrics_hidden), true)
+            true
+        })
+        buttons.add(MenuItem(R.id.lyricsOffsetBtn) {
+            lyrics.showOffsetDialog(this, restoreState)
+            false
+        })
+
         buttons.add(MenuItem(R.id.sleepTimerBtn) {
             pickSleepTimer(restoreState)
             false
@@ -2226,6 +2236,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             hiddenButtons.add(R.id.audioDelayBtn)
         if (player.sid == -1)
             hiddenButtons.addAll(arrayOf(R.id.subDelayBtn, R.id.rowSubSeek, R.id.rowSubStyle))
+        if (!lyrics.available)
+            hiddenButtons.add(R.id.rowLyrics)
         /******/
 
         genericMenu(R.layout.dialog_advanced_menu, buttons, hiddenButtons, restoreState) { v ->
@@ -2382,10 +2394,17 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     // [COVER-ART] Layar "Now Playing": sampul dimuat di thread IO, hanya untuk berkas lokal pada mode UI audio.
     private var coverPath: String? = null
+    // [LYRICS] lirik tersinkron mode audio; dibuat saat pertama dipakai (binding sudah ada).
+    private val lyrics by lazy {
+        LyricsController(streamScope, binding.lyricsPanel, binding.lyricsList, binding.nowPlayingCover, binding.controls) {
+            activityIsForeground && useAudioUI
+        }
+    }
     private var coverJob: Job? = null
 
     private fun updateNowPlayingArt() {
         val path = if (useAudioUI) localVideoPath() else null
+        lyrics.onTrack(path) // [LYRICS]
         if (path == null) {
             coverJob?.cancel()
             coverPath = null

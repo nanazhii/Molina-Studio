@@ -68,6 +68,7 @@ fun main() {
     check("SRT tanpa nomor urut tetap terbaca", SrtCodec.parse("00:00:01,000 --> 00:00:02,000\nX").size == 1)
 
     styleTests(::check)
+    filesTests(::check)
 
     if (failed > 0) { println("$failed tes gagal"); kotlin.system.exitProcess(1) }
     println("Semua tes lulus")
@@ -96,4 +97,33 @@ internal fun styleTests(check: (String, Boolean) -> Unit) {
     check("indexOf kustom/null = -1", SubSpeeds.indexOf(1.2) == -1 && SubSpeeds.indexOf(null) == -1)
     check("label normal = null", SubSpeeds.label(SubSpeeds.NORMAL) == null)
     check("label memuat fps & faktor", SubSpeeds.label(SubSpeeds.PRESETS[3])!!.let { "24" in it && "25" in it && "1.0417" in it.replace(',', '.') })
+}
+
+// --- LyricsFiles (berkas sementara)
+internal fun filesTests(check: (String, Boolean) -> Unit) {
+    val root = java.nio.file.Files.createTempDirectory("molina-lrc").toFile()
+    try {
+        val music = java.io.File(root, "music").also { it.mkdirs() }
+        val lib = java.io.File(root, "lib").also { it.mkdirs() }
+        val song = java.io.File(music, "Lagu Satu.mp3").also { it.writeText("x") }
+        check("tanpa lrc = null", LyricsFiles.find(song.path, lib.path) == null)
+
+        java.io.File(lib, "Lagu Satu.lrc").writeText("[00:01.00]dari pustaka")
+        check("fallback ke folder pustaka", LyricsFiles.find(song.path, lib.path)?.parentFile == lib)
+
+        java.io.File(music, "lagu satu.LRC").writeText("[00:01.00]sebelah lagu")
+        check("sebelah lagu didahulukan, huruf tak dibedakan", LyricsFiles.find(song.path, lib.path)?.parentFile == music)
+
+        val utf8 = java.io.File(music, "u.lrc").also { it.writeText("[00:01.00]café", Charsets.UTF_8) }
+        check("UTF-8 terbaca", LyricsFiles.readText(utf8) == "[00:01.00]café")
+        val latin = java.io.File(music, "l.lrc").also { it.writeBytes("[00:01.00]caf\u00e9".toByteArray(charset("windows-1252"))) }
+        check("fallback windows-1252", LyricsFiles.readText(latin) == "[00:01.00]caf\u00e9")
+
+        val big = java.io.File(lib, "Besar.lrc").also { java.io.RandomAccessFile(it, "rw").use { r -> r.setLength(LyricsFiles.MAX_BYTES + 1) } }
+        check("berkas terlalu besar diabaikan", LyricsFiles.find(java.io.File(music, "Besar.mp3").path, lib.path) == null && LyricsFiles.readText(big) == null)
+        java.io.File(lib, "Kosong.lrc").createNewFile()
+        check("berkas kosong diabaikan", LyricsFiles.find(java.io.File(music, "Kosong.mp3").path, lib.path) == null)
+        check("nama menyerupai traversal tetap aman", LyricsFiles.find("/tidak/ada/../../x.mp3", lib.path) == null)
+        check("path kosong aman", LyricsFiles.find("", lib.path) == null)
+    } finally { root.deleteRecursively() }
 }

@@ -99,4 +99,11 @@
     <string name="sub_preset_contrast">Kontras tinggi</string>
     <string name="sub_speed_title">Kecepatan subtitle (fps subtitle → fps video)</string>
     <string name="sub_speed_normal">Normal (×1,0000)</string>
+    <!-- [LYRICS] -->
+    <string name="lyrics_btn">Lirik</string>
+    <string name="lyrics_offset_btn">Offset lirik</string>
+    <string name="lyrics_offset_title">Offset lirik (detik, + = lebih awal)</string>
+    <string name="lyrics_unsynced">Lirik belum tersinkronisasi</string>
+    <string name="lyrics_shown">Lirik ditampilkan</string>
+    <string name="lyrics_hidden">Lirik disembunyikan</string>
 </resources>

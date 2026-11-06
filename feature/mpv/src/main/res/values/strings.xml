@@ -270,4 +270,11 @@
     <string name="sub_speed_title">Subtitle speed (subtitle fps → video fps)</string>
     <string name="sub_speed_normal">Normal (×1.0000)</string>
     <string name="format_one_decimal" translatable="false">%.1f</string>
+    <!-- [LYRICS] -->
+    <string name="lyrics_btn">Lyrics</string>
+    <string name="lyrics_offset_btn">Lyrics offset</string>
+    <string name="lyrics_offset_title">Lyrics offset (seconds, + = earlier)</string>
+    <string name="lyrics_unsynced">Lyrics are not synchronized</string>
+    <string name="lyrics_shown">Lyrics shown</string>
+    <string name="lyrics_hidden">Lyrics hidden</string>
 </resources>

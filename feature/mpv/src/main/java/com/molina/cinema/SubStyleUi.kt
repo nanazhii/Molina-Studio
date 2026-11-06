@@ -91,7 +91,7 @@ internal object SubStyleUi {
         }.create().show()
     }
 
-    private fun showSlider(
+    internal fun showSlider(
         activity: Activity, @StringRes title: Int, picker: SliderPickerDialog, current: Double,
         restore: StateRestoreCallback, onOk: (Double) -> Unit,
     ) {
