@@ -28,8 +28,13 @@ internal object SpectrumMath {
     const val FPS = 30
     const val MIN_DB = -75.0
     const val MAX_DB = -12.0
-    /** Kompensasi kemiringan spektrum musik: batang tinggi diberi +dB per oktaf relatif terhadap 1 kHz. */
-    const val TILT_DB_PER_OCTAVE = 3.0
+    /**
+     * Kompensasi kemiringan spektrum musik (+dB per oktaf relatif terhadap 1 kHz). Energi per pita (jumlah daya bin)
+     * sudah rata untuk derau merah muda; musik rata-rata sekitar 1,5 dB/oktaf lebih curam, jadi nilainya kecil.
+     */
+    const val TILT_DB_PER_OCTAVE = 1.5
+    /** Lebar pita derau ekuivalen jendela Hann (dalam bin): pembagi agar sinus skala penuh terbaca tepat 0 dB. */
+    const val HANN_ENBW = 1.5
 
     private val hannCache = HashMap<Int, FloatArray>()
 
@@ -120,14 +125,11 @@ internal object SpectrumMath {
         for (b in 0 until bandCount) {
             val hi = maxOf(edges[b + 1], edges[b] + 1).coerceAtMost(maxBin)
             val lo = edges[b].coerceAtMost(hi - 1)
-            var peak = 0.0
-            for (k in lo until hi) {
-                val m = sqrt(re[k] * re[k] + im[k] * im[k])
-                if (m > peak) peak = m
-            }
+            var power = 0.0 // energi pita = jumlah daya semua bin (akurat untuk nada maupun derau lebar)
+            for (k in lo until hi) power += re[k] * re[k] + im[k] * im[k]
             val centerHz = ((lo + hi - 1) / 2.0 + 0.5) * binHz
             val tilt = TILT_DB_PER_OCTAVE * ln(centerHz.coerceAtLeast(20.0) / 1_000.0) / ln(2.0)
-            val db = 20.0 * log10(peak / norm + 1e-9) + tilt
+            val db = 10.0 * log10(power / HANN_ENBW / (norm * norm) + 1e-18) + tilt
             val v = ((db - MIN_DB) / (MAX_DB - MIN_DB)).coerceIn(0.0, 1.0)
             out[outOffset + b] = (v * 255.0 + 0.5).toInt().toByte()
         }
