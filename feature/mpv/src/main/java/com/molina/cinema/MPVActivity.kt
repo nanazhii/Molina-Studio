@@ -2424,7 +2424,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private val lyrics by lazy {
         LyricsController(streamScope, binding.lyricsPanel, binding.lyricsList, binding.nowPlayingCover, binding.controls) {
             activityIsForeground && useAudioUI
-        }.also { c -> c.onTapEnded = { binding.tapSyncPanel.visibility = View.GONE } } // [LYRICS-TAP]
+        }.also { c -> c.onTapEnded = { binding.tapSyncPanel.visibility = View.GONE; binding.controls.isClickable = false; binding.topControls.isClickable = false } } // [LYRICS-TAP]
     }
 
     // [LYRICS-TAP] Overlay cap waktu lirik. Inti logika: LyricsTapSync.kt; daftar baris: LyricsController.
@@ -2447,7 +2447,9 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun startTapSync() {
         if (!lyrics.startTap()) return
         wireTapPanel()
-        hideControls()
+        showControls()
+        binding.controls.isClickable = true // [LYRICS-TAP] sela tombol tidak ikut tercap
+        binding.topControls.isClickable = true
         binding.tapSyncPanel.visibility = View.VISIBLE
         updateTapUi()
         showToast(getString(R.string.lyrics_tap_hint), true)
