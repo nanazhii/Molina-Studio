@@ -2529,6 +2529,10 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun setSpectrumReserve(on: Boolean) {
         if (spectrumReserve == on) return
         spectrumReserve = on
+        lyrics.extraBottomReserve = { // [LYRICS] ruang untuk spektrum: lirik berhenti di atasnya
+            if (spectrumReserve) topBarReserve() + (96 * resources.displayMetrics.density).toInt() else 0
+        }
+        lyrics.refreshLayout()
         showNowPlayingArt(if (useAudioUI) lastCover else null)
     }
 
@@ -2552,7 +2556,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         view.colorMode = SpectrumPrefs.colorMode(this)
         view.positionMs = ::spectrumPositionMs
         view.isPlaying = { (!psc.pause || userIsOperatingSeekbar || pausedForSeek != 0) && activityIsForeground }
-        view.dimWhen = { binding.lyricsPanel.visibility == View.VISIBLE }
+        view.dimWhen = { false } // ruang sudah disediakan di bawah lirik, tidak perlu diredupkan
         spectrumJob = streamScope.launch {
             val ok = withContext(Dispatchers.Default) {
                 SpectrumDecoder.analyze(path, { isActive && spectrumPath == path }) { t ->

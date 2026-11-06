@@ -130,6 +130,11 @@ internal class LyricsController(
     private var lastIndex = -1
     private var centerY = 0
     private var lastHeight = -1
+    private var autoPlain: List<String>? = null // [LYRICS-AUTO] lirik polos asal bila sedang ditampilkan sebagai estimasi
+
+    /** [SPECTRUM] Ruang bawah tambahan (px) untuk visualizer; diset Activity. */
+    var extraBottomReserve: () -> Int = { 0 }
+    fun refreshLayout() { lastHeight = -1; list.post { relayout() } }
 
     var offsetMs = 0L
         private set
@@ -169,7 +174,9 @@ internal class LyricsController(
             MpvLog.d(TAG, "[LYRICS-DIAG] parsed synced=${parsed?.synced} lines=${parsed?.lines?.size} plain=${parsed?.plainLines?.size}")
             if (path != newPath || parsed == null) return@launch
             if (!parsed.synced && parsed.plainLines.isEmpty()) return@launch
-            display(parsed)
+            val shownDoc = autoSynced(parsed) // [LYRICS-AUTO]
+            if (path != newPath) return@launch
+            display(shownDoc)
             poll()
         }
     }
@@ -196,10 +203,28 @@ internal class LyricsController(
         return null
     }
 
+    /** [LYRICS-AUTO] Lirik polos -> perkiraan tersinkron otomatis (butuh durasi dari mpv, maks ~3 dtk menunggu). */
+    private suspend fun autoSynced(d: LrcDocument): LrcDocument {
+        autoPlain = null
+        if (d.synced || d.plainLines.isEmpty()) return d
+        var durSec = 0.0
+        var tries = 0
+        while (durSec <= 0.0 && tries < 15) {
+            durSec = MPVLib.getPropertyDouble("duration") ?: 0.0
+            if (durSec <= 0.0) delay(200L)
+            tries++
+        }
+        val lines = LyricsAutoSync.estimate(d.plainLines, (durSec * 1000).toLong())
+        if (lines.isEmpty()) return d
+        autoPlain = d.plainLines
+        return d.copy(lines = lines, plainLines = emptyList())
+    }
+
     private fun clear() {
         job?.cancel(); job = null
         if (tap != null) { tap = null; onTapEnded?.invoke() } // [LYRICS-TAP] reset di clear
         doc = null; tracker = null; offsetMs = 0L; lastIndex = -1
+        autoPlain = null // [LYRICS-AUTO]
         list.interactive = false
         adapter.reset(emptyList(), true)
         applyVisibility()
@@ -242,14 +267,14 @@ internal class LyricsController(
 
     /** Lirik polos siap dicap: bukan tersinkron, ada path lagu lokal. */
     val canTapSync: Boolean
-        get() = path != null && doc?.let { !it.synced && it.plainLines.isNotEmpty() } == true
+        get() = path != null && (autoPlain != null || doc?.let { !it.synced && it.plainLines.isNotEmpty() } == true)
 
     val tapStatus: TapStatus? get() = tap?.let { TapStatus(it.stampedCount, it.size, it.isComplete) }
 
     fun startTap(): Boolean {
         val d = doc ?: return false
         if (!canTapSync) return false
-        val s = TapSession(d.plainLines)
+        val s = TapSession(autoPlain ?: d.plainLines)
         if (s.size == 0) return false
         tap = s
         lastIndex = -1
@@ -394,7 +419,7 @@ internal class LyricsController(
         lastHeight = h
         val d = list.resources.displayMetrics.density
         val top = (48 * d).toInt()
-        val bottomReserve = if (controls.height > 0) controls.height + (60 * d).toInt() else (180 * d).toInt()
+        val bottomReserve = (if (controls.height > 0) controls.height + (60 * d).toInt() else (180 * d).toInt()) + extraBottomReserve()
         centerY = (top + (h - top - bottomReserve).coerceAtLeast(0) / 2).coerceIn(top, h)
         list.clipToPadding = false
         list.setPadding(0, centerY, 0, (h - centerY).coerceAtLeast(0))
