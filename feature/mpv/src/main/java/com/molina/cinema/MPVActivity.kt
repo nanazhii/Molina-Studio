@@ -2472,7 +2472,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         setSpectrumReserve(true)
         val view = binding.spectrumView
         view.accent = ContextCompat.getColor(this, R.color.player_playlist_active)
-        view.frequencyColors = SpectrumPrefs.frequencyColors(this)
+        view.colorMode = SpectrumPrefs.colorMode(this)
         view.positionMs = ::spectrumPositionMs
         view.isPlaying = { !psc.pause && !psc.cachePause && activityIsForeground }
         view.hideWhen = { binding.lyricsPanel.visibility == View.VISIBLE }
@@ -2486,11 +2486,15 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         }
     }
 
-    private fun toggleSpectrumColors() { // [SPECTRUM] warna per frekuensi <-> satu warna aksen
-        val on = !SpectrumPrefs.frequencyColors(this)
-        SpectrumPrefs.setFrequencyColors(this, on)
-        binding.spectrumView.frequencyColors = on
-        showToast(getString(if (on) R.string.spectrum_colors_freq else R.string.spectrum_colors_accent), true)
+    private fun toggleSpectrumColors() { // [SPECTRUM] putar mode: aksen tunggal -> per frekuensi -> Cinema
+        val mode = SpectrumPrefs.colorMode(this).next()
+        SpectrumPrefs.setColorMode(this, mode)
+        binding.spectrumView.colorMode = mode
+        showToast(getString(when (mode) {
+            SpectrumColorMode.ACCENT -> R.string.spectrum_colors_accent
+            SpectrumColorMode.FREQUENCY -> R.string.spectrum_colors_freq
+            SpectrumColorMode.CINEMA -> R.string.spectrum_colors_cinema
+        }), true)
     }
 
     private fun toggleSpectrum() {

@@ -339,4 +339,5 @@
     <string name="spectrum_colors_btn">Spectrum colors</string>
     <string name="spectrum_colors_freq">Spectrum colors: by frequency</string>
     <string name="spectrum_colors_accent">Spectrum colors: single accent</string>
+    <string name="spectrum_colors_cinema">Spectrum colors: Cinema (gold &amp; maroon)</string>
 </resources>

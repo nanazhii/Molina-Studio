@@ -32,12 +32,9 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
     var accent: Int = Color.parseColor("#2ECC71")
         set(value) { field = value; rebuildShaders(); invalidate() }
 
-    /** True = warna batang bergradasi menurut frekuensi (bass hangat -> aksen -> treble dingin); false = satu warna aksen. */
-    var frequencyColors: Boolean = true
+    /** Mode warna batang: aksen tunggal, gradasi per frekuensi, atau Cinema (marun -> emas). */
+    var colorMode: SpectrumColorMode = SpectrumColorMode.FREQUENCY
         set(value) { field = value; rebuildShaders(); invalidate() }
-
-    private val warmColor = Color.parseColor("#FF8A3D")
-    private val coolColor = Color.parseColor("#3FA9F5")
 
     private val bands = SpectrumMath.BANDS
     private val smoother = SpectrumSmoother(bands)
@@ -62,30 +59,19 @@ internal class SpectrumView @JvmOverloads constructor(context: Context, attrs: A
 
     private fun baseline() = height * 0.78f
 
-    private fun bandColor(b: Int): Int {
-        if (!frequencyColors) return accent
-        val t = b / (bands - 1).toFloat()
-        return if (t < 0.5f) blend(warmColor, accent, t / 0.5f) else blend(accent, coolColor, (t - 0.5f) / 0.5f)
-    }
-
     private fun rebuildShaders() {
         if (height <= 0) return
         val base = baseline()
         for (b in 0 until bands) {
-            val c = bandColor(b)
-            val r = Color.red(c); val g = Color.green(c); val bl = Color.blue(c)
-            barShaders[b] = LinearGradient(0f, base, 0f, 0f, c, blend(c, Color.WHITE, 0.35f), Shader.TileMode.CLAMP)
+            val bottom = SpectrumColors.bottom(colorMode, b, bands, accent)
+            val top = SpectrumColors.top(colorMode, b, bands, accent)
+            val r = Color.red(bottom); val g = Color.green(bottom); val bl = Color.blue(bottom)
+            barShaders[b] = LinearGradient(0f, base, 0f, 0f, bottom, top, Shader.TileMode.CLAMP)
             reflectShaders[b] = LinearGradient(0f, base, 0f, height.toFloat(), Color.argb(90, r, g, bl), Color.argb(0, r, g, bl), Shader.TileMode.CLAMP)
-            val cap = blend(c, Color.WHITE, 0.75f)
+            val cap = SpectrumColors.cap(colorMode, b, bands, accent)
             capColors[b] = Color.argb(215, Color.red(cap), Color.green(cap), Color.blue(cap))
         }
     }
-
-    private fun blend(a: Int, b: Int, t: Float): Int = Color.rgb(
-        (Color.red(a) + (Color.red(b) - Color.red(a)) * t).toInt(),
-        (Color.green(a) + (Color.green(b) - Color.green(a)) * t).toInt(),
-        (Color.blue(a) + (Color.blue(b) - Color.blue(a)) * t).toInt(),
-    )
 
     // --- siklus animasi: hanya jalan saat terlihat dan terpasang
     override fun onAttachedToWindow() { super.onAttachedToWindow(); wake() }

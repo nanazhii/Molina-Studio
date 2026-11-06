@@ -255,3 +255,58 @@ internal class SpectrumFrameBuilder(val sampleRate: Int, val track: SpectrumTrac
         nextEnd += track.hopSamples
     }
 }
+
+/** Mode warna visualizer spektrum (dipilih pengguna, disimpan di SpectrumPrefs). */
+internal enum class SpectrumColorMode {
+    ACCENT, FREQUENCY, CINEMA;
+
+    /** Putaran mode: ACCENT -> FREQUENCY -> CINEMA -> ACCENT. */
+    fun next(): SpectrumColorMode = values()[(ordinal + 1) % values().size]
+
+    companion object {
+        fun fromName(name: String?): SpectrumColorMode? = values().firstOrNull { it.name == name }
+    }
+}
+
+/** Palet warna batang spektrum (ARGB Int murni, tanpa Android agar bisa diuji di JVM). */
+internal object SpectrumColors {
+    val WARM = 0xFFFF8A3D.toInt()   // bass (mode FREQUENCY)
+    val COOL = 0xFF3FA9F5.toInt()   // treble (mode FREQUENCY)
+    val MAROON = 0xFF9B1B30.toInt() // dasar batang (mode CINEMA)
+    val GOLD = 0xFFFFC94D.toInt()   // ujung batang dan penanda puncak (mode CINEMA)
+    private const val WHITE = -1
+
+    fun blend(a: Int, b: Int, t: Float): Int {
+        val k = t.coerceIn(0f, 1f)
+        fun ch(shift: Int): Int {
+            val x = (a ushr shift) and 0xFF
+            val y = (b ushr shift) and 0xFF
+            return (x + (y - x) * k).toInt()
+        }
+        return (0xFF shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
+    }
+
+    private fun byFrequency(b: Int, bands: Int, accent: Int): Int {
+        val t = if (bands > 1) b / (bands - 1).toFloat() else 0.5f
+        return if (t < 0.5f) blend(WARM, accent, t / 0.5f) else blend(accent, COOL, (t - 0.5f) / 0.5f)
+    }
+
+    /** Warna di dasar batang [b] (juga warna pantulan). */
+    fun bottom(mode: SpectrumColorMode, b: Int, bands: Int, accent: Int): Int = when (mode) {
+        SpectrumColorMode.ACCENT -> accent
+        SpectrumColorMode.FREQUENCY -> byFrequency(b, bands, accent)
+        SpectrumColorMode.CINEMA -> MAROON
+    }
+
+    /** Warna di ujung atas gradasi batang. */
+    fun top(mode: SpectrumColorMode, b: Int, bands: Int, accent: Int): Int = when (mode) {
+        SpectrumColorMode.CINEMA -> GOLD
+        else -> blend(bottom(mode, b, bands, accent), WHITE, 0.35f)
+    }
+
+    /** Warna dasar penanda puncak (alpha diatur pemanggil). */
+    fun cap(mode: SpectrumColorMode, b: Int, bands: Int, accent: Int): Int = when (mode) {
+        SpectrumColorMode.CINEMA -> blend(GOLD, WHITE, 0.5f)
+        else -> blend(bottom(mode, b, bands, accent), WHITE, 0.75f)
+    }
+}

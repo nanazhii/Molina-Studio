@@ -173,6 +173,20 @@ private fun spectrumTests() {
         check("puncak di frame 20 (pusat jendela terdekat burst)", fMain == 20)
     }
 
+    // --- mode warna spektrum
+    val acc = 0xFF2ECC71.toInt()
+    fun chn(c: Int, shift: Int) = (c ushr shift) and 0xFF
+    check("warna ACCENT: dasar = aksen di semua pita", (0 until 32).all { SpectrumColors.bottom(SpectrumColorMode.ACCENT, it, 32, acc) == acc })
+    check("warna ACCENT: ujung lebih terang dari dasar", listOf(16, 8, 0).all { chn(SpectrumColors.top(SpectrumColorMode.ACCENT, 5, 32, acc), it) >= chn(acc, it) })
+    check("warna FREQUENCY: pita 0 = hangat, pita 31 = dingin", SpectrumColors.bottom(SpectrumColorMode.FREQUENCY, 0, 32, acc) == SpectrumColors.WARM && SpectrumColors.bottom(SpectrumColorMode.FREQUENCY, 31, 32, acc) == SpectrumColors.COOL)
+    check("warna FREQUENCY: pita tengah ~ aksen", listOf(15, 16).all { b -> listOf(16, 8, 0).all { Math.abs(chn(SpectrumColors.bottom(SpectrumColorMode.FREQUENCY, b, 32, acc), it) - chn(acc, it)) <= 12 } })
+    check("warna CINEMA: dasar marun, ujung emas, tak bergantung aksen",
+        listOf(acc, 0xFF123456.toInt()).all { a -> (0 until 32).all { SpectrumColors.bottom(SpectrumColorMode.CINEMA, it, 32, a) == SpectrumColors.MAROON && SpectrumColors.top(SpectrumColorMode.CINEMA, it, 32, a) == SpectrumColors.GOLD } })
+    check("warna CINEMA: emas lebih terang dari marun", listOf(16, 8, 0).sumOf { chn(SpectrumColors.GOLD, it) } > listOf(16, 8, 0).sumOf { chn(SpectrumColors.MAROON, it) })
+    check("SpectrumColorMode.next berputar 3 mode", SpectrumColorMode.ACCENT.next() == SpectrumColorMode.FREQUENCY && SpectrumColorMode.FREQUENCY.next() == SpectrumColorMode.CINEMA && SpectrumColorMode.CINEMA.next() == SpectrumColorMode.ACCENT)
+    check("SpectrumColorMode.fromName", SpectrumColorMode.fromName("CINEMA") == SpectrumColorMode.CINEMA && SpectrumColorMode.fromName("xyz") == null && SpectrumColorMode.fromName(null) == null)
+    check("blend: ujung t=0 dan t=1, t di luar rentang dijepit", SpectrumColors.blend(acc, SpectrumColors.GOLD, 0f) == acc && SpectrumColors.blend(acc, SpectrumColors.GOLD, 1f) == SpectrumColors.GOLD && SpectrumColors.blend(acc, SpectrumColors.GOLD, 5f) == SpectrumColors.GOLD)
+
     // --- SpectrumTrack: tulis, tumbuh, interpolasi, batas
     val hop = sr / SpectrumMath.FPS
     val tr = SpectrumTrack(sr, hop, initialFrames = 2, maxFrames = 8)

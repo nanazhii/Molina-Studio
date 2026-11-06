@@ -6,7 +6,8 @@ import androidx.preference.PreferenceManager
 /** [SPECTRUM] Setelan hidup/mati visualizer spektrum (bawaan hidup). Disimpan di SharedPreferences bawaan aplikasi. */
 internal object SpectrumPrefs {
     const val KEY = "audio_spectrum"
-    const val KEY_FREQ_COLORS = "audio_spectrum_freq_colors"
+    const val KEY_FREQ_COLORS = "audio_spectrum_freq_colors" // lama (boolean), hanya untuk migrasi
+    const val KEY_COLOR_MODE = "audio_spectrum_color_mode"
 
     fun enabled(ctx: Context): Boolean =
         PreferenceManager.getDefaultSharedPreferences(ctx.applicationContext).getBoolean(KEY, true)
@@ -15,11 +16,14 @@ internal object SpectrumPrefs {
         PreferenceManager.getDefaultSharedPreferences(ctx.applicationContext).edit().putBoolean(KEY, on).apply()
     }
 
-    /** True (bawaan) = warna batang bergradasi menurut frekuensi; false = satu warna aksen. */
-    fun frequencyColors(ctx: Context): Boolean =
-        PreferenceManager.getDefaultSharedPreferences(ctx.applicationContext).getBoolean(KEY_FREQ_COLORS, true)
+    /** Mode warna batang. Bila belum pernah dipilih, mewarisi opsi boolean lama (KEY_FREQ_COLORS). */
+    fun colorMode(ctx: Context): SpectrumColorMode {
+        val sp = PreferenceManager.getDefaultSharedPreferences(ctx.applicationContext)
+        SpectrumColorMode.fromName(sp.getString(KEY_COLOR_MODE, null))?.let { return it }
+        return if (sp.getBoolean(KEY_FREQ_COLORS, true)) SpectrumColorMode.FREQUENCY else SpectrumColorMode.ACCENT
+    }
 
-    fun setFrequencyColors(ctx: Context, on: Boolean) {
-        PreferenceManager.getDefaultSharedPreferences(ctx.applicationContext).edit().putBoolean(KEY_FREQ_COLORS, on).apply()
+    fun setColorMode(ctx: Context, mode: SpectrumColorMode) {
+        PreferenceManager.getDefaultSharedPreferences(ctx.applicationContext).edit().putString(KEY_COLOR_MODE, mode.name).apply()
     }
 }

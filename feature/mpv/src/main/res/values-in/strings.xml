@@ -168,4 +168,5 @@
     <string name="spectrum_colors_btn">Warna spektrum</string>
     <string name="spectrum_colors_freq">Warna spektrum: per frekuensi</string>
     <string name="spectrum_colors_accent">Warna spektrum: aksen tunggal</string>
+    <string name="spectrum_colors_cinema">Warna spektrum: Cinema (emas &amp; marun)</string>
 </resources>
