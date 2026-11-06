@@ -62,7 +62,7 @@ private fun ramText(s: StatsSnapshot): String {
 
 /** Halaman Settings > Sistem > Monitor Sistem: meter unduh/unggah/CPU/RAM, grafik 60 detik, saklar animasi RGB. */
 @Composable
-internal fun SystemMonitorPage() {
+internal fun PerformanceTab() {
     val ctx = LocalContext.current
     var stats by remember { mutableStateOf(StatsSnapshot()) }
     val cpuHist = remember { mutableStateListOf<Int>() }
