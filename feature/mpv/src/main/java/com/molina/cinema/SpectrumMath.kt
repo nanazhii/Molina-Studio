@@ -6,6 +6,7 @@ import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.log10
 import kotlin.math.pow
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -18,7 +19,7 @@ import kotlin.math.sqrt
  */
 internal object SpectrumMath {
     const val BANDS = 32
-    const val FFT_SIZE = 2048
+    const val FFT_SIZE = 4096 // resolusi ~10,8 Hz @44,1 kHz: pita bass selaras dengan nada
     const val FPS = 30
     const val MIN_DB = -75.0
     const val MAX_DB = -12.0
@@ -72,7 +73,7 @@ internal object SpectrumMath {
         val edges = IntArray(bands + 1)
         for (i in 0..bands) {
             val f = fMin * (fMax / fMin).pow(i.toDouble() / bands)
-            edges[i] = (f / binHz).toInt().coerceIn(1, maxBin)
+            edges[i] = (f / binHz).roundToInt().coerceIn(1, maxBin) // dibulatkan, bukan dipotong: tepi pita tidak bias ke bawah
         }
         for (i in 1..bands) if (edges[i] <= edges[i - 1]) edges[i] = minOf(edges[i - 1] + 1, maxBin)
         return edges
