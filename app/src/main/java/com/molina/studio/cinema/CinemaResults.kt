@@ -133,9 +133,10 @@ internal fun SearchResultsDialog(
     // [RESULTS-RELATED] Terkait: pencarian kedua (kueri kategori) diambil sekali per daftar hasil, saat chip dipilih
     var relatedExtra by remember(results) { mutableStateOf<List<StreamSearchItem>?>(null) }
     var relatedLoading by remember { mutableStateOf(false) }
+    val relatedQ = remember(results, searchQuery) { SearchOrder.relatedQuery(results, searchQuery) } // [RELATED-CATEGORY]
     LaunchedEffect(sort, results) {
         if (sort != SearchSort.RELATED || relatedExtra != null || onFetchRelated == null) return@LaunchedEffect
-        val rq = SearchOrder.relatedQuery(results, searchQuery)
+        val rq = relatedQ
         if (rq == null) { relatedExtra = emptyList(); return@LaunchedEffect }
         relatedLoading = true
         try { relatedExtra = onFetchRelated(rq) } finally { relatedLoading = false }
@@ -266,6 +267,15 @@ internal fun SearchResultsDialog(
                     color = MolinaTheme.Muted, fontSize = 11.sp,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 2.dp),
                 )
+                // [RELATED-CATEGORY] kueri kategori yang dipakai; ketuk = cari penuh dengan kueri itu
+                if (sort == SearchSort.RELATED && relatedQ != null && onSearch != null) Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Kategori", color = MolinaTheme.Muted, fontSize = 12.sp)
+                    ResultChip(relatedQ, false) { onSearch(relatedQ) }
+                }
                 if (related.isNotEmpty()) Row(
                     Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 2.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
