@@ -4,7 +4,12 @@ package com.molina.core.common
 enum class SearchSort(val label: String) {
     RELEVANCE("Relevansi"),
     NEWEST("Terbaru"),
-    RELATED("Terkait"),
+    RELATED("Terkait");
+
+    companion object {
+        /** Nama tersimpan -> nilai; kosong atau tidak dikenal (mis. nilai lama) -> [NEWEST]. */
+        fun fromName(name: String?): SearchSort = values().firstOrNull { it.name == name } ?: NEWEST
+    }
 }
 
 /** Saringan durasi (detik, batas inklusif). Durasi tidak diketahui (mis. siaran langsung) disingkirkan bila aktif. */

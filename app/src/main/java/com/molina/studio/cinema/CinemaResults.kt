@@ -127,7 +127,7 @@ internal fun SearchResultsDialog(
     val watched = remember { WatchProgressStore.snapshot(ctx) } // [WATCH-PROGRESS]
     var selectMode by remember { mutableStateOf(false) } // [PICK-MANY] mode pilih banyak
     var chosen by remember { mutableStateOf(setOf<String>()) }
-    var sort by remember { mutableStateOf(SearchSort.NEWEST) } // [RESULTS-SORT] bawaan: terbaru dulu
+    var sort by remember { mutableStateOf(SearchSortPrefs.load(ctx)) } // [RESULTS-SORT] bawaan: terbaru; pilihan terakhir diingat [RESULTS-SORT-PREF]
     var durFilter by remember { mutableStateOf(DurationFilter.ALL) } // [RESULTS-FILTER]
     var dateFilter by remember { mutableStateOf(DateFilter.ALL) }
     // [RESULTS-RELATED] Terkait: pencarian kedua (kueri kategori) diambil sekali per daftar hasil, saat chip dipilih
@@ -235,7 +235,7 @@ internal fun SearchResultsDialog(
                     Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    SearchSort.values().forEach { s -> ResultChip(s.label, s == sort) { sort = s } }
+                    SearchSort.values().forEach { s -> ResultChip(s.label, s == sort) { sort = s; SearchSortPrefs.save(ctx, s) } }
                 }
                 // [RESULTS-FILTER] saringan durasi dan waktu unggah: ketuk = pilihan berikutnya (berputar)
                 Row(

@@ -111,6 +111,9 @@ fun main() {
     check("relatedMix: hanya kanal sendiri -> daftar asli (objek sama)", SearchOrder.relatedMix(onlyOwn, emptyList(), "jagat review") === onlyOwn)
     check("relatedMix: kueri topik umum menyisakan semua kanal", titles(SearchOrder.relatedMix(mixBase, emptyList(), "review")) == "A1,B1,A2")
 
+    check("SearchSort.fromName: nama dikenal", SearchSort.fromName("RELATED") == SearchSort.RELATED && SearchSort.fromName("RELEVANCE") == SearchSort.RELEVANCE)
+    check("SearchSort.fromName: null/kosong/lama -> NEWEST", SearchSort.fromName(null) == SearchSort.NEWEST &&
+        SearchSort.fromName("") == SearchSort.NEWEST && SearchSort.fromName("OLDEST") == SearchSort.NEWEST)
     println(if (fails == 0) "\nSEMUA LOLOS" else "\n$fails GAGAL")
     if (fails > 0) System.exit(1)
 }
