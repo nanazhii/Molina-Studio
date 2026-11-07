@@ -344,3 +344,32 @@ internal fun W7IconMonitor(box: Dp) {
         drawRoundRect(Color(0xFF6E7884), Offset(w * 0.25f, h * 0.82f), Size(w * 0.50f, h * 0.08f), CornerRadius(w * 0.03f))
     }
 }
+
+// [BTOP-MONITOR] Ikon Monitor Sistem: panel gelap dengan bilah beban (hijau-kuning-merah) dan garis grafik.
+// Sengaja beda dari W7IconMonitor (layar biru) yang dipakai ubin "Sistem".
+@Composable
+internal fun W7IconMonitorGraph(box: Dp) {
+    Canvas(Modifier.size(box)) {
+        val w = size.width
+        val h = size.height
+        drawRoundRect(Color(0xFF0B0F14), Offset(w * 0.06f, h * 0.10f), Size(w * 0.88f, h * 0.80f), CornerRadius(w * 0.08f))
+        drawRoundRect(
+            Color(0xFF2ECC71), Offset(w * 0.06f, h * 0.10f), Size(w * 0.88f, h * 0.80f), CornerRadius(w * 0.08f),
+            style = Stroke(width = w * 0.045f)
+        )
+        val bars = listOf(0.30f to Color(0xFF3BE07A), 0.55f to Color(0xFF9BE564), 0.42f to Color(0xFFFFD54F), 0.72f to Color(0xFFFF8A4C), 0.25f to Color(0xFF3BE07A))
+        val bw = w * 0.10f
+        val gap = w * 0.035f
+        val x0 = w * 0.17f
+        val base = h * 0.80f
+        bars.forEachIndexed { i, (f, c) ->
+            val bh = h * 0.50f * f
+            drawRoundRect(c, Offset(x0 + i * (bw + gap), base - bh), Size(bw, bh), CornerRadius(w * 0.015f))
+        }
+        val line = Path().apply {
+            moveTo(w * 0.17f, h * 0.38f); lineTo(w * 0.36f, h * 0.27f); lineTo(w * 0.52f, h * 0.36f)
+            lineTo(w * 0.68f, h * 0.22f); lineTo(w * 0.83f, h * 0.30f)
+        }
+        drawPath(line, Color(0xFF00E5FF), style = Stroke(width = w * 0.03f))
+    }
+}

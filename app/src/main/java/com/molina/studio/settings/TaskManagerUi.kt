@@ -57,7 +57,7 @@ import kotlinx.coroutines.withContext
 
 private val TmLocale: Locale = Locale("id", "ID")
 
-private fun tmGroupColor(g: TaskGroup): Color = when (g) {
+internal fun tmGroupColor(g: TaskGroup): Color = when (g) {
     TaskGroup.App -> Color(0xFFE0A800)
     TaskGroup.Terminal -> Color(0xFF3BB33B)
     TaskGroup.Unduhan -> Color(0xFF2D6DB5)
@@ -77,7 +77,7 @@ private fun tmCpuColor(p: Int): Color = when {
     else -> Win7.Ink
 }
 
-private fun tmReapText(name: String, r: ReapResult): String =
+internal fun tmReapText(name: String, r: ReapResult): String =
     if (r.found == 0) "$name: tidak ada proses yang bisa diakhiri (sudah selesai atau dilindungi)."
     else "$name: ${r.total} diakhiri (${r.terminated} bersih, ${r.killed} paksa)" +
         if (r.remaining > 0) ", ${r.remaining} masih hidup." else "."
@@ -87,11 +87,12 @@ private fun tmReapText(name: String, r: ReapResult): String =
 internal fun SystemMonitorPage() {
     var tab by rememberSaveable { mutableStateOf(1) }
     Spacer(Modifier.height(4.dp))
-    TaskTabStrip(listOf("Aplikasi", "Proses", "Kinerja"), tab) { tab = it }
+    TaskTabStrip(listOf("Aplikasi", "Proses", "Kinerja", "btop"), tab) { tab = it } // [BTOP-MONITOR]
     when (tab) {
         0 -> AppsTab()
         1 -> ProcessesTab()
-        else -> PerformanceTab()
+        2 -> PerformanceTab()
+        else -> BtopTab() // [BTOP-MONITOR]
     }
 }
 
@@ -123,7 +124,7 @@ private fun TaskTabStrip(tabs: List<String>, selected: Int, onSelect: (Int) -> U
 }
 
 @Composable
-private fun TaskConfirm(title: String, body: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+internal fun TaskConfirm(title: String, body: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Win7.Face,

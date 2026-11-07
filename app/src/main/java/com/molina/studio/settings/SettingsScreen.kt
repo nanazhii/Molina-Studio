@@ -157,6 +157,7 @@ private val INDEX = listOf(
     Hit("CPU", "Pemakaian CPU seluruh proses Molina", Page.Monitor),
     Hit("RAM", "Pemakaian memori seluruh proses Molina", Page.Monitor),
     Hit("Kecepatan jaringan", "Unduh dan unggah per detik", Page.Monitor),
+    Hit("btop", "Daftar proses ala btop: CPU per inti, RAM, swap, pohon proses, cari dan urutkan", Page.Monitor),
     Hit("Pembaruan paket", "Status pembaruan Debian, yt-dlp, dan NewPipe, termasuk pengecekan otomatis (lewat Wi-Fi, tiap 24 jam)", Page.Packages),
     Hit("Pembaruan otomatis", "Cek pembaruan Debian dan yt-dlp otomatis di latar belakang", Page.Packages),
     Hit("Cadangan otomatis", "Cadangan gabungan harian ke folder Backup", Page.System),
@@ -322,7 +323,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                             onOpen = { lastTile = Page.Downloads; open(Page.Downloads) }
                         )
                         W7CategoryTile( // [MONITOR-ROOT] sejajar Sistem, Paket, Unduhan
-                            icon = { W7IconMonitor(52.dp) },
+                            icon = { W7IconMonitorGraph(52.dp) }, // [BTOP-MONITOR] beda dari ikon Sistem
                             title = "Monitor Sistem",
                             links = emptyList(),
                             selected = lastTile == Page.Monitor,
