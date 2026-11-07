@@ -126,6 +126,7 @@ private val INDEX = listOf(
     Hit("Terminal I/O", "Keyboard dan penyimpanan", Page.TerminalIO),
     Hit("Akses penyimpanan penuh", "Seluruh /sdcard terlihat di dalam Debian", Page.TerminalIO),
     Hit("Terminal View", "Penyesuaian margin terminal (Terminal Margin Adjustment)", Page.TerminalView),
+    Hit("Monitor ringkas", "Sembunyikan grafik monitor CPU/RAM di header terminal untuk layar sempit", Page.TerminalView), // [MC-HIT]
     Hit("Tampilan Molina", "Ukuran font dan tema warna prompt", Page.Tampilan),
     Hit("Log", "Log aktivitas mpv, Terminal, dan sistem", Page.Log),
     Hit("Pengunduh tambahan (yt-dlp)", "Untuk TikTok, Facebook, dan situs lain yang tidak dikenali pemutar (bawaan: mati)", Page.Stream),
@@ -409,7 +410,8 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                         Spacer(Modifier.height(8.dp))
                         PackageStatusCard("Terminal I/O", "Keyboard layar dan akses penyimpanan", null, onClick = { page = Page.TerminalIO }, icon = { W7IconIo() })
                         Spacer(Modifier.height(8.dp))
-                        PackageStatusCard("Terminal View", "Penyesuaian margin terminal", null, onClick = { page = Page.TerminalView }, icon = { W7IconTerminal() })
+                        PackageStatusCard("Terminal View", "Penyesuaian margin dan monitor ringkas", null, // [MC-CARD]
+                             onClick = { page = Page.TerminalView }, icon = { W7IconTerminal() })
                         Spacer(Modifier.height(8.dp))
                         PackageStatusCard("Tampilan Molina", "Ukuran font dan tema warna prompt", null, onClick = { page = Page.Tampilan }, icon = { W7IconAa() })
                     }
@@ -672,6 +674,15 @@ private fun TerminalViewPage() {
             else "Penyesuaian margin terminal akan dimatikan.",
             TerminalPrefs.marginAdjustment
         ) { TerminalPrefs.setMarginAdjustment(it) }
+    }
+    PackageSectionHeader("Monitor di header") // [MC-UI]
+    PackageGroupCard {
+        PackageSwitchRow(
+            "Monitor ringkas",
+            if (TerminalPrefs.compactMonitor) "Grafik di belakang chip dimatikan dan chip dipersempit. Cocok untuk layar kecil."
+            else "Chip CPU/RAM menampilkan grafik 24 detik. Otomatis ringkas di layar lebih sempit dari 340 dp. (Default)",
+            TerminalPrefs.compactMonitor
+        ) { TerminalPrefs.setCompactMonitor(it) }
     }
 }
 

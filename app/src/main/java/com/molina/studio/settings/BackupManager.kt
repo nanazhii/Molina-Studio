@@ -118,6 +118,7 @@ internal object BackupManager {
             .put("soft_keyboard_only_if_no_hw", s.softKeyboardOnlyIfNoHardware)
             .put("margin_adjustment", s.marginAdjustment)
             .put("logcat_reporter", s.logcatReporter)
+            .put("compact_monitor", s.compactMonitor) // [MC-BK-OUT]
     }
 
     private fun applyTerminal(ctx: Context, o: JSONObject): Int {
@@ -135,6 +136,7 @@ internal object BackupManager {
         if (o.has("soft_keyboard_only_if_no_hw")) { TerminalPrefs.setSoftKeyboardOnlyIfNoHardware(o.getBoolean("soft_keyboard_only_if_no_hw")); n++ }
         if (o.has("margin_adjustment")) { TerminalPrefs.setMarginAdjustment(o.getBoolean("margin_adjustment")); n++ }
         if (o.has("logcat_reporter")) { TerminalPrefs.setLogcatReporter(o.getBoolean("logcat_reporter")); n++ }
+        if (o.has("compact_monitor")) { TerminalPrefs.setCompactMonitor(o.getBoolean("compact_monitor")); n++ } // [MC-BK-IN]
         return n
     }
 

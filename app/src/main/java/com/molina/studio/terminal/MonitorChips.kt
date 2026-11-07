@@ -1,5 +1,6 @@
 package com.molina.studio.terminal
 
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -88,6 +89,7 @@ internal fun MonitorChips(onOpen: () -> Unit) {
         }
     }
     val st = snap ?: return
+    val compact = TerminalPrefs.compactMonitor || LocalConfiguration.current.screenWidthDp < 340 // [MC-FLAG]
 
     fun go(f: MonitorNav.Focus?, tab: Int) {
         MonitorNav.focus = f
@@ -102,32 +104,32 @@ internal fun MonitorChips(onOpen: () -> Unit) {
     val txOn = st.txBps >= 1024
 
     Row(
-        Modifier.padding(horizontal = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        Modifier.padding(horizontal = if (compact) 4.dp else 6.dp), // [MC-PAD]
+        horizontalArrangement = Arrangement.spacedBy(if (compact) 3.dp else 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         MonitorChip(
-            width = 50.dp, level = st.cpuLevel, spark = cpuHist, sparkColor = cpuC,
+            width = if (compact) 46.dp else 50.dp, level = st.cpuLevel, spark = if (compact) null else cpuHist, sparkColor = cpuC, // [MC-CPU]
             description = "CPU ${st.cpuPercent} persen. Ketuk untuk detail, tekan lama untuk btop.",
             onTap = { go(MonitorNav.Focus.Cpu, MonitorNav.TAB_KINERJA) },
             onLong = { go(null, MonitorNav.TAB_BTOP) }
         ) {
-            ChipHead("CPU", "${st.cpuPercent}%", cpuC)
+            ChipHead("CPU", "${st.cpuPercent}%", cpuC, compact) // [MC-HEAD-CPU]
             Spacer(Modifier.height(2.dp))
             MiniBar(st.cpuPercent / 100f, cpuC)
         }
         MonitorChip(
-            width = 50.dp, level = st.ramLevel, spark = ramHist, sparkColor = ramC,
+            width = if (compact) 46.dp else 50.dp, level = st.ramLevel, spark = if (compact) null else ramHist, sparkColor = ramC, // [MC-RAM]
             description = "RAM ${chipRam(st.ramMb)}. Ketuk untuk detail, tekan lama untuk btop.",
             onTap = { go(MonitorNav.Focus.Ram, MonitorNav.TAB_KINERJA) },
             onLong = { go(null, MonitorNav.TAB_BTOP) }
         ) {
-            ChipHead("RAM", chipRam(st.ramMb), ramC)
+            ChipHead("RAM", chipRam(st.ramMb), ramC, compact) // [MC-HEAD-RAM]
             Spacer(Modifier.height(2.dp))
             MiniBar(ramFraction, ramC)
         }
         MonitorChip(
-            width = 56.dp, level = Level.Normal, spark = null, sparkColor = MolinaTheme.NetDown,
+            width = if (compact) 54.dp else 56.dp, level = Level.Normal, spark = null, sparkColor = MolinaTheme.NetDown, // [MC-NET]
             description = "Jaringan unduh ${chipNet(st.rxBps)}, unggah ${chipNet(st.txBps)}. Ketuk untuk detail, tekan lama untuk btop.",
             onTap = { go(MonitorNav.Focus.Net, MonitorNav.TAB_KINERJA) },
             onLong = { go(null, MonitorNav.TAB_BTOP) }
@@ -194,9 +196,9 @@ private fun MonitorChip(
 }
 
 @Composable
-private fun ChipHead(label: String, value: String, color: Color) {
+private fun ChipHead(label: String, value: String, color: Color, compact: Boolean = false) { // [MC-HEAD-FN]
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = MolinaTheme.Muted, fontSize = 8.sp, lineHeight = 12.sp, fontFamily = FontFamily.Monospace, maxLines = 1, softWrap = false)
+        Text(label, color = MolinaTheme.Muted, fontSize = if (compact) 7.sp else 8.sp, /* [MC-LABEL] */ lineHeight = 12.sp, fontFamily = FontFamily.Monospace, maxLines = 1, softWrap = false)
         Text(value, color = color, fontSize = 10.sp, lineHeight = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, maxLines = 1, softWrap = false)
     }
 }
