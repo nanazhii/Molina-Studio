@@ -419,7 +419,7 @@ private fun ChannelRow(
             Modifier.padding(end = 8.dp).width(ThumbWidth).aspectRatio(16f / 9f), // [THUMB-169]
         ) // [RESULTS-THUMB]
         Column(Modifier.weight(1f)) {
-            Text(e.item.title, color = Color.White, fontSize = 14.sp, maxLines = 3,
+            Text(e.item.title, color = Color.White, fontSize = 14.sp, maxLines = if (isSelected) 3 else 2, // [TITLE-2LINE]
                 overflow = TextOverflow.Ellipsis,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
             val meta = listOfNotNull(e.item.uploader, if (showThumb) null else e.item.durationSec?.let { duration(it) }, RelativeTime.label(e.item))
