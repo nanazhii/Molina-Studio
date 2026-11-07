@@ -168,7 +168,7 @@ private val KeyRed = Color(0xFFFF5252)    // ESC, CLEAR [TERM-KEYS-BOLD] lebih p
 private val KeyBlue = Color(0xFF448AFF)   // HOME, panah
 private val KeyGreen = Color(0xFF00E676)  // COPY, PASTE
 private val KeyFrame = Color(0xFF454A55)  // bingkai terluar panel extra keys
-private val KeyAmber = MolinaTheme.Brand  // TAB, menu, —
+private val KeyAmber = MolinaTheme.Brand  // TAB, menu, ENTER [XK-COMMENT]
 private val KeyNeutral = MolinaTheme.OnBackground // CTRL, ALT (menyala emas saat aktif)
 
 private fun createTerminalView(ctx: Context, mods: TerminalModifiers): TerminalView {
@@ -219,10 +219,9 @@ private fun ExtraKeys(mods: TerminalModifiers, onOpenDrawer: () -> Unit) {
         Row(Modifier.fillMaxWidth()) {
             Key("ESC", color = KeyRed) { TerminalActions.send("\u001b") }
             DrawerKey("\u2261", menu, KeyAmber, onOpenDrawer)
-            Key("\u2014", color = KeyAmber) { TerminalActions.send("-") }
-            Key("HOME", color = KeyBlue) { TerminalActions.sendKey(KeyEvent.KEYCODE_MOVE_HOME) }
-            Key("\u2191", color = KeyBlue) { TerminalActions.sendKey(KeyEvent.KEYCODE_DPAD_UP) }
+            Key("HOME", color = KeyBlue) { TerminalActions.sendKey(KeyEvent.KEYCODE_MOVE_HOME) } // [XK-ORDER] "-" dihapus; HOME, CLEAR, COPY, PASTE bergeser satu slot
             Key("CLEAR", color = KeyRed) { TerminalActions.clear() }
+            Key("\u2191", color = KeyBlue) { TerminalActions.sendKey(KeyEvent.KEYCODE_DPAD_UP) }
             Key("COPY", color = KeyGreen) {
                 val ok = TerminalActions.copyAll(ctx)
                 Toast.makeText(
@@ -230,6 +229,7 @@ private fun ExtraKeys(mods: TerminalModifiers, onOpenDrawer: () -> Unit) {
                     Toast.LENGTH_SHORT
                 ).show()
             }
+            Key("PASTE", color = KeyGreen) { TerminalActions.paste(ctx) }
         }
         Row(Modifier.fillMaxWidth()) {
             Key("\u21C6", color = KeyAmber) { TerminalActions.send("\t") }
@@ -240,7 +240,7 @@ private fun ExtraKeys(mods: TerminalModifiers, onOpenDrawer: () -> Unit) {
             Key("\u2190", color = KeyBlue) { TerminalActions.sendKey(KeyEvent.KEYCODE_DPAD_LEFT) }
             Key("\u2193", color = KeyBlue) { TerminalActions.sendKey(KeyEvent.KEYCODE_DPAD_DOWN) }
             Key("\u2192", color = KeyBlue) { TerminalActions.sendKey(KeyEvent.KEYCODE_DPAD_RIGHT) }
-            Key("PASTE", color = KeyGreen) { TerminalActions.paste(ctx) }
+            Key("ENTER", color = KeyAmber) { TerminalActions.sendKey(KeyEvent.KEYCODE_ENTER) } // [XK-ENTER] sama dengan Enter keyboard (\r; Alt+Enter = ESC \r)
         }
     }
 }
