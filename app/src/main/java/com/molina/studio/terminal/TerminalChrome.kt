@@ -153,7 +153,7 @@ internal fun TerminalHeader(onOpenSettings: () -> Unit, onOpenMonitor: () -> Uni
         )
         Spacer(Modifier.weight(1f))
         // [HDR-STATS] Monitor CPU/RAM/jaringan (dulu di bilah pil). Ukuran font tetap lewat cubit dan Pengaturan.
-        PillStats(onClick = onOpenMonitor) // [HDR-MONITOR-CLICK]
+        MonitorChips(onOpen = onOpenMonitor) // [MONITOR-CHIPS]
         // [HDR-KEEPON-MENU] saklar layar tetap menyala dipindah ke menu titik tiga; ruang header untuk monitor
         Box {
             HdrBtn("\u22EE") { menu = true }

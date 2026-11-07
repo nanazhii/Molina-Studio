@@ -1,5 +1,6 @@
 package com.molina.studio.settings
 
+import com.molina.studio.terminal.MonitorNav
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -86,7 +87,8 @@ internal fun tmReapText(name: String, r: ReapResult): String =
 /** Halaman Monitor Sistem: Aplikasi | Proses | Kinerja, seperti tab Task Manager desktop. */
 @Composable
 internal fun SystemMonitorPage() {
-    var tab by rememberSaveable { mutableStateOf(1) }
+    var tab by rememberSaveable { mutableStateOf(MonitorNav.tab ?: 1) } // [MONITOR-TAB] 2 = Kinerja, 3 = btop
+    LaunchedEffect(MonitorNav.tab) { MonitorNav.tab?.let { tab = it; MonitorNav.tab = null } }
     Spacer(Modifier.height(4.dp))
     // [BTOP-DARK] seluruh halaman Monitor di atas permukaan gelap btop, termasuk bilah tab
     val pageShape = RoundedCornerShape(10.dp)

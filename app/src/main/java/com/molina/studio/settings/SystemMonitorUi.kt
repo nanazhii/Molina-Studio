@@ -1,5 +1,12 @@
 package com.molina.studio.settings
 
+import com.molina.studio.terminal.MonitorNav
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,10 +38,19 @@ import com.molina.studio.ui.MolinaTheme
 private val MonLocale: Locale = Locale("id", "ID")
 private const val HISTORY_POINTS = 60
 
+/** [MONITOR-GLOW-FN] Bingkai zamrud yang memudar; a = 0 berarti tak tampak (tata letak tetap). */
+private fun Modifier.focusGlow(a: Float): Modifier {
+    val shape = RoundedCornerShape(6.dp)
+    return this
+        .background(MolinaTheme.Brand.copy(alpha = 0.20f * a), shape)
+        .border(1.dp, MolinaTheme.Brand.copy(alpha = a), shape)
+        .padding(horizontal = 4.dp, vertical = 2.dp)
+}
+
 /** Satu baris meter: label, nilai, dan bilah progres glossy ala Windows 7. */
 @Composable
-private fun MonitorMeter(label: String, value: String, fraction: Float, top: Color, bottom: Color) {
-    Column {
+private fun MonitorMeter(label: String, value: String, fraction: Float, top: Color, bottom: Color, glow: Float = 0f) { // [MONITOR-GLOW]
+    Column(Modifier.focusGlow(glow)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, color = Win7.Ink, fontSize = 13.sp)
             Text(value, color = Win7.NavHeader, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
@@ -64,6 +80,12 @@ private fun ramText(s: StatsSnapshot): String {
 @Composable
 internal fun PerformanceTab() {
     val ctx = LocalContext.current
+    val focus = remember { MonitorNav.focus } // [MONITOR-FOCUS] meter yang diketuk di header terminal
+    val glow = remember { Animatable(if (focus != null) 1f else 0f) }
+    LaunchedEffect(Unit) {
+        MonitorNav.focus = null
+        if (focus != null) glow.animateTo(0f, tween(durationMillis = 1100, delayMillis = 500))
+    }
     var stats by remember { mutableStateOf(StatsSnapshot()) }
     val cpuHist = remember { mutableStateListOf<Int>() }
     val ramHist = remember { mutableStateListOf<Int>() }
@@ -90,10 +112,10 @@ internal fun PerformanceTab() {
     Spacer(Modifier.height(4.dp))
     RgbFrame(Modifier.fillMaxWidth(), spot = RgbSpot.Monitor) {
         Win7GlassWindow("Monitor Sistem", icon = { W7IconMonitorGraph(18.dp) }) {
-            MonitorMeter("\u2193 Unduh", stats.rxText, netFraction(stats.rxBps), Color(0xFF8FC4EE), Color(0xFF2D6DB5))
-            MonitorMeter("\u2191 Unggah", stats.txText, netFraction(stats.txBps), Color(0xFFE8776B), Color(0xFFB3261E))
-            MonitorMeter("CPU", "${stats.cpuPercent}%", stats.cpuPercent / 100f, cpuC.first, cpuC.second)
-            MonitorMeter("RAM", ramText(stats), ramFraction, ramC.first, ramC.second)
+            MonitorMeter("\u2193 Unduh", stats.rxText, netFraction(stats.rxBps), Color(0xFF8FC4EE), Color(0xFF2D6DB5), glow = if (focus == MonitorNav.Focus.Net) glow.value else 0f) // [MONITOR-GLOW-NET-RX]
+            MonitorMeter("\u2191 Unggah", stats.txText, netFraction(stats.txBps), Color(0xFFE8776B), Color(0xFFB3261E), glow = if (focus == MonitorNav.Focus.Net) glow.value else 0f) // [MONITOR-GLOW-NET-TX]
+            MonitorMeter("CPU", "${stats.cpuPercent}%", stats.cpuPercent / 100f, cpuC.first, cpuC.second, glow = if (focus == MonitorNav.Focus.Cpu) glow.value else 0f) // [MONITOR-GLOW-CPU]
+            MonitorMeter("RAM", ramText(stats), ramFraction, ramC.first, ramC.second, glow = if (focus == MonitorNav.Focus.Ram) glow.value else 0f) // [MONITOR-GLOW-RAM]
             Text("Riwayat 60 detik", color = Win7.TextDim, fontSize = 12.sp)
             Sparkline(cpuHist, cpuC.second, maxPoints = HISTORY_POINTS)
             Sparkline(ramHist, ramC.second, maxPoints = HISTORY_POINTS)
