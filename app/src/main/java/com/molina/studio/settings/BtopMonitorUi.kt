@@ -62,12 +62,24 @@ import kotlinx.coroutines.withContext
 /** [BTOP-MONITOR] Tab "btop" di Monitor Sistem: CPU per inti, RAM/swap, jaringan, dan tabel proses detail. */
 
 private val BtopLocale: Locale = Locale("id", "ID")
-private const val BTOP_HISTORY = 60
+private const val BTOP_HISTORY = 200 // 200 sampel x 1,5 dtk = 5 menit
+private val BtopHistoryLabel = "${BTOP_HISTORY * BtopMonitor.PERIOD_MS / 60_000L} menit"
+private val BtopPlot = Color(0xFF070A0E)
 
-private val BtopBg = Color(0xFF0B0F14)
-private val BtopLine = Color(0xFF1F2933)
-private val BtopText = Color(0xFFD6DEE6)
-private val BtopDim = Color(0xFF7B8794)
+/** Riwayat disimpan di tingkat proses supaya tidak hilang saat pindah tab. Hanya di memori (ringan). */
+private object BtopHistory {
+    val cpu = mutableStateListOf<Float>()
+    val ram = mutableStateListOf<Float>()
+    fun push(list: MutableList<Float>, v: Float) {
+        list.add(v.coerceIn(0f, 100f))
+        while (list.size > BTOP_HISTORY) list.removeAt(0)
+    }
+}
+
+internal val BtopBg = Color(0xFF0B0F14)
+internal val BtopLine = Color(0xFF1F2933)
+internal val BtopText = Color(0xFFD6DEE6)
+internal val BtopDim = Color(0xFF7B8794)
 private val BtopGreen = Color(0xFF3BE07A)
 private val BtopYellow = Color(0xFFFFD54F)
 private val BtopRed = Color(0xFFFF5252)
@@ -95,6 +107,32 @@ private fun stateText(c: Char): String = when (c) {
     'T', 't' -> "T (dihentikan)"
     'Z' -> "Z (zombie)"
     else -> c.toString()
+}
+
+/** Grafik riwayat ala btop: satu batang per sampel (terbaru di kanan), warna menurut beban, kisi 25/50/75%. */
+@Composable
+private fun BtopGraph(values: List<Float>, modifier: Modifier = Modifier) {
+    val s = BtopProbe.summarize(values)
+    Canvas(modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(4.dp)).background(BtopPlot).border(1.dp, BtopLine, RoundedCornerShape(4.dp))) {
+        for (i in 1..3) {
+            val y = size.height * i / 4f
+            drawLine(BtopLine, Offset(0f, y), Offset(size.width, y), 1f)
+        }
+        val bw = size.width / BTOP_HISTORY
+        val n = values.size
+        for (i in 0 until n) {
+            val v = values[i].coerceIn(0f, 100f)
+            if (v <= 0f) continue
+            val h = (v / 100f * size.height).coerceAtLeast(1f)
+            val x = size.width - (n - i) * bw
+            drawRect(btopColor(v / 100f), Offset(x, size.height - h), Size((bw * 0.85f).coerceAtLeast(1f), h))
+        }
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text("-$BtopHistoryLabel", color = BtopDim, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+        Text("rata-rata ${fmt1(s.avg)}% \u00B7 puncak ${fmt1(s.peak)}%", color = BtopText, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+        Text("kini", color = BtopDim, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+    }
 }
 
 /** Bilah bersegmen ala btop; tiap sel diwarnai menurut posisinya (hijau di kiri, merah di kanan). */
@@ -200,7 +238,6 @@ internal fun BtopTab() {
     val scope = rememberCoroutineScope()
     var snap by remember { mutableStateOf(BtopSnapshot()) }
     var net by remember { mutableStateOf(StatsSnapshot()) }
-    val cpuHist = remember { mutableStateListOf<Int>() }
     var key by remember { mutableStateOf(BtopSort.Cpu) }
     var desc by remember { mutableStateOf(true) }
     var treeMode by remember { mutableStateOf(false) }
@@ -214,9 +251,8 @@ internal fun BtopTab() {
     LaunchedEffect(ctx) {
         BtopMonitor.snapshots(ctx).collect { s ->
             snap = s
-            val cap = s.cpuCount.coerceAtLeast(1)
-            cpuHist.add((s.appCpu / cap).toInt().coerceIn(0, 100))
-            if (cpuHist.size > BTOP_HISTORY) cpuHist.removeAt(0)
+            BtopHistory.push(BtopHistory.cpu, s.appCpu / s.cpuCount.coerceAtLeast(1))
+            s.mem?.let { m -> BtopHistory.push(BtopHistory.ram, m.usedKb * 100f / m.totalKb.coerceAtLeast(1L)) }
         }
     }
     LaunchedEffect(ctx) { SystemStats.shared(ctx).collect { net = it } }
@@ -240,7 +276,12 @@ internal fun BtopTab() {
     val canEnd = sel != null && !sel.isSelf
 
     RgbFrame(Modifier.fillMaxWidth(), spot = RgbSpot.Monitor) {
-        Win7GlassWindow("Monitor btop Molina", icon = { W7IconMonitorGraph(18.dp) }) {
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp)).background(BtopBg).padding(8.dp)) { // [BTOP-DARK]
+            Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                W7IconMonitorGraph(18.dp)
+                Spacer(Modifier.width(8.dp))
+                Text("Monitor btop Molina", color = MolinaTheme.Brand, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+            }
             // ---- CPU
             val cpuTotalShown = snap.appCpu * scale
             BtopPanel("CPU", "Molina ${fmt1(cpuTotalShown)}% \u00B7 ${cores} inti") {
@@ -265,8 +306,8 @@ internal fun BtopTab() {
                         )
                     }
                 }
-                Sparkline(cpuHist, BtopGreen, maxPoints = BTOP_HISTORY)
-                Text("Riwayat 60 sampel: CPU Molina (% seluruh kapasitas)", color = BtopDim, fontSize = 10.sp)
+                Text("Riwayat CPU Molina ($BtopHistoryLabel, % seluruh kapasitas)", color = BtopDim, fontSize = 10.sp)
+                BtopGraph(BtopHistory.cpu)
                 snap.load?.let { BtopLabelRow("Load avg", "${fmt1(it.one)}  ${fmt1(it.five)}  ${fmt1(it.fifteen)}") }
                     ?: Text("Load average tidak terbaca di perangkat ini.", color = BtopDim, fontSize = 10.sp)
                 BtopLabelRow("Uptime", BtopProbe.runtimeText(snap.uptimeSec))
@@ -286,6 +327,8 @@ internal fun BtopTab() {
                         BtopLabelRow("Swap", "${memCompact(mem.swapUsedKb)} / ${memCompact(mem.swapTotalKb)}")
                         BtopBar(mem.swapUsedKb.toFloat() / mem.swapTotalKb)
                     }
+                    Text("Riwayat RAM perangkat ($BtopHistoryLabel)", color = BtopDim, fontSize = 10.sp)
+                    BtopGraph(BtopHistory.ram)
                     if (snap.appPssKb >= 0L) {
                         BtopLabelRow("Molina (PSS)", "${memCompact(snap.appPssKb)} (${fmt1(snap.appPssKb * 100f / mem.totalKb.coerceAtLeast(1))}%)", MolinaTheme.Brand)
                         BtopBar(snap.appPssKb.toFloat() / mem.totalKb.coerceAtLeast(1))

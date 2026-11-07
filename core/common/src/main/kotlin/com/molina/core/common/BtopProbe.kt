@@ -51,6 +51,9 @@ data class BtopTreeLine(val row: BtopRow, val depth: Int, val prefix: String)
 
 enum class BtopSort { Pid, Name, Cpu, Memory, Threads }
 
+/** Rata-rata dan puncak dari riwayat sampel (satuan persen). */
+data class HistorySummary(val avg: Float, val peak: Float)
+
 object BtopProbe {
     private fun fields(text: String, key: String): Long? {
         for (line in text.lineSequence()) {
@@ -138,6 +141,10 @@ object BtopProbe {
         sec >= 60L -> "${sec / 60}m ${"%02d".format(sec % 60)}d"
         else -> "${sec}d"
     }
+
+    /** Rata-rata dan puncak [values]; daftar kosong -> 0 dan 0. */
+    fun summarize(values: List<Float>): HistorySummary =
+        if (values.isEmpty()) HistorySummary(0f, 0f) else HistorySummary(values.sum() / values.size, values.max())
 
     /** Urutkan; seri diputus PID agar urutan stabil antar-sampel. */
     fun sort(rows: List<BtopRow>, key: BtopSort, descending: Boolean): List<BtopRow> {

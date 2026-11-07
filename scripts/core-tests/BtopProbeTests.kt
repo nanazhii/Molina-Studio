@@ -82,6 +82,11 @@ fun main() {
     check("filter PID persis", BtopProbe.filter(rows, "3").map { it.pid } == listOf(3))
     check("filter kosong = semua", BtopProbe.filter(rows, "  ").size == 3)
 
+    // --- ringkasan riwayat
+    val hs = BtopProbe.summarize(listOf(10f, 20f, 30f))
+    check("riwayat rata-rata dan puncak", hs.avg == 20f && hs.peak == 30f)
+    check("riwayat kosong -> 0", BtopProbe.summarize(emptyList()).let { it.avg == 0f && it.peak == 0f })
+
     // --- pohon
     val tr = BtopProbe.tree(
         listOf(row(1, 0, "init"), row(2, 1, "proot"), row(3, 1, "bash"), row(4, 2, "yt-dlp"), row(5, 99, "lone")),

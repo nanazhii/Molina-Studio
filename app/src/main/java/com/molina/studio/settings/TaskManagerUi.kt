@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -87,12 +88,19 @@ internal fun tmReapText(name: String, r: ReapResult): String =
 internal fun SystemMonitorPage() {
     var tab by rememberSaveable { mutableStateOf(1) }
     Spacer(Modifier.height(4.dp))
-    TaskTabStrip(listOf("Aplikasi", "Proses", "Kinerja", "btop"), tab) { tab = it } // [BTOP-MONITOR]
-    when (tab) {
-        0 -> AppsTab()
-        1 -> ProcessesTab()
-        2 -> PerformanceTab()
-        else -> BtopTab() // [BTOP-MONITOR]
+    // [BTOP-DARK] seluruh halaman Monitor di atas permukaan gelap btop, termasuk bilah tab
+    val pageShape = RoundedCornerShape(10.dp)
+    Column(
+        Modifier.fillMaxWidth().background(BtopBg, pageShape).border(1.dp, BtopLine, pageShape).padding(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        TaskTabStrip(listOf("Aplikasi", "Proses", "Kinerja", "btop"), tab) { tab = it } // [BTOP-MONITOR]
+        when (tab) {
+            0 -> AppsTab()
+            1 -> ProcessesTab()
+            2 -> PerformanceTab()
+            else -> BtopTab() // [BTOP-MONITOR]
+        }
     }
 }
 
@@ -107,14 +115,14 @@ private fun TaskTabStrip(tabs: List<String>, selected: Int, onSelect: (Int) -> U
                     .weight(1f)
                     .height(34.dp)
                     .clip(shape)
-                    .background(if (on) Win7.SelFill else Win7.NavBg, shape)
-                    .border(1.dp, if (on) Win7.SelLine else Win7.Line, shape)
+                    .background(if (on) Color(0xFF16323A) else BtopBg, shape)
+                    .border(1.dp, if (on) MolinaTheme.Brand else BtopLine, shape)
                     .clickable { onSelect(i) },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     label,
-                    color = if (on) Win7.Ink else Win7.TextDim,
+                    color = if (on) BtopText else BtopDim,
                     fontSize = 13.sp,
                     fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal
                 )
@@ -203,7 +211,7 @@ private fun ProcessesTab() {
     val canEnd = sel != null && !sel.isSelf
 
     RgbFrame(Modifier.fillMaxWidth(), spot = RgbSpot.Monitor) {
-        Win7GlassWindow("Pengelola Tugas Molina", icon = { W7IconMonitor(18.dp) }) {
+        Win7GlassWindow("Pengelola Tugas Molina", icon = { W7IconMonitorGraph(18.dp) }) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
                 Spacer(Modifier.width(14.dp))
                 HeaderCell("Nama Gambar", TaskSort.Name, key, desc, Modifier.weight(1f), TextAlign.Start) { k ->
@@ -311,7 +319,7 @@ private fun AppsTab() {
     val sel = mods.firstOrNull { it.id == selId }
 
     RgbFrame(Modifier.fillMaxWidth(), spot = RgbSpot.Monitor) {
-        Win7GlassWindow("Aplikasi Molina", icon = { W7IconMonitor(18.dp) }) {
+        Win7GlassWindow("Aplikasi Molina", icon = { W7IconMonitorGraph(18.dp) }) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
                 Text("Tugas", Modifier.weight(1f), color = Win7.NavHeader, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 Text("Status", Modifier.width(76.dp), color = Win7.NavHeader, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)

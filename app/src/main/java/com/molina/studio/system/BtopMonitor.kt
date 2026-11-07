@@ -48,7 +48,7 @@ internal data class BtopSnapshot(
  * ditebak. Tidur saat aplikasi di latar belakang. PSS (panggilan binder yang mahal) dihitung tiap [PSS_EVERY] sampel.
  */
 internal object BtopMonitor {
-    private const val PERIOD_MS = 1500L
+    internal const val PERIOD_MS = 1500L
     private const val PSS_EVERY = 3
 
     fun snapshots(context: Context): Flow<BtopSnapshot> = flow {

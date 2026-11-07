@@ -89,7 +89,7 @@ internal fun PerformanceTab() {
 
     Spacer(Modifier.height(4.dp))
     RgbFrame(Modifier.fillMaxWidth(), spot = RgbSpot.Monitor) {
-        Win7GlassWindow("Monitor Sistem", icon = { W7IconMonitor(18.dp) }) {
+        Win7GlassWindow("Monitor Sistem", icon = { W7IconMonitorGraph(18.dp) }) {
             MonitorMeter("\u2193 Unduh", stats.rxText, netFraction(stats.rxBps), Color(0xFF8FC4EE), Color(0xFF2D6DB5))
             MonitorMeter("\u2191 Unggah", stats.txText, netFraction(stats.txBps), Color(0xFFE8776B), Color(0xFFB3261E))
             MonitorMeter("CPU", "${stats.cpuPercent}%", stats.cpuPercent / 100f, cpuC.first, cpuC.second)
