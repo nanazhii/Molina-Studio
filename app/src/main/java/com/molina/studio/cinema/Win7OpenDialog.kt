@@ -1116,8 +1116,14 @@ private fun W7EntryRow(
             .then(if (swipeDir != 0) Modifier.background(Win7.SelLine.copy(alpha = 0.3f), shape) else Modifier)
             .then(
                 if (selected) Modifier
-                    .background(Brush.verticalGradient(listOf(Color(0xFF16324D), Color(0xFF0F2438))), shape)
-                    .border(1.dp, Win7.SelLine, shape)
+                    .background(
+                        Brush.verticalGradient(
+                            if (checked != null) listOf(MolinaTheme.Explorer.PickFillTop, MolinaTheme.Explorer.PickFillBottom) // [PICK-RED]
+                            else listOf(Color(0xFF16324D), Color(0xFF0F2438))
+                        ),
+                        shape
+                    )
+                    .border(1.dp, if (checked != null) MolinaTheme.Explorer.PickLine else Win7.SelLine, shape)
                 else Modifier
             )
             .clickable { onOpen(e) }
@@ -1147,7 +1153,7 @@ private fun W7EntryRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (checked != null) {
-            Text(if (checked) "[x]" else "[  ]", color = Win7.NavHeader, fontSize = 12.sp)
+            Text(if (checked) "[x]" else "[  ]", color = MolinaTheme.Explorer.PickInk.copy(alpha = if (checked) 1f else 0.6f), fontSize = 12.sp) // [PICK-RED]
             Spacer(Modifier.width(6.dp))
         }
         if (e.isDir) Win7Folder(20.dp) else W7FileIcon(e.file.extension, 22.dp)
@@ -1172,7 +1178,7 @@ private fun W7EntryRow(
             Box(
                 Modifier.width(40.dp).heightIn(min = 32.dp).clickable { onEnter(e) },
                 contentAlignment = Alignment.Center
-            ) { Text("\u203A", color = Win7.NavHeader, fontSize = 22.sp) }
+            ) { Text("\u203A", color = MolinaTheme.Explorer.PickInk, fontSize = 22.sp) } // [PICK-RED]
         }
     }
 }

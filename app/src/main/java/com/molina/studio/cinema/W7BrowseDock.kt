@@ -72,7 +72,7 @@ internal fun W7BrowseFloat(
     ) {
         if (modeLabel != null && modeLabel.isNotEmpty()) {
             Text(
-                modeLabel, color = Win7.NavHeader, fontSize = 12.sp, maxLines = 1,
+                modeLabel, color = MolinaTheme.Explorer.PickInk, fontSize = 12.sp, maxLines = 1, // [PICK-RED]
                 overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 120.dp)
             )
             Spacer(Modifier.width(6.dp))
