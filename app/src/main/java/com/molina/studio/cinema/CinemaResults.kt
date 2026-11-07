@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,9 +52,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -345,6 +349,7 @@ private fun ChannelRow(
     val onPressNow by rememberUpdatedState(onPress)
     val onClickNow by rememberUpdatedState(onClick)
     val onLongNow by rememberUpdatedState(onLongPress)
+    val thumbHeld = remember { BooleanArray(1) } // [THUMB-PREVIEW] true selama jari menekan thumbnail YouTube
     val shape = RoundedCornerShape(4.dp)
     val brush = if (isSelected) Brush.verticalGradient(listOf(SelectedTop, SelectedBottom))
         else Brush.verticalGradient(listOf(RowTop, RowBottom))
@@ -355,7 +360,7 @@ private fun ChannelRow(
             .pointerInput(e.number) {
                 detectTapGestures(
                     onPress = { onPressNow(); tryAwaitRelease() },
-                    onLongPress = { onLongNow() },
+                    onLongPress = { if (!thumbHeld[0]) onLongNow() },
                     onTap = { onClickNow() },
                 )
             }
@@ -372,7 +377,10 @@ private fun ChannelRow(
                 .border(1.5.dp, MolinaTheme.Brand, RoundedCornerShape(4.dp)),
             contentAlignment = Alignment.Center,
         ) { if (checked) Text("\u2713", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
-        if (showThumb) SearchThumb(e.item.thumbnailUrl, e.item.durationSec, progress, Modifier.padding(end = 8.dp)) // [RESULTS-THUMB]
+        if (showThumb) SearchThumb(
+            e.item.thumbnailUrl, e.item.durationSec, progress,
+            VideoKey.of(e.item.pageUrl)?.removePrefix("yt:"), thumbHeld, Modifier.padding(end = 8.dp),
+        ) // [RESULTS-THUMB]
         Column(Modifier.weight(1f)) {
             Text(e.item.title, color = Color.White, fontSize = 14.sp, maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
@@ -437,14 +445,67 @@ private fun ResultChip(label: String, active: Boolean, onClick: () -> Unit) {
     )
 }
 
-/** [RESULTS-THUMB] Thumbnail 16:9 ala YouTube (96x54 dp), lencana durasi kanan bawah, garis progres merah [WATCH-PROGRESS] di dasar. */
+/**
+ * [RESULTS-THUMB] Thumbnail 16:9 ala YouTube (96x54 dp), lencana durasi kanan bawah, garis progres zamrud [WATCH-PROGRESS] di dasar.
+ * [THUMB-PREVIEW] Tekan-tahan pada thumbnail memutar 3 frame publik (/vi/<id>/1-3.jpg) bergantian selama jari ditahan.
+ * Ketukan biasa tetap memutar video; tekan-tahan di luar thumbnail tetap membuka mode pilih ([held] menekan long-press baris).
+ */
 @Composable
-private fun SearchThumb(url: String?, durationSec: Long?, progress: Int?, modifier: Modifier = Modifier) {
+private fun SearchThumb(
+    url: String?, durationSec: Long?, progress: Int?, videoId: String?, held: BooleanArray, modifier: Modifier = Modifier,
+) {
     var bmp by remember(url) { mutableStateOf<ImageBitmap?>(null) }
+    var frame by remember(videoId) { mutableStateOf<ImageBitmap?>(null) }
+    var holding by remember { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
     LaunchedEffect(url) { bmp = if (url == null) null else SearchThumbs.load(url)?.asImageBitmap() }
+    LaunchedEffect(holding, videoId) {
+        if (!holding || videoId == null) { frame = null; return@LaunchedEffect }
+        val frames = (1..3).mapNotNull { n -> SearchThumbs.load("https://i.ytimg.com/vi/$videoId/$n.jpg")?.asImageBitmap() }
+        if (frames.isEmpty()) return@LaunchedEffect
+        var i = 0
+        while (true) { frame = frames[i % frames.size]; i++; delay(700) }
+    }
+    val shown = frame ?: bmp
     val shape = RoundedCornerShape(6.dp)
-    Box(modifier.size(96.dp, 54.dp).clip(shape).background(Color(0xFF1A1A1A))) {
-        bmp?.let { Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(96.dp, 54.dp)) }
+    Box(
+        modifier.size(96.dp, 54.dp).clip(shape).background(Color(0xFF1A1A1A))
+            .then(if (holding) Modifier.border(2.dp, MolinaTheme.Brand, shape) else Modifier)
+            .pointerInput(videoId) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    if (videoId == null) return@awaitEachGesture
+                    held[0] = true
+                    var long = false
+                    try {
+                        var timedOut = true
+                        withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                            while (true) {
+                                val ev = awaitPointerEvent()
+                                val ch = ev.changes.firstOrNull { it.id == down.id }
+                                if (ch == null || !ch.pressed || ch.isConsumed ||
+                                    (ch.position - down.position).getDistance() > viewConfiguration.touchSlop
+                                ) { timedOut = false; return@withTimeoutOrNull }
+                            }
+                        }
+                        if (timedOut) {
+                            long = true
+                            holding = true
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            while (true) {
+                                val ev = awaitPointerEvent()
+                                ev.changes.forEach { it.consume() }
+                                if (ev.changes.none { it.pressed }) break
+                            }
+                        }
+                    } finally {
+                        if (long) holding = false
+                        held[0] = false
+                    }
+                }
+            },
+    ) {
+        shown?.let { Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(96.dp, 54.dp)) }
         if (durationSec != null) Text(
             duration(durationSec), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
             modifier = Modifier.align(Alignment.BottomEnd)
@@ -453,7 +514,7 @@ private fun SearchThumb(url: String?, durationSec: Long?, progress: Int?, modifi
                 .padding(horizontal = 4.dp, vertical = 1.dp),
         )
         if (progress != null) Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(3.dp).background(Color(0x66FFFFFF))) {
-            Box(Modifier.fillMaxWidth(progress / 100f).height(3.dp).background(Color(0xFFFF0033)))
+            Box(Modifier.fillMaxWidth(progress / 100f).height(3.dp).background(MolinaTheme.Brand))
         }
     }
 }
