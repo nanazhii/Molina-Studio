@@ -321,12 +321,6 @@ internal fun SearchResultsDialog(
                     color = Color(0xE6FFFFFF), fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp).padding(horizontal = 20.dp, vertical = 6.dp),
                 )
-                // [TITLE-STRIP] judul lengkap baris yang disorot (baris daftar tetap 2 baris); tinggi tetap agar daftar tidak bergeser
-                Text(
-                    visible.firstOrNull { it.number == selected }?.item?.title.orEmpty(),
-                    color = Color(0xE6FFFFFF), fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp).padding(horizontal = 20.dp, vertical = 6.dp),
-                )
                 HorizontalDivider(color = Color(0x1FFFFFFF))
 
                 Row(
