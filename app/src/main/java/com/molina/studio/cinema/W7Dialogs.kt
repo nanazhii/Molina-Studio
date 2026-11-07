@@ -166,6 +166,26 @@ internal fun W7ConfirmDialog(files: List<File>, permanent: Boolean, onCancel: ()
             files.take(4).forEach { Text("\u2022 " + it.name, color = Win7.TextDim, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
             if (files.size > 4) Text("\u2022 \u2026 dan " + (files.size - 4) + " lainnya", color = Win7.TextDim, fontSize = 12.sp)
         }
+        // [CONFIRM-TOTAL] Ringkasan total (berkas, folder, ukuran) dihitung di IO agar dialog tidak memblokir main thread
+        val totals by produceState<String?>(null, files) {
+            value = withContext(Dispatchers.IO) {
+                runCatching {
+                    var nFiles = 0
+                    var nDirs = 0
+                    var bytes = 0L
+                    for (f in files) {
+                        val pr = FileOps.props(f)
+                        if (pr.isDir) { nDirs += 1 + pr.folders; nFiles += pr.files } else nFiles += 1
+                        bytes += pr.size
+                    }
+                    "Total: " + nFiles + " berkas, " + nDirs + " folder, " + FileOps.readable(bytes)
+                }.getOrElse { "Ukuran total tidak dapat dihitung." }
+            }
+        }
+        if (files.size > 1 || hasDir) {
+            Spacer(Modifier.height(6.dp))
+            Text(totals ?: "Menghitung ukuran\u2026", color = Win7.Ink, fontSize = 12.sp)
+        }
         Spacer(Modifier.height(8.dp))
         if (permanent) Text("Penghapusan permanen tidak dapat dibatalkan.", color = MolinaTheme.Bad, fontSize = 12.sp)
         else Text("Bisa dipulihkan dari Recycle Bin selama " + TrashBin.RETAIN_DAYS + " hari.", color = Win7.TextDim, fontSize = 12.sp)
