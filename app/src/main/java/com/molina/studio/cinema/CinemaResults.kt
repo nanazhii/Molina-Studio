@@ -147,9 +147,7 @@ internal fun SearchResultsDialog(
     val filtered = remember(relatedMixed, durFilter, dateFilter) { SearchOrder.filter(relatedMixed, durFilter, dateFilter) }
     val ordered = remember(filtered, sort) { SearchOrder.sort(filtered, sort) }
     val entries = remember(ordered) { ordered.mapIndexed { i, r -> ResultEntry(i + 1, r) } }
-    val related = remember(results) { SearchOrder.related(results) }
     val undated = remember(results) { results.count { RelativeTime.estimateAtMs(it) == null } }
-    val suggestions = remember(results, searchQuery) { SearchOrder.relatedQueries(results, searchQuery) }
     var query by remember { mutableStateOf("") }
     var searchOpen by remember { mutableStateOf(false) }
     var selected by remember { mutableIntStateOf(1) }
@@ -275,30 +273,6 @@ internal fun SearchResultsDialog(
                     Text("Kategori", color = MolinaTheme.Muted, fontSize = 12.sp)
                     ResultChip(relatedQ, false) { onSearch(relatedQ) }
                 }
-                if (related.isNotEmpty()) Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("Kanal", color = MolinaTheme.Muted, fontSize = 12.sp)
-                    related.forEach { (name, n) ->
-                        val on = q.equals(name, ignoreCase = true)
-                        ResultChip("$name \u00B7 $n", on) {
-                            if (on) { query = ""; searchOpen = false } else { query = name; searchOpen = true }
-                        }
-                    }
-                }
-
-                // [RESULTS-SUGGEST] pencarian terkait: kata kunci dari judul hasil, ketuk = cari lagi
-                if (onSearch != null && suggestions.isNotEmpty()) Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("Cari juga", color = MolinaTheme.Muted, fontSize = 12.sp)
-                    suggestions.forEach { s -> ResultChip(s, false) { onSearch(s) } }
-                }
-
                 if (searchOpen) OutlinedTextField(
                     query, { query = it },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp)
