@@ -118,7 +118,7 @@ private val HdrDim = Color(0xFFC8C8C8)
  * Extra keys di bawah tidak diubah.
  */
 @Composable
-internal fun TerminalHeader(onOpenSettings: () -> Unit) {
+internal fun TerminalHeader(onOpenSettings: () -> Unit, onOpenMonitor: () -> Unit = {}) { // [HDR-MONITOR-CB]
     val ctx = LocalContext.current
     remember(ctx) { TerminalUi.load(ctx) }
     val total = TerminalSessions.sessions.size
@@ -153,7 +153,7 @@ internal fun TerminalHeader(onOpenSettings: () -> Unit) {
         )
         Spacer(Modifier.weight(1f))
         // [HDR-STATS] Monitor CPU/RAM/jaringan (dulu di bilah pil). Ukuran font tetap lewat cubit dan Pengaturan.
-        PillStats()
+        PillStats(onClick = onOpenMonitor) // [HDR-MONITOR-CLICK]
         // [HDR-KEEPON-MENU] saklar layar tetap menyala dipindah ke menu titik tiga; ruang header untuk monitor
         Box {
             HdrBtn("\u22EE") { menu = true }

@@ -66,7 +66,7 @@ private fun cellWidthPx(ctx: Context, sp: Int): Float =
     Paint().apply { typeface = MolinaFont.typeface(ctx); textSize = spToPx(ctx, sp).toFloat() }.measureText("X")
 
 @Composable
-fun TerminalScreen(modifier: Modifier = Modifier, onOpenSettings: () -> Unit = {}) {
+fun TerminalScreen(modifier: Modifier = Modifier, onOpenSettings: () -> Unit = {}, onOpenMonitor: () -> Unit = {}) { // [TS-MONITOR-CB1]
     val context = LocalContext.current
     val perm = Manifest.permission.WRITE_EXTERNAL_STORAGE
     var granted by remember {
@@ -82,12 +82,12 @@ fun TerminalScreen(modifier: Modifier = Modifier, onOpenSettings: () -> Unit = {
             Text("Meminta izin penyimpanan...", color = MaterialTheme.colorScheme.onSurface)
         }
     } else {
-        TerminalContent(modifier, onOpenSettings)
+        TerminalContent(modifier, onOpenSettings, onOpenMonitor) // [TS-MONITOR-CB2]
     }
 }
 
 @Composable
-private fun TerminalContent(modifier: Modifier, onOpenSettings: () -> Unit) {
+private fun TerminalContent(modifier: Modifier, onOpenSettings: () -> Unit, onOpenMonitor: () -> Unit) { // [TS-MONITOR-CB3]
     val context = LocalContext.current
     val mods = remember { TerminalModifiers() }
     remember(context) { RootfsManager.refresh(context) }
@@ -104,7 +104,7 @@ private fun TerminalContent(modifier: Modifier, onOpenSettings: () -> Unit) {
 
     Box(modifier) {
     Column(Modifier.fillMaxSize()) {
-        TerminalHeader(onOpenSettings)
+        TerminalHeader(onOpenSettings, onOpenMonitor) // [TS-MONITOR-CB4]
         SessionPillBar()
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
             if (rootfsState !is RootfsState.Ready) {

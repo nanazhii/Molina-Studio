@@ -191,12 +191,18 @@ private fun AddPill(enabledLook: Boolean, onClick: () -> Unit) {
 
 /** Mini CPU/RAM; dipisah agar pembaruan tiap detik tidak ikut menyusun ulang daftar pil. */
 @Composable
-internal fun PillStats() {
+internal fun PillStats(onClick: () -> Unit = {}) { // [STATS-CLICK]
     val ctx = LocalContext.current
     var snap by remember { mutableStateOf<StatsSnapshot?>(null) }
     LaunchedEffect(ctx) { SystemStats.shared(ctx).collect { snap = it } }
     val st = snap ?: return
-    Column(Modifier.padding(horizontal = 8.dp), verticalArrangement = Arrangement.Center) {
+    Column(
+        Modifier // [STATS-CLICK-MOD]
+            .clip(RoundedCornerShape(6.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp),
+        verticalArrangement = Arrangement.Center
+    ) {
         Row {
             StatText("CPU ${st.cpuPercent}%", levelColor(st.cpuLevel))
             Spacer(Modifier.width(6.dp))

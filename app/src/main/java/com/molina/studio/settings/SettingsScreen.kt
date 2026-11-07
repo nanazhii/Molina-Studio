@@ -208,9 +208,12 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
     val aptPending by AptHistory.pending.collectAsState() // [PAKET-PUSAT] aptLast pindah ke halaman Paket
     remember { com.molina.studio.automation.AutoPrefs.init(aptCtx) }
     val autoSt by com.molina.studio.automation.AutoPrefs.state.collectAsState()
-    fun open(p: Page) { query = ""; page = p }
+    var monitorFromTerminal by rememberSaveable { mutableStateOf(false) } // [MONITOR-FROM-TERM]
+    fun open(p: Page) { query = ""; if (p != Page.Monitor) monitorFromTerminal = false; page = p }
+    fun upTarget(): Page =
+        if (page == Page.Monitor && monitorFromTerminal) Page.TerminalApp else (parentOf(page) ?: Page.Home)
     BackHandler(enabled = query.isNotBlank() || page != Page.Home) {
-        if (query.isNotBlank()) query = "" else page = parentOf(page) ?: Page.Home
+        if (query.isNotBlank()) query = "" else open(upTarget()) // [MONITOR-BACK]
     }
     LaunchedEffect(SettingsNav.openTerminal) {
         if (SettingsNav.openTerminal) {
@@ -255,7 +258,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
         modifier = modifier,
         crumbs = trail.map { titleOf(it) },
         canUp = page != Page.Home,
-        onUp = { open(parentOf(page) ?: Page.Home) },
+        onUp = { open(upTarget()) }, // [MONITOR-UP]
         onCrumb = { i -> open(trail[i]) },
         query = query,
         onQuery = { query = it },
@@ -278,7 +281,8 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
             page == Page.Downloads -> com.molina.studio.download.UnduhanScreen(Modifier.fillMaxSize())
             page == Page.TerminalApp -> com.molina.studio.terminal.TerminalScreen(
                 Modifier.fillMaxSize(),
-                onOpenSettings = { open(Page.Terminal) }
+                onOpenSettings = { open(Page.Terminal) },
+                onOpenMonitor = { open(Page.Monitor); monitorFromTerminal = true } // [MONITOR-OPEN]
             )
             else -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
                 W7Heading(if (page == Page.Home) "Sesuaikan setelan Molina" else titleOf(page))
