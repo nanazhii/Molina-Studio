@@ -47,7 +47,10 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
@@ -174,7 +177,7 @@ internal fun SearchResultsDialog(
         // [CINEMA-RESULTS-FRAME] margin tepi 24dp, lebar maks 480dp, bingkai tipis bergradasi emas
         val frame = RoundedCornerShape(20.dp)
         Surface(
-            Modifier.widthIn(max = 480.dp).fillMaxWidth().padding(horizontal = 24.dp)
+            Modifier.widthIn(max = 480.dp).fillMaxWidth().padding(horizontal = 12.dp)
                 .heightIn(max = 640.dp)
                 .border(
                     1.dp,
@@ -354,7 +357,7 @@ private fun ChannelRow(
     ) {
         Text("%03d".format(e.number), color = if (isSelected) Color.White else ChannelNumber,
             fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 14.sp,
-            modifier = Modifier.width(44.dp))
+            modifier = Modifier.width(34.dp))
         // [PICK-MANY] kotak centang (digambar, bukan glif emoji) hanya saat mode pilih aktif
         if (checked != null) Box(
             Modifier.padding(end = 8.dp).size(20.dp).clip(RoundedCornerShape(4.dp))
@@ -362,11 +365,12 @@ private fun ChannelRow(
                 .border(1.5.dp, MolinaTheme.Brand, RoundedCornerShape(4.dp)),
             contentAlignment = Alignment.Center,
         ) { if (checked) Text("\u2713", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
+        SearchThumb(e.item.thumbnailUrl, e.item.durationSec, Modifier.padding(end = 8.dp)) // [RESULTS-THUMB]
         Column(Modifier.weight(1f)) {
-            Text(e.item.title, color = Color.White, fontSize = 15.sp, maxLines = 2,
+            Text(e.item.title, color = Color.White, fontSize = 14.sp, maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
-            val meta = listOfNotNull(e.item.uploader, e.item.durationSec?.let { duration(it) }, RelativeTime.label(e.item))
+            val meta = listOfNotNull(e.item.uploader, RelativeTime.label(e.item))
                 .joinToString(" \u00B7 ")
             if (meta.isNotEmpty()) Text(meta, fontSize = 12.sp,
                 color = if (isSelected) Color(0xCCFFFFFF) else MolinaTheme.Muted,
@@ -424,4 +428,23 @@ private fun ResultChip(label: String, active: Boolean, onClick: () -> Unit) {
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 5.dp),
     )
+}
+
+/** [RESULTS-THUMB] Thumbnail 16:9 ala YouTube (96x54 dp) dengan lencana durasi di pojok kanan bawah; placeholder gelap saat memuat/gagal. */
+@Composable
+private fun SearchThumb(url: String?, durationSec: Long?, modifier: Modifier = Modifier) {
+    var bmp by remember(url) { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(url) { bmp = if (url == null) null else SearchThumbs.load(url)?.asImageBitmap() }
+    val shape = RoundedCornerShape(6.dp)
+    Box(
+        modifier.size(96.dp, 54.dp).clip(shape).background(Color(0xFF1A1A1A)),
+        contentAlignment = Alignment.BottomEnd,
+    ) {
+        bmp?.let { Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(96.dp, 54.dp)) }
+        if (durationSec != null) Text(
+            duration(durationSec), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+            modifier = Modifier.padding(3.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xCC000000))
+                .padding(horizontal = 4.dp, vertical = 1.dp),
+        )
+    }
 }
