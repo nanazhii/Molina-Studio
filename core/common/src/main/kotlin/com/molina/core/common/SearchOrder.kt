@@ -1,14 +1,14 @@
 package com.molina.core.common
 
-/** Urutan hasil pencarian: RELEVANCE = urutan dari mesin pencari, NEWEST = menurut waktu unggah, RELATED = video sejenis dari kanal lain. */
+/** Urutan hasil pencarian: RELEVANCE = video sejenis dari kanal lain (dulu "Terkait"), NEWEST = menurut waktu unggah. */
 enum class SearchSort(val label: String) {
     RELEVANCE("Relevansi"),
-    NEWEST("Terbaru"),
-    RELATED("Terkait");
+    NEWEST("Terbaru");
 
     companion object {
-        /** Nama tersimpan -> nilai; kosong atau tidak dikenal (mis. nilai lama) -> [NEWEST]. */
-        fun fromName(name: String?): SearchSort = values().firstOrNull { it.name == name } ?: NEWEST
+        /** Nama tersimpan -> nilai; "RELATED" (nilai lama) -> [RELEVANCE]; kosong atau tidak dikenal -> [NEWEST]. */
+        fun fromName(name: String?): SearchSort =
+            if (name == "RELATED") RELEVANCE else values().firstOrNull { it.name == name } ?: NEWEST
     }
 }
 
@@ -56,7 +56,7 @@ object SearchOrder {
      * Pengurutan stabil: hasil sewaktu mempertahankan urutan relevansi.
      */
     fun sort(items: List<StreamSearchItem>, sort: SearchSort, nowMs: Long = System.currentTimeMillis()): List<StreamSearchItem> {
-        if (sort == SearchSort.RELEVANCE || sort == SearchSort.RELATED) return items // RELATED disusun terpisah: [relatedMix]
+        if (sort == SearchSort.RELEVANCE) return items // RELEVANCE disusun terpisah: [relatedMix]
         val keyed = items.map { it to RelativeTime.estimateAtMs(it, nowMs) }
         val known = keyed.filter { it.second != null }
         val unknown = keyed.filter { it.second == null }.map { it.first }

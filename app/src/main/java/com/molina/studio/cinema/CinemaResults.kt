@@ -129,21 +129,21 @@ internal fun SearchResultsDialog(
     var sort by remember { mutableStateOf(SearchSortPrefs.load(ctx)) } // [RESULTS-SORT] bawaan: terbaru; pilihan terakhir diingat [RESULTS-SORT-PREF]
     var durFilter by remember { mutableStateOf(DurationFilter.ALL) } // [RESULTS-FILTER]
     var dateFilter by remember { mutableStateOf(DateFilter.ALL) }
-    // [RESULTS-RELATED] Terkait: pencarian kedua (kueri kategori) diambil sekali per daftar hasil, saat chip dipilih
+    // [RESULTS-RELATED] Relevansi: pencarian kedua (kueri kategori) diambil sekali per daftar hasil, saat chip dipilih
     var relatedExtra by remember(results) { mutableStateOf<List<StreamSearchItem>?>(null) }
     var relatedLoading by remember { mutableStateOf(false) }
     val relatedQ = remember(results, searchQuery) { SearchOrder.relatedQuery(results, searchQuery) } // [RELATED-CATEGORY]
     LaunchedEffect(sort, results) {
-        if (sort != SearchSort.RELATED || relatedExtra != null || onFetchRelated == null) return@LaunchedEffect
+        if (sort != SearchSort.RELEVANCE || relatedExtra != null || onFetchRelated == null) return@LaunchedEffect
         val rq = relatedQ
         if (rq == null) { relatedExtra = emptyList(); return@LaunchedEffect }
         relatedLoading = true
         try { relatedExtra = onFetchRelated(rq) } finally { relatedLoading = false }
     }
     val relatedMixed = remember(results, relatedExtra, searchQuery, sort) {
-        if (sort == SearchSort.RELATED) SearchOrder.relatedMix(results, relatedExtra.orEmpty(), searchQuery) else results
+        if (sort == SearchSort.RELEVANCE) SearchOrder.relatedMix(results, relatedExtra.orEmpty(), searchQuery) else results
     }
-    val relatedFallback = sort == SearchSort.RELATED && !relatedLoading && relatedExtra != null && relatedMixed === results
+    val relatedFallback = sort == SearchSort.RELEVANCE && !relatedLoading && relatedExtra != null && relatedMixed === results
     val filtered = remember(relatedMixed, durFilter, dateFilter) { SearchOrder.filter(relatedMixed, durFilter, dateFilter) }
     val ordered = remember(filtered, sort) { SearchOrder.sort(filtered, sort) }
     val entries = remember(ordered) { ordered.mapIndexed { i, r -> ResultEntry(i + 1, r) } }
@@ -261,13 +261,13 @@ internal fun SearchResultsDialog(
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 2.dp),
                 )
                 // [RELATED-STATUS]
-                if (sort == SearchSort.RELATED && (relatedLoading || relatedFallback)) Text(
+                if (sort == SearchSort.RELEVANCE && (relatedLoading || relatedFallback)) Text(
                     if (relatedLoading) "Mencari video terkait\u2026" else "Belum ada video terkait, menampilkan hasil asli",
                     color = MolinaTheme.Muted, fontSize = 11.sp,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 2.dp),
                 )
                 // [RELATED-CATEGORY] kueri kategori yang dipakai; ketuk = cari penuh dengan kueri itu
-                if (sort == SearchSort.RELATED && relatedQ != null && onSearch != null) Row(
+                if (sort == SearchSort.RELEVANCE && relatedQ != null && onSearch != null) Row(
                     Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 2.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -280,7 +280,7 @@ internal fun SearchResultsDialog(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("Terkait", color = MolinaTheme.Muted, fontSize = 12.sp)
+                    Text("Kanal", color = MolinaTheme.Muted, fontSize = 12.sp)
                     related.forEach { (name, n) ->
                         val on = q.equals(name, ignoreCase = true)
                         ResultChip("$name \u00B7 $n", on) {

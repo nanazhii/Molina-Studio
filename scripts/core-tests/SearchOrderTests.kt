@@ -32,8 +32,7 @@ fun main() {
     val d = item("D", text = "2 hours ago")
     val src = listOf(a, b, c, d)
     check("NEWEST: baru ke lama, tanpa tanggal di akhir", titles(SearchOrder.sort(src, SearchSort.NEWEST, NOW)) == "D,B,A,C")
-    check("RELATED: sort() tidak mengubah urutan (disusun relatedMix)", titles(SearchOrder.sort(src, SearchSort.RELATED, NOW)) == "A,B,C,D")
-    check("RELEVANCE: urutan asli", titles(SearchOrder.sort(src, SearchSort.RELEVANCE, NOW)) == "A,B,C,D")
+    check("RELEVANCE: sort() tidak mengubah urutan (disusun relatedMix)", titles(SearchOrder.sort(src, SearchSort.RELEVANCE, NOW)) == "A,B,C,D")
     check("sumber tidak diubah", titles(src) == "A,B,C,D")
 
     val t1 = item("T1", text = "3 days ago"); val t2 = item("T2", text = "3 days ago"); val t3 = item("T3", text = "3 days ago")
@@ -111,7 +110,7 @@ fun main() {
     check("relatedMix: hanya kanal sendiri -> daftar asli (objek sama)", SearchOrder.relatedMix(onlyOwn, emptyList(), "jagat review") === onlyOwn)
     check("relatedMix: kueri topik umum menyisakan semua kanal", titles(SearchOrder.relatedMix(mixBase, emptyList(), "review")) == "A1,B1,A2")
 
-    check("SearchSort.fromName: nama dikenal", SearchSort.fromName("RELATED") == SearchSort.RELATED && SearchSort.fromName("RELEVANCE") == SearchSort.RELEVANCE)
+    check("SearchSort.fromName: nama dikenal", SearchSort.fromName("RELATED") == SearchSort.RELEVANCE && SearchSort.fromName("RELEVANCE") == SearchSort.RELEVANCE)
     check("SearchSort.fromName: null/kosong/lama -> NEWEST", SearchSort.fromName(null) == SearchSort.NEWEST &&
         SearchSort.fromName("") == SearchSort.NEWEST && SearchSort.fromName("OLDEST") == SearchSort.NEWEST)
     println(if (fails == 0) "\nSEMUA LOLOS" else "\n$fails GAGAL")
