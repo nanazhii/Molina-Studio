@@ -18,7 +18,7 @@ import java.net.URL
  * dekode RGB_565 dengan inSampleSize (maks. 320x180), LruCache berbasis byte (6 MB), kegagalan dicatat agar tidak diulang.
  */
 internal object SearchThumbs {
-    private val ALLOWED = listOf("ytimg.com", "ggpht.com")
+    private val ALLOWED = listOf("ytimg.com")
     private const val MAX_W = 320
     private const val MAX_H = 180
     private const val MAX_BYTES = 1_500_000

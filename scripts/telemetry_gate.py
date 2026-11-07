@@ -13,6 +13,7 @@ ALLOWED_HOSTS = {
     "dev.w3.org",  # komentar regex di grammar TextMate CSS (VS Code, MIT): tautan spesifikasi W3C, bukan koneksi
     "mozilla.org", "www.gnu.org",  # teks lisensi di header berkas (MPL/LGPL), bukan koneksi
     "youtube.com",  # runtime: oEmbed judul asli pengunggah (OriginalTitles); satu GET per hasil pencarian, tanpa cookie/identitas, bukan telemetri
+    "ytimg.com",  # runtime: thumbnail hasil pencarian (SearchThumbs); satu GET gambar per hasil, tanpa cookie/identitas, bisa dimatikan lewat Setelan > Tampilkan thumbnail, bukan telemetri
 }
 ALLOWED_PERMISSIONS = {
     "android.permission.INTERNET",
