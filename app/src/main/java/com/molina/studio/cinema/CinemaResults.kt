@@ -336,6 +336,7 @@ internal fun SearchResultsDialog(
                             played = seen.isPlayed(e.item.pageUrl),
                             downloaded = seen.isDownloaded(e.item.pageUrl),
                             progress = VideoKey.of(e.item.pageUrl)?.let { watched[it] }, showThumb = showThumbs,
+                            expandSelected = sort != SearchSort.RELEVANCE, // [TITLE-2LINE] Relevansi: semua baris 2 baris
                             checked = if (selectMode) e.item.pageUrl in chosen else null,
                             onLongPress = { selectMode = true; chosen = chosen + e.item.pageUrl })
                     }
@@ -378,7 +379,7 @@ private fun ChannelRow(
     onPress: () -> Unit, onClick: () -> Unit, onDownload: () -> Unit,
     played: Boolean = false, downloaded: Boolean = false,
     checked: Boolean? = null, onLongPress: () -> Unit = {},
-    progress: Int? = null, showThumb: Boolean = true,
+    progress: Int? = null, showThumb: Boolean = true, expandSelected: Boolean = true, // [TITLE-2LINE] false = baris terpilih tetap 2 baris
 ) {
     // [PICK-MANY] lambda terbaru: pointerInput tidak dimulai ulang saat daftar diurut/disaring atau mode pilih berganti
     val onPressNow by rememberUpdatedState(onPress)
@@ -419,7 +420,7 @@ private fun ChannelRow(
             Modifier.padding(end = 8.dp).width(ThumbWidth).aspectRatio(16f / 9f), // [THUMB-169]
         ) // [RESULTS-THUMB]
         Column(Modifier.weight(1f)) {
-            Text(e.item.title, color = Color.White, fontSize = 14.sp, maxLines = if (isSelected) 3 else 2, // [TITLE-2LINE]
+            Text(e.item.title, color = Color.White, fontSize = 14.sp, maxLines = if (isSelected && expandSelected) 3 else 2, // [TITLE-2LINE]
                 overflow = TextOverflow.Ellipsis,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
             val meta = listOfNotNull(e.item.uploader, if (showThumb) null else e.item.durationSec?.let { duration(it) }, RelativeTime.label(e.item))
