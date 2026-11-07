@@ -32,7 +32,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import com.molina.studio.ui.components.MolinaAlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -282,7 +282,7 @@ internal fun PackagesPage(
     }
     needPython?.let { t ->
         val dep = BuiltinTools.all.firstOrNull { it.id == t.requires.firstOrNull() }
-        AlertDialog(
+        MolinaAlertDialog(
             onDismissRequest = { needPython = null },
             title = { Text("${t.name} butuh ${dep?.name ?: "alat lain"}") },
             text = { Text("${t.name} membutuhkan ${dep?.name ?: "alat lain"} di Debian, dan belum terpasang. Pasang ${dep?.name ?: "alat itu"} dulu, lalu ${t.name} dipasang otomatis?") },
@@ -339,7 +339,7 @@ internal fun PackagesPage(
         }
     }
     toDrop?.let { t ->
-        AlertDialog(
+        MolinaAlertDialog(
             onDismissRequest = { toDrop = null },
             title = { Text("Buang alat dari daftar?") },
             text = { Text("\"${t.name}\" dibuang dari daftar. Alat yang sudah terpasang di Debian tidak ikut dihapus.") },
@@ -462,7 +462,7 @@ private fun ToolCard(
 
 @Composable
 private fun ToolEditorDialog(d: ToolDraft, ctx: Context, onCancel: () -> Unit, onSaved: () -> Unit) {
-    AlertDialog(
+    MolinaAlertDialog(
         onDismissRequest = onCancel,
         title = { Text(if (d.id == null) "Alat baru" else "Ubah alat") },
         text = {

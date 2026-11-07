@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import com.molina.studio.ui.components.MolinaAlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -78,7 +78,7 @@ internal fun ToolRunDialog(run: ToolRun, onClose: () -> Unit, onResult: (Int, St
     if (!run.confirm) {
         LaunchedEffect(Unit) { launch() }
     } else if (!handedOver) {
-        AlertDialog(
+        MolinaAlertDialog(
             onDismissRequest = onClose,
             title = { Text(run.title) },
             text = {
@@ -115,7 +115,7 @@ private fun ToolRunPanel(s: ToolRunSnapshot) {
     val elapsed = ((now - s.startedAtMs) / 1000).toInt().coerceAtLeast(0)
     val scroll = rememberScrollState()
     LaunchedEffect(s.output) { if (showDetail) scroll.scrollTo(scroll.maxValue) }
-    AlertDialog(
+    MolinaAlertDialog(
         onDismissRequest = { if (s.running) ToolRunHub.minimize() else ToolRunHub.close() },
         title = { Text(s.title) },
         text = {

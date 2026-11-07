@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import com.molina.studio.ui.components.MolinaAlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -67,7 +67,7 @@ internal fun PurgePreviewDialog(tool: ToolItem, onProceed: (Boolean) -> Unit, on
     val errors = lines.filter { it.startsWith("E:") }
     val dim = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
 
-    AlertDialog(
+    MolinaAlertDialog(
         onDismissRequest = { if (!running) onClose() },
         title = { Text("Pratinjau hapus: ${tool.name}") },
         text = {

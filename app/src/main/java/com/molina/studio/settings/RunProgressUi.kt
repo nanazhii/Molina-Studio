@@ -80,7 +80,7 @@ internal class RunProgressTracker {
 @Composable
 internal fun RunProgressPanel(phase: String, fraction: Float?, state: RunState, status: String, elapsedSec: Int = 0) {
     val (top, bottom, accent) = when (state) {
-        RunState.Running -> Triple(Color(0xFF8FC4EE), Color(0xFF2D6DB5), Color(0xFF3C7FB1))
+        RunState.Running -> Triple(Color(0xFF8FC4EE), Color(0xFF2D6DB5), Color(0xFF2E7D4F))
         RunState.Ok -> Triple(Color(0xFF7BE87A), Color(0xFF1E9E1A), Color(0xFF1E9E1A))
         RunState.Failed -> Triple(MolinaTheme.Bad, Color(0xFFC4392B), Color(0xFFC4392B))
         RunState.Stopped -> Triple(Color(0xFFFFE680), Color(0xFFE0A800), Color(0xFFE0A800))
