@@ -341,6 +341,12 @@ internal fun SearchResultsDialog(
                     }
                 }
 
+                // [TITLE-STRIP] judul lengkap baris yang disorot (baris daftar tetap 2 baris); tinggi tetap agar daftar tidak bergeser
+                Text(
+                    visible.firstOrNull { it.number == selected }?.item?.title.orEmpty(),
+                    color = Color(0xE6FFFFFF), fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp).padding(horizontal = 20.dp, vertical = 6.dp),
+                )
                 HorizontalDivider(color = Color(0x1FFFFFFF))
 
                 Row(
@@ -362,7 +368,7 @@ internal fun SearchResultsDialog(
                     }
                     TvKey(R.drawable.ic_tv_info, "Info", Color.White, Modifier.weight(1f)) {
                         Toast.makeText(ctx,
-                            "Hasil %03d dari %03d".format(selected, entries.size),
+                            "Hasil %03d dari %03d\n%s".format(selected, entries.size, visible.firstOrNull { it.number == selected }?.item?.title.orEmpty()), // [TITLE-STRIP]
                             Toast.LENGTH_SHORT).show()
                     }
                     TvKey(R.drawable.ic_tv_close, "Tutup", Color.White, Modifier.weight(1f), onDismiss)
