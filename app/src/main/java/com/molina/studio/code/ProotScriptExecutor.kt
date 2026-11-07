@@ -98,6 +98,10 @@ internal class ProotScriptExecutor(context: Context, private val lane: Lane = La
         if (req.plan.needsPython && !File(rootfsDir, "usr/bin/python3").exists()) {
             return failed("python3 belum ada di Debian. ${YtdlpCommand.INSTALL_PYTHON_HINT}")
         }
+        // [CODE-KTS] prasyarat per rencana (kotlin + java); pesan pemasangan datang dari RunPlan
+        req.plan.requires.firstOrNull { !guestHasCommand(rootfsDir, it) }?.let {
+            return failed(req.plan.installHint ?: "$it belum ada di Debian.")
+        }
 
         // Berkas sementara di dalam rootfs, jadi terlihat di guest tanpa bind tambahan.
         val stageDir = File(rootfsDir, "tmp/molina-run").apply { mkdirs() }

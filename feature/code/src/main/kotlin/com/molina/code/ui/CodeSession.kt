@@ -1809,7 +1809,11 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
             toast("Eksekutor skrip belum terpasang")
             return
         }
-        val kind = if (plan.needsPython) ScriptPrecheck.Kind.PY else ScriptPrecheck.Kind.SH
+        val kind = when { // [CODE-KTS]
+            plan.needsPython -> ScriptPrecheck.Kind.PY
+            plan.label == "kotlin" -> ScriptPrecheck.Kind.KTS
+            else -> ScriptPrecheck.Kind.SH
+        }
         guardedRun(tab.title, text, kind) { rep -> // [CODE-GUARD]
             if (rep.body.isBlank()) { toast("Tidak ada kode untuk dijalankan"); return@guardedRun }
             startScriptRun(tab.title, rep.body, plan, tab.file?.parentFile, rep.banner()) // [CODE-RUNREPORT]

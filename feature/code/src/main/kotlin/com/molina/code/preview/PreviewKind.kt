@@ -14,7 +14,7 @@ object PreviewKinds {
             "md", "markdown", "mdown" -> PreviewKind.MARKDOWN
             "json" -> PreviewKind.JSON
             "html", "htm", "xhtml" -> PreviewKind.HTML
-            "sh", "bash", "py" -> PreviewKind.SCRIPT
+            "sh", "bash", "py", "kts" -> PreviewKind.SCRIPT
             else -> if (RunPlans.of(fileName, firstLine) != null && firstLine?.startsWith("#!") == true) {
                 PreviewKind.SCRIPT
             } else {

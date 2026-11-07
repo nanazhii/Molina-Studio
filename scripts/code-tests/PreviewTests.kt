@@ -36,6 +36,14 @@ fun main() {
     check("plan py needs python", RunPlans.of("a.py", null)?.needsPython == true)
     check("plan bash not python", RunPlans.of("a.sh", null)?.needsPython == false)
     eq("plan none", RunPlans.of("a.txt", "hello") == null, true)
+    // [CODE-KTS]
+    eq("kts preview", PreviewKinds.of("x.kts"), PreviewKind.SCRIPT)
+    eq("kts plan", RunPlans.of("x.kts", null)?.label, "kotlin")
+    eq("kts shebang env", RunPlans.of(null, "#!/usr/bin/env kotlin")?.label, "kotlin")
+    eq("kts bukan python", RunPlans.of("x.kts", null)?.needsPython, false)
+    eq("kts requires kotlin+java", RunPlans.of("x.kts", null)?.requires, listOf("/usr/local/bin/kotlin", "java"))
+    eq("kts hint memuat unduhan", RunPlans.of("x.kts", null)?.installHint?.contains("kotlin-compiler") == true, true)
+    eq("py tanpa requires", RunPlans.of("x.py", null)?.requires?.isEmpty(), true)
     eq("plan env only", RunPlans.fromShebang("#!/usr/bin/env") == null, true)
 
     // --- GuestPaths

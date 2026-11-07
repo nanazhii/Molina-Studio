@@ -38,7 +38,7 @@ object ScriptLaunch {
      */
     fun fileName(id: String, title: String, plan: RunPlan): String {
         var base = title.trim().lowercase()
-        for (ext in listOf(".sh", ".py", ".bash")) if (base.endsWith(ext)) base = base.removeSuffix(ext)
+        for (ext in listOf(".sh", ".py", ".bash", ".kts")) if (base.endsWith(ext)) base = base.removeSuffix(ext)
         val sb = StringBuilder()
         var lastDash = true
         for (c in base) {

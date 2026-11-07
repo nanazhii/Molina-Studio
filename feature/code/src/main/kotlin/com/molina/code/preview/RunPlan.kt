@@ -8,13 +8,28 @@ class RunPlan(
     val label: String,
     val interpreter: String,
     val extension: String,
-    val needsPython: Boolean
+    val needsPython: Boolean,
+    /** [CODE-KTS] Perintah yang harus ada di guest (jalur absolut atau nama di PATH); kosong = tanpa prasyarat. */
+    val requires: List<String> = emptyList(),
+    /** [CODE-KTS] Pesan siap tampil bila ada prasyarat yang belum ada. */
+    val installHint: String? = null
 )
 
 object RunPlans {
     private val SH = RunPlan("sh", "/bin/sh", "sh", false)
     private val BASH = RunPlan("bash", "/bin/bash", "sh", false)
     private val PYTHON = RunPlan("python3", "/usr/bin/python3", "py", true)
+    // [CODE-KTS] peluncur kotlin dipetakan ke /usr/local/bin/kotlin
+    private const val KOTLIN_HINT = "Kotlin belum siap di Debian. Di Terminal jalankan:\n" +
+        "apt install -y default-jre-headless wget unzip\n" +
+        "wget -O /tmp/kotlinc.zip https://github.com/JetBrains/kotlin/releases/download/v2.1.0/kotlin-compiler-2.1.0.zip\n" +
+        "unzip -q -o /tmp/kotlinc.zip -d /opt\n" +
+        "ln -sf /opt/kotlinc/bin/kotlin /usr/local/bin/kotlin"
+    private val KOTLIN = RunPlan(
+        "kotlin", "/usr/local/bin/kotlin", "kts", false,
+        requires = listOf("/usr/local/bin/kotlin", "java"),
+        installHint = KOTLIN_HINT,
+    )
 
     /** Rencana dari nama berkas dan baris pertama; shebang menang atas ekstensi. Null = tak dikenal. */
     fun of(fileName: String?, firstLine: String?): RunPlan? {
@@ -22,6 +37,7 @@ object RunPlans {
         return when (fileName?.substringAfterLast('.', "")?.lowercase().orEmpty()) {
             "sh", "bash" -> BASH
             "py" -> PYTHON
+            "kts" -> KOTLIN
             else -> null
         }
     }
@@ -40,6 +56,7 @@ object RunPlans {
         return when {
             name == "sh" || name == "dash" -> SH
             name == "bash" -> BASH
+            name == "kotlin" -> KOTLIN
             name == "python" || name == "python3" || name.matches(Regex("python3\\.\\d+")) -> PYTHON
             else -> null
         }

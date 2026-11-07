@@ -16,7 +16,7 @@ import java.security.MessageDigest
  * (`f"{x["a"]}"`) bisa terdeteksi keliru; pengguna tetap bisa memilih "Tetap jalankan".
  */
 object ScriptPrecheck {
-    enum class Kind { PY, SH }
+    enum class Kind { PY, SH, KTS } // [CODE-KTS]
 
     /** [line] 1-based pada teks asli; 0 = masalah umum. */
     class Issue(val line: Int, val message: String) {
@@ -114,7 +114,13 @@ object ScriptPrecheck {
             if (last > first && all[last].trimStart().startsWith("```")) issues.add(Issue(last + 1, "Pagar markdown ``` ikut tertempel"))
         }
 
-        issues.addAll(if (kind == Kind.PY) scanPython(body, offset) else ShellScan(body, offset).run())
+        issues.addAll(
+            when (kind) {
+                Kind.PY -> scanPython(body, offset)
+                Kind.SH -> ShellScan(body, offset).run()
+                Kind.KTS -> emptyList() // [CODE-KTS]
+            }
+        )
 
         val sorted = issues.sortedBy { it.line }
         return Report(

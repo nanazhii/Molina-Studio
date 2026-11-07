@@ -59,6 +59,7 @@ object Formatters {
             return when (run.label) {
                 "python3" -> BLACK
                 "bash" -> SHFMT_BASH
+                "kotlin" -> null // [CODE-KTS] tanpa pemformat
                 else -> SHFMT_POSIX
             }
         }

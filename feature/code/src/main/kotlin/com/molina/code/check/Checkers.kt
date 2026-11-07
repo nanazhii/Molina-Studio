@@ -76,6 +76,7 @@ object Checkers {
             return when (run.label) {
                 "python3" -> PYFLAKES
                 "bash" -> SHELLCHECK_BASH
+                "kotlin" -> null // [CODE-KTS] tanpa pemeriksa
                 else -> SHELLCHECK_SH
             }
         }

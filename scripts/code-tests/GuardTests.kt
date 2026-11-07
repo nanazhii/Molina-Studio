@@ -10,6 +10,7 @@ private fun check(name: String, ok: Boolean) {
 
 private fun py(t: String) = ScriptPrecheck.analyze(t, Kind.PY)
 private fun sh(t: String) = ScriptPrecheck.analyze(t, Kind.SH)
+private fun kts(t: String) = ScriptPrecheck.analyze(t, Kind.KTS) // [CODE-KTS]
 private fun msgs(r: ScriptPrecheck.Report) = r.issues.joinToString(" | ") { it.label() }
 
 fun main() {
@@ -76,6 +77,10 @@ fun main() {
     check("shell: bersih", sh("#!/bin/bash\nset -e\necho \"a $(date +%Y)\" # komentar 'x\nfor i in 1 2; do echo \$i; done\n").clean)
     check("shell: kutip tunggal tak tertutup", sh("echo 'abc\necho 2\n").issues.single().line == 1)
     check("shell: kutip ganda tak tertutup", sh("echo \"abc\necho 2\n").issues.single().message.contains("ganda"))
+    // [CODE-KTS] apostrof di komentar // salah dibaca pemindai shell, bukan KTS
+    check("[CODE-KTS] kts: apostrof di komentar", !sh("// it's fine\nprintln(1)\n").clean && kts("// it's fine\nprintln(1)\n").clean)
+    check("[CODE-KTS] kts: template string bersih", kts("val n = 1\nprintln(\"n=\$n\")\n").clean)
+    check("[CODE-KTS] kts: pagar markdown terdeteksi", kts("```kotlin\nprintln(1)\n```\n").issues.isNotEmpty())
     check("shell: kutip bersarang di dalam \$( )", sh("x=\"\$(echo \"a b\" | tr a z)\"\necho \"\$x\"\n").clean)
     check("shell: heredoc tak ditutup", sh("cat << 'EOF'\nisi\n").issues.single().message.contains("tidak ditutup"))
     check("shell: heredoc ditutup", sh("cat << 'EOF' > out.txt\nisi 'x\nEOF\necho selesai\n").clean)
