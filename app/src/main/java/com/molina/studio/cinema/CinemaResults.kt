@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -150,6 +151,7 @@ internal fun SearchResultsDialog(
     val undated = remember(results) { results.count { RelativeTime.estimateAtMs(it) == null } }
     var query by remember { mutableStateOf("") }
     var searchOpen by remember { mutableStateOf(false) }
+    var infoOpen by remember { mutableStateOf(false) } // [RESULTS-INFO]
     var selected by remember { mutableIntStateOf(1) }
     var clock by remember { mutableStateOf(clockNow()) }
     val listState = rememberLazyListState()
@@ -200,6 +202,12 @@ internal fun SearchResultsDialog(
         onDismiss()
     }
 
+    if (infoOpen) {
+        visible.firstOrNull { it.number == selected }?.let { cur ->
+            ResultInfoDialog(cur.number, entries.size, cur.item) { infoOpen = false } // [RESULTS-INFO]
+        }
+    }
+
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         // [CINEMA-RESULTS-FRAME] margin tepi 24dp, lebar maks 480dp, bingkai tipis bergradasi emas
         val frame = RoundedCornerShape(20.dp)
@@ -233,6 +241,7 @@ internal fun SearchResultsDialog(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     SearchSort.values().forEach { s -> ResultChip(s.label, s == sort) { sort = s; SearchSortPrefs.save(ctx, s) } }
+                    ResultChip("Info", false) { if (visible.isNotEmpty()) infoOpen = true } // [RESULTS-INFO] chip
                 }
                 // [RESULTS-FILTER] saringan durasi dan waktu unggah: ketuk = pilihan berikutnya (berputar)
                 Row(
@@ -315,12 +324,6 @@ internal fun SearchResultsDialog(
                     }
                 }
 
-                // [TITLE-STRIP] judul lengkap baris yang disorot (baris daftar tetap 2 baris); tinggi tetap agar daftar tidak bergeser
-                Text(
-                    visible.firstOrNull { it.number == selected }?.item?.title.orEmpty(),
-                    color = Color(0xE6FFFFFF), fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp).padding(horizontal = 20.dp, vertical = 6.dp),
-                )
                 HorizontalDivider(color = Color(0x1FFFFFFF))
 
                 Row(
@@ -339,11 +342,6 @@ internal fun SearchResultsDialog(
                         MolinaTheme.Brand, Modifier.weight(1f)) {
                         if (pickedItems.isNotEmpty()) download(pickedItems)
                         else download(visible.map { it.item }, skipDone = true)
-                    }
-                    TvKey(R.drawable.ic_tv_info, "Info", Color.White, Modifier.weight(1f)) {
-                        Toast.makeText(ctx,
-                            "Hasil %03d dari %03d\n%s".format(selected, entries.size, visible.firstOrNull { it.number == selected }?.item?.title.orEmpty()), // [TITLE-STRIP]
-                            Toast.LENGTH_SHORT).show()
                     }
                     TvKey(R.drawable.ic_tv_close, "Tutup", Color.White, Modifier.weight(1f), onDismiss)
                 }
@@ -533,5 +531,70 @@ private fun SearchThumb(
         if (progress != null) Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(3.dp).background(Color(0x66FFFFFF))) {
             Box(Modifier.fillMaxWidth(progress / 100f).height(3.dp).background(MolinaTheme.Brand))
         }
+    }
+}
+
+/** [RESULTS-INFO] Layar info baris yang disorot: judul lengkap, kanal, tanggal unggah (perkiraan untuk YouTube), durasi, tautan. */
+@Composable
+private fun ResultInfoDialog(number: Int, total: Int, item: StreamSearchItem, onDismiss: () -> Unit) {
+    val frame = RoundedCornerShape(20.dp)
+    val at = remember(item) { RelativeTime.estimateAtMs(item) }
+    val dateText = when {
+        at != null -> SimpleDateFormat("d MMM yyyy", Locale("id", "ID")).format(Date(at)) + " \u00B7 " + RelativeTime.ago(at)
+        !item.uploadedText.isNullOrBlank() -> item.uploadedText.orEmpty()
+        else -> "Tidak diketahui"
+    }
+    val durText = item.durationSec?.let { sec ->
+        val h = sec / 3600; val m = (sec % 3600) / 60; val sc = sec % 60
+        if (h > 0) "%d:%02d:%02d".format(h, m, sc) else "%d:%02d".format(m, sc)
+    } ?: "Tidak diketahui"
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(
+            Modifier.widthIn(max = 480.dp).fillMaxWidth().padding(horizontal = 12.dp)
+                .heightIn(max = 720.dp)
+                .border(
+                    1.dp,
+                    Brush.verticalGradient(listOf(MolinaTheme.Brand.copy(alpha = 0.6f), MolinaTheme.CardLine)),
+                    frame,
+                ),
+            shape = frame,
+            color = DialogBg,
+        ) {
+            Column(Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 8.dp)) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Info", color = Color.White, fontSize = 20.sp,
+                        fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                    Text("%03d/%03d".format(number, total), color = MolinaTheme.Muted,
+                        fontSize = 13.sp, fontFamily = FontFamily.Monospace)
+                }
+                Column(
+                    Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp, vertical = 14.dp),
+                ) {
+                    Text(item.title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                    Spacer(Modifier.height(14.dp))
+                    ResultInfoRow("Kanal", item.uploader?.takeIf { it.isNotBlank() } ?: "Tidak diketahui")
+                    ResultInfoRow("Diunggah", dateText)
+                    ResultInfoRow("Durasi", durText)
+                    ResultInfoRow("Tautan", item.pageUrl)
+                }
+                HorizontalDivider(color = Color(0x1FFFFFFF))
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.End,
+                ) { ResultChip("Tutup", false, onDismiss) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ResultInfoRow(label: String, value: String) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Text(label, color = MolinaTheme.Muted, fontSize = 11.sp)
+        Text(value, color = Color(0xE6FFFFFF), fontSize = 14.sp)
     }
 }
