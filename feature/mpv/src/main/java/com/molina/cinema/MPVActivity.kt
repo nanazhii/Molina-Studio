@@ -585,6 +585,9 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         PlaybackLog.detach()
         WatchStats.flush()
         streamScope.cancel()
+        // [SPECTRUM-LEAK] hentikan analisis spektrum (MediaCodec/MediaExtractor) agar tidak jalan setelah Activity hancur
+        spectrumAnalyzer?.cancel()
+        spectrumAnalyzer = null
         eventUiHandler.removeCallbacksAndMessages(null)
         fadeHandler.removeCallbacksAndMessages(null)
         sleepTimer.cancel()
