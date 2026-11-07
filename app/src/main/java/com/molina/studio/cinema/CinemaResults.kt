@@ -10,12 +10,11 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -98,7 +97,7 @@ private val SelectedLine = Color(0xFF8DBBFF)
 private val RowTop = Color(0xFF1F1F1F)
 private val RowBottom = Color(0xFF141414)
 private val RowLine = Color(0x26FFFFFF)
-private val ThumbWidth = 104.dp // [THUMB-FILL] lebar tetap; tinggi mengikuti blok judul (min 54dp)
+private val ThumbWidth = 104.dp // [THUMB-169] lebar tetap, tinggi 16:9 (gambar utuh, tidak terpotong)
 private val Accent = Color(0xFF4DA3FF)
 
 /** Prev/Next memindahkan sorotan satu 'halaman' (seperti CH+/CH- cepat di remote TV). */
@@ -390,7 +389,7 @@ private fun ChannelRow(
     val brush = if (isSelected) Brush.verticalGradient(listOf(SelectedTop, SelectedBottom))
         else Brush.verticalGradient(listOf(RowTop, RowBottom))
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 2.dp).height(IntrinsicSize.Min) // [THUMB-FILL]
+        Modifier.fillMaxWidth().padding(vertical = 2.dp)
             .clip(shape).background(brush)
             .border(1.dp, if (isSelected) SelectedLine else RowLine, shape)
             .then(if (isSelected) Modifier.drawBehind { drawRect(MolinaTheme.Brand, size = Size(3.dp.toPx(), size.height)) } else Modifier) // [BRAND-ACCENT]
@@ -417,7 +416,7 @@ private fun ChannelRow(
         if (showThumb) SearchThumb(
             e.item.thumbnailUrl, e.item.durationSec, progress,
             VideoKey.of(e.item.pageUrl)?.removePrefix("yt:"), thumbHeld,
-            Modifier.padding(end = 8.dp).width(ThumbWidth).heightIn(min = 54.dp).fillMaxHeight(),
+            Modifier.padding(end = 8.dp).width(ThumbWidth).aspectRatio(16f / 9f), // [THUMB-169]
         ) // [RESULTS-THUMB]
         Column(Modifier.weight(1f)) {
             Text(e.item.title, color = Color.White, fontSize = 14.sp, maxLines = 3,
