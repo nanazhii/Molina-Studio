@@ -42,7 +42,7 @@ fun main() {
     eq("kts shebang env", RunPlans.of(null, "#!/usr/bin/env kotlin")?.label, "kotlin")
     eq("kts bukan python", RunPlans.of("x.kts", null)?.needsPython, false)
     eq("kts requires kotlin+java", RunPlans.of("x.kts", null)?.requires, listOf("/usr/local/bin/kotlin", "java"))
-    eq("kts hint memuat unduhan", RunPlans.of("x.kts", null)?.installHint?.contains("kotlin-compiler") == true, true)
+    eq("kts hint arahkan ke Paket", RunPlans.of("x.kts", null)?.installHint?.contains("Paket") == true, true)
     eq("py tanpa requires", RunPlans.of("x.py", null)?.requires?.isEmpty(), true)
     eq("plan env only", RunPlans.fromShebang("#!/usr/bin/env") == null, true)
 

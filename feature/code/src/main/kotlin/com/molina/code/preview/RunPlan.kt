@@ -20,11 +20,7 @@ object RunPlans {
     private val BASH = RunPlan("bash", "/bin/bash", "sh", false)
     private val PYTHON = RunPlan("python3", "/usr/bin/python3", "py", true)
     // [CODE-KTS] peluncur kotlin dipetakan ke /usr/local/bin/kotlin
-    private const val KOTLIN_HINT = "Kotlin belum siap di Debian. Di Terminal jalankan:\n" +
-        "apt install -y default-jre-headless wget unzip\n" +
-        "wget -O /tmp/kotlinc.zip https://github.com/JetBrains/kotlin/releases/download/v2.1.0/kotlin-compiler-2.1.0.zip\n" +
-        "unzip -q -o /tmp/kotlinc.zip -d /opt\n" +
-        "ln -sf /opt/kotlinc/bin/kotlin /usr/local/bin/kotlin"
+    private const val KOTLIN_HINT = "Kotlin belum siap di Debian. Pasang lewat Settings > Paket > Kotlin (.kts)."
     private val KOTLIN = RunPlan(
         "kotlin", "/usr/local/bin/kotlin", "kts", false,
         requires = listOf("/usr/local/bin/kotlin", "java"),

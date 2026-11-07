@@ -50,6 +50,30 @@ object BuiltinTools {
     private val FFMPEG_REMOVE = ToolPurge.script(listOf("ffmpeg"), emptyList(), true)
     private val YTDLP_REMOVE = ToolPurge.script(listOf("yt-dlp"), ToolPurge.YTDLP_PATHS, false)
 
+    // [KTS-TOOL] Kotlin untuk Run .kts di editor Code (RunPlan kotlin butuh /usr/local/bin/kotlin dan java).
+    private const val KOTLIN_VER = "2.1.0"
+    private const val KOTLIN_SHA256 = "b6698d5728ad8f9edcdd01617d638073191d8a03139cc538a391b4e3759ad297" // = kotlin-compiler-2.1.0.zip.sha256 resmi JetBrains
+    private val KOTLIN_INSTALL = listOf(
+        "apt update $APT",
+        "apt install -y $APT default-jre-headless ca-certificates wget unzip",
+        "echo '== Unduh Kotlin $KOTLIN_VER (sekitar 86 MB) =='",
+        "wget -nv -O /tmp/kotlinc.zip https://github.com/JetBrains/kotlin/releases/download/v$KOTLIN_VER/kotlin-compiler-$KOTLIN_VER.zip",
+        "echo '$KOTLIN_SHA256  /tmp/kotlinc.zip' | sha256sum -c - || { rm -f /tmp/kotlinc.zip; echo 'GAGAL: SHA-256 tidak cocok, pemasangan dibatalkan.'; exit 5; }",
+        "rm -rf /opt/kotlinc",
+        "unzip -q -o /tmp/kotlinc.zip -d /opt",
+        "rm -f /tmp/kotlinc.zip",
+        "ln -sf /opt/kotlinc/bin/kotlin /usr/local/bin/kotlin",
+        "ln -sf /opt/kotlinc/bin/kotlinc /usr/local/bin/kotlinc",
+        "echo 'Kotlin $KOTLIN_VER terpasang di /opt/kotlinc'",
+    ).joinToString("\n")
+    // Versi dibaca dari build.txt (tanpa menyalakan JVM) karena cek versi otomatis berjalan tiap hari.
+    private const val KOTLIN_VERSION_CMD = "test -x /usr/local/bin/kotlin && command -v java >/dev/null && echo \"Kotlin \$(cut -d- -f1 /opt/kotlinc/build.txt)\""
+    private val KOTLIN_REMOVE = ToolPurge.script(
+        listOf("default-jre-headless"),
+        listOf("/opt/kotlinc", "/usr/local/bin/kotlin", "/usr/local/bin/kotlinc", "/root/.kotlin"),
+        true
+    )
+
     val all: List<ToolItem> = listOf(
         ToolItem(
             "b-python3", "Python 3", "Interpreter Python di Debian. yt-dlp membutuhkannya.",
@@ -63,6 +87,10 @@ object BuiltinTools {
             "b-ffmpeg", "FFmpeg", "Konversi dan pemrosesan audio/video.",
             "apt update $APT\napt install -y $APT ffmpeg",
             "command -v ffmpeg >/dev/null && ffmpeg -version | head -n 1", FFMPEG_REMOVE, true, listOf("ffmpeg")
+        ),
+        ToolItem( // [KTS-TOOL]
+            "b-kotlin", "Kotlin (.kts)", "Menjalankan skrip .kts dari editor Code. Memasang JRE headless dan kotlinc resmi (SHA-256 diverifikasi). Unduhan sekitar 86 MB.",
+            KOTLIN_INSTALL, KOTLIN_VERSION_CMD, KOTLIN_REMOVE, true, listOf("default-jre-headless")
         ),
         ToolItem( // [PAKET-SERAGAM]
             "b-ytdlp", "yt-dlp", "Pengunduh tambahan untuk TikTok, Facebook, dan situs lain. Butuh Python 3. Pemasangan memverifikasi SHA-256 rilis resmi.",
