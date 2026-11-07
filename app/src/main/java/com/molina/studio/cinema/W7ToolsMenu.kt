@@ -202,11 +202,12 @@ internal fun W7ToolsMenu(
                 onDismiss()
                 if (one != null) onSheet(W7Sheet.Archive(one, null))
             }
-            W7MenuItem(W7Ico.DELETE, "Hapus", tg.isNotEmpty()) {
+            Box(Modifier.fillMaxWidth().height(1.dp).background(Win7.Hairline)) // [DANGER-ITEM] pisahkan aksi hapus dari aksi biasa
+            W7MenuItem(W7Ico.DELETE, "Hapus", tg.isNotEmpty(), danger = true) {
                 onDismiss()
                 if (tg.isNotEmpty()) onSheet(W7Sheet.Delete(tg))
             }
-            W7MenuItem(W7Ico.DELETE, "Hapus permanen\u2026", tg.isNotEmpty()) {
+            W7MenuItem(W7Ico.DELETE, "Hapus permanen\u2026", tg.isNotEmpty(), danger = true) {
                 onDismiss()
                 if (tg.isNotEmpty()) onSheet(W7Sheet.Delete(tg, true))
             }

@@ -104,7 +104,7 @@ internal fun W7MenuDivider() {
 }
 
 @Composable
-internal fun W7MenuItem(ico: W7Ico, label: String, enabled: Boolean, onClick: () -> Unit) {
+internal fun W7MenuItem(ico: W7Ico, label: String, enabled: Boolean, danger: Boolean = false, onClick: () -> Unit) { // [DANGER-ITEM]
     Row(
         Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick).padding(horizontal = 12.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -112,7 +112,7 @@ internal fun W7MenuItem(ico: W7Ico, label: String, enabled: Boolean, onClick: ()
         W7MenuIcon(ico, enabled)
         Spacer(Modifier.width(10.dp))
         Text(
-            label, color = if (enabled) Win7.Ink else Win7.TextDim, fontSize = 13.sp, maxLines = 1,
+            label, color = if (!enabled) Win7.TextDim else if (danger) MolinaTheme.Bad else Win7.Ink, fontSize = 13.sp, maxLines = 1, // [DANGER-ITEM]
             overflow = TextOverflow.Ellipsis
         )
     }

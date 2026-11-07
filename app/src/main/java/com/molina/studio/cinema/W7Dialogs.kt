@@ -171,9 +171,9 @@ internal fun W7ConfirmDialog(files: List<File>, permanent: Boolean, onCancel: ()
         else Text("Bisa dipulihkan dari Recycle Bin selama " + TrashBin.RETAIN_DAYS + " hari.", color = Win7.TextDim, fontSize = 12.sp)
         Spacer(Modifier.height(12.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-            Win7Button(if (permanent) "Hapus permanen" else "Pindahkan", isDefault = true) { onOk() }
+            Win7Button(if (permanent) "Hapus permanen" else "Pindahkan", isDefault = !permanent, accent = if (permanent) MolinaTheme.Bad else null) { onOk() } // [DANGER-ITEM]
             Spacer(Modifier.width(8.dp))
-            Win7Button("Batal", onClick = onCancel)
+            Win7Button("Batal", isDefault = permanent, onClick = onCancel) // [DANGER-ITEM] permanen: Batal yang menonjol
         }
     }
 }
