@@ -30,9 +30,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -42,6 +44,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -67,6 +70,15 @@ object MonitorNav {
 
 private const val SPARK_POINTS = 24
 private val ChipH = 28.dp
+
+// [MC-COLOR] Warna monitor header: idle putih polos, unggah merah, unduh biru (kontras tinggi di atas kaca gelap)
+private val ChipIdle = Color.White
+private val ChipUp = Color(0xFFFF5252)
+private val ChipDown = Color(0xFF448AFF)
+// [MC-CONTRAST] Bayangan tipis agar teks tetap terbaca di atas latar terminal terang maupun gelap
+private val ChipTextStyle = TextStyle(
+    shadow = Shadow(color = Color.Black.copy(alpha = 0.65f), offset = Offset(0f, 1f), blurRadius = 3f)
+)
 
 /**
  * [MONITOR-CHIPS] Monitor ringkas di header terminal: tiga chip kaca (CPU, RAM, jaringan) dengan
@@ -134,8 +146,8 @@ internal fun MonitorChips(onOpen: () -> Unit) {
             onTap = { go(MonitorNav.Focus.Net, MonitorNav.TAB_KINERJA) },
             onLong = { go(null, MonitorNav.TAB_BTOP) }
         ) {
-            NetLine("\u2193" + chipNet(st.rxBps), MolinaTheme.NetDown, rxOn)
-            NetLine("\u2191" + chipNet(st.txBps), MolinaTheme.NetUp, txOn)
+            NetLine("\u2193" + chipNet(st.rxBps), ChipDown, rxOn)
+            NetLine("\u2191" + chipNet(st.txBps), ChipUp, txOn)
         }
     }
 }
@@ -165,6 +177,7 @@ private fun MonitorChip(
             .width(width)
             .height(ChipH)
             .clip(shape)
+            .background(Color.Black.copy(alpha = 0.35f), shape) // [MC-SCRIM] lapisan gelap di bawah kaca putih
             .background(
                 Brush.verticalGradient(listOf(Color.White.copy(alpha = top), Color.White.copy(alpha = bottom))),
                 shape
@@ -198,8 +211,8 @@ private fun MonitorChip(
 @Composable
 private fun ChipHead(label: String, value: String, color: Color, compact: Boolean = false) { // [MC-HEAD-FN]
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = MolinaTheme.Muted, fontSize = if (compact) 7.sp else 8.sp, /* [MC-LABEL] */ lineHeight = 12.sp, fontFamily = FontFamily.Monospace, maxLines = 1, softWrap = false)
-        Text(value, color = color, fontSize = 10.sp, lineHeight = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, maxLines = 1, softWrap = false)
+        Text(label, color = ChipIdle, style = ChipTextStyle, fontSize = if (compact) 7.sp else 8.sp, /* [MC-LABEL] */ lineHeight = 12.sp, fontFamily = FontFamily.Monospace, maxLines = 1, softWrap = false)
+        Text(value, color = color, style = ChipTextStyle, fontSize = 10.sp, lineHeight = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, maxLines = 1, softWrap = false)
     }
 }
 
@@ -207,7 +220,8 @@ private fun ChipHead(label: String, value: String, color: Color, compact: Boolea
 private fun NetLine(text: String, color: Color, active: Boolean) {
     Text(
         text,
-        color = if (active) color else color.copy(alpha = 0.5f), // redup saat tidak ada lalu lintas
+        color = color, // [MC-COLOR] tidak lagi diredupkan saat idle agar tetap terbaca
+        style = ChipTextStyle,
         fontSize = 9.sp, lineHeight = 11.sp, fontFamily = FontFamily.Monospace, maxLines = 1, softWrap = false
     )
 }
@@ -244,7 +258,7 @@ private fun Modifier.sparkBehind(values: List<Int>, color: Color): Modifier = dr
 }
 
 private fun chipColor(l: Level): Color = when (l) {
-    Level.Normal -> MolinaTheme.Good
+    Level.Normal -> ChipIdle
     Level.Warn -> MolinaTheme.Warn
     Level.High -> MolinaTheme.Bad
 }
