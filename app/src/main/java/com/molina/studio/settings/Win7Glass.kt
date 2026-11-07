@@ -158,6 +158,7 @@ internal fun Win7GlassWindow(
     icon: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     fillClient: Boolean = false,
+    fullscreen: Boolean = false, // [CINEMA-FULL] true = latar hitam pekat tanpa gradasi abu, tepi bawah lebih rapat
     content: @Composable ColumnScope.() -> Unit
 ) {
     val outer = RoundedCornerShape(9.dp)
@@ -166,12 +167,15 @@ internal fun Win7GlassWindow(
         modifier
             .fillMaxWidth()
             .clip(outer)
-            .background(Brush.verticalGradient(listOf(GlassTop, GlassMid, GlassBottom)), outer)
-            .drawBehind {
-                drawRect(Color.White.copy(alpha = 0.10f), Offset.Zero, Size(size.width, size.height * 0.45f))
-            }
+            .then(
+                if (fullscreen) Modifier.background(Color.Black, outer) // [CINEMA-FULL]
+                else Modifier.background(Brush.verticalGradient(listOf(GlassTop, GlassMid, GlassBottom)), outer)
+                    .drawBehind {
+                        drawRect(Color.White.copy(alpha = 0.10f), Offset.Zero, Size(size.width, size.height * 0.45f))
+                    }
+            )
             .border(1.dp, Color(0x99D0D0D0), outer)
-            .padding(start = 7.dp, end = 7.dp, bottom = 7.dp, top = 4.dp)
+            .padding(start = 7.dp, end = 7.dp, bottom = if (fullscreen) 3.dp else 7.dp, top = 4.dp)
     ) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
@@ -181,6 +185,7 @@ internal fun Win7GlassWindow(
             Spacer(Modifier.width(8.dp))
             Text(title, color = Color.White, fontSize = 13.sp)
         }
+        if (fullscreen) Box(Modifier.fillMaxWidth().height(1.dp).background(MolinaTheme.Brand)) // [CINEMA-FULL] garis Brand pemisah judul
         Column(
             Modifier
                 .fillMaxWidth()

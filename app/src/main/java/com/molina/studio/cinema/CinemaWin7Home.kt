@@ -73,13 +73,14 @@ internal fun CinemaWin7Body(
 ) {
     val ctx = LocalContext.current
     val recents = remember(CinemaRecent.version) { CinemaRecent.load(ctx) }
-    Column(modifier.background(MolinaTheme.Background).padding(12.dp)) {
+    Column(modifier.background(MolinaTheme.Background).padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 4.dp)) { // [CINEMA-FULL]
         RgbFrame(modifier = Modifier.weight(1f).fillMaxWidth(), animate = live || busy, spot = RgbSpot.Cinema) {
             Win7GlassWindow(
                 title = "Molina Cinema \u2013 Home Theater",
                 icon = { TitleOrb() },
                 modifier = Modifier.fillMaxSize(),
-                fillClient = true
+                fillClient = true,
+                fullscreen = true // [CINEMA-FULL]
             ) {
                 Column(
                     Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
