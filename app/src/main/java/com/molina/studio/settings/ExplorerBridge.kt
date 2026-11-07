@@ -21,6 +21,9 @@ import java.io.File
 
 /** Jembatan Penjelajah Molina: path versi Debian, salin ke clipboard, kirim ke terminal. */
 internal object MolinaExplorer {
+    /** [START-DIR] true: ketuk Terminal di folder yang sudah punya sesi aktif memilih sesi itu, bukan membuat baru. */
+    private const val REUSE_SESSION_BY_START_DIR = true
+
     private const val SDCARD = "/sdcard"
 
     private fun base(): String = Environment.getExternalStorageDirectory().absolutePath
@@ -164,31 +167,24 @@ internal object MolinaExplorer {
     }
 
     /**
-     * [TERMINAL-CD] Ketuk Terminal di dock Penjelajah: perilakunya seperti salin path + Enter. Mengirim
-     * `cd <path>` + Enter ke sesi aktif (tanpa sesi baru), lalu minta MainActivity menampilkan tab Terminal.
-     * Tanpa sesi aktif, jatuh ke [openTerminalHere] (sesi baru). Ctrl+U (\u0015) membersihkan ketikan
-     * setengah jadi di prompt agar `cd` tidak tercampur.
+     * [TERMINAL-CD] Ketuk Terminal di dock Penjelajah: langsung berada di folder tujuan tanpa perintah `cd`
+     * yang tampil. Bila sudah ada sesi hidup yang dibuka di folder yang sama, sesi itu yang dipilih (tidak
+     * menumpuk sesi); bila tidak, buka sesi baru dengan `--cwd` PRoot lewat [openTerminalHere]. Bila batas
+     * sesi penuh, [openTerminalHere] jatuh ke `cd` di sesi aktif sebagai cadangan.
      */
     fun cdHere(ctx: Context, f: File): Boolean {
         val dir = (if (f.isDirectory) f else f.parentFile)
-        if (dir == null || !dir.isDirectory) {
-            Toast.makeText(ctx, "Folder tidak ditemukan.", Toast.LENGTH_SHORT).show()
-            return false
+        if (dir != null && dir.isDirectory && REUSE_SESSION_BY_START_DIR && visibleInDebian(dir, forNewSession = true)) {
+            val target = debianPath(dir)
+            val idx = TerminalSessions.indexOfStartDir(target)
+            if (idx >= 0) {
+                TerminalSessions.select(idx)
+                Toast.makeText(ctx, "Terminal dibuka di " + target, Toast.LENGTH_SHORT).show()
+                ScriptNav.openTerminal = true
+                return true
+            }
         }
-        if (TerminalSessions.currentSession?.emulator == null) return openTerminalHere(ctx, f)
-        if (!visibleInDebian(dir)) {
-            Toast.makeText(
-                ctx,
-                "Folder ini tidak terlihat di Debian. Aktifkan \"Akses penyimpanan penuh\" di Setelan Terminal, atau pindahkan ke folder Molina.",
-                Toast.LENGTH_LONG
-            ).show()
-            return false
-        }
-        val target = debianPath(dir)
-        TerminalActions.send("\u0015cd " + quote(target) + "\r")
-        Toast.makeText(ctx, "cd " + target, Toast.LENGTH_SHORT).show()
-        ScriptNav.openTerminal = true
-        return true
+        return openTerminalHere(ctx, f)
     }
 
     /** [SHARE-GUARD] Kunci tanda tangan dan kredensial tidak boleh keluar dari Molina lewat FileProvider. */

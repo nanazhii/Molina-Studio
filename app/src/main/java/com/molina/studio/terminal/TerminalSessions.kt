@@ -58,6 +58,13 @@ object TerminalSessions {
 
     fun labelOf(s: TerminalSession?): String? = if (s == null) null else labels[s]
 
+    /** [START-DIR] Folder guest tempat sesi dibuka (mis. dari Penjelajah); null = sesi biasa di /root. */
+    private val startDirs = java.util.Collections.synchronizedMap(java.util.WeakHashMap<TerminalSession, String>())
+
+    /** Indeks sesi yang masih hidup dan dibuka di [guestPath]; -1 bila tidak ada. */
+    fun indexOfStartDir(guestPath: String): Int =
+        sessions.indexOfFirst { it.isRunning && startDirs[it] == guestPath }
+
     /** true/false = sesi dibuat dengan/tanpa Akses penyimpanan penuh; null = tidak diketahui. */
     fun fullAccessOf(s: TerminalSession?): Boolean? = if (s == null) null else fullAccessBySession[s]
 
@@ -89,6 +96,7 @@ object TerminalSessions {
         appContext = app
         val s = debianShell(app, guestCwd)
         if (!label.isNullOrBlank()) labels[s] = label.trim().take(40)
+        if (guestCwd != null && guestCwd.startsWith("/")) startDirs[s] = guestCwd // [START-DIR]
         sessions.add(s)
         select(sessions.lastIndex)
         LogBus.log("terminal", LogLevel.Info, "session", "Sesi Debian [${sessions.size}] dimulai")
