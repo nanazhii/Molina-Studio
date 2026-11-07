@@ -227,6 +227,12 @@ fun CinemaHome(modifier: Modifier = Modifier) {
         onDismiss = { showResults = false },
         searchQuery = lastQuery,
         onSearch = { s -> input = s; showResults = false; search(s) },
+        onFetchRelated = { q -> // [RESULTS-RELATED] pencarian kedua: video sejenis dari kanal lain
+            when (val o = withContext(Dispatchers.IO) { StreamResolvers.get()?.search(q, 30) }) {
+                is StreamOutcome.Success -> o.value
+                else -> emptyList()
+            }
+        },
         onPick = { list, r ->
             showResults = false
             val d = CinemaActions.classify(r.pageUrl)

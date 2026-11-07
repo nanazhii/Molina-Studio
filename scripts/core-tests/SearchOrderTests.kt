@@ -32,7 +32,7 @@ fun main() {
     val d = item("D", text = "2 hours ago")
     val src = listOf(a, b, c, d)
     check("NEWEST: baru ke lama, tanpa tanggal di akhir", titles(SearchOrder.sort(src, SearchSort.NEWEST, NOW)) == "D,B,A,C")
-    check("OLDEST: lama ke baru, tanpa tanggal di akhir", titles(SearchOrder.sort(src, SearchSort.OLDEST, NOW)) == "A,B,D,C")
+    check("RELATED: sort() tidak mengubah urutan (disusun relatedMix)", titles(SearchOrder.sort(src, SearchSort.RELATED, NOW)) == "A,B,C,D")
     check("RELEVANCE: urutan asli", titles(SearchOrder.sort(src, SearchSort.RELEVANCE, NOW)) == "A,B,C,D")
     check("sumber tidak diubah", titles(src) == "A,B,C,D")
 
@@ -85,6 +85,31 @@ fun main() {
     check("filter: sumber tidak diubah", fs.size == 7)
     check("next berputar ke awal", DurationFilter.LONG.next() == DurationFilter.ALL && DateFilter.YEAR.next() == DateFilter.ALL)
     check("next maju satu", DurationFilter.ALL.next() == DurationFilter.SHORT && DateFilter.ALL.next() == DateFilter.WEEK)
+
+    // [RESULTS-RELATED] relatedMix: ownChannels, relatedQuery, campur per kanal
+    fun u(t: String, up: String?) = item(t, up = up)
+    val jr = listOf(u("Review Xiaomi Redmi Note 14", "Jagat Review"), u("Review Xiaomi Poco X7", "Jagat Review"),
+        u("Unboxing Samsung Galaxy A56", "Jagat Review"), u("Review Samsung Galaxy A36", "Jagat Review"),
+        u("Tips kamera HP", "Gadgetin"))
+    check("ownChannels: nama kanal sama dengan kueri", SearchOrder.ownChannels(jr, "jagat review") == setOf("jagat review"))
+    check("ownChannels: kueri diawali nama kanal + kata lain", SearchOrder.ownChannels(jr, "jagat review xiaomi") == setOf("jagat review"))
+    check("ownChannels: awalan nama kanal", SearchOrder.ownChannels(jr, "jagat") == setOf("jagat review"))
+    check("ownChannels: topik umum bukan kanal", SearchOrder.ownChannels(jr, "review").isEmpty())
+    check("ownChannels: kueri terlalu pendek", SearchOrder.ownChannels(jr, "ja").isEmpty())
+    check("relatedQuery: buang nama kanal, simpan kata khas, tambah kata judul",
+        SearchOrder.relatedQuery(jr, "jagat review") == "review xiaomi samsung")
+    check("relatedQuery: tanpa kata baru -> null", SearchOrder.relatedQuery(listOf(u("Satu", "A")), "zzz kosong") == null)
+    check("relatedQuery: daftar kosong -> null", SearchOrder.relatedQuery(emptyList(), "jagat review") == null)
+    val mixBase = listOf(u("A1", "Jagat Review"), u("A2", "Jagat Review"), u("B1", "Gadgetin"))
+    val mixExtra = listOf(u("G1", "Gadgetin"), u("G2", "Gadgetin"), u("G3", "Gadgetin"), u("G4", "Gadgetin"),
+        u("C1", "Cupu"), u("C2", "Cupu"), u("A3", "Jagat Review"), u("B1", "Gadgetin"))
+    check("relatedMix: buang kanal sendiri, gilir antar kanal, maks 3 per kanal",
+        titles(SearchOrder.relatedMix(mixBase, mixExtra, "jagat review")) == "G1,C1,G2,C2,G3")
+    check("relatedMix: tanpa duplikat URL", SearchOrder.relatedMix(mixBase, mixExtra, "jagat review").map { it.pageUrl }.toSet().size == 5)
+    check("relatedMix: batas total", SearchOrder.relatedMix(mixBase, mixExtra, "jagat review", limit = 3).size == 3)
+    val onlyOwn = listOf(u("A1", "Jagat Review"), u("A2", "Jagat Review"))
+    check("relatedMix: hanya kanal sendiri -> daftar asli (objek sama)", SearchOrder.relatedMix(onlyOwn, emptyList(), "jagat review") === onlyOwn)
+    check("relatedMix: kueri topik umum menyisakan semua kanal", titles(SearchOrder.relatedMix(mixBase, emptyList(), "review")) == "A1,B1,A2")
 
     println(if (fails == 0) "\nSEMUA LOLOS" else "\n$fails GAGAL")
     if (fails > 0) System.exit(1)
