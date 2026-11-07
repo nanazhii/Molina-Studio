@@ -121,32 +121,29 @@ fun CinemaHome(modifier: Modifier = Modifier) {
         },
         onTv = if (tvOn) ({ tvOpen = true }) else null
     )
-    if (confirmReset) AlertDialog(
-        onDismissRequest = { confirmReset = false },
-        title = { Text("Segarkan Sistem") },
-        text = {
-            Text("Menutup semua proses di latar belakang (pemutar, unduhan, skrip Code, sesi Terminal) untuk membebaskan memori. Aplikasi tetap terbuka.")
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                confirmReset = false
-                input = ""
-                results = emptyList()
-                showResults = false
-                info = "Menyegarkan\u2026"
-                scope.launch {
-                    val reports = withContext(Dispatchers.IO) { Refreshers.refreshAll() }
-                    val total = reports.sumOf { it.total }
-                    val left = reports.sumOf { it.remaining }
-                    val head = if (total == 0 && left == 0) "Sudah bersih, tidak ada proses aktif."
-                    else "Bersih: $total proses dihentikan."
-                    val tail = if (left > 0) " $left proses tidak bisa ditutup." else ""
-                    val notes = reports.mapNotNull { it.note }.filter { it.isNotBlank() }
-                    info = head + tail + if (notes.isEmpty()) "" else " " + notes.joinToString(" ")
-                }
-            }) { Text("Segarkan") }
-        },
-        dismissButton = { TextButton(onClick = { confirmReset = false }) { Text("Batal") } }
+    if (confirmReset) MolinaBlackDialog( // [BLACK-DIALOG]
+        title = "Segarkan Sistem",
+        message = "Menutup semua proses di latar belakang (pemutar, unduhan, skrip Code, sesi Terminal) untuk membebaskan memori. Aplikasi tetap terbuka.",
+        confirmLabel = "Segarkan",
+        dismissLabel = "Batal",
+        onDismiss = { confirmReset = false },
+        onConfirm = {
+            confirmReset = false
+            input = ""
+            results = emptyList()
+            showResults = false
+            info = "Menyegarkan\u2026"
+            scope.launch {
+                val reports = withContext(Dispatchers.IO) { Refreshers.refreshAll() }
+                val total = reports.sumOf { it.total }
+                val left = reports.sumOf { it.remaining }
+                val head = if (total == 0 && left == 0) "Sudah bersih, tidak ada proses aktif."
+                else "Bersih: $total proses dihentikan."
+                val tail = if (left > 0) " $left proses tidak bisa ditutup." else ""
+                val notes = reports.mapNotNull { it.note }.filter { it.isNotBlank() }
+                info = head + tail + if (notes.isEmpty()) "" else " " + notes.joinToString(" ")
+            }
+        }
     )
     if (tvOn && tvOpen) TvBrowserDialog(
         onPlay = { f -> if (!CinemaActions.playPath(ctx, f.absolutePath)) info = FAIL },
