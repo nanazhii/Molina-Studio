@@ -25,6 +25,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import com.molina.studio.ui.MolinaTheme
 
 /**
@@ -82,13 +94,51 @@ internal fun W7BrowseFloat(
             Spacer(Modifier.width(6.dp))
         }
         if (debian != null) {
-            val tone = if (debian) MolinaTheme.Good else MolinaTheme.Warn
-            Box(Modifier.size(8.dp).background(tone, RoundedCornerShape(4.dp)))
-            Spacer(Modifier.width(4.dp))
-            Text(if (debian) "Debian" else "Luar", color = tone, fontSize = 10.sp, maxLines = 1)
-            Spacer(Modifier.width(8.dp))
+            W7DebianBadge(debian) // [DEBIAN-ICON]
+            Spacer(Modifier.width(2.dp))
         }
         menu()
+    }
+}
+
+/**
+ * [DEBIAN-ICON] Status lokasi terhadap Debian sebagai ikon terminal (menggantikan teks "Debian"/"Luar").
+ * Terlihat di Debian = hijau; di luar Debian = kuning dan dicoret miring, jadi tidak bergantung pada warna saja.
+ * Ketuk untuk penjelasan singkat. Area sentuh 28dp.
+ */
+@Composable
+private fun W7DebianBadge(visible: Boolean) {
+    val ctx = LocalContext.current
+    val tone = if (visible) MolinaTheme.Good else MolinaTheme.Warn
+    val desc = if (visible) "Terlihat di Debian" else "Di luar Debian"
+    Box(
+        Modifier.size(28.dp).clip(RoundedCornerShape(6.dp))
+            .semantics(mergeDescendants = true) {
+                contentDescription = desc
+                role = Role.Button
+            }
+            .clickable {
+                Toast.makeText(
+                    ctx,
+                    if (visible) "Terlihat di Debian: path ini bisa dipakai dari Terminal."
+                    else "Di luar Debian: folder ini tidak terlihat dari Terminal. Aktifkan \"Akses penyimpanan penuh\" di Setelan Terminal, atau pindahkan ke folder Molina.",
+                    Toast.LENGTH_LONG
+                ).show()
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(Modifier.size(16.dp)) {
+            val u = size.width / 16f
+            val sw = 1.4f * u
+            drawRoundRect(
+                tone, topLeft = Offset(1f * u, 2.5f * u), size = Size(14f * u, 11f * u),
+                cornerRadius = CornerRadius(2f * u), style = Stroke(width = sw)
+            )
+            drawLine(tone, Offset(4.5f * u, 6f * u), Offset(7f * u, 8f * u), strokeWidth = sw, cap = StrokeCap.Round)
+            drawLine(tone, Offset(7f * u, 8f * u), Offset(4.5f * u, 10f * u), strokeWidth = sw, cap = StrokeCap.Round)
+            drawLine(tone, Offset(8.5f * u, 10.5f * u), Offset(11.5f * u, 10.5f * u), strokeWidth = sw, cap = StrokeCap.Round)
+            if (!visible) drawLine(tone, Offset(2f * u, 14.5f * u), Offset(14f * u, 1.5f * u), strokeWidth = sw, cap = StrokeCap.Round)
+        }
     }
 }
 
