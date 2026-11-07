@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -61,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.molina.cinema.WatchProgressStore
 import com.molina.core.common.BatchPlan
 import com.molina.core.common.DateFilter
 import com.molina.core.common.DownloadCommand
@@ -69,6 +71,7 @@ import com.molina.core.common.RelativeTime
 import com.molina.core.common.SearchOrder
 import com.molina.core.common.SearchSort
 import com.molina.core.common.StreamSearchItem
+import com.molina.core.common.VideoKey
 import com.molina.studio.R
 import com.molina.studio.download.DownloadNav
 import com.molina.studio.ui.MolinaTheme
@@ -110,6 +113,8 @@ internal fun SearchResultsDialog(
 ) {
     val ctx = LocalContext.current
     val seen = remember(SeenStore.version) { SeenStore.snapshot(ctx) } // [SEEN-BADGES]
+    val showThumbs = remember { SearchThumbPrefs.enabled(ctx) } // [RESULTS-THUMB-TOGGLE]
+    val watched = remember { WatchProgressStore.snapshot(ctx) } // [WATCH-PROGRESS]
     var selectMode by remember { mutableStateOf(false) } // [PICK-MANY] mode pilih banyak
     var chosen by remember { mutableStateOf(setOf<String>()) }
     var sort by remember { mutableStateOf(SearchSort.NEWEST) } // [RESULTS-SORT] bawaan: terbaru dulu
@@ -291,6 +296,7 @@ internal fun SearchResultsDialog(
                             onDownload = { download(listOf(e.item)) },
                             played = seen.isPlayed(e.item.pageUrl),
                             downloaded = seen.isDownloaded(e.item.pageUrl),
+                            progress = VideoKey.of(e.item.pageUrl)?.let { watched[it] }, showThumb = showThumbs,
                             checked = if (selectMode) e.item.pageUrl in chosen else null,
                             onLongPress = { selectMode = true; chosen = chosen + e.item.pageUrl })
                     }
@@ -333,6 +339,7 @@ private fun ChannelRow(
     onPress: () -> Unit, onClick: () -> Unit, onDownload: () -> Unit,
     played: Boolean = false, downloaded: Boolean = false,
     checked: Boolean? = null, onLongPress: () -> Unit = {},
+    progress: Int? = null, showThumb: Boolean = true,
 ) {
     // [PICK-MANY] lambda terbaru: pointerInput tidak dimulai ulang saat daftar diurut/disaring atau mode pilih berganti
     val onPressNow by rememberUpdatedState(onPress)
@@ -365,12 +372,12 @@ private fun ChannelRow(
                 .border(1.5.dp, MolinaTheme.Brand, RoundedCornerShape(4.dp)),
             contentAlignment = Alignment.Center,
         ) { if (checked) Text("\u2713", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
-        SearchThumb(e.item.thumbnailUrl, e.item.durationSec, Modifier.padding(end = 8.dp)) // [RESULTS-THUMB]
+        if (showThumb) SearchThumb(e.item.thumbnailUrl, e.item.durationSec, progress, Modifier.padding(end = 8.dp)) // [RESULTS-THUMB]
         Column(Modifier.weight(1f)) {
             Text(e.item.title, color = Color.White, fontSize = 14.sp, maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
-            val meta = listOfNotNull(e.item.uploader, RelativeTime.label(e.item))
+            val meta = listOfNotNull(e.item.uploader, if (showThumb) null else e.item.durationSec?.let { duration(it) }, RelativeTime.label(e.item))
                 .joinToString(" \u00B7 ")
             if (meta.isNotEmpty()) Text(meta, fontSize = 12.sp,
                 color = if (isSelected) Color(0xCCFFFFFF) else MolinaTheme.Muted,
@@ -430,21 +437,23 @@ private fun ResultChip(label: String, active: Boolean, onClick: () -> Unit) {
     )
 }
 
-/** [RESULTS-THUMB] Thumbnail 16:9 ala YouTube (96x54 dp) dengan lencana durasi di pojok kanan bawah; placeholder gelap saat memuat/gagal. */
+/** [RESULTS-THUMB] Thumbnail 16:9 ala YouTube (96x54 dp), lencana durasi kanan bawah, garis progres merah [WATCH-PROGRESS] di dasar. */
 @Composable
-private fun SearchThumb(url: String?, durationSec: Long?, modifier: Modifier = Modifier) {
+private fun SearchThumb(url: String?, durationSec: Long?, progress: Int?, modifier: Modifier = Modifier) {
     var bmp by remember(url) { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(url) { bmp = if (url == null) null else SearchThumbs.load(url)?.asImageBitmap() }
     val shape = RoundedCornerShape(6.dp)
-    Box(
-        modifier.size(96.dp, 54.dp).clip(shape).background(Color(0xFF1A1A1A)),
-        contentAlignment = Alignment.BottomEnd,
-    ) {
+    Box(modifier.size(96.dp, 54.dp).clip(shape).background(Color(0xFF1A1A1A))) {
         bmp?.let { Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(96.dp, 54.dp)) }
         if (durationSec != null) Text(
             duration(durationSec), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
-            modifier = Modifier.padding(3.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xCC000000))
+            modifier = Modifier.align(Alignment.BottomEnd)
+                .padding(start = 3.dp, end = 3.dp, top = 3.dp, bottom = if (progress != null) 6.dp else 3.dp)
+                .clip(RoundedCornerShape(3.dp)).background(Color(0xCC000000))
                 .padding(horizontal = 4.dp, vertical = 1.dp),
         )
+        if (progress != null) Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(3.dp).background(Color(0x66FFFFFF))) {
+            Box(Modifier.fillMaxWidth(progress / 100f).height(3.dp).background(Color(0xFFFF0033)))
+        }
     }
 }

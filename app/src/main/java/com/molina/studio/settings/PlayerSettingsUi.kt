@@ -36,6 +36,7 @@ import com.molina.studio.cinema.CinemaActions
 import com.molina.studio.cinema.HwdecBridge
 import com.molina.studio.cinema.IptvSources
 import com.molina.studio.cinema.ResumeBridge
+import com.molina.studio.cinema.SearchThumbPrefs
 import com.molina.studio.cinema.TvMode
 import com.molina.studio.stream.StreamEnginePrefs
 
@@ -67,6 +68,7 @@ internal fun PlayerSettingsPage(onOpenCinema: () -> Unit) {
     var resume by remember { mutableStateOf(ResumeBridge.enabled(ctx)) }
     var hw by remember { mutableStateOf(HwdecBridge.enabled(ctx)) }
     var tvMode by remember { mutableStateOf(TvMode.enabled(ctx)) }
+    var thumbs by remember { mutableStateOf(SearchThumbPrefs.enabled(ctx)) } // [RESULTS-THUMB-TOGGLE]
     var sources by remember { mutableStateOf(IptvSources.load(ctx)) }
     var removing by remember { mutableStateOf<IptvSources.Source?>(null) }
     val iptvPath = remember { runCatching { AppPaths.get(ctx).dir(MolinaDir.Iptv).path }.getOrDefault("") }
@@ -111,6 +113,16 @@ internal fun PlayerSettingsPage(onOpenCinema: () -> Unit) {
                 + "Pencarian jadi beberapa detik lebih lambat karena judul tiap hasil diambil ulang.",
             origTitle
         ) { StreamEnginePrefs.setOriginalTitles(it) }
+        PackageDivider()
+        PackageSwitchRow(
+            "Tampilkan thumbnail",
+            "Gambar kecil pada hasil pencarian diambil dari server gambar YouTube. "
+                + "Matikan untuk hemat data atau privasi: tidak ada permintaan gambar, durasi tampil sebagai teks.",
+            thumbs
+        ) {
+            thumbs = it
+            SearchThumbPrefs.setEnabled(ctx, it)
+        }
     }
 
     Spacer(Modifier.height(16.dp))

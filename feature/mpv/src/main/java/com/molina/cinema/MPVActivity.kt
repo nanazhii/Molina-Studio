@@ -774,6 +774,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         eventUiHandler.removeCallbacksAndMessages(null)
         if (isFinishing) {
             savePosition()
+            recordWatchProgress(shieldPath, psc.position, psc.duration) // [WATCH-PROGRESS]
             // tell mpv to shut down so that any other property changes or such are ignored,
             // preventing useless busywork
             MPVLib.command(arrayOf("stop"))
@@ -870,6 +871,12 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         refreshUi()
 
         super.onResume()
+    }
+
+    /** [WATCH-PROGRESS] Catat persentase tontonan video YouTube (kunci = tautan asal) untuk garis progres di hasil pencarian. */
+    private fun recordWatchProgress(path: String, positionMs: Long, durationMs: Long) {
+        val ctx = applicationContext
+        runOnUiThread { WatchProgressStore.record(ctx, streamSources[path] ?: path, positionMs, durationMs) }
     }
 
     private fun savePosition() {
@@ -3016,6 +3023,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         if (eventId == MpvEvent.MPV_EVENT_END_FILE) {
             WatchStats.onEnd()
             PlaybackLog.onEnd(psc.position, psc.duration)
+            recordWatchProgress(shieldPath, psc.position, psc.duration) // [WATCH-PROGRESS]
             psc.eof()
             updateMediaSession()
         }
