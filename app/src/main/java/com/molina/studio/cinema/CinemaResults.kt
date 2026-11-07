@@ -205,7 +205,7 @@ internal fun SearchResultsDialog(
         val frame = RoundedCornerShape(20.dp)
         Surface(
             Modifier.widthIn(max = 480.dp).fillMaxWidth().padding(horizontal = 12.dp)
-                .heightIn(max = 640.dp)
+                .heightIn(max = 720.dp)
                 .border(
                     1.dp,
                     Brush.verticalGradient(listOf(MolinaTheme.Brand.copy(alpha = 0.6f), MolinaTheme.CardLine)),
