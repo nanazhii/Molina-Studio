@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -152,6 +153,9 @@ internal fun SearchResultsDialog(
     var query by remember { mutableStateOf("") }
     var searchOpen by remember { mutableStateOf(false) }
     var infoOpen by remember { mutableStateOf(false) } // [RESULTS-INFO]
+    var filterOpen by remember { mutableStateOf(false) } // [RESULTS-FILTER]
+    val sortScroll = rememberScrollState() // [RESULTS-FADE]
+    val filterCount = (if (durFilter != DurationFilter.ALL) 1 else 0) + (if (dateFilter != DateFilter.ALL) 1 else 0)
     var selected by remember { mutableIntStateOf(1) }
     var clock by remember { mutableStateOf(clockNow()) }
     val listState = rememberLazyListState()
@@ -208,6 +212,13 @@ internal fun SearchResultsDialog(
         }
     }
 
+    if (filterOpen) ResultFilterDialog( // [RESULTS-FILTER]
+        dur = durFilter, date = dateFilter, count = entries.size,
+        onDur = { durFilter = it }, onDate = { dateFilter = it },
+        onReset = { durFilter = DurationFilter.ALL; dateFilter = DateFilter.ALL },
+        onDismiss = { filterOpen = false },
+    )
+
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         // [CINEMA-RESULTS-FRAME] margin tepi 24dp, lebar maks 480dp, bingkai tipis bergradasi emas
         val frame = RoundedCornerShape(20.dp)
@@ -236,31 +247,31 @@ internal fun SearchResultsDialog(
                 }
 
                 // [RESULTS-SORT] urutan waktu unggah + kanal terkait (ketuk = saring daftar dengan nama kanal)
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    SearchSort.values().forEach { s -> ResultChip(s.label, s == sort) { sort = s; SearchSortPrefs.save(ctx, s) } }
-                    ResultChip("Info", false) { if (visible.isNotEmpty()) infoOpen = true } // [RESULTS-INFO] chip
-                }
-                // [RESULTS-FILTER] saringan durasi dan waktu unggah: ketuk = pilihan berikutnya (berputar)
-                Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("Saring", color = MolinaTheme.Muted, fontSize = 12.sp)
-                    ResultChip("Durasi: ${durFilter.label}", durFilter != DurationFilter.ALL) { durFilter = durFilter.next() }
-                    ResultChip("Unggah: ${dateFilter.label}", dateFilter != DateFilter.ALL) { dateFilter = dateFilter.next() }
-                    // [PICK-MANY] pilih banyak: "Pilih" membuka mode centang (ketuk lama pada baris juga bisa)
-                    ResultChip(if (selectMode) "Pilih: ${pickedItems.size}" else "Pilih", selectMode) {
-                        if (selectMode) { selectMode = false; chosen = emptySet() } else { selectMode = true }
-                    }
-                    if (selectMode) {
-                        ResultChip("Semua", false) { chosen = visible.map { it.item.pageUrl }.toSet() }
-                        ResultChip("Belum diunduh", false) {
-                            chosen = visible.map { it.item.pageUrl }.filter { !seen.isDownloaded(it) }.toSet()
+                Box(Modifier.fillMaxWidth()) { // [RESULTS-FADE] bungkus: fade tepi bila baris masih bisa digeser
+                    Row(
+                        Modifier.fillMaxWidth().horizontalScroll(sortScroll).padding(horizontal = 20.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        SearchSort.values().forEach { s -> ResultChip(s.label, s == sort) { sort = s; SearchSortPrefs.save(ctx, s) } }
+                        ResultChip("Info", false) { if (visible.isNotEmpty()) infoOpen = true } // [RESULTS-INFO] chip
+                        ResultChip(if (filterCount > 0) "Saring \u00B7 $filterCount" else "Saring", filterCount > 0) { filterOpen = true } // [RESULTS-FILTER] chip
+                        // [PICK-MANY] pilih banyak: "Pilih" membuka mode centang (ketuk lama pada baris juga bisa)
+                        ResultChip(if (selectMode) "Pilih: ${pickedItems.size}" else "Pilih", selectMode) {
+                            if (selectMode) { selectMode = false; chosen = emptySet() } else { selectMode = true }
                         }
+                        if (selectMode) {
+                            ResultChip("Semua", false) { chosen = visible.map { it.item.pageUrl }.toSet() }
+                            ResultChip("Belum diunduh", false) {
+                                chosen = visible.map { it.item.pageUrl }.filter { !seen.isDownloaded(it) }.toSet()
+                            }
+                        }
+                    }
+                    if (sortScroll.canScrollBackward) Box(Modifier.matchParentSize(), contentAlignment = Alignment.CenterStart) {
+                        Box(Modifier.width(32.dp).fillMaxHeight().background(Brush.horizontalGradient(listOf(DialogBg, Color.Transparent))))
+                    }
+                    if (sortScroll.canScrollForward) Box(Modifier.matchParentSize(), contentAlignment = Alignment.CenterEnd) {
+                        Box(Modifier.width(32.dp).fillMaxHeight().background(Brush.horizontalGradient(listOf(Color.Transparent, DialogBg))))
                     }
                 }
                 if (sort == SearchSort.NEWEST && undated > 0) Text(
@@ -596,5 +607,68 @@ private fun ResultInfoRow(label: String, value: String) {
     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Text(label, color = MolinaTheme.Muted, fontSize = 11.sp)
         Text(value, color = Color(0xE6FFFFFF), fontSize = 14.sp)
+    }
+}
+
+/** [RESULTS-FILTER] Layar saringan: durasi dan waktu unggah dipilih langsung (bukan berputar); jumlah hasil ikut berubah. */
+@Composable
+private fun ResultFilterDialog(
+    dur: DurationFilter, date: DateFilter, count: Int,
+    onDur: (DurationFilter) -> Unit, onDate: (DateFilter) -> Unit,
+    onReset: () -> Unit, onDismiss: () -> Unit,
+) {
+    val frame = RoundedCornerShape(20.dp)
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(
+            Modifier.widthIn(max = 480.dp).fillMaxWidth().padding(horizontal = 12.dp)
+                .heightIn(max = 720.dp)
+                .border(
+                    1.dp,
+                    Brush.verticalGradient(listOf(MolinaTheme.Brand.copy(alpha = 0.6f), MolinaTheme.CardLine)),
+                    frame,
+                ),
+            shape = frame,
+            color = DialogBg,
+        ) {
+            Column(Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 8.dp)) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Saring", color = Color.White, fontSize = 20.sp,
+                        fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                    Text("$count hasil", color = MolinaTheme.Muted, fontSize = 13.sp)
+                }
+                Column(
+                    Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp, vertical = 14.dp),
+                ) {
+                    Text("Durasi", color = MolinaTheme.Muted, fontSize = 12.sp)
+                    Spacer(Modifier.height(6.dp))
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        DurationFilter.values().forEach { f -> ResultChip(f.label, f == dur) { onDur(f) } }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Text("Waktu unggah", color = MolinaTheme.Muted, fontSize = 12.sp)
+                    Spacer(Modifier.height(6.dp))
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        DateFilter.values().forEach { f -> ResultChip(f.label, f == date) { onDate(f) } }
+                    }
+                    Spacer(Modifier.height(14.dp))
+                    Text(
+                        "Video tanpa durasi atau tanggal (mis. siaran langsung) disingkirkan bila saringan aktif.",
+                        color = MolinaTheme.Muted, fontSize = 11.sp,
+                    )
+                }
+                HorizontalDivider(color = Color(0x1FFFFFFF))
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
+                ) {
+                    if (dur != DurationFilter.ALL || date != DateFilter.ALL) ResultChip("Atur ulang", false, onReset)
+                    ResultChip("Selesai", false, onDismiss)
+                }
+            }
+        }
     }
 }
