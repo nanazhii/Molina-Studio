@@ -6,13 +6,17 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -21,14 +25,18 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.molina.code.preview.RunPlan
@@ -36,9 +44,9 @@ import com.molina.code.run.RunHandle
 import com.molina.code.run.RunListener
 import com.molina.code.run.RunRequest
 import com.molina.code.run.RunResult
-import com.molina.core.common.AppLog
-import com.molina.core.common.LogLevel
+import com.molina.studio.cinema.Win7
 import com.molina.studio.code.ProotScriptExecutor
+import com.molina.studio.ui.MolinaTheme
 import kotlinx.coroutines.delay
 
 /** Satu skrip yang dijalankan di Debian PRoot lewat dialog keluaran. [confirm] = minta persetujuan dulu. */
@@ -49,84 +57,27 @@ internal class ToolRun(
     val summarize: ((List<String>) -> String?)? = null
 )
 
-private const val MAX_UI_CHARS = 60_000
+internal const val MAX_UI_CHARS = 60_000
 
 /**
- * Dialog jalankan: (opsional) konfirmasi dengan pratinjau perintah, lalu keluaran langsung. Dipakai Paket
- * (pasang/versi/hapus), pintasan Debian apt, dan yt-dlp. [onResult] menerima kode keluar (-1 bila tidak ada
- * hasil: gagal mulai, dihentikan, atau lewat waktu) dan keluaran.
+ * Dialog jalankan: (opsional) konfirmasi dengan pratinjau perintah, lalu proses diserahkan ke [ToolRunHub]
+ * (tampilannya di [ToolRunHost], bisa diminimalkan). Dipakai Paket (pasang/versi/hapus), pintasan Debian
+ * apt, dan yt-dlp. [onResult] menerima kode keluar (-1 bila tidak ada hasil: gagal mulai, dihentikan, atau
+ * lewat waktu) dan keluaran. [MINIMIZE-RUN]
  */
 @Composable
 internal fun ToolRunDialog(run: ToolRun, onClose: () -> Unit, onResult: (Int, String) -> Unit = { _, _ -> }) {
     val ctx = LocalContext.current
-    var started by remember { mutableStateOf(false) }
-    var running by remember { mutableStateOf(false) }
-    var output by remember { mutableStateOf("") }
-    var status by remember { mutableStateOf("") }
-    var handle by remember { mutableStateOf<RunHandle?>(null) }
-    val tracker = remember { RunProgressTracker() }
-    var phase by remember { mutableStateOf("Menyiapkan\u2026") }
-    var progress by remember { mutableStateOf<Float?>(null) }
-    var runState by remember { mutableStateOf(RunState.Running) }
-    var showDetail by remember { mutableStateOf(false) }
-    var elapsed by remember { mutableStateOf(0) }
-    LaunchedEffect(running) { while (running) { delay(1000); elapsed++ } }
-    val scroll = rememberScrollState()
-    LaunchedEffect(output) { scroll.scrollTo(scroll.maxValue) }
-    val keyLines = remember { mutableListOf<String>() }
-    val pending = remember { StringBuilder() }
-
-    fun collect(text: String) {
-        val kp = run.keyPattern ?: return
-        pending.append(text.replace("\r", "\n"))
-        var i = pending.indexOf("\n")
-        while (i >= 0) {
-            val line = pending.substring(0, i).trim()
-            pending.delete(0, i + 1)
-            if (line.isNotEmpty() && keyLines.size < 50 && kp.containsMatchIn(line)) keyLines.add(line)
-            i = pending.indexOf("\n")
-        }
-        if (pending.length > 4000) pending.clear()
+    var handedOver by remember { mutableStateOf(false) }
+    fun launch() {
+        if (handedOver) return
+        handedOver = true
+        ToolRunHub.start(ctx, run, onResult)
+        onClose()
     }
-
-    fun start() {
-        started = true
-        running = true
-        status = "Berjalan\u2026"
-        handle = startShell(
-            ctx, run,
-            onChunk = {
-                output = (output + it.replace("\r", "")).takeLast(MAX_UI_CHARS)
-                collect(it)
-                tracker.feed(it)
-                phase = tracker.phase
-                progress = tracker.fraction
-            },
-            onDone = { r ->
-                running = false
-                status = describe(r)
-                runState = when {
-                    r.startError != null || r.timedOut -> RunState.Failed
-                    r.cancelled -> RunState.Stopped
-                    r.exitCode == 0 -> RunState.Ok
-                    else -> RunState.Failed
-                }
-                collect("\n")
-                if (r.startError == null && !r.cancelled && !r.timedOut && r.exitCode == 0) {
-                    run.summarize?.invoke(keyLines.toList())?.let {
-                        status = status + "\n" + it
-                        AppLog.log("system", LogLevel.Info, "tool", "${run.title}: $it")
-                    }
-                }
-                val code = if (r.startError != null || r.cancelled || r.timedOut) -1 else r.exitCode
-                AppLog.log("system", LogLevel.Info, "tool", "${run.title} selesai exit=${r.exitCode} ${r.millis}ms")
-                onResult(code, output)
-            }
-        )
-    }
-    LaunchedEffect(Unit) { if (!run.confirm) start() }
-
-    if (run.confirm && !started) {
+    if (!run.confirm) {
+        LaunchedEffect(Unit) { launch() }
+    } else if (!handedOver) {
         AlertDialog(
             onDismissRequest = onClose,
             title = { Text(run.title) },
@@ -141,39 +92,98 @@ internal fun ToolRunDialog(run: ToolRun, onClose: () -> Unit, onResult: (Int, St
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { start() }) { Text("Jalankan") } },
+            confirmButton = { TextButton(onClick = { launch() }) { Text("Jalankan") } },
             dismissButton = { TextButton(onClick = onClose) { Text("Batal") } }
         )
-    } else {
-        AlertDialog(
-            onDismissRequest = { if (!running) onClose() },
-            title = { Text(run.title) },
-            text = {
-                Column {
-                    RunProgressPanel(phase, progress, runState, status, elapsed)
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        if (showDetail) "Sembunyikan rincian \u25B4" else "Tampilkan rincian \u25BE",
-                        color = MaterialTheme.colorScheme.primary, fontSize = 12.sp,
-                        modifier = Modifier.clickable { showDetail = !showDetail }.padding(vertical = 4.dp)
-                    )
-                    if (showDetail) {
-                        Box(Modifier.heightIn(max = 280.dp).verticalScroll(scroll)) {
-                            Text(output, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
-                        }
+    }
+}
+
+/** [MINIMIZE-RUN] Dialog progres proses Paket. Dipasang sekali di root (MainActivity) agar tampil di tab mana pun. */
+@Composable
+internal fun ToolRunHost() {
+    val snap by ToolRunHub.session.collectAsState()
+    val s = snap
+    if (s != null && !s.minimized) ToolRunPanel(s)
+}
+
+@Composable
+private fun ToolRunPanel(s: ToolRunSnapshot) {
+    val ctx = LocalContext.current
+    var showDetail by remember(s.startedAtMs) { mutableStateOf(false) }
+    var now by remember(s.startedAtMs) { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(s.startedAtMs, s.running) { while (s.running) { now = System.currentTimeMillis(); delay(1000) } }
+    val elapsed = ((now - s.startedAtMs) / 1000).toInt().coerceAtLeast(0)
+    val scroll = rememberScrollState()
+    LaunchedEffect(s.output) { if (showDetail) scroll.scrollTo(scroll.maxValue) }
+    AlertDialog(
+        onDismissRequest = { if (s.running) ToolRunHub.minimize() else ToolRunHub.close() },
+        title = { Text(s.title) },
+        text = {
+            Column {
+                RunProgressPanel(s.phase, s.progress, s.state, s.status, elapsed)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    if (showDetail) "Sembunyikan rincian \u25B4" else "Tampilkan rincian \u25BE",
+                    color = MaterialTheme.colorScheme.primary, fontSize = 12.sp,
+                    modifier = Modifier.clickable { showDetail = !showDetail }.padding(vertical = 4.dp)
+                )
+                if (showDetail) {
+                    Box(Modifier.heightIn(max = 280.dp).verticalScroll(scroll)) {
+                        Text(s.output, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
                     }
+                    Text(
+                        "Salin keluaran", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp,
+                        modifier = Modifier.clickable {
+                            copyOutput(ctx, listOf(s.status, s.output).filter { it.isNotBlank() }.joinToString("\n\n"))
+                        }.padding(vertical = 6.dp)
+                    )
                 }
-            },
-            confirmButton = {
-                if (running) TextButton(onClick = { handle?.cancel() }) { Text("Berhenti") }
-                else TextButton(onClick = onClose) { Text("Tutup") }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    copyOutput(ctx, listOf(status, output).filter { it.isNotBlank() }.joinToString("\n\n"))
-                }) { Text("Salin") }
             }
-        )
+        },
+        confirmButton = {
+            if (s.running) TextButton(onClick = { ToolRunHub.cancel() }) { Text("Berhenti") }
+            else TextButton(onClick = { ToolRunHub.close() }) { Text("Tutup") }
+        },
+        dismissButton = {
+            if (s.running) TextButton(onClick = { ToolRunHub.minimize() }) { Text("Minimalkan") }
+            else TextButton(onClick = {
+                copyOutput(ctx, listOf(s.status, s.output).filter { it.isNotBlank() }.joinToString("\n\n"))
+            }) { Text("Salin") }
+        }
+    )
+}
+
+/** [MINIMIZE-RUN] Pil kecil di atas bar bawah saat proses diminimalkan; ketuk untuk membuka lagi. */
+@Composable
+internal fun ToolRunPill() {
+    val snap by ToolRunHub.session.collectAsState()
+    val s = snap
+    if (s == null || !s.minimized) return
+    var now by remember(s.startedAtMs) { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(s.startedAtMs, s.running) { while (s.running) { now = System.currentTimeMillis(); delay(1000) } }
+    val (top, bottom) = when (s.state) {
+        RunState.Running -> Color(0xFF8FC4EE) to Color(0xFF2D6DB5)
+        RunState.Ok -> Color(0xFF7BE87A) to Color(0xFF1E9E1A)
+        RunState.Failed -> MolinaTheme.Bad to Color(0xFFC4392B)
+        RunState.Stopped -> Color(0xFFFFE680) to Color(0xFFE0A800)
+    }
+    val line = if (s.running) {
+        val pct = s.progress?.let { "${(it * 100).toInt()}% \u00B7 " }.orEmpty()
+        pct + s.phase
+    } else s.status.lineSequence().firstOrNull().orEmpty()
+    Column(
+        Modifier.fillMaxWidth().background(Color(0xFF101010))
+            .clickable { ToolRunHub.restore() }.padding(horizontal = 12.dp, vertical = 6.dp)
+    ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(s.title, color = Win7.Ink, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(line, color = Win7.TextDim, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Text("Buka", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+        }
+        Spacer(Modifier.height(4.dp))
+        GlossBar(if (s.running) s.progress else 1f, top, bottom, height = 6.dp)
     }
 }
 

@@ -348,11 +348,13 @@ class MainActivity : ComponentActivity() {
                 val htmlWebView by com.molina.studio.code.CodePrefs.htmlWebView.collectAsState()
                 SideEffect { codeSession.htmlWebView = htmlWebView }
                 val keyboardVisible = rememberKeyboardVisible()
+                com.molina.studio.settings.ToolRunHost() // [MINIMIZE-RUN]
                 Scaffold(
                     containerColor = MaterialTheme.colorScheme.background,
                     bottomBar = {
                         if (!keyboardVisible && !(selected == Tab.Code.ordinal && codeSession.previewFullScreen)) {
                             Column {
+                                com.molina.studio.settings.ToolRunPill() // [MINIMIZE-RUN]
                                 Box(
                                     Modifier.fillMaxWidth().height(2.dp).background(
                                         Brush.horizontalGradient(
