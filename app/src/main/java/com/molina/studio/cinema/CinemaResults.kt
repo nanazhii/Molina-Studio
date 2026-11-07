@@ -12,8 +12,10 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -45,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
@@ -62,6 +65,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -94,6 +98,7 @@ private val SelectedLine = Color(0xFF8DBBFF)
 private val RowTop = Color(0xFF1F1F1F)
 private val RowBottom = Color(0xFF141414)
 private val RowLine = Color(0x26FFFFFF)
+private val ThumbWidth = 104.dp // [THUMB-FILL] lebar tetap; tinggi mengikuti blok judul (min 54dp)
 private val Accent = Color(0xFF4DA3FF)
 
 /** Prev/Next memindahkan sorotan satu 'halaman' (seperti CH+/CH- cepat di remote TV). */
@@ -354,9 +359,10 @@ private fun ChannelRow(
     val brush = if (isSelected) Brush.verticalGradient(listOf(SelectedTop, SelectedBottom))
         else Brush.verticalGradient(listOf(RowTop, RowBottom))
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 2.dp)
+        Modifier.fillMaxWidth().padding(vertical = 2.dp).height(IntrinsicSize.Min) // [THUMB-FILL]
             .clip(shape).background(brush)
             .border(1.dp, if (isSelected) SelectedLine else RowLine, shape)
+            .then(if (isSelected) Modifier.drawBehind { drawRect(MolinaTheme.Brand, size = Size(3.dp.toPx(), size.height)) } else Modifier) // [BRAND-ACCENT]
             .pointerInput(e.number) {
                 detectTapGestures(
                     onPress = { onPressNow(); tryAwaitRelease() },
@@ -379,7 +385,8 @@ private fun ChannelRow(
         ) { if (checked) Text("\u2713", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
         if (showThumb) SearchThumb(
             e.item.thumbnailUrl, e.item.durationSec, progress,
-            VideoKey.of(e.item.pageUrl)?.removePrefix("yt:"), thumbHeld, Modifier.padding(end = 8.dp),
+            VideoKey.of(e.item.pageUrl)?.removePrefix("yt:"), thumbHeld,
+            Modifier.padding(end = 8.dp).width(ThumbWidth).heightIn(min = 54.dp).fillMaxHeight(),
         ) // [RESULTS-THUMB]
         Column(Modifier.weight(1f)) {
             Text(e.item.title, color = Color.White, fontSize = 14.sp, maxLines = 3,
@@ -467,9 +474,9 @@ private fun SearchThumb(
         while (true) { frame = frames[i % frames.size]; i++; delay(700) }
     }
     val shown = frame ?: bmp
-    val shape = RoundedCornerShape(6.dp)
+    val shape = RoundedCornerShape(8.dp)
     Box(
-        modifier.size(96.dp, 54.dp).clip(shape).background(Color(0xFF1A1A1A))
+        modifier.clip(shape).background(Color(0xFF1A1A1A))
             .then(if (holding) Modifier.border(2.dp, MolinaTheme.Brand, shape) else Modifier)
             .pointerInput(videoId) {
                 awaitEachGesture {
@@ -505,7 +512,7 @@ private fun SearchThumb(
                 }
             },
     ) {
-        shown?.let { Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(96.dp, 54.dp)) }
+        shown?.let { Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize()) }
         if (durationSec != null) Text(
             duration(durationSec), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
             modifier = Modifier.align(Alignment.BottomEnd)
