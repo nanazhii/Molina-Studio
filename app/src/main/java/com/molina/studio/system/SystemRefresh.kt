@@ -34,6 +34,22 @@ internal object SystemRefresh {
         Refreshers.register(TerminalRefreshable(app.applicationContext))
     }
 
+    /**
+     * Jumlah proses zombie (state Z) milik UID aplikasi. Polling singkat karena thread waitpid
+     * (JNI/JVM) butuh waktu untuk me-reap proses yang baru dimatikan. SIGKILL tidak bisa
+     * menghapus zombie; hanya wait() dari induknya yang bisa.
+     */
+    fun settledZombies(maxWaitMs: Long = 500L): Int {
+        val uid = Process.myUid()
+        var n = AndroidProcessOps.list().count { it.uid == uid && it.state == 'Z' }
+        val deadline = System.nanoTime() + maxWaitMs * 1_000_000L
+        while (n > 0 && System.nanoTime() < deadline) {
+            try { Thread.sleep(50) } catch (e: InterruptedException) { Thread.currentThread().interrupt(); break }
+            n = AndroidProcessOps.list().count { it.uid == uid && it.state == 'Z' }
+        }
+        return n
+    }
+
     /** Jalankan [block] di main thread dan tunggu (maks [timeoutMs]); dipanggil dari thread latar. */
     fun onMainBlocking(timeoutMs: Long = 2000L, block: () -> Unit) {
         if (Looper.myLooper() == Looper.getMainLooper()) { block(); return }
@@ -77,12 +93,22 @@ internal class MpvRefreshable(private val app: Context) : Refreshable {
         var killed = 0
         // 1) proses luar (yt-dlp + proot + python), 2) pemutar lewat jalur resmi, 3) lepas resolver + GC.
         killed += YtdlpRunner.cancelActive()
-        val stopped = if (MpvControl.shutdown(app)) 1 else 0
-        // Cache unduhan TikTok dibersihkan setelah mpv berhenti, supaya tidak menghapus berkas yang sedang diputar.
-        val cleared = try { StreamCache.clear(app) } catch (e: Exception) { 0 }
-        val mem = MemoryRefresh.run(releaseResolver = true)
-        AppLog.log("system", LogLevel.Info, "refresh", "mpv: dihentikan=$stopped dimatikan=$killed cache=$cleared ${MemoryRefresh.describe(mem)}")
-        return RefreshReport(id, stopped = stopped, killed = killed, note = MemoryRefresh.describe(mem))
+        val requested = MpvControl.shutdown(app)
+        // Verifikasi: "dihentikan" hanya dihitung bila pemutar benar-benar sudah tidak aktif.
+        val still = MpvControl.isActive()
+        val stopped = if (requested && !still) 1 else 0
+        // Cache unduhan TikTok dibersihkan hanya setelah mpv berhenti, supaya tidak menghapus berkas yang sedang diputar.
+        val cleared = if (still) 0 else try { StreamCache.clear(app) } catch (e: Exception) { 0 }
+        val mem = MemoryRefresh.run(releaseResolver = !still)
+        val warn = if (still) " Pemutar belum berhenti." else ""
+        AppLog.log(
+            "system", if (still) LogLevel.Warn else LogLevel.Info, "refresh",
+            "mpv: dihentikan=$stopped dimatikan=$killed cache=$cleared tersisa=${if (still) 1 else 0} ${MemoryRefresh.describe(mem)}"
+        )
+        return RefreshReport(
+            id, stopped = stopped, killed = killed, remaining = if (still) 1 else 0,
+            note = MemoryRefresh.describe(mem) + warn
+        )
     }
 }
 
@@ -101,15 +127,22 @@ internal class TerminalRefreshable(private val app: Context) : Refreshable {
         // killAll memutasi daftar sesi (state Compose): lakukan di main thread. Callback "sesi berakhir"
         // baru jalan setelah ini (asinkron) dan diabaikan karena daftar sudah kosong.
         SystemRefresh.onMainBlocking { TerminalSessions.killAll() }
-        try { TerminalService.requestStop(app) } catch (e: Exception) { }
+        try { TerminalService.requestStop(app) } catch (e: Exception) {
+            AppLog.log("system", LogLevel.Warn, "refresh", "terminal: requestStop gagal ${e.javaClass.simpleName}")
+        }
         val r = AndroidProcessOps.reaper().reapOwn()
+        val z = SystemRefresh.settledZombies()
         AppLog.log(
             "system", LogLevel.Info, "refresh",
-            "terminal: sesi=$sessions proses=${r.found} bersih=${r.terminated} paksa=${r.killed} tersisa=${r.remaining}"
+            "terminal: sesi=$sessions proses=${r.found} bersih=${r.terminated} paksa=${r.killed} tersisa=${r.remaining} zombie=$z"
+        )
+        val notes = listOfNotNull(
+            if (r.remaining > 0) "${r.remaining} proses tidak mau mati" else null,
+            if (z > 0) "$z zombie menunggu di-reap induknya" else null,
         )
         return RefreshReport(
             id, stopped = sessions, killed = r.total, remaining = r.remaining,
-            note = if (r.remaining > 0) "${r.remaining} proses tidak mau mati" else null
+            note = notes.joinToString("; ").ifEmpty { null }
         )
     }
 }
