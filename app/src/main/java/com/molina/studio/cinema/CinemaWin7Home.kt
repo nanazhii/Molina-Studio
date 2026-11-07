@@ -234,15 +234,15 @@ private fun StatusStrip(info: String, busy: Boolean) {
 private fun ResumeCard(item: CinemaRecent.Item, remembered: Boolean, onPick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth()
-            .background(MolinaTheme.Brand.copy(alpha = 0.133f), androidx.compose.foundation.shape.RoundedCornerShape(8.dp)) // [CINEMA-TOKEN]
+            .background(MolinaTheme.Cinema.copy(alpha = 0.133f), androidx.compose.foundation.shape.RoundedCornerShape(8.dp)) // [CINEMA-TOKEN] aksen putar = ungu
             .clickable(onClick = onPick)
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("\u25B6", color = MolinaTheme.Brand, fontSize = 20.sp)
+        Text("\u25B6", color = MolinaTheme.Cinema, fontSize = 20.sp)
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
-            Text("Lanjutkan", color = MolinaTheme.Brand, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+            Text("Lanjutkan", color = MolinaTheme.Cinema, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
             Text(item.title, color = Win7.Ink, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
                 if (remembered) "Dilanjutkan dari posisi terakhir" else "Diputar dari awal (aktifkan Lanjutkan di Settings > Otomasi)",

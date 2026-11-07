@@ -71,10 +71,10 @@ object MonitorNav {
 private const val SPARK_POINTS = 24
 private val ChipH = 28.dp
 
-// [MC-COLOR] Warna monitor header: idle putih polos, unggah merah, unduh biru (kontras tinggi di atas kaca gelap)
-private val ChipIdle = Color.White
-private val ChipUp = Color(0xFFFF5252)
-private val ChipDown = Color(0xFF448AFF)
+// [MC-COLOR] Warna monitor header: idle putih polos, unggah merah, unduh hijau (kontras tinggi di atas kaca gelap)
+private val ChipIdle = MolinaTheme.MonitorIdle
+private val ChipUp = MolinaTheme.MonitorUp
+private val ChipDown = MolinaTheme.MonitorDown // [MC-COLOR] unduh hijau tegas (token pusat)
 // [MC-CONTRAST] Bayangan tipis agar teks tetap terbaca di atas latar terminal terang maupun gelap
 private val ChipTextStyle = TextStyle(
     shadow = Shadow(color = Color.Black.copy(alpha = 0.65f), offset = Offset(0f, 1f), blurRadius = 3f)
@@ -222,6 +222,7 @@ private fun NetLine(text: String, color: Color, active: Boolean) {
         text,
         color = color, // [MC-COLOR] tidak lagi diredupkan saat idle agar tetap terbaca
         style = ChipTextStyle,
+        fontWeight = if (active) FontWeight.Bold else FontWeight.Normal, // [MC-A11Y] penanda kedua selain warna
         fontSize = 9.sp, lineHeight = 11.sp, fontFamily = FontFamily.Monospace, maxLines = 1, softWrap = false
     )
 }
