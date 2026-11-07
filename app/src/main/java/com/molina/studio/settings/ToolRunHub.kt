@@ -87,6 +87,7 @@ internal object ToolRunHub {
                 }
             }
         )
+        ToolRunService.ensureRunning(app) // [TOOLRUN-FGS]
         return true
     }
 

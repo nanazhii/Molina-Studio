@@ -212,6 +212,10 @@ class MainActivity : ComponentActivity() {
                     com.molina.studio.settings.SettingsNav.scrollToTools = true // [SUBTITLE-EXTRACT-SCROLL]
                     Tab.Settings.ordinal
                 }
+                "tool_run" -> { // [TOOLRUN-FGS] ketuk notifikasi proses Paket membuka lagi dialognya
+                    com.molina.studio.settings.ToolRunHub.restore()
+                    -1
+                }
                 "files" -> Tab.Files.ordinal
                 "code" -> Tab.Code.ordinal
                 else -> -1
