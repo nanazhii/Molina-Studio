@@ -6,9 +6,9 @@ KC="${KOTLINC:-kotlinc}"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 "$KC" -nowarn -d "$OUT" \
-  feature/code/src/main/kotlin/com/molina/code/preview/ScriptLaunch.kt \
-  feature/code/src/main/kotlin/com/molina/code/preview/RunPlan.kt \
-  feature/code/src/main/kotlin/com/molina/code/preview/CommandBlockSpec.kt \
+  core/exec/src/main/kotlin/com/molina/code/preview/ScriptLaunch.kt \
+  core/exec/src/main/kotlin/com/molina/code/preview/RunPlan.kt \
+  core/exec/src/main/kotlin/com/molina/code/preview/CommandBlockSpec.kt \
   feature/code/src/main/kotlin/com/molina/code/preview/PythonTerminalRun.kt \
   scripts/code-tests/PythonRunTests.kt
 java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" PythonRunTestsKt
