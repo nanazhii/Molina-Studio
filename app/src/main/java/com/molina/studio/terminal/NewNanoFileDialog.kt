@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -34,10 +35,12 @@ import com.molina.studio.settings.MolinaExplorer
 /** [NANO-EXT] Pecah/gabung nama berkas + daftar ekstensi umum. Dotfile (.bashrc) dianggap tanpa ekstensi. */
 internal object NanoName {
     val EXTENSIONS = listOf(
-        "txt", "md", "py", "sh", "kt", "kts", "java", "json", "xml", "yml", "yaml", "toml", "ini", "conf",
+        "md", "txt", "sh", "py", "kt", "kts", "java", "json", "xml", "yml", "yaml", "toml", "ini", "conf", // [NANO-TEMPLATE] urutan: paling sering dipakai di atas
         "log", "csv", "html", "css", "js", "c", "cpp", "h", "gradle", "properties"
     )
     const val NONE = "(tanpa)"
+    /** [NANO-TEMPLATE] Nama bawaan "Berkas baru" dari Terminal: tetap, tidak mengikuti berkas terakhir di Penjelajah. */
+    const val TEMPLATE = "catatan.txt"
 
     /** "skrip.tar.gz" -> ("skrip.tar", "gz"); ".bashrc" -> (".bashrc", ""); "README" -> ("README", ""). */
     fun split(name: String): Pair<String, String> {
@@ -51,19 +54,19 @@ internal object NanoName {
     }
 
     /** Nama bawaan: mengikuti berkas terakhir di Penjelajah bila ada, bila tidak "catatan.txt". */
-    fun initial(last: String?): Pair<String, String> = split(last ?: "catatan.txt")
+    fun initial(last: String?): Pair<String, String> = split(last ?: TEMPLATE)
 }
 
 /**
  * [NANO-NEW] Dialog "Berkas baru (nano)" dari drawer Terminal. Folder bawaan = folder terakhir yang dibuka di Files
- * (bila tak ada: akar penyimpanan internal). Nama + ekstensi bawaan mengikuti berkas terakhir yang dipilih di Penjelajah;
+ * (bila tak ada: akar penyimpanan internal). Nama + ekstensi bawaan = template (catatan.txt), TIDAK mengikuti berkas Penjelajah;
  * ekstensi dipilih lewat dropdown atau diketik bebas, tidak dikunci ke .txt.
  */
 @Composable
 internal fun NewNanoFileDialog(onDismiss: () -> Unit, onOpened: () -> Unit) {
     val ctx = LocalContext.current
     val dir = remember { ExplorerRecent.last(ctx) ?: Environment.getExternalStorageDirectory() }
-    val init = remember { NanoName.initial(ExplorerRecent.lastFileName(ctx)) }
+    val init = remember { NanoName.initial(null) } // [NANO-TEMPLATE] selalu template, bukan nama berkas terakhir
     var stem by remember { mutableStateOf(init.first) }
     var ext by remember { mutableStateOf(init.second) }
     var menu by remember { mutableStateOf(false) }
@@ -100,10 +103,15 @@ internal fun NewNanoFileDialog(onDismiss: () -> Unit, onOpened: () -> Unit) {
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                             keyboardActions = KeyboardActions(onDone = { go() })
                         )
-                        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                            DropdownMenuItem(text = { Text(NanoName.NONE) }, onClick = { ext = ""; menu = false })
+                        // [NANO-EXT-SCROLL] Tinggi menu dibatasi (~6 item terlihat); sisanya di-scroll, tidak memanjang satu layar.
+                        DropdownMenu(
+                            expanded = menu,
+                            onDismissRequest = { menu = false },
+                            modifier = Modifier.heightIn(max = 240.dp)
+                        ) {
+                            DropdownMenuItem(text = { Text(NanoName.NONE) }, modifier = Modifier.height(40.dp), onClick = { ext = ""; menu = false })
                             NanoName.EXTENSIONS.forEach { e ->
-                                DropdownMenuItem(text = { Text(".$e", fontFamily = FontFamily.Monospace) }, onClick = { ext = e; menu = false })
+                                DropdownMenuItem(text = { Text(".$e", fontFamily = FontFamily.Monospace) }, modifier = Modifier.height(40.dp), onClick = { ext = e; menu = false })
                             }
                         }
                     }
