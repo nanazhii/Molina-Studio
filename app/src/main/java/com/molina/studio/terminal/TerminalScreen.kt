@@ -221,7 +221,7 @@ private val NanoKeyList = listOf(
     Triple("REDO", KeyBlue, "\u0019"),     // ^Y
     Triple("GOTO", KeyAmber, "\u0007"),    // ^G ke baris
     Triple("REPL", KeyAmber, "\u0012"),    // ^R ganti
-    Triple("CODE", KeyGreen, "\u001bo")    // Alt+O: simpan lalu buka di Code
+    Triple("CODE", KeyGreen, "\u001bo"),   // Alt+O: simpan lalu buka di Code
     Triple("VIEW", KeyGreen, "\u001bp")    // [NANO-PREVIEW] Alt+P: simpan lalu pratinjau MD/HTML/JSON
 )
 
