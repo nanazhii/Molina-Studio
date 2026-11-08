@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="shortcut_cinema_short">Cinema</string>
-    <string name="shortcut_cinema_long">Molina Cinema</string>
-    <string name="shortcut_terminal_short">Terminal</string>
-    <string name="shortcut_terminal_long">Molina Terminal</string>
-    <string name="shortcut_code_short">Code</string>
-    <string name="shortcut_code_long">Molina Code</string>
-</resources>
