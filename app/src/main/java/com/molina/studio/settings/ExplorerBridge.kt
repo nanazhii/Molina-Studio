@@ -119,6 +119,38 @@ internal object MolinaExplorer {
         Toast.makeText(ctx, "Path disalin: " + debianPath(f), Toast.LENGTH_SHORT).show()
     }
 
+    /**
+     * [NANO-EDIT] Edit berkas teks di nano pada sesi terminal aktif, lalu pindah ke tab Terminal.
+     * Menolak berkas non-teks, lokasi yang tak terlihat di Debian, dan terminal yang sedang menjalankan program layar penuh.
+     */
+    fun editInTerminal(ctx: Context, f: File): Boolean {
+        if (!com.molina.studio.cinema.ExplorerList.looksText(f)) {
+            Toast.makeText(ctx, "Hanya berkas teks (maks 5 MB) yang bisa diedit di nano.", Toast.LENGTH_SHORT).show()
+            return false
+        }
+        if (!visibleInDebian(f)) {
+            Toast.makeText(ctx, "Berkas ini tidak terlihat di Debian. Aktifkan \"Akses penyimpanan penuh\" di Setelan Terminal, atau pindahkan ke folder Molina.", Toast.LENGTH_LONG).show()
+            return false
+        }
+        val path = debianPath(f)
+        if ('\n' in path || '\r' in path) {
+            Toast.makeText(ctx, "Nama berkas mengandung baris baru; buka lewat terminal.", Toast.LENGTH_LONG).show()
+            return false
+        }
+        val em = TerminalSessions.currentSession?.emulator
+        if (em == null) {
+            Toast.makeText(ctx, "Belum ada sesi terminal aktif. Buka Terminal terlebih dahulu.", Toast.LENGTH_LONG).show()
+            return false
+        }
+        if (em.isAlternateBufferActive) {
+            Toast.makeText(ctx, "Terminal sedang menjalankan program layar penuh. Keluar dulu, atau buka sesi baru.", Toast.LENGTH_LONG).show()
+            return false
+        }
+        TerminalActions.send("nano " + quote(path) + "\r")
+        ScriptNav.openTerminal = true
+        return true
+    }
+
     /** Sisipkan path ter-quote (satu atau banyak, dipisah spasi) ke input shell sesi aktif, tanpa Enter. */
     fun insertPaths(ctx: Context, files: List<File>) {
         if (files.isEmpty()) return

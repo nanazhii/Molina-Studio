@@ -25,6 +25,7 @@ Anda bisa menulis skrip, menjalankannya, memasang alat tambahan, lalu pindah men
 - Pasang alat seperti Python, JDK, dan FFmpeg dari menu Paket. Paket dasar (Starter) bisa dipasang sekali ketuk.
 - Cadangkan, pulihkan, atau kembalikan Debian ke kondisi awal.
 - Cadangan setelan, Recycle Bin, dan penjelajah berkas.
+- Editor nano siap pakai dengan pintasan ala code editor (Ctrl+S simpan, Ctrl+Q keluar). Ketik `molina keys` untuk daftarnya; di Penjelajah, menu Alat > Edit di Terminal (nano).
 
 ## Molina Code
 

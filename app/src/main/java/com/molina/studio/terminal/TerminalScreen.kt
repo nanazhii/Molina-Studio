@@ -154,6 +154,7 @@ private fun TerminalContent(modifier: Modifier, onOpenSettings: () -> Unit, onOp
                 )
             }
         }
+        NanoKeys() // [NANO-KEYS]
         ExtraKeys(mods) { drawerOpen = true }
     }
     SessionDrawer(
@@ -194,6 +195,32 @@ private const val CURSOR_BLINK_MS = 600
 private fun startCursorBlink(v: TerminalView) {
     v.setTerminalCursorBlinkerRate(CURSOR_BLINK_MS)
     v.setTerminalCursorBlinkerState(true, true)
+}
+
+/**
+ * [NANO-KEYS] Baris tombol sementara saat nano aktif. Pembungkus nano menamai sesi "nano: <berkas>" lewat judul
+ * terminal dan mengosongkannya saat nano selesai. Tiap tombol mengirim urutan kontrol bawaan nanorc Molina.
+ */
+@Composable
+private fun NanoKeys() {
+    val tick = TerminalSessions.titleTick // dibaca agar Compose menyusun ulang saat judul sesi berubah
+    val s = TerminalSessions.currentSession
+    if (tick < 0 || s == null || s.title?.startsWith("nano: ") != true) return
+    val shape = RoundedCornerShape(12.dp)
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 2.dp)
+            .clip(shape)
+            .background(Color.Black, shape)
+            .border(2.dp, MolinaTheme.Brand, shape)
+            .padding(3.dp)
+    ) {
+        Key("SAVE", color = KeyGreen) { TerminalActions.send("\u0013") }   // ^S
+        Key("UNDO", color = KeyBlue) { TerminalActions.send("\u001a") }    // ^Z
+        Key("REDO", color = KeyBlue) { TerminalActions.send("\u0019") }    // ^Y
+        Key("FIND", color = KeyAmber) { TerminalActions.send("\u0006") }   // ^F
+        Key("CODE", color = KeyAmber) { TerminalActions.send("\u001bo") }  // Alt+O: simpan lalu buka di Code
+        Key("QUIT", color = KeyRed) { TerminalActions.send("\u0011") }     // ^Q
+    }
 }
 
 @Composable

@@ -23,11 +23,29 @@ Pemakaian:
   molina open <berkas>...        buka berkas (maks 10) di editor Code
   molina log [-l D|I|W|E] [-t tag] pesan...
                                  kirim baris ke Log Molina (sumber "cli")
+  molina keys                    daftar pintasan nano (Ctrl+S, Ctrl+Q, ...)
 
 Path harus di bawah /sdcard atau /storage/emulated/0 (terlihat dari Debian).
 Contoh:
   molina play /sdcard/Molina/Media/Video/film.mkv
   yt-dlp -f b -g "https://..." | molina play -
+"""
+
+KEYS = """Pintasan nano di Molina Terminal (gaya code editor)
+
+  Ctrl+S   simpan                Ctrl+Q   keluar
+  Ctrl+Z   urungkan (undo)       Ctrl+Y   ulangi (redo)
+  Ctrl+C   salin                 Ctrl+X   potong
+  Ctrl+V   tempel                Ctrl+F   cari
+  Ctrl+R   ganti                 Ctrl+G   ke baris
+  Ctrl+/   komentari baris (atau Alt+3)
+  Alt+O    simpan lalu buka di Molina Code
+  Ctrl+O   simpan sebagai        Ctrl+K   potong baris
+  Alt+A    mulai/akhiri seleksi  Alt+U    undo bawaan nano
+
+Tips: ketuk CTRL di baris tombol, tahan untuk mengunci. Baris tombol
+SAVE UNDO REDO FIND CODE QUIT muncul otomatis saat nano aktif.
+Kustom: buat ~/.nanorc (menggantikan konfigurasi Molina).
 """
 
 LEVELS = ("D", "I", "W", "E")
@@ -291,6 +309,14 @@ def cmd_share(args):
     return run("share", "text\t" + b64(text))
 
 
+def cmd_keys(args):
+    if args:
+        sys.stderr.write("molina: keys tidak menerima argumen\n")
+        return 2
+    sys.stdout.write(KEYS)
+    return 0
+
+
 def main(argv):
     if not argv or argv[0] in ("-h", "--help", "help"):
         sys.stdout.write(HELP)
@@ -305,6 +331,8 @@ def main(argv):
         return cmd_play(rest)
     if verb == "open":
         return cmd_open(rest)
+    if verb == "keys":
+        return cmd_keys(rest)
     if verb == "log":
         return cmd_log(rest)
     if verb == "clip":

@@ -1,5 +1,6 @@
 # Molina Terminal - nanorc bawaan (dibuat otomatis, ditimpa tiap sesi).
 # Ingin kustom sendiri? Buat ~/.nanorc, maka berkas ini tidak dipakai lagi.
+# Daftar pintasan: ketik `molina keys`.
 
 # Tampilan: hemat layar ponsel
 set minibar
@@ -19,14 +20,19 @@ set zap
 # Sorotan sintaks Debian
 include "/usr/share/nano/*.nanorc"
 
-# Warna
-set titlecolor bold,white,blue
-set statuscolor bold,white,green
-set errorcolor bold,white,red
-set selectedcolor black,yellow
-set numbercolor yellow
-set keycolor yellow
-set functioncolor white
+# Warna tema Noir Molina (MolinaTheme). Hex 3 digit, perlu terminal 256 warna.
+# Brand #2ECC71 = #2c7, Good #9BE564 = #9e6, Warn #FFD54F = #fd5, Bad #FF5252 = #f55, Muted #9AA0A6 = #999
+set titlecolor bold,#000,#2c7
+set minicolor bold,#000,#2c7
+set statuscolor bold,#000,#9e6
+set promptcolor bold,#000,#9e6
+set errorcolor bold,#fff,#f55
+set selectedcolor #000,#fd5
+set spotlightcolor #000,#fd5
+set numbercolor #999
+set scrollercolor #2c7
+set keycolor #2c7
+set functioncolor #eee
 
 # Shortcut ala code editor (ketuk CTRL di baris tombol; tahan untuk mengunci)
 bind ^S savefile main
@@ -40,3 +46,6 @@ bind ^F whereis main
 bind ^R replace main
 bind ^G gotoline main
 bind ^_ comment main
+
+# Alt+O: simpan lalu buka berkas ini di Molina Code (lihat nano-open-code)
+bind M-o "{savefile}{execute}/usr/local/lib/molina/nano-open-code >/dev/null 2>&1{enter}" main

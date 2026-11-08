@@ -288,6 +288,14 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(run_cli("share", "-t", "  ")[0], 2)
         self.assertEqual(self.srv.lines, [])
 
+    def test_keys_cheatsheet(self):
+        code, out, _ = run_cli("keys")
+        self.assertEqual(code, 0)
+        for k in ("Ctrl+S", "Ctrl+Q", "Ctrl+Z", "Alt+O"):
+            self.assertIn(k, out)
+        self.assertEqual(run_cli("keys", "x")[0], 2)
+        self.assertEqual(self.srv.lines, [])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

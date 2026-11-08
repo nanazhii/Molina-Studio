@@ -205,6 +205,7 @@ fun Win7OpenDialog(
     onPickFolder: (File) -> Unit = {},
     onPlay: (suspend (List<File>) -> Boolean)? = null,
     onOpenInCode: ((List<File>) -> Unit)? = null,
+    onEditInTerminal: ((File) -> Unit)? = null, // [NANO-EDIT]
     onSendToScripts: ((File) -> Pair<Boolean, String>)? = null,
     // MOLINA-H13-BRIDGE: (berkas, selesai(daftar asli yang boleh dihapus, pesan)); daftar kosong = jangan hapus apa pun
     onSaveToVault: ((List<File>, (List<File>, String) -> Unit) -> Unit)? = null,
@@ -613,7 +614,7 @@ fun Win7OpenDialog(
                     if (toolsOpen) W7ToolsMenu( // [SPLIT-TOOLS] isi menu ada di W7ToolsMenu.kt
                         targets = targets(), dir = dir, browse = browse, clip = clip,
                         playedFirst = playedFirst, playedRefs = playedRefs, shown = shown,
-                        onPlay = onPlay, onOpenInCode = onOpenInCode, onSendToScripts = onSendToScripts,
+                        onPlay = onPlay, onOpenInCode = onOpenInCode, onEditInTerminal = onEditInTerminal, onSendToScripts = onSendToScripts,
                         onOpenWith = onOpenWith, onShare = onShare, onCopyPath = onCopyPath,
                         onSaveToVault = onSaveToVault?.let { fn ->
                             { files: List<File> ->

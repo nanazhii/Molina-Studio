@@ -63,6 +63,7 @@ fun FilesTabScreen(modifier: Modifier = Modifier, onExit: () -> Unit = {}) {
         isVisibleInDebian = { f -> MolinaExplorer.visibleInDebian(f) },
         onPlay = { files -> MolinaExplorer.play(ctx, files) },
         onOpenInCode = { files -> MolinaExplorer.openInCode(ctx, files) },
+        onEditInTerminal = { f -> MolinaExplorer.editInTerminal(ctx, f) }, // [NANO-EDIT]
         onSendToScripts = { f -> MolinaExplorer.sendToScripts(f) },
         onSaveToVault = { files, done ->
             when (val p = VaultBridge.prepare(ctx, files)) {

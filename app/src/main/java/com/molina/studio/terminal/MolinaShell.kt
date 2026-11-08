@@ -85,6 +85,7 @@ object MolinaShell {
             Triple("molina/molina-cli.py", "usr/local/lib/molina/molina_cli.py", false),
             Triple("molina/nano-wrapper.sh", "usr/local/bin/nano", true),
             Triple("molina/nanorc", "etc/molina/nanorc", false),
+            Triple("molina/nano-open-code.sh", "usr/local/lib/molina/nano-open-code", true),
         )
         for ((asset, rel, exec) in files) {
             runCatching {

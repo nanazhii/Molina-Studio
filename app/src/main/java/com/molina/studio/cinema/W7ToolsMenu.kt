@@ -29,6 +29,7 @@ internal fun W7ToolsMenu(
     targets: List<File>, dir: File, browse: Boolean, clip: W7Clip?,
     playedFirst: Boolean, playedRefs: List<String>, shown: List<W7Entry>?,
     onPlay: (suspend (List<File>) -> Boolean)?, onOpenInCode: ((List<File>) -> Unit)?,
+    onEditInTerminal: ((File) -> Unit)? = null, // [NANO-EDIT]
     onSendToScripts: ((File) -> Pair<Boolean, String>)?, onOpenWith: ((File) -> Boolean)?,
     onShare: ((List<File>) -> Boolean)?, onCopyPath: ((File) -> Unit)?, onSaveToVault: ((List<File>) -> Unit)?, // MOLINA-H13-BRIDGE
     onDismiss: () -> Unit, onClip: (W7Clip?) -> Unit, onPlayedFirst: (Boolean) -> Unit,
@@ -98,6 +99,10 @@ internal fun W7ToolsMenu(
                     val texts = tg.filter { ExplorerList.looksText(it) }.take(10)
                     if (texts.isEmpty()) say("Tidak ada berkas teks yang bisa dibuka di Code.") else fn(texts)
                 }
+            }
+            W7MenuItem(W7Ico.CODE, "Edit di Terminal (nano)", onEditInTerminal != null && one?.isFile == true) { // [NANO-EDIT]
+                onDismiss()
+                one?.let { onEditInTerminal?.invoke(it) }
             }
             W7MenuItem(W7Ico.SCRIPT, "Kirim ke Script execution", onSendToScripts != null && one != null && one.isFile) {
                 onDismiss()
