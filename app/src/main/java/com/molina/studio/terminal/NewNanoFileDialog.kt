@@ -91,7 +91,7 @@ internal fun NewNanoFileDialog(onDismiss: () -> Unit, onOpened: () -> Unit) {
                     Box {
                         OutlinedTextField(
                             value = ext,
-                            onValueChange = { ext = it.filter { c -> c != '/' && c != '\' && !c.isWhitespace() } },
+                            onValueChange = { ext = it.filter { c -> c != '/' && c != '\\' && !c.isWhitespace() } },
                             singleLine = true,
                             label = { Text("Ekstensi") },
                             prefix = { Text(".") },

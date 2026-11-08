@@ -166,7 +166,7 @@ internal object PasteShape {
             orientation = LinearLayout.VERTICAL
             setPadding(px(20), px(8), px(20), 0)
         }
-        box.addView(TextView(activity).apply { text = msg; textSize = 14f })
+        box.addView(TextView(activity).apply { this.text = msg; textSize = 14f })
         val chips = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
