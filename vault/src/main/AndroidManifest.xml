@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MOLINA-BUNKER-v1 -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Offline total -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" tools:node="remove" />
+
+    <!-- MOLINA-H13-INTENT: hanya aplikasi Molina bertanda tangan sama yang boleh meminta impor -->
+    <permission android:name="com.molina.vault.permission.IMPORT" android:protectionLevel="signature" />
+
+    <application
+        android:allowBackup="false"
+        android:largeHeap="true"
+        android:fullBackupContent="false"
+        android:label="Molina Vault"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:usesCleartextTraffic="false"
+        android:theme="@android:style/Theme.Material.NoActionBar">
+
+        <!-- Cegah library menyelipkan komponen yang bisa dijangkau aplikasi lain -->
+        <provider android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup" tools:node="remove" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:taskAffinity=""
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize|uiMode"
+            android:filterTouchesWhenObscured="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- MOLINA-H13-INTENT: pintu impor. Izin signature ditegakkan sistem pada alias ini; peluncur biasa tetap lewat MainActivity. -->
+        <activity-alias
+            android:name=".ImportEntry"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:permission="com.molina.vault.permission.IMPORT">
+            <intent-filter>
+                <action android:name="com.molina.vault.action.IMPORT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
+    </application>
+</manifest>

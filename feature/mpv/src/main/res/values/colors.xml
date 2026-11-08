@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="primary" type="color">#000000</item>
+    <item name="primary_dark" type="color">#000000</item>
+    <item name="accent" type="color">#2ECC71</item>
+
+    <!-- Win7 Aero: pemilih file lama diseragamkan dengan Win7OpenDialog -->
+    <color name="win7_folder">#F3CF6E</color>
+    <color name="win7_separator">#D5DFE5</color>
+    <color name="win7_text">#1E1E1E</color>
+
+    <color name="tint_normal">#ffffff</color>
+    <color name="tint_disabled">#3c3c3c</color>
+
+    <color name="alpha_disabled">#85000000</color>
+    <color name="alpha24pct">#3c000000</color>
+    <color name="alpha12pct">#1e000000</color>
+
+    <color name="tint_btn_bg_nofocus">#00000000</color>
+    <color name="tint_btn_bg_focused">#662ECC71</color>
+
+    <color name="tint_seekbar_bg">#8A8A8A</color>
+
+    <!-- 12% black in LIGHT THEME -->
+    <color name="nnf_light_separator_color">#1e000000</color>
+    <!-- 12% white in BLACK THEME -->
+    <color name="nnf_dark_separator_color">#1effffff</color>
+
+    <!-- Dialog Settings player (gelap) -->
+    <color name="player_dialog_bg">#0F0F0F</color>
+    <color name="player_dialog_text">#FFFFFF</color>
+    <color name="player_dialog_text_secondary">#B3FFFFFF</color>
+    <color name="alpha12pct_light">#1fffffff</color>
+    <color name="alpha24pct_light">#3dffffff</color>
+    <!-- Item playlist yang sedang diputar -->
+    <color name="player_playlist_active">#2ECC71</color>
+</resources>
