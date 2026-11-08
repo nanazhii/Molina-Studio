@@ -2561,6 +2561,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun updateNowPlayingArt() {
         val path = if (useAudioUI) localVideoPath() else null
         updateSpectrum(path) // [SPECTRUM]
+        if (path == null && useAudioUI) probeLiveSpectrum() // [SPECTRUM-LIVE-PROBE]
         if (path == null) {
             coverJob?.cancel()
             coverPath = null
@@ -2685,6 +2686,30 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         val p = try { MPVLib.getPropertyString("path") } catch (e: Exception) { null } ?: return null
         val f = if (p.startsWith("file://")) p.removePrefix("file://") else p
         return if (f.startsWith("/") && java.io.File(f).isFile) f else null
+    }
+
+    private var probedUrl: String? = null // [SPECTRUM-LIVE-PROBE]
+
+    /** Diagnosis sementara: apakah af lavfi/astats + af-metadata tersedia untuk stream live. Hanya log, tanpa efek UI. */
+    private fun probeLiveSpectrum() { // [SPECTRUM-LIVE-PROBE]
+        val url = try { MPVLib.getPropertyString("path") } catch (e: Exception) { null } ?: return
+        if (url == probedUrl || !url.startsWith("http")) return
+        probedUrl = url
+        streamScope.launch {
+            val tag = "SpectrumProbe"
+            try {
+                MPVLib.command(arrayOf("af", "add", "@mprobe:lavfi=[astats=metadata=1:reset=1]"))
+                MpvLog.i(tag, "af add dikirim untuk $url")
+                kotlinx.coroutines.delay(3000)
+                val af = MPVLib.getPropertyString("af")
+                val rms = MPVLib.getPropertyString("af-metadata/mprobe/lavfi.astats.Overall.RMS_level")
+                MpvLog.i(tag, "af=$af | RMS_level=$rms")
+            } catch (e: Exception) {
+                MpvLog.e(tag, "probe gagal", e)
+            } finally {
+                try { MPVLib.command(arrayOf("af", "remove", "@mprobe")) } catch (_: Exception) {}
+            }
+        }
     }
 
     /** Kartu pratinjau di atas bilah kontrol saat bilah seek diseret: bingkai (berkas lokal) + waktu/penanda. */
