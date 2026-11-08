@@ -146,7 +146,11 @@ if [ -t 1 ]; then g=$(printf '\033[1;32m'); r=$(printf '\033[1;31m'); y=$(printf
 
 # ---- dialog dan perbaikan
 td=""
-cleanup() { if [ -n "$td" ]; then rm -rf "$td"; fi; }
+title_set=0
+cleanup() {
+  if [ -n "$td" ]; then rm -rf "$td"; fi
+  if [ "$title_set" -eq 1 ]; then printf '\033]0;\007'; fi # [NANO-RUNFIX]
+}
 trap cleanup EXIT
 force_interp=""
 if [ -n "$issues" ]; then
@@ -178,9 +182,12 @@ if [ -n "$issues" ]; then
       echo "  [3] Jalankan apa adanya"
       echo "  [e] Edit lagi di nano"
       echo "  [x] Batal"
+      # [NANO-RUNFIX] judul sesi "nano-run: <berkas>" selama menunggu jawaban: aplikasi menampilkan tombol di baris nano
+      printf '\033]0;nano-run: %s\007' "$name"; title_set=1
       printf '%s└ Pilih [%s3/e/x] (Enter = %s): ' "$y" "$keys" "$def"
       printf '%s' "$z"
       IFS= read -r ans < /dev/tty
+      printf '\033]0;\007'; title_set=0
       [ -z "$ans" ] && ans=$def
     fi
   fi

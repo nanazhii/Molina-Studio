@@ -225,7 +225,7 @@ private val NanoKeyList = listOf(
     Triple("VIEW", KeyGreen, "\u001bp")    // [NANO-PREVIEW] Alt+P: simpan lalu pratinjau MD/HTML/JSON
 )
 
-private enum class NanoPrompt { NONE, SAVE, NAME } // [NANO-PROMPT]
+private enum class NanoPrompt { NONE, SAVE, NAME, RUNFIX } // [NANO-PROMPT] [NANO-RUNFIX]
 private val NanoPromptKeyWidth = 96.dp
 // [NANO-PROMPT-84] nano 7.x: "File Name to Write"; nano 8.x: "Write to File" / "Write Selection to File"
 private val NanoNamePrompts = listOf("File Name to Write", "Write to File", "Write Selection to File")
@@ -239,22 +239,41 @@ private val NanoNameKeys = listOf(
     Triple("BATAL", KeyBlue, "\u0003")    // ^C: batal menyimpan
 )
 
+// [NANO-RUNFIX] dialog molina-run (judul sesi "nano-run: ...") -> tombol sesuai opsi di teks prompt; lihat NanoRunPrompt
+private val NanoRunKeyWidth = 84.dp
+private fun runTint(key: Char): Color = when (key) {
+    '1' -> KeyGreen
+    '2' -> KeyBlue
+    'a' -> KeyAmber
+    '3' -> KeyAmber
+    'e' -> KeyBlue
+    else -> KeyRed
+}
+
 @Composable
 private fun NanoKeys() {
     val tick = TerminalSessions.titleTick // dibaca agar Compose menyusun ulang saat judul sesi berubah
     val s = TerminalSessions.currentSession
-    if (tick < 0 || s == null || s.title?.startsWith("nano: ") != true) return
+    val inRunDialog = s?.title?.startsWith(NanoRunPrompt.TITLE_PREFIX) == true
+    if (tick < 0 || s == null || (s.title?.startsWith("nano: ") != true && !inRunDialog)) return
     var prompt by remember(s) { mutableStateOf(NanoPrompt.NONE) }
+    var runChoices by remember(s) { mutableStateOf<List<NanoRunPrompt.Choice>?>(null) }
     LaunchedEffect(s) { // [NANO-PROMPT] baca tiga baris bawah layar nano: prompt simpan/nama berkas -> tombol YA/TIDAK/BATAL
         while (true) {
             var found = NanoPrompt.NONE
+            var foundRun: List<NanoRunPrompt.Choice>? = null
+            val runDlg = s.title?.startsWith(NanoRunPrompt.TITLE_PREFIX) == true
             runCatching {
                 val em = s.emulator
                 val scr = em?.screen
                 if (em != null && scr != null) {
                     val cols = em.mColumns
                     val n = em.mRows
-                    for (r in maxOf(0, n - 3) until n) {
+                    if (runDlg) { // dialog molina-run: prompt bisa di baris mana pun (nano sudah keluar), baca seluruh layar
+                        foundRun = NanoRunPrompt.parse((0 until n).map { r -> scr.getSelectedText(0, r, cols, r) })
+                        if (foundRun != null) found = NanoPrompt.RUNFIX
+                    }
+                    if (!runDlg) for (r in maxOf(0, n - 3) until n) {
                         val t = scr.getSelectedText(0, r, cols, r)
                         if (t.contains("Save modified buffer", ignoreCase = true)) found = NanoPrompt.SAVE
                         else if (NanoNamePrompts.any { p -> t.contains(p, ignoreCase = true) }) found = NanoPrompt.NAME
@@ -263,20 +282,29 @@ private fun NanoKeys() {
                 Unit
             }
             if (prompt != found) prompt = found
+            if (runChoices != foundRun) runChoices = foundRun
             delay(300)
         }
     }
+    if (inRunDialog && prompt != NanoPrompt.RUNFIX) return // skrip sedang jalan/dialog belum tampil: tanpa baris tombol
     val keys = when (prompt) {
         NanoPrompt.SAVE -> NanoSaveKeys
         NanoPrompt.NAME -> NanoNameKeys
+        NanoPrompt.RUNFIX -> (runChoices ?: emptyList()).map { c -> Triple(c.label, runTint(c.key), NanoRunPrompt.sequenceOf(c)) }
         NanoPrompt.NONE -> NanoKeyList
     }
-    val keyWidth = if (prompt == NanoPrompt.NONE) NanoKeyWidth else NanoPromptKeyWidth
+    val keyWidth = when (prompt) {
+        NanoPrompt.NONE -> NanoKeyWidth
+        NanoPrompt.RUNFIX -> NanoRunKeyWidth
+        else -> NanoPromptKeyWidth
+    }
+    val runDefault = runChoices?.firstOrNull { it.isDefault }?.label // tombol bawaan (Enter) disorot
     val forced = prompt != NanoPrompt.NONE // [NK-DROP] prompt simpan/nama berkas: tombol wajib terlihat
     val open = forced || TerminalPrefs.nanoKeysOpen
     val title = when (prompt) {
         NanoPrompt.SAVE -> "simpan perubahan?"
         NanoPrompt.NAME -> "nama berkas"
+        NanoPrompt.RUNFIX -> "periksa skrip"
         NanoPrompt.NONE -> s.title?.removePrefix("nano: ").orEmpty()
     }
     val shape = RoundedCornerShape(12.dp)
@@ -291,7 +319,7 @@ private fun NanoKeys() {
         ) {
             keys.forEach { (label, tint, seq) ->
                 Box(Modifier.width(keyWidth).padding(1.dp)) {
-                    KeyButton(label, false, false, tint, null) { TerminalActions.send(seq) }
+                    KeyButton(label, prompt == NanoPrompt.RUNFIX && label == runDefault, false, tint, null) { TerminalActions.send(seq) }
                 }
             }
         }
