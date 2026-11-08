@@ -2512,12 +2512,49 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     }
 
     private fun stopSpectrum() {
+        stopLiveSpectrum() // [SPECTRUM-LIVE]
         spectrumAnalyzer?.cancel() // [SPECTRUM-JUMP]
         spectrumAnalyzer = null
         spectrumPath = null
         binding.spectrumView.track = null
         binding.spectrumView.visibility = View.GONE
         setSpectrumReserve(false)
+    }
+
+    private var spectrumLive: SpectrumLive? = null // [SPECTRUM-LIVE]
+
+    private fun stopLiveSpectrum() { // [SPECTRUM-LIVE]
+        spectrumLive?.cancel()
+        spectrumLive = null
+    }
+
+    private fun updateAnySpectrum(path: String?) { // [SPECTRUM-LIVE]
+        if (!updateLiveSpectrum(path)) updateSpectrum(path)
+    }
+
+    /** [SPECTRUM-LIVE] true bila stream http(s) ditangani visualizer live (jangan lanjut ke updateSpectrum). */
+    private fun updateLiveSpectrum(path: String?): Boolean {
+        if (path != null || !useAudioUI || !SpectrumPrefs.enabled(this)) { stopLiveSpectrum(); return false }
+        val url = try { MPVLib.getPropertyString("path") } catch (e: Exception) { null }
+        if (url == null || !(url.startsWith("http://") || url.startsWith("https://"))) { stopLiveSpectrum(); return false }
+        if (spectrumLive != null && spectrumPath == url) return true
+        stopSpectrum()
+        spectrumPath = url
+        setSpectrumReserve(true)
+        val view = binding.spectrumView
+        view.accent = ContextCompat.getColor(this, R.color.player_playlist_active)
+        view.colorMode = SpectrumPrefs.colorMode(this)
+        view.isPlaying = { !psc.pause && activityIsForeground }
+        view.dimWhen = { false }
+        val live = SpectrumLive(
+            active = { !psc.pause && activityIsForeground },
+            onTrack = { t -> view.post { if (spectrumPath == url) { view.track = t; view.visibility = View.VISIBLE } } },
+            onUnsupported = { view.post { if (spectrumPath == url && view.track == null) stopSpectrum() } },
+        )
+        view.positionMs = live::positionMs
+        spectrumLive = live
+        live.start()
+        return true
     }
 
     private fun updateSpectrum(path: String?) {
@@ -2554,14 +2591,13 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun toggleSpectrum() {
         val on = !SpectrumPrefs.enabled(this)
         SpectrumPrefs.set(this, on)
-        updateSpectrum(if (useAudioUI) localVideoPath() else null)
+        updateAnySpectrum(if (useAudioUI) localVideoPath() else null) // [SPECTRUM-LIVE]
         showToast(getString(if (on) R.string.spectrum_on else R.string.spectrum_off), true)
     }
 
     private fun updateNowPlayingArt() {
         val path = if (useAudioUI) localVideoPath() else null
-        updateSpectrum(path) // [SPECTRUM]
-        if (path == null && useAudioUI) probeLiveSpectrum() // [SPECTRUM-LIVE-PROBE]
+        updateAnySpectrum(path) // [SPECTRUM] [SPECTRUM-LIVE]
         if (path == null) {
             coverJob?.cancel()
             coverPath = null
