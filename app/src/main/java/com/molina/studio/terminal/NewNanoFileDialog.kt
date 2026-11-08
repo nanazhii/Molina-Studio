@@ -34,13 +34,13 @@ import com.molina.studio.settings.MolinaExplorer
 
 /** [NANO-EXT] Pecah/gabung nama berkas + daftar ekstensi umum. Dotfile (.bashrc) dianggap tanpa ekstensi. */
 internal object NanoName {
-    val EXTENSIONS = listOf(
-        "md", "txt", "sh", "py", "kt", "kts", "java", "json", "xml", "yml", "yaml", "toml", "ini", "conf", // [NANO-TEMPLATE] urutan: paling sering dipakai di atas
-        "log", "csv", "html", "css", "js", "c", "cpp", "h", "gradle", "properties"
+    val EXTENSIONS = listOf( // [NANO-TEMPLATE] urutan: skrip di atas; md/txt di bawah (sudah dipakai code editor)
+        "sh", "py", "kt", "kts", "java", "json", "xml", "yml", "yaml", "toml", "ini", "conf",
+        "log", "csv", "html", "css", "js", "c", "cpp", "h", "gradle", "properties", "md", "txt"
     )
     const val NONE = "(tanpa)"
     /** [NANO-TEMPLATE] Nama bawaan "Berkas baru" dari Terminal: tetap, tidak mengikuti berkas terakhir di Penjelajah. */
-    const val TEMPLATE = "catatan.txt"
+    const val TEMPLATE = "skrip.sh"
 
     /** "skrip.tar.gz" -> ("skrip.tar", "gz"); ".bashrc" -> (".bashrc", ""); "README" -> ("README", ""). */
     fun split(name: String): Pair<String, String> {
@@ -59,7 +59,7 @@ internal object NanoName {
 
 /**
  * [NANO-NEW] Dialog "Berkas baru (nano)" dari drawer Terminal. Folder bawaan = folder terakhir yang dibuka di Files
- * (bila tak ada: akar penyimpanan internal). Nama + ekstensi bawaan = template (catatan.txt), TIDAK mengikuti berkas Penjelajah;
+ * (bila tak ada: akar penyimpanan internal). Nama + ekstensi bawaan = template (skrip.sh), TIDAK mengikuti berkas Penjelajah;
  * ekstensi dipilih lewat dropdown atau diketik bebas, tidak dikunci ke .txt.
  */
 @Composable
