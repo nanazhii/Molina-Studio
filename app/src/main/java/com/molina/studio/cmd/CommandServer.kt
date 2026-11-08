@@ -13,6 +13,7 @@ import com.molina.cinema.MpvFolder
 import com.molina.core.common.LogLevel
 import com.molina.studio.cinema.CinemaActions
 import com.molina.studio.code.CodeNav
+import com.molina.studio.preview.PreviewNav
 import com.molina.studio.log.LogBus
 import com.molina.studio.system.MpvControl
 import java.io.ByteArrayOutputStream
@@ -124,6 +125,7 @@ object CommandServer {
             CommandProtocol.ok(if (MpvControl.shutdown(app)) "pemutar dihentikan" else "tidak ada pemutar aktif")
         CommandProtocol.Verb.PLAY -> gated { play(NewTaskContext(app), r.arg) }
         CommandProtocol.Verb.OPEN -> gated { open(app, r.arg) }
+        CommandProtocol.Verb.PREVIEW -> gated { preview(app, r.arg) } // [NANO-PREVIEW]
         CommandProtocol.Verb.CLIP -> BridgeCommands.clip(app, CommandProtocol.parseClip(r.arg))
         CommandProtocol.Verb.NOTIFY -> BridgeCommands.notify(app, r.arg)
         CommandProtocol.Verb.SHARE -> gated { BridgeCommands.share(app, r.arg) }
@@ -182,6 +184,21 @@ object CommandServer {
         }
         Handler(Looper.getMainLooper()).post { CodeNav.pendingFiles = files }
         return CommandProtocol.ok("membuka ${files.size} berkas di Code")
+    }
+
+    /** [NANO-PREVIEW] Pratinjau satu berkas (Markdown/HTML/JSON); PreviewHost di MainActivity yang menampilkannya. */
+    private fun preview(app: Context, arg: String): String {
+        val paths = CommandProtocol.splitPaths(arg)
+        if (paths.size != 1) return CommandProtocol.err("usage", "preview butuh tepat satu berkas")
+        val root = Environment.getExternalStorageDirectory().absolutePath
+        val p = paths[0]
+        val host = CommandProtocol.guestToHost(p, root)
+            ?: return CommandProtocol.err("path", "path harus di bawah /sdcard atau /storage/emulated/0: $p")
+        CliScope.deny(app, host, root, p)?.let { return it }
+        val f = File(host)
+        if (!f.isFile) return CommandProtocol.err("missing", "bukan berkas: $p")
+        Handler(Looper.getMainLooper()).post { PreviewNav.pending = f }
+        return CommandProtocol.ok("pratinjau ${f.name}")
     }
 
     /** startActivity dari konteks Application wajib FLAG_ACTIVITY_NEW_TASK; CinemaActions tidak menambahkannya. */

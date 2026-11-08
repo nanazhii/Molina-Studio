@@ -68,6 +68,7 @@ dependencies {
     implementation(project(":feature:mpv"))
     implementation(project(":feature:code"))
     implementation(project(":core:exec")) // [CORE-EXEC]
+    implementation(project(":feature:preview")) // [NANO-PREVIEW]
     implementation(project(":engine:newpipe"))
     implementation(project(":core:common"))
     implementation(project(":core:storage"))

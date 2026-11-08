@@ -353,6 +353,7 @@ class MainActivity : ComponentActivity() {
                 SideEffect { codeSession.htmlWebView = htmlWebView }
                 val keyboardVisible = rememberKeyboardVisible()
                 com.molina.studio.settings.ToolRunHost() // [MINIMIZE-RUN]
+                com.molina.studio.preview.PreviewHost(htmlWebView) // [NANO-PREVIEW]
                 Scaffold(
                     containerColor = MaterialTheme.colorScheme.background,
                     bottomBar = {

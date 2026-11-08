@@ -80,6 +80,8 @@ fun main() {
     eq("splitPaths TAB saja", CommandProtocol.splitPaths("\t\t"), emptyList<String>())
     eq("splitPaths dipangkas", CommandProtocol.splitPaths("  /sdcard/a  "), listOf("/sdcard/a"))
     check("MAX_OPEN", CommandProtocol.MAX_OPEN == 10)
+    eq("preview verb", okReq("preview\t/sdcard/a.md\n")?.verb, Verb.PREVIEW) // [NANO-PREVIEW]
+    eq("preview tanpa arg", badCode("preview\n"), "usage")
 
     // Bridge API: clip, notify, share (v2)
     fun clipPut(a: String) = (CommandProtocol.parseClip(a) as? CommandProtocol.ClipParse.Put)?.text
@@ -133,7 +135,7 @@ fun main() {
     eq("okPayload", CommandProtocol.okPayload("abc=="), "OK abc==\n")
     eq("okPayload tidak dipotong", CommandProtocol.okPayload("A".repeat(1000)).length, 1004)
     check("batas baru", CommandProtocol.MAX_LINE == 131072 && CommandProtocol.MAX_ARG == 4096)
-    eq("jumlah verb", Verb.entries.size, 9)
+    eq("jumlah verb", Verb.entries.size, 10)
 
     check("konstanta", CommandProtocol.SOCKET_NAME == "molina.cmd" && CommandProtocol.VERSION == 2)
     check("verb unik", Verb.entries.map { it.wire }.toSet().size == Verb.entries.size)

@@ -21,6 +21,7 @@ Pemakaian:
                                  ("-" = baca satu baris dari stdin)
   molina stop                    hentikan pemutar
   molina open <berkas>...        buka berkas (maks 10) di editor Code
+  molina preview <berkas>        pratinjau Markdown/HTML/JSON layar penuh
   molina log [-l D|I|W|E] [-t tag] pesan...
                                  kirim baris ke Log Molina (sumber "cli")
   molina keys                    daftar pintasan nano (Ctrl+S, Ctrl+Q, ...)
@@ -192,6 +193,17 @@ def cmd_open(args):
     return run("open", "\t".join(paths))
 
 
+def cmd_preview(args):
+    if len(args) != 1:
+        sys.stderr.write("molina: preview butuh tepat satu berkas\n")
+        return 2
+    p = os.path.abspath(os.path.expanduser(args[0]))
+    if "\t" in p or "\n" in p or "\r" in p:
+        sys.stderr.write("molina: nama berkas mengandung TAB atau baris baru (tidak didukung)\n")
+        return 2
+    return run("preview", p)
+
+
 def cmd_log(args):
     level, tag, words = "I", "molina", list(args)
     while words and words[0] in ("-l", "-t"):
@@ -337,6 +349,8 @@ def main(argv):
         return cmd_play(rest)
     if verb == "open":
         return cmd_open(rest)
+    if verb == "preview":
+        return cmd_preview(rest)
     if verb == "keys":
         return cmd_keys(rest)
     if verb == "log":

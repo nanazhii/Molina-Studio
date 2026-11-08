@@ -15,7 +15,7 @@ object CommandProtocol {
     const val MAX_ARG = 4096
 
     enum class Verb(val wire: String) {
-        PING("ping"), VERSION("version"), STATUS("status"), PLAY("play"), STOP("stop"), OPEN("open"), CLIP("clip"), NOTIFY("notify"), SHARE("share")
+        PING("ping"), VERSION("version"), STATUS("status"), PLAY("play"), STOP("stop"), OPEN("open"), CLIP("clip"), NOTIFY("notify"), SHARE("share"), PREVIEW("preview")
     }
 
     class Request(val verb: Verb, val arg: String)
@@ -34,7 +34,7 @@ object CommandProtocol {
         val verb = Verb.entries.firstOrNull { it.wire == word }
             ?: return Parsed.Bad("unknown", "perintah tidak dikenal: ${oneLine(word)}")
         if (verb != Verb.CLIP && verb != Verb.SHARE && arg.length > MAX_ARG) return Parsed.Bad("toolong", "argumen terlalu panjang")
-        if ((verb == Verb.PLAY || verb == Verb.OPEN || verb == Verb.NOTIFY || verb == Verb.SHARE) && arg.isEmpty()) {
+        if ((verb == Verb.PLAY || verb == Verb.OPEN || verb == Verb.NOTIFY || verb == Verb.SHARE || verb == Verb.PREVIEW) && arg.isEmpty()) {
             return Parsed.Bad("usage", "${verb.wire} butuh argumen")
         }
         if (verb == Verb.NOTIFY && parseNotify(arg) == null) return Parsed.Bad("usage", "notify butuh teks")
