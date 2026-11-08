@@ -105,6 +105,10 @@ internal fun W7ToolsMenu(
                 onDismiss()
                 one?.let { onEditInTerminal?.invoke(it) }
             }
+            W7MenuItem(W7Ico.SEARCH, "Pratinjau (MD/HTML/JSON)", one != null && com.molina.studio.preview.ExplorerPreview.canPreview(one)) { // [EXPLORER-PREVIEW]
+                onDismiss()
+                one?.let { com.molina.studio.preview.PreviewNav.pending = it }
+            }
             if (newTextEnabled) W7MenuItem(W7Ico.EDIT, "Berkas teks baru (nano)", true) { // [NANO-NEW]
                 onDismiss()
                 onSheet(W7Sheet.NewText)
