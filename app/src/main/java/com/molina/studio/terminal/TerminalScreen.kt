@@ -222,6 +222,8 @@ private val NanoKeyList = listOf(
 
 private enum class NanoPrompt { NONE, SAVE, NAME } // [NANO-PROMPT]
 private val NanoPromptKeyWidth = 96.dp
+// [NANO-PROMPT-84] nano 7.x: "File Name to Write"; nano 8.x: "Write to File" / "Write Selection to File"
+private val NanoNamePrompts = listOf("File Name to Write", "Write to File", "Write Selection to File")
 private val NanoSaveKeys = listOf(
     Triple("YA", KeyGreen, "y"),          // jawab Y pada "Save modified buffer?"
     Triple("TIDAK", KeyRed, "n"),         // jawab N: buang perubahan
@@ -250,7 +252,7 @@ private fun NanoKeys() {
                     for (r in maxOf(0, n - 3) until n) {
                         val t = scr.getSelectedText(0, r, cols, r)
                         if (t.contains("Save modified buffer", ignoreCase = true)) found = NanoPrompt.SAVE
-                        else if (t.contains("File Name to Write", ignoreCase = true)) found = NanoPrompt.NAME
+                        else if (NanoNamePrompts.any { p -> t.contains(p, ignoreCase = true) }) found = NanoPrompt.NAME
                     }
                 }
                 Unit

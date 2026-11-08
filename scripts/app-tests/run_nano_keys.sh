@@ -39,32 +39,45 @@ out="$(drive $ALL $CUT $SAVE $QUIT)";          check "Ctrl+A lalu potong: berkas
 out="$(drive $DOWN $ALL $CUT $SAVE $QUIT)";    check "Ctrl+A dari tengah berkas: berkas kosong" '[ "$out" = "" ]'
 out="$(drive $ALL $ALL $CUT $SAVE $QUIT)";     check "Ctrl+A dua kali = batal seleksi: isi utuh" '[ "$out" = "satu|dua|tiga|" ]'
 # [NANO-PROMPT] Teks prompt nano asli yang dibaca aplikasi (NanoKeys) untuk menampilkan tombol YA/TIDAK/BATAL dan ENTER/BATAL.
+# [NANO-PROMPT-POLL] Menunggu teks muncul (maks 6 dtk, aman di PRoot yang lambat), bukan jeda tetap; bila gagal, cetak keluaran mentah ke stderr.
 prompts() { (cd "$T" && printf 'satu\n' > f.txt && HOME="$T" TERM=xterm-256color python3 - "$RC" << 'PYEOF'
 import os, pty, re, select, sys, time
 pid, fd = pty.fork()
 if pid == 0:
     os.execvp("nano", ["nano", "--rcfile=" + sys.argv[1], "f.txt"])
-out = b""
-def drain(t):
-    global out
+buf = b""
+def pump(t):
+    global buf
     end = time.time() + t
     while time.time() < end:
         r, _, _ = select.select([fd], [], [], 0.1)
         if r:
-            try: out += os.read(fd, 65536)
+            try: buf += os.read(fd, 65536)
             except OSError: return
-drain(1.0)
-for k in (b"x", b"\x11"):
-    os.write(fd, k); drain(0.5)
-a = re.sub(rb"\x1b\[[0-9;?]*[A-Za-z]", b"", out).decode("utf8", "replace")
-n0 = len(out)
-os.write(fd, b"y"); drain(0.5)
-b = re.sub(rb"\x1b\[[0-9;?]*[A-Za-z]", b"", out[n0:]).decode("utf8", "replace")
-os.kill(pid, 9)
-print(("SAVE" if "save modified buffer" in a.lower() else "-") + " " + ("NAME" if "file name to write" in b.lower() else "-"))
+def clean(b):
+    b = re.sub(rb"\x1b(\[[0-9;?]*[A-Za-z]|\([A-Z0-9])|[\r\x00-\x08]", b"", b)
+    return re.sub(r"\s+", " ", b.decode("utf8", "replace")).lower()
+def send_wait(key, pat):
+    start = len(buf)
+    os.write(fd, key)
+    end = time.time() + 6
+    while time.time() < end:
+        pump(0.2)
+        if re.search(pat, clean(buf[start:])):
+            return True
+    return False
+pump(1.5)
+os.write(fd, b"x"); pump(0.8)
+save = send_wait(b"\x11", r"save modified buffer")
+name = send_wait(b"y", r"file name to write|write to file|write selection to file")
+if not (save and name):
+    sys.stderr.write("DEBUG nano: save=%s name=%s tail=%r\n" % (save, name, buf[-300:]))
+try: os.kill(pid, 9)
+except OSError: pass
+print(("SAVE" if save else "-") + " " + ("NAME" if name else "-"))
 PYEOF
 ); }
 out="$(prompts)"
 check "prompt 'Save modified buffer' terbaca" '[[ "$out" == SAVE* ]]'
-check "prompt 'File Name to Write' terbaca" '[[ "$out" == *NAME ]]'
+check "prompt nama berkas terbaca (File Name to Write / Write to File)" '[[ "$out" == *NAME ]]'
 echo "Selesai: $runs kasus, $fails gagal"; [ "$fails" -eq 0 ]
