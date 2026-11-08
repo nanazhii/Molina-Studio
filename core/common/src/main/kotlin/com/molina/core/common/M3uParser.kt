@@ -1,7 +1,13 @@
 package com.molina.core.common
 
 /** Satu saluran dari playlist M3U/IPTV. [group] kosong bila playlist tidak mengelompokkan. */
-class IptvChannel(val name: String, val url: String, val group: String)
+class IptvChannel(
+    val name: String,
+    val url: String,
+    val group: String,
+    val logo: String = "", // [M3U-META] tvg-logo (http/https lolos UrlPolicy) atau kosong
+    val headers: Map<String, String> = emptyMap(), // [M3U-META] dari #EXTVLCOPT, sudah disanitasi StreamHeaders
+)
 
 /**
  * Hasil membaca playlist. [skipped] = entri dibuang (skema bukan stream atau ditolak [UrlPolicy]);
@@ -42,6 +48,8 @@ object M3uParser {
         var name = ""
         var group = ""
         var extGroup = ""
+        var logo = "" // [M3U-META]
+        val hdr = LinkedHashMap<String, String>() // [M3U-META]
 
         for (raw in src.lineSequence()) {
             val line = raw.trim()
@@ -60,7 +68,17 @@ object M3uParser {
                     val title = if (comma >= 0) body.substring(comma + 1) else ""
                     val attrs = ATTR.findAll(head).associate { it.groupValues[1].lowercase() to it.groupValues[2] }
                     group = clean(attrs["group-title"].orEmpty(), MAX_GROUP)
+                    logo = safeLogo(attrs["tvg-logo"].orEmpty()) // [M3U-META]
                     name = clean(title, MAX_NAME).ifEmpty { clean(attrs["tvg-name"].orEmpty(), MAX_NAME) }
+                } else if (line.startsWith("#EXTVLCOPT:", ignoreCase = true)) { // [M3U-META]
+                    val kv = line.substring(11)
+                    val key = kv.substringBefore('=', "").trim().lowercase()
+                    val value = kv.substringAfter('=', "").trim()
+                    when (key) {
+                        "http-referrer", "http-referer" -> hdr["Referer"] = value
+                        "http-origin" -> hdr["Origin"] = value
+                        "http-user-agent" -> hdr["User-Agent"] = value
+                    }
                 } else if (line.startsWith("#EXTGRP:", ignoreCase = true)) {
                     extGroup = clean(line.substring(8), MAX_GROUP)
                 }
@@ -76,12 +94,24 @@ object M3uParser {
                     name.ifEmpty { "Saluran ${out.size + 1}" },
                     line,
                     group.ifEmpty { extGroup },
+                    logo,
+                    StreamHeaders.sanitize(hdr),
                 )
             }
             name = ""
             group = ""
+            logo = "" // [M3U-META]
+            hdr.clear()
         }
         return M3uResult(out, skipped, truncated, false)
+    }
+
+    /** [M3U-META] Logo hanya http/https, lolos UrlPolicy, panjang wajar; selain itu dibuang (kosong). */
+    internal fun safeLogo(u: String): String {
+        val t = u.trim()
+        if (t.isEmpty() || t.length > 512) return ""
+        val sc = UrlPolicy.scheme(t)
+        return if ((sc == "http" || sc == "https") && UrlPolicy.check(t) is UrlPolicy.Verdict.Allowed) t else ""
     }
 
     /** Buang karakter kontrol, zero-width, dan pengarah-teks (bidi); rapatkan spasi; batasi panjang. */
