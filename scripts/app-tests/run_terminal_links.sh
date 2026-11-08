@@ -7,4 +7,4 @@ KC="${KOTLINC:-kotlinc}"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 "$KC" -nowarn -d "$OUT" app/src/main/java/com/molina/studio/terminal/TerminalLinkScan.kt scripts/app-tests/TerminalLinkScanTests.kt
-java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" TerminalLinkScanTestsKt
+java -cp "$OUT:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" TerminalLinkScanTestsKt

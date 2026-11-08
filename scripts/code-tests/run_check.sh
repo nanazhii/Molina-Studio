@@ -9,4 +9,4 @@ F=feature/code/src/main/kotlin/com/molina/code
 "$KC" -nowarn -d "$OUT" \
   $F/check/Checkers.kt $F/format/JsonFormatter.kt $F/format/XmlFormatter.kt core/exec/src/main/kotlin/com/molina/code/preview/RunPlan.kt \
   scripts/code-tests/CheckTests.kt
-java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" CheckTestsKt
+java -cp "$OUT:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" CheckTestsKt

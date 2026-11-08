@@ -8,4 +8,4 @@ trap 'rm -rf "$OUT"' EXIT
 "$KC" -nowarn -d "$OUT" \
   feature/code/src/main/kotlin/com/molina/code/preview/*.kt feature/preview/src/main/kotlin/com/molina/code/preview/*.kt core/exec/src/main/kotlin/com/molina/code/preview/*.kt \
   scripts/code-tests/PreviewTests.kt
-java -cp "$OUT:$("$KC" -version >/dev/null 2>&1; dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" PreviewTestsKt
+java -cp "$OUT:$("$KC" -version >/dev/null 2>&1; dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" PreviewTestsKt

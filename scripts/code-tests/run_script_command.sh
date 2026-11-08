@@ -10,4 +10,4 @@ C=core/common/src/main/kotlin/com/molina/core/common
   $C/YtdlpCommand.kt $C/YtdlpParse.kt $C/StreamResolver.kt $C/LogRedact.kt $C/MiniJson.kt $C/JsonCursor.kt $C/StreamHeaders.kt \
   app/src/main/java/com/molina/studio/code/ScriptCommand.kt \
   scripts/code-tests/ScriptCommandTests.kt
-java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" ScriptCommandTestsKt
+java -cp "$OUT:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" ScriptCommandTestsKt

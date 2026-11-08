@@ -7,4 +7,4 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 F=feature/code/src/main/kotlin/com/molina/code
 "$KC" -nowarn -d "$OUT" $F/run/RunTimeout.kt scripts/code-tests/RunTimeoutTests.kt
-java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" RunTimeoutTestsKt
+java -cp "$OUT:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" RunTimeoutTestsKt

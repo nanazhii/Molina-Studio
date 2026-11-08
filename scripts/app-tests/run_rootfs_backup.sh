@@ -9,4 +9,4 @@ KC="${KOTLINC:-kotlinc}"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 "$KC" -nowarn -cp "$ARCHIVE_DEPS" -d "$OUT" app/src/main/java/com/molina/studio/terminal/RootfsBackup.kt scripts/app-tests/RootfsBackupTests.kt
-java -cp "$OUT:$ARCHIVE_DEPS:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" RootfsBackupTestsKt
+java -cp "$OUT:$ARCHIVE_DEPS:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" RootfsBackupTestsKt

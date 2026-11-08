@@ -11,4 +11,4 @@ F=feature/code/src/main/kotlin/com/molina/code
   core/exec/src/main/kotlin/com/molina/code/lsp/LspTransport.kt $F/lsp/LspPathMap.kt \
   $F/check/Checkers.kt $F/format/JsonFormatter.kt $F/format/XmlFormatter.kt core/exec/src/main/kotlin/com/molina/code/preview/RunPlan.kt \
   scripts/code-tests/LspDefinitionTests.kt
-java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" LspDefinitionTestsKt
+java -cp "$OUT:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" LspDefinitionTestsKt

@@ -7,4 +7,4 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 F=feature/code/src/main/kotlin/com/molina/code/ui
 "$KC" -nowarn -d "$OUT" $F/SymbolCore.kt scripts/code-tests/SymbolTests.kt
-java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" com.molina.code.ui.SymbolTestsKt
+java -cp "$OUT:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" com.molina.code.ui.SymbolTestsKt

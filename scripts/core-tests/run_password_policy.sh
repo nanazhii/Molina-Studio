@@ -8,4 +8,4 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 C=core/common/src/main/kotlin/com/molina/core/common
 "$KC" -nowarn -d "$OUT" $C/PasswordPolicy.kt scripts/core-tests/PasswordPolicyTests.kt 2>&1 | grep -v '^$' || true
-java -Dfile.encoding=UTF-8 -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" PasswordPolicyTestsKt
+java -Dfile.encoding=UTF-8 -cp "$OUT:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" PasswordPolicyTestsKt

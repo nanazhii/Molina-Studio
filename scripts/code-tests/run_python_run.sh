@@ -11,4 +11,4 @@ trap 'rm -rf "$OUT"' EXIT
   core/exec/src/main/kotlin/com/molina/code/preview/CommandBlockSpec.kt \
   feature/code/src/main/kotlin/com/molina/code/preview/PythonTerminalRun.kt \
   scripts/code-tests/PythonRunTests.kt
-java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" PythonRunTestsKt
+java -cp "$OUT:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" PythonRunTestsKt

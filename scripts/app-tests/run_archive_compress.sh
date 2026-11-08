@@ -11,5 +11,5 @@ trap 'rm -rf "$OUT" "$FX" "$KEEP"' EXIT
 python3 scripts/app-tests/make_archive_fixtures.py "$FX"
 C=app/src/main/java/com/molina/studio/cinema
 "$KC" -nowarn -cp "$ARCHIVE_DEPS" -d "$OUT" $C/FileOps.kt $C/ArchiveNames.kt $C/ArchiveEngine.kt scripts/app-tests/ArchiveCompressTests.kt
-java -cp "$OUT:$ARCHIVE_DEPS:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" ArchiveCompressTestsKt "$FX" "$KEEP"
+java -cp "$OUT:$ARCHIVE_DEPS:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" ArchiveCompressTestsKt "$FX" "$KEEP"
 python3 scripts/app-tests/verify_compress.py "$KEEP" "$FX"

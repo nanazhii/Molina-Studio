@@ -10,4 +10,4 @@ F=feature/code/src/main/kotlin/com/molina/code
   $F/lsp/LspProtocol.kt $F/lsp/LspFeatures.kt $F/lsp/LspClient.kt core/exec/src/main/kotlin/com/molina/code/lsp/LspTransport.kt $F/lsp/LspPathMap.kt $F/lsp/LspSession.kt $F/lsp/LspDefinitionUi.kt $F/lsp/LspLive.kt \
   $F/check/Checkers.kt $F/format/JsonFormatter.kt $F/format/XmlFormatter.kt core/exec/src/main/kotlin/com/molina/code/preview/RunPlan.kt \
   scripts/code-tests/LspLiveTests.kt
-java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" LspLiveTestsKt
+java -cp "$OUT:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" LspLiveTestsKt

@@ -8,4 +8,4 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 F=feature/code/src/main/kotlin/com/molina/code
 "$KC" -nowarn -d "$OUT" $F/guard/ProjectRestore.kt $F/guard/ProjectStore.kt $F/guard/ProjectCommit.kt $F/guard/ProjectLog.kt $F/guard/ProjectMarker.kt $F/guard/RunReport.kt $F/history/LineDiff.kt scripts/code-tests/ProjectRestoreTests.kt
-java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" ProjectRestoreTestsKt
+java -cp "$OUT:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" ProjectRestoreTestsKt

@@ -10,4 +10,4 @@ C=core/common/src/main/kotlin/com/molina/core/common
 "$KC" -nowarn -d "$OUT" \
   $C/MiniJson.kt $C/JsonCursor.kt $C/MediaSidecar.kt $C/ShelfCard.kt $C/ResumeMark.kt $C/ShelfScan.kt $C/TrashBin.kt $C/TvGuide.kt \
   scripts/core-tests/TvGuideTests.kt
-java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" TvGuideTestsKt
+java -cp "$OUT:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" TvGuideTestsKt

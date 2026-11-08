@@ -7,4 +7,4 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 F=feature/code/src/main/kotlin/com/molina/code/history
 "$KC" -nowarn -d "$OUT" $F/HistoryStore.kt $F/LineDiff.kt $F/WordDiff.kt $F/VersionCompare.kt $F/HunkRevert.kt $F/GutterHunk.kt scripts/code-tests/HistoryTests.kt
-java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" HistoryTestsKt
+java -cp "$OUT:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" HistoryTestsKt
