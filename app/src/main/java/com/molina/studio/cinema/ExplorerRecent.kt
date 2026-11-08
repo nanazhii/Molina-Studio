@@ -35,4 +35,14 @@ internal object ExplorerRecent {
         while (l.size > MAX) l.removeAt(l.size - 1)
         prefs(ctx).edit().putString(KEY, JSONArray(l).toString()).apply()
     }
+
+    // [NANO-EXT] Berkas terakhir yang dipilih di Penjelajah: dipakai sebagai nama + ekstensi bawaan "Berkas baru (nano)".
+    private const val KEY_FILE = "last_file_v1"
+
+    fun lastFileName(ctx: Context): String? = prefs(ctx).getString(KEY_FILE, null)?.takeIf { it.isNotBlank() }
+
+    fun pushFile(ctx: Context, f: File) {
+        if (!f.isFile) return
+        prefs(ctx).edit().putString(KEY_FILE, f.name).apply()
+    }
 }

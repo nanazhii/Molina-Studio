@@ -90,6 +90,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.IntOffset
 import androidx.core.content.ContextCompat
 import com.molina.studio.terminal.RootfsManager
+import com.molina.studio.terminal.NanoName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -411,14 +412,17 @@ fun Win7OpenDialog(
             val d = dir
             runOp(op = { "Folder dibuat: " + FileOps.mkdir(d, name).name })
         }
-        W7Sheet.NewText -> W7NameDialog( // [NANO-NEW]
-            title = "Berkas teks baru (nano)", initial = "catatan.txt", selectEnd = "catatan".length, okLabel = "Buka",
+        W7Sheet.NewText -> {
+        val nanoInit = remember { (selected?.file?.takeIf { it.isFile }?.name ?: ExplorerRecent.lastFileName(ctx)) ?: "catatan.txt" } // [NANO-EXT]
+        W7NameDialog( // [NANO-NEW]
+            title = "Berkas teks baru (nano)", initial = nanoInit, selectEnd = NanoName.split(nanoInit).first.length, okLabel = "Buka", // [NANO-EXT]
             hint = "Folder: " + dir.path,
             onCancel = { sheet = null }
         ) { name ->
             sheet = null
             val d = dir
             onNewTextInTerminal?.invoke(d, name)
+        }
         }
         is W7Sheet.OpenWith -> W7OpenWithDialog( // [NANO-OPENWITH]
             file = s.file,
@@ -691,7 +695,7 @@ fun Win7OpenDialog(
                             else if (e.isDir) go(e.file)
                             else if (pickFolder) Unit
                             else if (selected?.file == e.file) { if (browse) smartOpen(e.file) else onPick(e.file) }
-                            else { selected = e; fileName = e.name; message = "" }
+                            else { selected = e; fileName = e.name; message = ""; if (browse && e.file.isFile) ExplorerRecent.pushFile(ctx, e.file) } // [NANO-EXT]
                         },
                         onEnter = { e -> go(e.file) },
                         onSwipeRight = if (browse) ({ e: W7Entry ->

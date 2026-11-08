@@ -1,12 +1,18 @@
 package com.molina.studio.terminal
 
 import android.os.Environment
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -15,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -24,17 +31,45 @@ import androidx.compose.ui.unit.sp
 import com.molina.studio.cinema.ExplorerRecent
 import com.molina.studio.settings.MolinaExplorer
 
+/** [NANO-EXT] Pecah/gabung nama berkas + daftar ekstensi umum. Dotfile (.bashrc) dianggap tanpa ekstensi. */
+internal object NanoName {
+    val EXTENSIONS = listOf(
+        "txt", "md", "py", "sh", "kt", "kts", "java", "json", "xml", "yml", "yaml", "toml", "ini", "conf",
+        "log", "csv", "html", "css", "js", "c", "cpp", "h", "gradle", "properties"
+    )
+    const val NONE = "(tanpa)"
+
+    /** "skrip.tar.gz" -> ("skrip.tar", "gz"); ".bashrc" -> (".bashrc", ""); "README" -> ("README", ""). */
+    fun split(name: String): Pair<String, String> {
+        val dot = name.lastIndexOf('.')
+        return if (dot <= 0 || dot == name.length - 1) name to "" else name.substring(0, dot) to name.substring(dot + 1)
+    }
+
+    fun join(stem: String, ext: String): String {
+        val e = ext.trim().trimStart('.')
+        return if (e.isEmpty() || e == NONE) stem.trim() else stem.trim() + "." + e
+    }
+
+    /** Nama bawaan: mengikuti berkas terakhir di Penjelajah bila ada, bila tidak "catatan.txt". */
+    fun initial(last: String?): Pair<String, String> = split(last ?: "catatan.txt")
+}
+
 /**
  * [NANO-NEW] Dialog "Berkas baru (nano)" dari drawer Terminal. Folder bawaan = folder terakhir yang dibuka di Files
- * (bila tak ada: akar penyimpanan internal). Nama ditanyakan di awal supaya nano tidak pernah membuka buffer tanpa nama.
+ * (bila tak ada: akar penyimpanan internal). Nama + ekstensi bawaan mengikuti berkas terakhir yang dipilih di Penjelajah;
+ * ekstensi dipilih lewat dropdown atau diketik bebas, tidak dikunci ke .txt.
  */
 @Composable
 internal fun NewNanoFileDialog(onDismiss: () -> Unit, onOpened: () -> Unit) {
     val ctx = LocalContext.current
     val dir = remember { ExplorerRecent.last(ctx) ?: Environment.getExternalStorageDirectory() }
-    var name by remember { mutableStateOf("catatan.txt") }
+    val init = remember { NanoName.initial(ExplorerRecent.lastFileName(ctx)) }
+    var stem by remember { mutableStateOf(init.first) }
+    var ext by remember { mutableStateOf(init.second) }
+    var menu by remember { mutableStateOf(false) }
+    val full = NanoName.join(stem, ext)
     fun go() {
-        if (name.isNotBlank() && MolinaExplorer.newInTerminal(ctx, dir, name)) onOpened()
+        if (stem.isNotBlank() && MolinaExplorer.newInTerminal(ctx, dir, full)) onOpened()
     }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -43,17 +78,41 @@ internal fun NewNanoFileDialog(onDismiss: () -> Unit, onOpened: () -> Unit) {
             Column {
                 Text("Folder: " + MolinaExplorer.debianPath(dir), fontFamily = FontFamily.Monospace, fontSize = 12.sp)
                 Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    singleLine = true,
-                    label = { Text("Nama berkas") },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { go() })
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedTextField(
+                        value = stem,
+                        onValueChange = { stem = it },
+                        singleLine = true,
+                        label = { Text("Nama berkas") },
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { go() })
+                    )
+                    Box {
+                        OutlinedTextField(
+                            value = ext,
+                            onValueChange = { ext = it.filter { c -> c != '/' && c != '\' && !c.isWhitespace() } },
+                            singleLine = true,
+                            label = { Text("Ekstensi") },
+                            prefix = { Text(".") },
+                            trailingIcon = { TextButton(onClick = { menu = true }) { Text("▾") } },
+                            modifier = Modifier.width(132.dp),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { go() })
+                        )
+                        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                            DropdownMenuItem(text = { Text(NanoName.NONE) }, onClick = { ext = ""; menu = false })
+                            NanoName.EXTENSIONS.forEach { e ->
+                                DropdownMenuItem(text = { Text(".$e", fontFamily = FontFamily.Monospace) }, onClick = { ext = e; menu = false })
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+                Text("Hasil: " + full, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
             }
         },
-        confirmButton = { TextButton(onClick = { go() }, enabled = name.isNotBlank()) { Text("Buka") } },
+        confirmButton = { TextButton(onClick = { go() }, enabled = stem.isNotBlank()) { Text("Buka") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Batal") } }
     )
 }
