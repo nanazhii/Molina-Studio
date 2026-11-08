@@ -114,11 +114,18 @@ object IptvPlayback {
         val sb = StringBuilder("memory://#EXTM3U\n")
         var n = 0
         for (c in channels.drop(i) + channels.take(i)) {
-            val add = c.name.length + c.url.length + 14
+            val logo = logoAttr(c.logo) // [STATION-LOGO]
+            val add = c.name.length + c.url.length + 14 + (if (logo.isEmpty()) 0 else logo.length + 12)
             if (n >= MAX_ENTRIES || (n > 0 && sb.length + add > MAX_CHARS)) break
-            sb.append("#EXTINF:-1,").append(c.name).append('\n').append(c.url).append('\n')
+            sb.append("#EXTINF:-1")
+            if (logo.isNotEmpty()) sb.append(" tvg-logo=\"").append(logo).append('"')
+            sb.append(',').append(c.name).append('\n').append(c.url).append('\n')
             n++
         }
         return sb.toString()
     }
+
+    /** [STATION-LOGO] Logo hanya https tanpa tanda kutip, koma, spasi, atau karakter kontrol (aman di atribut EXTINF). */
+    private fun logoAttr(l: String): String =
+        if (l.startsWith("https://") && l.none { it == '"' || it == ',' || it.isWhitespace() || it < ' ' }) l else ""
 }

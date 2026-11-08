@@ -34,4 +34,6 @@
     <color name="alpha24pct_light">#3dffffff</color>
     <!-- Item playlist yang sedang diputar -->
     <color name="player_playlist_active">#2ECC71</color>
+    <color name="cinema_maroon">#FF9B1B30</color> <!-- [STATION-LOGO] sama dengan SpectrumColors.MAROON -->
+    <color name="cinema_gold">#FFFFC94D</color> <!-- [STATION-LOGO] sama dengan SpectrumColors.GOLD -->
 </resources>

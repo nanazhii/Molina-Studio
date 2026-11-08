@@ -704,6 +704,9 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun loadReplacing(intent: Intent?, filepath: String, headers: Map<String, String>) {
         rolling = playlistFrom(intent, filepath)
         streamTitles.clear()
+        // [STATION-LOGO] logo hanya dibaca dari intent tepercaya (token Molina); intent luar tidak boleh memicu unduhan logo
+        stationLogos = emptyMap()
+        if (ExternalIntentGate.isTrusted(intent?.getStringExtra(ExternalIntentGate.EXTRA))) loadStationLogos(filepath)
         val folder = resolveFolderPlaylist(intent, filepath)
         if (folder != null) {
             MpvLog.i(TAG, "Playlist folder: ${folder.first.size} berkas")
@@ -2526,6 +2529,64 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun stopLiveSpectrum() { // [SPECTRUM-LIVE]
         spectrumLive?.cancel()
         spectrumLive = null
+        hideStationMarquee() // [STATION-LOGO]
+    }
+
+    private var stationLogos: Map<String, String> = emptyMap() // [STATION-LOGO] url stream -> url logo
+    private var marqueeUrl: String? = null
+
+    /** [STATION-LOGO] Baca tvg-logo dari memory:// atau berkas .m3u/.m3u8 lokal (maks. 5 MB); hasil menyusul tanpa memblokir UI. */
+    private fun loadStationLogos(filepath: String) {
+        if (MpvLoad.isMemoryPlaylist(filepath)) { stationLogos = StationLogo.parse(filepath); return }
+        val low = filepath.lowercase()
+        if (!filepath.startsWith("/") || !(low.endsWith(".m3u") || low.endsWith(".m3u8"))) return
+        streamScope.launch {
+            val map = withContext(Dispatchers.IO) {
+                runCatching {
+                    java.io.File(filepath).takeIf { it.isFile && it.length() <= 5L * 1024 * 1024 }?.readText()?.let { StationLogo.parse(it) }
+                }.getOrNull()
+            }
+            if (map != null && map.isNotEmpty()) {
+                stationLogos = map
+                marqueeUrl?.let { showStationMarquee(it) }
+            }
+        }
+    }
+
+    private fun stationName(url: String): String =
+        (streamTitles[url] ?: try { MPVLib.getPropertyString("media-title") } catch (e: Exception) { null }).orEmpty()
+
+    private fun hideStationMarquee() { // [STATION-LOGO]
+        marqueeUrl = null
+        binding.stationMarquee.visibility = View.GONE
+    }
+
+    private fun layoutMarquee() { // [STATION-LOGO] padding sama dengan kartu sampul agar tidak tertimpa spektrum/kontrol
+        val d = resources.displayMetrics.density
+        val side = (32 * d).toInt()
+        val spectrumSpace = if (spectrumReserve) (SPECTRUM_HEIGHT_DP * d).toInt() else 0
+        binding.stationMarquee.setPadding(side, (24 * d).toInt(), side,
+            controlsReserved() + spectrumSpace + (if (spectrumReserve) topBarReserve() else 0) + (12 * d).toInt())
+    }
+
+    private fun showStationMarquee(url: String) { // [STATION-LOGO]
+        val name = stationName(url)
+        marqueeUrl = url
+        binding.stationName.text = name
+        binding.stationInitials.text = StationLogo.initials(name)
+        binding.stationInitials.visibility = View.VISIBLE
+        binding.stationLogo.setImageDrawable(null)
+        binding.stationMarquee.visibility = View.VISIBLE
+        layoutMarquee()
+        val logo = stationLogos[url] ?: return
+        if (!StationLogo.enabled(this)) return
+        streamScope.launch {
+            val bmp = StationLogo.load(this@MPVActivity, logo)
+            if (bmp != null && marqueeUrl == url) {
+                binding.stationLogo.setImageBitmap(bmp)
+                binding.stationInitials.visibility = View.GONE
+            }
+        }
     }
 
     private fun updateAnySpectrum(path: String?) { // [SPECTRUM-LIVE]
@@ -2537,7 +2598,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         if (path != null || !useAudioUI || !SpectrumPrefs.enabled(this)) { stopLiveSpectrum(); return false }
         val url = try { MPVLib.getPropertyString("path") } catch (e: Exception) { null }
         if (url == null || !(url.startsWith("http://") || url.startsWith("https://"))) { stopLiveSpectrum(); return false }
-        if (spectrumLive != null && spectrumPath == url) return true
+        if (spectrumLive != null && spectrumPath == url) { binding.stationName.text = stationName(url); return true } // [STATION-LOGO]
         stopSpectrum()
         spectrumPath = url
         setSpectrumReserve(true)
@@ -2554,6 +2615,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         view.positionMs = live::positionMs
         spectrumLive = live
         live.start()
+        showStationMarquee(url) // [STATION-LOGO]
         return true
     }
 
@@ -2627,6 +2689,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             binding.nowPlayingCover.setImageDrawable(null)
             binding.nowPlayingBackdrop.setImageDrawable(null)
             layoutSpectrum(controlsReserved())
+            layoutMarquee() // [STATION-LOGO]
             return
         }
         // Sisakan ruang untuk bilah kontrol agar kartu sampul tidak tertimpa.
