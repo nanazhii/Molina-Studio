@@ -129,8 +129,9 @@ fun CodeScreen(session: CodeSession, modifier: Modifier = Modifier) {
                 )
             }
             if (termSlot != null && session.terminalOpen) { // [CODE-TERM]
-                Box(Modifier.weight(0.8f).fillMaxWidth().onGloballyPositioned { termPx = it.size.height }) {
-                    termSlot(Modifier.fillMaxSize(), session.dir.root)
+                Column(Modifier.weight(0.8f).fillMaxWidth().onGloballyPositioned { termPx = it.size.height }) {
+                    Box(Modifier.fillMaxWidth().height(2.dp).background(CodeColors.Brand)) // [CODE-TERM-LINE] garis aksen Code di atas panel
+                    termSlot(Modifier.weight(1f).fillMaxWidth(), session.dir.root)
                 }
             }
         }
