@@ -50,6 +50,7 @@ class ExternalCheck(
 object Checkers {
     private val JSON = BuiltinCheck("JSON bawaan") { text -> builtinFromFormat("JSON", text) { JsonFormatter.format(it) } }
     private val XML = BuiltinCheck("XML bawaan") { text -> builtinFromFormat("XML", text) { XmlFormatter.format(it) } }
+    private val GRADLE_KTS = BuiltinCheck("Gradle KTS bawaan") { text -> GradleKtsScan.scan(text) } // [GRADLE-CHECK]
 
     private val PYFLAKES = ExternalCheck(
         "pyflakes",
@@ -81,13 +82,14 @@ object Checkers {
             }
         }
         return when {
+            RunPlans.isGradleScript(fileName) -> GRADLE_KTS // [GRADLE-CHECK]
             ext == "json" -> JSON
             ext in XML_EXT -> XML
             else -> null
         }
     }
 
-    const val SUPPORTED_SUMMARY = "py, sh, json, xml/svg"
+    const val SUPPORTED_SUMMARY = "py, sh, json, xml/svg, gradle.kts"
 
     private val POS = Regex("""^(.*) \(baris (\d+), kol (\d+)\)$""", RegexOption.DOT_MATCHES_ALL)
 
@@ -412,5 +414,105 @@ object CheckFix {
         var s = 0
         while (s < max - p && old[old.length - 1 - s] == new[new.length - 1 - s]) s++
         return Patch(p, old.length - s, new.substring(p, new.length - s))
+    }
+}
+
+/**
+ * [GRADLE-CHECK] Pemindai leksikal skrip Gradle Kotlin DSL: kurung, string (biasa, tiga kutip, templat), komentar
+ * dan literal karakter. Tidak memeriksa tipe atau API Gradle (kotlinc tidak bisa untuk itu); hanya menangkap
+ * sintaks rusak sebelum menunggu CI.
+ */
+internal object GradleKtsScan {
+    private const val SRC = "Gradle KTS"
+    private const val MAX = 20
+
+    private class Frame(val kind: Char, val line: Int, val col: Int) // ( [ { = kurung, '"' = string, 'R' = tiga kutip
+
+    fun scan(input: String): List<Diagnostic> {
+        val s = input.replace("\r\n", "\n").replace('\r', '\n')
+        val out = ArrayList<Diagnostic>()
+        val st = ArrayList<Frame>()
+        var i = 0
+        var line = 1
+        var col = 1
+        fun add(l: Int, c: Int, msg: String) { if (out.size < MAX) out.add(Diagnostic(l, c, 0, 0, Severity.ERROR, null, msg, SRC)) }
+        fun adv(n: Int = 1) {
+            repeat(n) { if (i < s.length) { if (s[i] == '\n') { line++; col = 1 } else col++; i++ } }
+        }
+        fun tmpl() = i + 1 < s.length && s[i] == '$' && s[i + 1] == '{'
+        while (i < s.length) {
+            val c = s[i]
+            val top = st.lastOrNull()
+            if (top != null && top.kind == '"') {
+                when {
+                    c == '\\' -> adv(2)
+                    c == '"' -> { st.removeAt(st.size - 1); adv() }
+                    c == '\n' -> { add(top.line, top.col, "String tidak ditutup sebelum akhir baris"); st.removeAt(st.size - 1); adv() }
+                    tmpl() -> { st.add(Frame('{', line, col)); adv(2) }
+                    else -> adv()
+                }
+                continue
+            }
+            if (top != null && top.kind == 'R') {
+                when {
+                    s.startsWith("\"\"\"", i) -> { st.removeAt(st.size - 1); adv(3); while (i < s.length && s[i] == '"') adv() }
+                    tmpl() -> { st.add(Frame('{', line, col)); adv(2) }
+                    else -> adv()
+                }
+                continue
+            }
+            when {
+                s.startsWith("//", i) -> while (i < s.length && s[i] != '\n') adv()
+                s.startsWith("/*", i) -> {
+                    val sl = line
+                    val sc = col
+                    var depth = 0
+                    while (i < s.length) {
+                        if (s.startsWith("/*", i)) { depth++; adv(2) }
+                        else if (s.startsWith("*/", i)) { depth--; adv(2); if (depth == 0) break }
+                        else adv()
+                    }
+                    if (depth > 0) add(sl, sc, "Komentar blok tidak ditutup")
+                }
+                c == '"' -> if (s.startsWith("\"\"\"", i)) { st.add(Frame('R', line, col)); adv(3) } else { st.add(Frame('"', line, col)); adv() }
+                c == '\'' -> {
+                    val sl = line
+                    val sc = col
+                    adv()
+                    if (i < s.length && s[i] == '\\') adv(2) else if (i < s.length && s[i] != '\n') adv()
+                    var n = 0
+                    while (i < s.length && s[i] != '\'' && s[i] != '\n' && n < 8) { adv(); n++ }
+                    if (i < s.length && s[i] == '\'') adv() else add(sl, sc, "Literal karakter tidak ditutup")
+                }
+                c == '`' -> {
+                    adv()
+                    while (i < s.length && s[i] != '`' && s[i] != '\n') adv()
+                    if (i < s.length && s[i] == '`') adv()
+                }
+                c == '(' || c == '[' || c == '{' -> { st.add(Frame(c, line, col)); adv() }
+                c == ')' || c == ']' || c == '}' -> {
+                    val want = when (c) { ')' -> '('; ']' -> '['; else -> '{' }
+                    val idx = st.indexOfLast { it.kind == want }
+                    if (idx < 0) {
+                        add(line, col, "Kurung penutup '$c' tanpa pembuka")
+                    } else {
+                        for (k in st.size - 1 downTo idx + 1) {
+                            val f = st[k]
+                            if (f.kind == '"' || f.kind == 'R') add(f.line, f.col, "String tidak ditutup sebelum '$c' di baris $line")
+                            else add(f.line, f.col, "Kurung '${f.kind}' tidak ditutup sebelum '$c' di baris $line")
+                        }
+                        while (st.size > idx) st.removeAt(st.size - 1)
+                    }
+                    adv()
+                }
+                else -> adv()
+            }
+        }
+        for (f in st) {
+            if (f.kind == '"') add(f.line, f.col, "String tidak ditutup")
+            else if (f.kind == 'R') add(f.line, f.col, "String tiga kutip tidak ditutup")
+            else add(f.line, f.col, "Kurung '${f.kind}' tidak ditutup")
+        }
+        return out.sortedWith(compareBy({ it.line }, { it.col }))
     }
 }

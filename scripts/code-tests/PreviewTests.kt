@@ -43,6 +43,12 @@ fun main() {
     eq("kts bukan python", RunPlans.of("x.kts", null)?.needsPython, false)
     eq("kts requires kotlin+java", RunPlans.of("x.kts", null)?.requires, listOf("/usr/local/bin/kotlin", "java"))
     eq("kts hint arahkan ke Paket", RunPlans.of("x.kts", null)?.installHint?.contains("Paket") == true, true)
+    // [GRADLE-KTS]
+    eq("gradle.kts bukan skrip", RunPlans.of("build.gradle.kts", null) == null, true)
+    eq("gradle.kts subfolder", RunPlans.of("app/settings.gradle.kts", null) == null, true)
+    eq("gradle.kts tanpa preview", PreviewKinds.of("build.gradle.kts"), PreviewKind.NONE)
+    eq("kts biasa tetap jalan", RunPlans.of("x.kts", null)?.label, "kotlin")
+    eq("shebang menang atas gradle", RunPlans.of("build.gradle.kts", "#!/usr/bin/env kotlin")?.label, "kotlin")
     eq("py tanpa requires", RunPlans.of("x.py", null)?.requires?.isEmpty(), true)
     eq("plan env only", RunPlans.fromShebang("#!/usr/bin/env") == null, true)
 

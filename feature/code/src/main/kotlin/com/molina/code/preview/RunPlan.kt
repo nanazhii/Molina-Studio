@@ -30,6 +30,7 @@ object RunPlans {
     /** Rencana dari nama berkas dan baris pertama; shebang menang atas ekstensi. Null = tak dikenal. */
     fun of(fileName: String?, firstLine: String?): RunPlan? {
         fromShebang(firstLine)?.let { return it }
+        if (isGradleScript(fileName)) return null // [GRADLE-KTS] skrip build Gradle bukan skrip kotlin mandiri
         return when (fileName?.substringAfterLast('.', "")?.lowercase().orEmpty()) {
             "sh", "bash" -> BASH
             "py" -> PYTHON
@@ -37,6 +38,10 @@ object RunPlans {
             else -> null
         }
     }
+
+    /** [GRADLE-KTS] build.gradle.kts, settings.gradle.kts, dst. memakai API Gradle, jadi tidak bisa dijalankan dengan kotlin. */
+    fun isGradleScript(fileName: String?): Boolean =
+        fileName?.substringAfterLast('/')?.lowercase()?.endsWith(".gradle.kts") == true
 
     /** Urai `#!/bin/sh`, `#!/usr/bin/env python3`, dst. Hanya interpreter yang dikenal yang diterima. */
     fun fromShebang(firstLine: String?): RunPlan? {

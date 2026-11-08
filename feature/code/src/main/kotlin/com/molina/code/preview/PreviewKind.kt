@@ -10,6 +10,7 @@ enum class PreviewKind { NONE, MARKDOWN, JSON, HTML, SCRIPT }
 object PreviewKinds {
     fun of(fileName: String?, firstLine: String? = null): PreviewKind {
         val ext = fileName?.substringAfterLast('.', "")?.lowercase().orEmpty()
+        if (RunPlans.isGradleScript(fileName) && firstLine?.startsWith("#!") != true) return PreviewKind.NONE // [GRADLE-KTS]
         return when (ext) {
             "md", "markdown", "mdown" -> PreviewKind.MARKDOWN
             "json" -> PreviewKind.JSON

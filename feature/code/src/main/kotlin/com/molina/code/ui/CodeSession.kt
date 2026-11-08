@@ -1802,7 +1802,7 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         }
         val plan = RunPlans.of(tab.file?.name ?: tab.title, tab.firstLineOrNull()) // [CODE-TEMPLATE] scratch
         if (plan == null) {
-            toast("Interpreter skrip tidak dikenal")
+            toast(if (RunPlans.isGradleScript(tab.file?.name ?: tab.title)) "Skrip Gradle tidak dijalankan di editor; build lewat CI" else "Interpreter skrip tidak dikenal") // [GRADLE-KTS]
             return
         }
         if (run.executor == null) {

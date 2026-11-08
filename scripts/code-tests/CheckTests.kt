@@ -138,6 +138,27 @@ fun main() {
     val plan: CheckPlan = Checkers.of("a.py", null)!!
     check("plan: label", plan.label == "pyflakes")
 
+    // [GRADLE-CHECK]
+    val gk = Checkers.of("app/build.gradle.kts", null) as? BuiltinCheck
+    check("gradle: dipilih untuk .gradle.kts", gk != null && gk.label == "Gradle KTS bawaan")
+    check("gradle: settings juga", Checkers.of("settings.gradle.kts", null) is BuiltinCheck)
+    check("gradle: x.kts biasa tanpa pemeriksa", Checkers.of("x.kts", null) == null)
+    fun gd(s: String) = gk!!.run(s)
+    check("gradle: bersih", gd("plugins {\n    id(\"a\")\n}\nandroid { defaultConfig { minSdk = 26 } }\n").isEmpty())
+    check("gradle: kurawal kurang", gd("android {\n    defaultConfig {\n}\n").let { it.size == 1 && it[0].line == 1 })
+    check("gradle: penutup berlebih", gd("a { }\n}\n").let { it.size == 1 && it[0].line == 2 })
+    check("gradle: kurung tidak cocok", gd("f(1, 2}\n").isNotEmpty())
+    check("gradle: string tidak ditutup", gd("val a = \"abc\nval b = 1\n").let { it.size == 1 && it[0].line == 1 })
+    check("gradle: templat dalam string", gd("val a = \"x \${f(\"y\")} z\"\n").isEmpty())
+    check("gradle: tiga kutip multibaris", gd("val a = \"\"\"\n  { ( \"q\n\"\"\"\n").isEmpty())
+    check("gradle: komentar diabaikan", gd("// ( { \"\n/* ( \n{ */ val a = 1\n").isEmpty())
+    check("gradle: komentar bersarang", gd("/* a /* b */ c */ val a = 1\n").isEmpty())
+    check("gradle: komentar tidak ditutup", gd("val a = 1\n/* x\n").let { it.size == 1 && it[0].line == 2 })
+    check("gradle: literal karakter", gd("val q = '\"'\nval r = '('\nval s = '\\\\'\n").isEmpty())
+    check("gradle: backtick", gd("val `a b(` = 1\n").isEmpty())
+    check("gradle: CRLF", gd("a {\r\n  b()\r\n}\r\n").isEmpty())
+    check("gradle: kosong", gd("").isEmpty())
+
     println(if (fails == 0) "SEMUA LULUS" else "$fails GAGAL")
     if (fails != 0) kotlin.system.exitProcess(1)
 }
