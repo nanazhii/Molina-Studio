@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # mkc v2: mini compiler Kotlin multi-module tanpa Gradle/APK [MKC-2]
-# Pakai: mkc.sh list | all | clean | fetch-libs | <modul> [--no-deps] [--pure|--full] [--prune] [--pkg a,b]
+# Pakai: mkc.sh list | all | clean | fetch-libs | <modul> [--no-deps] [--pure|--full] [--prune] [--pkg a,b] [--file bagian/path.kt]
 # Env  : MKC_ANDROID_JAR  MKC_LIBS (bawaan .mkc/libs)  MKC_JVM (17)  MKC_LINES (40)  MKC_NONPURE (regex paket)
 set -u
 ROOT="${MKC_ROOT:-$PWD}"; OUT="$ROOT/.mkc/out"; LIBS="${MKC_LIBS:-$ROOT/.mkc/libs}"
@@ -9,11 +9,12 @@ NONPURE="${MKC_NONPURE:-android|androidx|io\.github\.rosemoe|org\.eclipse\.tm4e|
 usage(){ sed -n '2,4p' "$0" | sed 's/^# //'; exit 2; }
 [ $# -ge 1 ] || usage
 CMD="$1"; shift
-NODEPS=0; MODE=auto; PKG=""; PRUNE=0
+NODEPS=0; MODE=auto; PKG=""; PRUNE=0; FILE=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --no-deps) NODEPS=1;; --prune) PRUNE=1;; --pure) MODE=pure; PRUNE=1;; --full) MODE=full;;
     --pkg) shift; PKG="${1:-}";; --pkg=*) PKG="${1#--pkg=}";;
+    --file) shift; FILE="${1:-}";; --file=*) FILE="${1#--file=}";;
     *) echo "opsi tidak dikenal: $1"; usage;;
   esac; shift
 done
@@ -89,8 +90,58 @@ pick(){
   done
 }
 
+pick_one(){ grep -qE "^import ($NONPURE)\.|(^|[^A-Za-z0-9_.])android\.(util|os|content|app|view|widget|graphics|net|provider)\." "$1" || echo "$1"; }
+
+build_file(){
+  local m="$1" o="$OUT/_file/${1//:/_}" all=() tg=() set=() f d j cp="" rc mode bf dirs="" n nt=0 ns=0
+  bf="$(bfile "$m")"; mode=full
+  if [ "$MODE" = pure ] || { [ "$MODE" = auto ] && [ -n "$bf" ] && grep -q 'com\.android' "$bf" && { [ -z "$AJAR" ] || [ ! -f "$AJAR" ]; }; }; then mode=pure; fi
+  while IFS= read -r f; do [ -n "$f" ] && all+=("$f"); done < <(pick "$m" full "")
+  for f in "${all[@]:-}"; do case "$f" in *"$FILE"*) tg+=("$f");; esac; done
+  [ ${#tg[@]} -gt 0 ] || { echo "  file '$FILE' tidak ada di $m"; ST[$m]="GAGAL (file tidak ditemukan)"; return 1; }
+  for f in "${tg[@]}"; do
+    if [ "$mode" = pure ] && [ -z "$(pick_one "$f")" ]; then
+      echo "  ${f#$ROOT/} butuh Android: set MKC_ANDROID_JAR atau uji lewat CI"; ST[$m]="LEWATI (file butuh Android)"; return 0
+    fi
+    dirs="$dirs|$(dirname "$f")"
+  done
+  local want="$dirs" it add pk q x
+  for it in 1 2 3 4; do
+    add=""
+    for f in "${all[@]}"; do
+      case "$want|" in *"|$(dirname "$f")|"*) ;; *) continue;; esac
+      for pk in $(grep -ohE 'com\.molina\.[a-z0-9_.]+' "$f" | sed 's/\.$//' | sort -u); do
+        q="${pk//.//}"
+        for x in "${all[@]}"; do
+          case "$(dirname "$x")" in *"/$q") case "$want$add|" in *"|$(dirname "$x")|"*) ;; *) add="$add|$(dirname "$x")";; esac;; esac
+        done
+      done
+    done
+    [ -z "$add" ] && break; want="$want$add"
+  done
+  for f in "${all[@]}"; do
+    case "$want|" in *"|$(dirname "$f")|"*) if [ "$mode" = full ] || [ -n "$(pick_one "$f")" ]; then set+=("$f"); fi;; esac
+  done
+  for d in ${DEPS[$m]:-}; do [ -d "$OUT/${d//:/_}/classes" ] && cp="$cp:$OUT/${d//:/_}/classes"; done
+  [ -n "$AJAR" ] && [ -f "$AJAR" ] && cp="$cp:$AJAR"
+  for j in "$LIBS"/*.jar; do [ -f "$j" ] && cp="$cp:$j"; done
+  rm -rf "$o"; mkdir -p "$o/classes"
+  local args=(-jvm-target "${MKC_JVM:-17}" -nowarn -d "$o/classes"); [ -n "$cp" ] && args+=(-cp "${cp#:}")
+  echo "  uji ${#tg[@]} file target + $(( ${#set[@]} - ${#tg[@]} )) file pendukung ($mode)"
+  kotlinc "${args[@]}" "${set[@]}" > "$o/log.txt" 2>&1; rc=$?
+  for f in "${tg[@]}"; do
+    n=$(grep ': error:' "$o/log.txt" | grep -cF "${f#$ROOT/}:"); nt=$((nt+n))
+    [ "$n" -gt 0 ] && grep ': error:' "$o/log.txt" | grep -F "${f#$ROOT/}:" | sed "s|$ROOT/||" | head -n "$LINES_MAX" | sed 's/^/  /'
+  done
+  ns=$(( $(grep -c ': error:' "$o/log.txt") - nt ))
+  if [ "$nt" -gt 0 ]; then ST[$m]="GAGAL (file: $nt error)"; return 1; fi
+  if [ "$ns" -gt 0 ]; then ST[$m]="OK (file bersih; $ns error di tetangga diabaikan)"; else ST[$m]="OK (file bersih)"; fi
+  return 0
+}
+
 build(){
   local m="$1" o="$OUT/${1//:/_}" files=() f d j cp="" rc mode sig nerr bf pkg=""
+  if [ -n "$FILE" ] && is_target "$m"; then build_file "$m"; return $?; fi
   bf="$(bfile "$m")"; mode="$MODE"
   if [ "$mode" = auto ]; then
     mode=full
