@@ -132,3 +132,4 @@ patch_*.py
 *.mvlt
 *.mvr
 *.mvault
+.mkc/
