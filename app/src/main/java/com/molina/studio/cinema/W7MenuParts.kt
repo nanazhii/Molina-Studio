@@ -36,7 +36,7 @@ import com.molina.studio.ui.MolinaTheme
 // tombol kisi drop-up (W7DropButton), pemisah (W7MenuDivider), dan batas tinggi popup (w7PopupMaxHeight).
 
 internal enum class W7Ico { PLAY, CODE, SCRIPT, COPY, CUT, PASTE, RENAME, ZIP, UNZIP, DELETE, NEWDIR, STAR, STAR_OUT, INFO, SHARE, OPEN_WITH,
-    REFRESH, SORT, SELECT, SELECT_ALL, CLEAR, MORE, SEARCH, NAV, LOCK } // [W7-COMPACT-PORTRAIT]
+    REFRESH, SORT, SELECT, SELECT_ALL, CLEAR, MORE, SEARCH, NAV, LOCK, EDIT } // [W7-COMPACT-PORTRAIT]
 
 /** [W7-COMPACT-PORTRAIT] Perintah bilah berupa ikon (tanpa teks) agar hemat lebar di ponsel potret. */
 @Composable
@@ -177,6 +177,13 @@ internal fun W7MenuIcon(ico: W7Ico, enabled: Boolean, sz: androidx.compose.ui.un
                 val tri = Path()
                 tri.moveTo(5f * u, 3f * u); tri.lineTo(13f * u, 8f * u); tri.lineTo(5f * u, 13f * u); tri.close()
                 drawPath(tri, c, style = Fill)
+            }
+            W7Ico.EDIT -> { // [NANO-ICON] pensil miring untuk Edit di Terminal
+                val pen = Path()
+                pen.moveTo(3f * u, 13f * u); pen.lineTo(3.8f * u, 9.6f * u); pen.lineTo(11f * u, 2.4f * u)
+                pen.lineTo(13.6f * u, 5f * u); pen.lineTo(6.4f * u, 12.2f * u); pen.close()
+                drawPath(pen, c, style = st)
+                line(9.4f, 4f, 12f, 6.6f)
             }
             W7Ico.CODE -> {
                 line(5.5f, 4f, 2f, 8f); line(2f, 8f, 5.5f, 12f)

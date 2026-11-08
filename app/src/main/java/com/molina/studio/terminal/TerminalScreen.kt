@@ -13,6 +13,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -29,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
@@ -198,9 +201,24 @@ private fun startCursorBlink(v: TerminalView) {
 }
 
 /**
- * [NANO-KEYS] Baris tombol sementara saat nano aktif. Pembungkus nano menamai sesi "nano: <berkas>" lewat judul
- * terminal dan mengosongkannya saat nano selesai. Tiap tombol mengirim urutan kontrol bawaan nanorc Molina.
+ * [NANO-KEYS] [NANO-KEYS-V2] Baris tombol sementara saat nano aktif. Pembungkus nano menamai sesi "nano: <berkas>" lewat
+ * judul terminal dan mengosongkannya saat nano selesai. Tiap tombol mengirim urutan kontrol bawaan nanorc Molina.
+ * Baris bisa digeser ke samping: enam tombol pertama (SAVE UNDO REDO FIND ALL QUIT) terlihat di ponsel potret,
+ * sisanya (GOTO REPL CODE) ada di sebelah kanan.
  */
+private val NanoKeyWidth = 60.dp
+private val NanoKeyList = listOf(
+    Triple("SAVE", KeyGreen, "\u0013"),    // ^S
+    Triple("UNDO", KeyBlue, "\u001a"),     // ^Z
+    Triple("REDO", KeyBlue, "\u0019"),     // ^Y
+    Triple("FIND", KeyAmber, "\u0006"),    // ^F
+    Triple("ALL", KeyAmber, "\u0001"),     // ^A pilih semua (makro nanorc)
+    Triple("QUIT", KeyRed, "\u0011"),      // ^Q
+    Triple("GOTO", KeyAmber, "\u0007"),    // ^G ke baris
+    Triple("REPL", KeyAmber, "\u0012"),    // ^R ganti
+    Triple("CODE", KeyGreen, "\u001bo")    // Alt+O: simpan lalu buka di Code
+)
+
 @Composable
 private fun NanoKeys() {
     val tick = TerminalSessions.titleTick // dibaca agar Compose menyusun ulang saat judul sesi berubah
@@ -212,14 +230,14 @@ private fun NanoKeys() {
             .clip(shape)
             .background(Color.Black, shape)
             .border(2.dp, MolinaTheme.Brand, shape)
+            .horizontalScroll(rememberScrollState())
             .padding(3.dp)
     ) {
-        Key("SAVE", color = KeyGreen) { TerminalActions.send("\u0013") }   // ^S
-        Key("UNDO", color = KeyBlue) { TerminalActions.send("\u001a") }    // ^Z
-        Key("REDO", color = KeyBlue) { TerminalActions.send("\u0019") }    // ^Y
-        Key("FIND", color = KeyAmber) { TerminalActions.send("\u0006") }   // ^F
-        Key("CODE", color = KeyAmber) { TerminalActions.send("\u001bo") }  // Alt+O: simpan lalu buka di Code
-        Key("QUIT", color = KeyRed) { TerminalActions.send("\u0011") }     // ^Q
+        NanoKeyList.forEach { (label, tint, seq) ->
+            Box(Modifier.width(NanoKeyWidth).padding(1.dp)) {
+                KeyButton(label, false, false, tint, null) { TerminalActions.send(seq) }
+            }
+        }
     }
 }
 

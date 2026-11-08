@@ -100,7 +100,7 @@ internal fun W7ToolsMenu(
                     if (texts.isEmpty()) say("Tidak ada berkas teks yang bisa dibuka di Code.") else fn(texts)
                 }
             }
-            W7MenuItem(W7Ico.CODE, "Edit di Terminal (nano)", onEditInTerminal != null && one?.isFile == true) { // [NANO-EDIT]
+            W7MenuItem(W7Ico.EDIT, "Edit di Terminal (nano)", onEditInTerminal != null && one?.isFile == true) { // [NANO-EDIT]
                 onDismiss()
                 one?.let { onEditInTerminal?.invoke(it) }
             }

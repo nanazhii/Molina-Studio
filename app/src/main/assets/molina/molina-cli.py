@@ -38,13 +38,15 @@ KEYS = """Pintasan nano di Molina Terminal (gaya code editor)
   Ctrl+C   salin                 Ctrl+X   potong
   Ctrl+V   tempel                Ctrl+F   cari
   Ctrl+R   ganti                 Ctrl+G   ke baris
+  Ctrl+A   pilih semua (ketuk lagi: batal)
   Ctrl+/   komentari baris (atau Alt+3)
   Alt+O    simpan lalu buka di Molina Code
   Ctrl+O   simpan sebagai        Ctrl+K   potong baris
   Alt+A    mulai/akhiri seleksi  Alt+U    undo bawaan nano
 
 Tips: ketuk CTRL di baris tombol, tahan untuk mengunci. Baris tombol
-SAVE UNDO REDO FIND CODE QUIT muncul otomatis saat nano aktif.
+SAVE UNDO REDO FIND ALL QUIT (geser ke samping: GOTO REPL CODE) muncul
+otomatis saat nano aktif.
 Kustom: buat ~/.nanorc (menggantikan konfigurasi Molina).
 """
 

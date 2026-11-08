@@ -291,7 +291,7 @@ class BridgeTests(unittest.TestCase):
     def test_keys_cheatsheet(self):
         code, out, _ = run_cli("keys")
         self.assertEqual(code, 0)
-        for k in ("Ctrl+S", "Ctrl+Q", "Ctrl+Z", "Alt+O"):
+        for k in ("Ctrl+S", "Ctrl+Q", "Ctrl+Z", "Ctrl+A", "Alt+O"):
             self.assertIn(k, out)
         self.assertEqual(run_cli("keys", "x")[0], 2)
         self.assertEqual(self.srv.lines, [])

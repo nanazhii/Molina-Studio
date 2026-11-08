@@ -217,6 +217,7 @@ fun CinemaHome(modifier: Modifier = Modifier) {
             isVisibleInDebian = { f -> MolinaExplorer.visibleInDebian(f) },
             onPlay = { files -> MolinaExplorer.play(ctx, files) },
             onOpenInCode = { files -> iptvFolderOpen = false; channelsOpen = false; MolinaExplorer.openInCode(ctx, files) },
+            onEditInTerminal = { f -> if (MolinaExplorer.editInTerminal(ctx, f)) { iptvFolderOpen = false; channelsOpen = false } }, // [NANO-EDIT]
         )
     }
     if (showResults) SearchResultsDialog(
