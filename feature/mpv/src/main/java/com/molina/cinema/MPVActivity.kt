@@ -774,6 +774,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         val shouldBackground = shouldBackground()
 
         activityIsForeground = false
+        updateMarqueePulse() // [MARQUEE-PULSE]
         eventUiHandler.removeCallbacksAndMessages(null)
         if (isFinishing) {
             savePosition()
@@ -867,6 +868,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         readSettings()
 
         activityIsForeground = true
+        updateMarqueePulse() // [MARQUEE-PULSE]
         // stop background service with a delay
         stopServiceHandler.removeCallbacks(stopServiceRunnable)
         stopServiceHandler.postDelayed(stopServiceRunnable, 1000L)
@@ -2556,8 +2558,32 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun stationName(url: String): String =
         (streamTitles[url] ?: try { MPVLib.getPropertyString("media-title") } catch (e: Exception) { null }).orEmpty()
 
+    private var marqueePulse: android.animation.ObjectAnimator? = null // [MARQUEE-PULSE]
+
+    /** Label NOW PLAYING berdenyut halus (alpha 0,6 ke 1) hanya saat marquee tampil, audio memutar, dan di latar depan. */
+    private fun updateMarqueePulse(paused: Boolean? = null) {
+        val tv = binding.stationNowPlaying
+        val on = marqueeUrl != null && !(paused ?: psc.pause) && activityIsForeground
+        if (on) {
+            if (marqueePulse == null) {
+                marqueePulse = android.animation.ObjectAnimator.ofFloat(tv, View.ALPHA, 0.6f, 1f).apply {
+                    duration = 1400
+                    repeatMode = android.animation.ValueAnimator.REVERSE
+                    repeatCount = android.animation.ValueAnimator.INFINITE
+                    interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+                    start()
+                }
+            }
+        } else {
+            marqueePulse?.cancel()
+            marqueePulse = null
+            tv.alpha = 1f
+        }
+    }
+
     private fun hideStationMarquee() { // [STATION-LOGO]
         marqueeUrl = null
+        updateMarqueePulse() // [MARQUEE-PULSE]
         binding.stationMarquee.visibility = View.GONE
     }
 
@@ -2578,6 +2604,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         binding.stationLogo.setImageDrawable(null)
         binding.stationMarquee.visibility = View.VISIBLE
         layoutMarquee()
+        updateMarqueePulse() // [MARQUEE-PULSE]
         val logo = stationLogos[url] ?: return
         if (!StationLogo.enabled(this)) return
         streamScope.launch {
@@ -2848,6 +2875,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     }
 
     private fun updatePlaybackStatus(paused: Boolean) {
+        updateMarqueePulse(paused) // [MARQUEE-PULSE]
         val r = if (paused) R.drawable.ic_play_arrow_black_24dp else R.drawable.ic_pause_black_24dp
         binding.playBtn.setImageResource(r)
 

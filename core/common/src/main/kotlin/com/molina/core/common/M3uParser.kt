@@ -7,6 +7,7 @@ class IptvChannel(
     val group: String,
     val logo: String = "", // [M3U-META] tvg-logo (http/https lolos UrlPolicy) atau kosong
     val headers: Map<String, String> = emptyMap(), // [M3U-META] dari #EXTVLCOPT, sudah disanitasi StreamHeaders
+    val drm: Boolean = false, // [DRM-FLAG] KODIPROP license_type/license_key: mpv tidak bisa memutar DRM
 )
 
 /**
@@ -49,6 +50,7 @@ object M3uParser {
         var group = ""
         var extGroup = ""
         var logo = "" // [M3U-META]
+        var drm = false // [DRM-FLAG]
         val hdr = LinkedHashMap<String, String>() // [M3U-META]
 
         for (raw in src.lineSequence()) {
@@ -79,6 +81,9 @@ object M3uParser {
                         "http-origin" -> hdr["Origin"] = value
                         "http-user-agent" -> hdr["User-Agent"] = value
                     }
+                } else if (line.startsWith("#KODIPROP:", ignoreCase = true)) { // [DRM-FLAG]
+                    val k = line.substring(10).substringBefore('=').trim().lowercase()
+                    if (k == "inputstream.adaptive.license_type" || k == "inputstream.adaptive.license_key") drm = true
                 } else if (line.startsWith("#EXTGRP:", ignoreCase = true)) {
                     extGroup = clean(line.substring(8), MAX_GROUP)
                 }
@@ -96,12 +101,14 @@ object M3uParser {
                     group.ifEmpty { extGroup },
                     logo,
                     StreamHeaders.sanitize(hdr),
+                    drm,
                 )
             }
             name = ""
             group = ""
             logo = "" // [M3U-META]
             hdr.clear()
+            drm = false // [DRM-FLAG]
         }
         return M3uResult(out, skipped, truncated, false)
     }

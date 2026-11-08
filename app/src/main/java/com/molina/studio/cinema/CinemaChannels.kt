@@ -232,7 +232,10 @@ internal fun CinemaChannelsDialog(
         scope.launch { listState.scrollToItem(idx) }
     }
 
-    fun pick(e: ChEntry) = onPlay(visible.map { it.ch }, e.ch)
+    fun pick(e: ChEntry) { // [DRM-FLAG]
+        if (e.ch.drm) { status = "${e.ch.name} memakai DRM (Widevine) dan tidak bisa diputar di Molina."; return }
+        onPlay(visible.map { it.ch }, e.ch)
+    }
 
     fun pickFromQuery() {
         val t = if (numeric) visible.firstOrNull { it.number == q.toIntOrNull() } else visible.singleOrNull()
@@ -438,6 +441,7 @@ private fun ChRow(e: ChEntry, isSelected: Boolean, onPress: () -> Unit, onClick:
             if (e.ch.group.isNotEmpty()) Text(e.ch.group, fontSize = 12.sp,
                 color = MolinaTheme.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
+        if (e.ch.drm) Text("DRM", color = MolinaTheme.Warn, fontSize = 10.sp, fontWeight = FontWeight.Bold) // [DRM-FLAG]
     }
 }
 

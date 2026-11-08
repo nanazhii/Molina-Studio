@@ -110,10 +110,10 @@ object IptvPlayback {
      */
     fun memoryPlaylist(channels: List<IptvChannel>, picked: IptvChannel): String? {
         val i = channels.indexOfFirst { it.url == picked.url }
-        if (i < 0) return null
+        if (i < 0 || picked.drm) return null // [DRM-FLAG]
         val sb = StringBuilder("memory://#EXTM3U\n")
         var n = 0
-        for (c in channels.drop(i) + channels.take(i)) {
+        for (c in (channels.drop(i) + channels.take(i)).filter { !it.drm }) { // [DRM-FLAG] prev/next melewati saluran DRM
             val logo = logoAttr(c.logo) // [STATION-LOGO]
             val add = c.name.length + c.url.length + 14 + (if (logo.isEmpty()) 0 else logo.length + 12)
             if (n >= MAX_ENTRIES || (n > 0 && sb.length + add > MAX_CHARS)) break
