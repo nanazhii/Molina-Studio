@@ -1,0 +1,28 @@
+## Molina Terminal - sorotan sintaks tambahan (dibuat otomatis, ditimpa tiap sesi).
+## Playlist M3U/M3U8 (IPTV, radio) dan konfigurasi mpv. Aturan color yang lebih akhir menang.
+
+syntax "m3u" "\.m3u8?$"
+header "^#EXTM3U"
+color brightblack "^#.*"
+color brightgreen "^#EXTM3U.*"
+color brightcyan "^#EXTINF:"
+color brightyellow "(tvg-[a-z-]+|group-title|catchup[a-z-]*|radio)="
+color brightmagenta "^#EXT(VLCOPT|GRP):.*"
+color green "\"[^\"]*\""
+color brightblue "(https?|rtmps?|rtsp|udp|rtp|mms)://[^ ]+"
+color ,red "[[:space:]]+$"
+
+syntax "mpv-conf" "(^|/)mpv\.conf$"
+comment "#"
+color brightgreen "^[[:space:]]*(no-)?[a-z][a-z0-9-]*"
+color brightyellow "=.*"
+color brightcyan "^\[[^]]+\]"
+color brightblack "^[[:space:]]*#.*"
+color ,red "[[:space:]]+$"
+
+syntax "mpv-input" "(^|/)input\.conf$"
+comment "#"
+color brightyellow "^[[:space:]]*[^[:space:]#]+"
+color brightgreen "[[:space:]](set|add|cycle|cycle-values|seek|script-message|script-binding|show-text|playlist-next|playlist-prev|stop|quit|run|loadfile|keypress|ignore)([[:space:]]|$)"
+color brightblack "^[[:space:]]*#.*"
+color ,red "[[:space:]]+$"

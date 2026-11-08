@@ -86,6 +86,8 @@ object MolinaShell {
             Triple("molina/nano-wrapper.sh", "usr/local/bin/nano", true),
             Triple("molina/nanorc", "etc/molina/nanorc", false),
             Triple("molina/nano-open-code.sh", "usr/local/lib/molina/nano-open-code", true),
+            Triple("molina/edit.sh", "usr/local/bin/edit", true), // [NANO-EDIT-CMD]
+            Triple("molina/molina-media.nanorc", "etc/molina/syntax/molina-media.nanorc", false), // [NANO-SYNTAX]
         )
         for ((asset, rel, exec) in files) {
             runCatching {

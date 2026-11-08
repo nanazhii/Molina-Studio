@@ -107,7 +107,7 @@ internal fun ScriptsPage() {
     Text(
         "Daftar ini mengikuti isi folder Molina/Scripts: nama dan isi skrip sama dengan berkas di sana. Ketuk " +
             "segitiga untuk menjalankan di Molina Terminal, ketuk judul untuk detail. EDIT membuka berkasnya di " +
-            "editor Code; menyimpan di editor langsung memperbarui daftar.",
+            "editor Code dan NANO di nano (Terminal); perubahan terbaca saat skrip dijalankan.",
         color = W7D.TextDim, fontSize = 13.sp, modifier = Modifier.padding(bottom = 8.dp)
     )
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -163,6 +163,11 @@ internal fun ScriptsPage() {
                     } else {
                         CodeNav.pending = CodeOpenRequest(item.title, item.sourceKey ?: "script:${item.id}", item.body)
                     }
+                },
+                onNano = { // [NANO-SCRIPT] edit skrip di nano; isi dibaca ulang dari berkas saat skrip dijalankan
+                    val f = item.path?.let { File(it) }
+                    if (f != null && f.isFile) MolinaExplorer.editInTerminal(ctx, f)
+                    else toast(ctx, "Skrip ini belum berupa berkas di folder Scripts. Buka lewat EDIT dulu.")
                 },
                 onNote = { noteOf = item },
                 onPin = { toast(ctx, ScriptShortcuts.pin(ctx, item)) },
@@ -287,6 +292,7 @@ private fun ScriptAccordion(
     onToggle: () -> Unit,
     onRun: () -> Unit,
     onEdit: () -> Unit,
+    onNano: () -> Unit, // [NANO-SCRIPT]
     onNote: () -> Unit,
     onPin: () -> Unit,
     onFav: () -> Unit,
@@ -356,6 +362,7 @@ private fun ScriptAccordion(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         ActionText("EDIT", Blue, onClick = onEdit)
+                        ActionText("NANO", Blue, onClick = onNano) // [NANO-SCRIPT]
                         ActionText("CATATAN", W7D.Ink, onClick = onNote)
                         ActionText("OPSI", W7D.Ink, onClick = onOpts)
                         ActionText("PINTASAN", W7D.Ink, onClick = onPin)

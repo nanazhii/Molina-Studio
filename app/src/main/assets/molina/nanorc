@@ -19,6 +19,8 @@ set zap
 
 # Sorotan sintaks Debian
 include "/usr/share/nano/*.nanorc"
+# Sorotan tambahan Molina: playlist .m3u/.m3u8 dan konfigurasi mpv (mpv.conf, input.conf)
+include "/etc/molina/syntax/*.nanorc"
 
 # Warna tema Noir Molina (MolinaTheme). Hex 3 digit, perlu terminal 256 warna.
 # Brand #2ECC71 = #2c7, Good #9BE564 = #9e6, Warn #FFD54F = #fd5, Bad #FF5252 = #f55, Muted #9AA0A6 = #999

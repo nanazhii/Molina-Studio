@@ -125,6 +125,7 @@ internal sealed class W7Sheet {
     class Delete(val files: List<File>, val permanent: Boolean = false) : W7Sheet()
     object NewDir : W7Sheet()
     object NewText : W7Sheet() // [NANO-NEW]
+    class OpenWith(val file: File) : W7Sheet() // [NANO-OPENWITH]
 }
 
 internal fun w7Names(l: List<File>): String = if (l.size == 1) l[0].name else l.size.toString() + " item"
@@ -419,6 +420,21 @@ fun Win7OpenDialog(
             val d = dir
             onNewTextInTerminal?.invoke(d, name)
         }
+        is W7Sheet.OpenWith -> W7OpenWithDialog( // [NANO-OPENWITH]
+            file = s.file,
+            canCode = onOpenInCode != null,
+            canNano = onEditInTerminal != null,
+            canOther = onOpenWith != null,
+            onCancel = { sheet = null },
+            onPick = { which ->
+                sheet = null
+                when (which) {
+                    W7OpenWith.CODE -> onOpenInCode?.invoke(listOf(s.file))
+                    W7OpenWith.NANO -> onEditInTerminal?.invoke(s.file)
+                    W7OpenWith.OTHER -> onOpenWith?.invoke(s.file)
+                }
+            }
+        )
         is W7Sheet.Delete -> W7ConfirmDialog(s.files, s.permanent, onCancel = { sheet = null }) {
             sheet = null
             if (s.permanent) {

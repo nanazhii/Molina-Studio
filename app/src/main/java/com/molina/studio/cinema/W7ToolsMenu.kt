@@ -119,7 +119,10 @@ internal fun W7ToolsMenu(
             }
             W7MenuItem(W7Ico.OPEN_WITH, "Buka dengan...", onOpenWith != null && one?.isFile == true) {
                 onDismiss()
-                one?.let { onOpenWith?.invoke(it) }
+                one?.let { f -> // [NANO-OPENWITH] berkas teks: pilih Code / nano / aplikasi lain dalam satu dialog
+                    if (ExplorerList.looksText(f) && (onOpenInCode != null || onEditInTerminal != null)) onSheet(W7Sheet.OpenWith(f))
+                    else onOpenWith?.invoke(f)
+                }
             }
             W7MenuItem(W7Ico.SHARE, "Bagikan", onShare != null && tg.any { it.isFile }) {
                 onDismiss()
