@@ -104,3 +104,7 @@ __molina_git_notice() {
 }
 __molina_git_notice
 # [/GIT-CRED-GUARD]
+
+# [NANO-EDITOR] Editor default untuk git, crontab, dsb. Tidak menimpa pilihan pengguna.
+: "${EDITOR:=nano}"; : "${VISUAL:=$EDITOR}"; export EDITOR VISUAL
+# [/NANO-EDITOR]

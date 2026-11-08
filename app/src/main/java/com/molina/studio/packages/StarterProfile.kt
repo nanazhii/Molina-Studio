@@ -13,7 +13,7 @@ package com.molina.studio.packages
  * Daftar di [PACKAGES] dan di [SCRIPT] harus sama (dijaga scripts/app-tests/run_starter_profile.sh).
  */
 object StarterProfile {
-    val PACKAGES = listOf("ca-certificates", "python3", "python3-mutagen", "openssh-client")
+    val PACKAGES = listOf("ca-certificates", "python3", "python3-mutagen", "openssh-client", "nano")
 
     /** Daftar yang ditampilkan di UI: paket apt + yt-dlp (dipasang aplikasi, bukan apt). */
     val DISPLAY: List<String> = PACKAGES + "yt-dlp"
@@ -27,6 +27,6 @@ object StarterProfile {
           echo "Ruang kosong kurang dari 1 GB. Kosongkan ruang lalu coba lagi."
           exit 4
         fi
-        apt-get update -o APT::Sandbox::User=root && apt-get install -y --no-install-recommends -o APT::Sandbox::User=root ca-certificates python3 python3-mutagen openssh-client
+        apt-get update -o APT::Sandbox::User=root && apt-get install -y --no-install-recommends -o APT::Sandbox::User=root ca-certificates python3 python3-mutagen openssh-client nano
     """.trimIndent()
 }

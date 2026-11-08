@@ -1,0 +1,42 @@
+# Molina Terminal - nanorc bawaan (dibuat otomatis, ditimpa tiap sesi).
+# Ingin kustom sendiri? Buat ~/.nanorc, maka berkas ini tidak dipakai lagi.
+
+# Tampilan: hemat layar ponsel
+set minibar
+set nohelp
+set linenumbers
+set indicator
+set mouse
+set softwrap
+
+# Pengeditan ala code editor
+set autoindent
+set tabsize 4
+set tabstospaces
+set smarthome
+set zap
+
+# Sorotan sintaks Debian
+include "/usr/share/nano/*.nanorc"
+
+# Warna
+set titlecolor bold,white,blue
+set statuscolor bold,white,green
+set errorcolor bold,white,red
+set selectedcolor black,yellow
+set numbercolor yellow
+set keycolor yellow
+set functioncolor white
+
+# Shortcut ala code editor (ketuk CTRL di baris tombol; tahan untuk mengunci)
+bind ^S savefile main
+bind ^Q exit main
+bind ^Z undo main
+bind ^Y redo main
+bind ^C copy main
+bind ^X cut main
+bind ^V paste main
+bind ^F whereis main
+bind ^R replace main
+bind ^G gotoline main
+bind ^_ comment main

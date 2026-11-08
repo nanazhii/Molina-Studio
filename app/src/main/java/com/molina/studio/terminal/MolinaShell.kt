@@ -83,6 +83,8 @@ object MolinaShell {
         val files = listOf(
             Triple("molina/molina-cli.sh", "usr/local/bin/molina", true),
             Triple("molina/molina-cli.py", "usr/local/lib/molina/molina_cli.py", false),
+            Triple("molina/nano-wrapper.sh", "usr/local/bin/nano", true),
+            Triple("molina/nanorc", "etc/molina/nanorc", false),
         )
         for ((asset, rel, exec) in files) {
             runCatching {
