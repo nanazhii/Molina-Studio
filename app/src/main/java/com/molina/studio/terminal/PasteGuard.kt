@@ -62,7 +62,7 @@ object PasteGuard {
     /** Tempel [text] lewat [doPaste]. Bila berisiko, minta persetujuan; tanpa Activity ditolak (gagal aman). */
     fun pasteGuarded(ctx: Context, text: String, doPaste: (String) -> Unit) {
         val reasons = scan(text)
-        if (reasons.isEmpty()) { doPaste(text); return }
+        if (reasons.isEmpty()) { PasteShape.offer(ctx, text, doPaste); return } // [PASTE-SHAPE]
         val activity = ctx.findActivity()?.takeIf { !it.isFinishing } ?: return
         val msg = buildString {
             append("Peringatan:\n")
