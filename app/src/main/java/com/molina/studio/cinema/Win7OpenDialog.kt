@@ -124,6 +124,7 @@ internal sealed class W7Sheet {
     class Info(val files: List<File>) : W7Sheet()
     class Delete(val files: List<File>, val permanent: Boolean = false) : W7Sheet()
     object NewDir : W7Sheet()
+    object NewText : W7Sheet() // [NANO-NEW]
 }
 
 internal fun w7Names(l: List<File>): String = if (l.size == 1) l[0].name else l.size.toString() + " item"
@@ -206,6 +207,7 @@ fun Win7OpenDialog(
     onPlay: (suspend (List<File>) -> Boolean)? = null,
     onOpenInCode: ((List<File>) -> Unit)? = null,
     onEditInTerminal: ((File) -> Unit)? = null, // [NANO-EDIT]
+    onNewTextInTerminal: ((File, String) -> Boolean)? = null, // [NANO-NEW]
     onSendToScripts: ((File) -> Pair<Boolean, String>)? = null,
     // MOLINA-H13-BRIDGE: (berkas, selesai(daftar asli yang boleh dihapus, pesan)); daftar kosong = jangan hapus apa pun
     onSaveToVault: ((List<File>, (List<File>, String) -> Unit) -> Unit)? = null,
@@ -407,6 +409,15 @@ fun Win7OpenDialog(
             sheet = null
             val d = dir
             runOp(op = { "Folder dibuat: " + FileOps.mkdir(d, name).name })
+        }
+        W7Sheet.NewText -> W7NameDialog( // [NANO-NEW]
+            title = "Berkas teks baru (nano)", initial = "catatan.txt", selectEnd = "catatan".length, okLabel = "Buka",
+            hint = "Folder: " + dir.path,
+            onCancel = { sheet = null }
+        ) { name ->
+            sheet = null
+            val d = dir
+            onNewTextInTerminal?.invoke(d, name)
         }
         is W7Sheet.Delete -> W7ConfirmDialog(s.files, s.permanent, onCancel = { sheet = null }) {
             sheet = null
@@ -614,7 +625,7 @@ fun Win7OpenDialog(
                     if (toolsOpen) W7ToolsMenu( // [SPLIT-TOOLS] isi menu ada di W7ToolsMenu.kt
                         targets = targets(), dir = dir, browse = browse, clip = clip,
                         playedFirst = playedFirst, playedRefs = playedRefs, shown = shown,
-                        onPlay = onPlay, onOpenInCode = onOpenInCode, onEditInTerminal = onEditInTerminal, onSendToScripts = onSendToScripts,
+                        onPlay = onPlay, onOpenInCode = onOpenInCode, onEditInTerminal = onEditInTerminal, newTextEnabled = onNewTextInTerminal != null, onSendToScripts = onSendToScripts,
                         onOpenWith = onOpenWith, onShare = onShare, onCopyPath = onCopyPath,
                         onSaveToVault = onSaveToVault?.let { fn ->
                             { files: List<File> ->

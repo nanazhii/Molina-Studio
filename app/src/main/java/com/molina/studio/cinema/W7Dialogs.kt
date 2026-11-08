@@ -54,13 +54,17 @@ import com.molina.studio.ui.MolinaTheme
 
 @Composable
 internal fun W7NameDialog(
-    title: String, initial: String, selectEnd: Int, okLabel: String,
+    title: String, initial: String, selectEnd: Int, okLabel: String, hint: String? = null, // [NANO-NEW]
     onCancel: () -> Unit, onOk: (String) -> Unit
 ) {
     var tf by remember(initial) { mutableStateOf(TextFieldValue(initial, TextRange(0, selectEnd.coerceIn(0, initial.length)))) }
     val focus = remember { FocusRequester() }
     LaunchedEffect(initial) { delay(150); runCatching { focus.requestFocus() } }
     W7Panel(title, onCancel) {
+        if (hint != null) { // [NANO-NEW]
+            Text(hint, color = Win7.Ink.copy(alpha = 0.7f), fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(6.dp))
+        }
         BasicTextField(
             value = tf,
             onValueChange = { tf = it },

@@ -47,6 +47,7 @@ KEYS = """Pintasan nano di Molina Terminal (gaya code editor)
 Tips: ketuk CTRL di baris tombol, tahan untuk mengunci. Baris tombol
 SAVE UNDO REDO FIND ALL QUIT (geser ke samping: GOTO REPL CODE) muncul
 otomatis saat nano aktif.
+Saat nano bertanya simpan atau nama berkas, baris tombol berubah jadi YA TIDAK BATAL / ENTER BATAL.
 Kustom: buat ~/.nanorc (menggantikan konfigurasi Molina).
 """
 

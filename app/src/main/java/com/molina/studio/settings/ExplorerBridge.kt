@@ -137,6 +137,11 @@ internal object MolinaExplorer {
             Toast.makeText(ctx, "Nama berkas mengandung baris baru; buka lewat terminal.", Toast.LENGTH_LONG).show()
             return false
         }
+        return launchNano(ctx, path)
+    }
+
+    /** [NANO-NEW] Jalankan nano pada [path] (path Debian) di sesi aktif, lalu pindah ke tab Terminal. */
+    private fun launchNano(ctx: Context, path: String): Boolean {
         val em = TerminalSessions.currentSession?.emulator
         if (em == null) {
             Toast.makeText(ctx, "Belum ada sesi terminal aktif. Buka Terminal terlebih dahulu.", Toast.LENGTH_LONG).show()
@@ -149,6 +154,44 @@ internal object MolinaExplorer {
         TerminalActions.send("nano " + quote(path) + "\r")
         ScriptNav.openTerminal = true
         return true
+    }
+
+    /**
+     * [NANO-NEW] Berkas teks baru: buka nano pada [name] di folder [dir]. Nama divalidasi di sini. Berkas baru dibuat nano saat
+     * disimpan, jadi keluar tanpa menyimpan tidak meninggalkan berkas kosong. Berkas yang sudah ada dibuka seperti "Edit".
+     */
+    fun newInTerminal(ctx: Context, dir: File, name: String): Boolean {
+        val n = name.trim()
+        val bad = when {
+            n.isEmpty() -> "Nama berkas kosong."
+            n == "." || n == ".." -> "Nama berkas tidak valid."
+            n.any { it == '/' || it == '\\' || it.code < 32 || it.code == 127 } -> "Nama berkas tidak boleh memuat / \\ atau karakter kontrol."
+            n.toByteArray(Charsets.UTF_8).size > 200 -> "Nama berkas terlalu panjang."
+            else -> null
+        }
+        if (bad != null) {
+            Toast.makeText(ctx, bad, Toast.LENGTH_SHORT).show()
+            return false
+        }
+        if (!dir.isDirectory) {
+            Toast.makeText(ctx, "Folder tidak ditemukan.", Toast.LENGTH_SHORT).show()
+            return false
+        }
+        val f = File(dir, n)
+        if (f.isDirectory) {
+            Toast.makeText(ctx, "Sudah ada folder bernama \"" + n + "\". Pakai nama lain.", Toast.LENGTH_SHORT).show()
+            return false
+        }
+        if (f.isFile) return editInTerminal(ctx, f)
+        if (!dir.canWrite()) {
+            Toast.makeText(ctx, "Folder ini tidak bisa ditulis.", Toast.LENGTH_SHORT).show()
+            return false
+        }
+        if (!visibleInDebian(dir)) {
+            Toast.makeText(ctx, "Folder ini tidak terlihat di Debian. Aktifkan \"Akses penyimpanan penuh\" di Setelan Terminal, atau pilih folder Molina.", Toast.LENGTH_LONG).show()
+            return false
+        }
+        return launchNano(ctx, debianPath(f))
     }
 
     /** Sisipkan path ter-quote (satu atau banyak, dipisah spasi) ke input shell sesi aktif, tanpa Enter. */

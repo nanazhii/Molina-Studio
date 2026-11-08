@@ -62,6 +62,7 @@ fun SessionDrawer(open: Boolean, onClose: () -> Unit, onOpenSettings: () -> Unit
     if (!open) return
     val ctx = LocalContext.current
     var confirm by remember { mutableStateOf<Int?>(null) }
+    var newFile by remember { mutableStateOf(false) } // [NANO-NEW]
     val swallow = remember { MutableInteractionSource() }
     BackHandler(onBack = onClose)
 
@@ -131,6 +132,7 @@ fun SessionDrawer(open: Boolean, onClose: () -> Unit, onOpenSettings: () -> Unit
                 }
             }
 
+            DrawerButton("BERKAS BARU (NANO)", true, Modifier.fillMaxWidth().padding(horizontal = 8.dp)) { newFile = true } // [NANO-NEW]
             // Tombol bawah: KEYBOARD dan NEW SESSION.
             Row(
                 Modifier.fillMaxWidth().padding(8.dp),
@@ -154,6 +156,7 @@ fun SessionDrawer(open: Boolean, onClose: () -> Unit, onOpenSettings: () -> Unit
     }
 
     confirm?.let { i -> CloseSessionDialog(i) { confirm = null } }
+    if (newFile) NewNanoFileDialog(onDismiss = { newFile = false }, onOpened = { newFile = false; onClose() }) // [NANO-NEW]
 }
 
 @Composable

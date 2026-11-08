@@ -40,6 +40,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -219,22 +220,62 @@ private val NanoKeyList = listOf(
     Triple("CODE", KeyGreen, "\u001bo")    // Alt+O: simpan lalu buka di Code
 )
 
+private enum class NanoPrompt { NONE, SAVE, NAME } // [NANO-PROMPT]
+private val NanoPromptKeyWidth = 96.dp
+private val NanoSaveKeys = listOf(
+    Triple("YA", KeyGreen, "y"),          // jawab Y pada "Save modified buffer?"
+    Triple("TIDAK", KeyRed, "n"),         // jawab N: buang perubahan
+    Triple("BATAL", KeyBlue, "\u0003")    // ^C: kembali ke editor
+)
+private val NanoNameKeys = listOf(
+    Triple("ENTER", KeyGreen, "\r"),      // terima nama berkas
+    Triple("BATAL", KeyBlue, "\u0003")    // ^C: batal menyimpan
+)
+
 @Composable
 private fun NanoKeys() {
     val tick = TerminalSessions.titleTick // dibaca agar Compose menyusun ulang saat judul sesi berubah
     val s = TerminalSessions.currentSession
     if (tick < 0 || s == null || s.title?.startsWith("nano: ") != true) return
+    var prompt by remember(s) { mutableStateOf(NanoPrompt.NONE) }
+    LaunchedEffect(s) { // [NANO-PROMPT] baca tiga baris bawah layar nano: prompt simpan/nama berkas -> tombol YA/TIDAK/BATAL
+        while (true) {
+            var found = NanoPrompt.NONE
+            runCatching {
+                val em = s.emulator
+                val scr = em?.screen
+                if (em != null && scr != null) {
+                    val cols = em.mColumns
+                    val n = em.mRows
+                    for (r in maxOf(0, n - 3) until n) {
+                        val t = scr.getSelectedText(0, r, cols, r)
+                        if (t.contains("Save modified buffer", ignoreCase = true)) found = NanoPrompt.SAVE
+                        else if (t.contains("File Name to Write", ignoreCase = true)) found = NanoPrompt.NAME
+                    }
+                }
+                Unit
+            }
+            if (prompt != found) prompt = found
+            delay(300)
+        }
+    }
+    val keys = when (prompt) {
+        NanoPrompt.SAVE -> NanoSaveKeys
+        NanoPrompt.NAME -> NanoNameKeys
+        NanoPrompt.NONE -> NanoKeyList
+    }
+    val keyWidth = if (prompt == NanoPrompt.NONE) NanoKeyWidth else NanoPromptKeyWidth
     val shape = RoundedCornerShape(12.dp)
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 2.dp)
             .clip(shape)
             .background(Color.Black, shape)
-            .border(2.dp, MolinaTheme.Brand, shape)
+            .border(2.dp, if (prompt == NanoPrompt.NONE) MolinaTheme.Brand else KeyAmber, shape)
             .horizontalScroll(rememberScrollState())
             .padding(3.dp)
     ) {
-        NanoKeyList.forEach { (label, tint, seq) ->
-            Box(Modifier.width(NanoKeyWidth).padding(1.dp)) {
+        keys.forEach { (label, tint, seq) ->
+            Box(Modifier.width(keyWidth).padding(1.dp)) {
                 KeyButton(label, false, false, tint, null) { TerminalActions.send(seq) }
             }
         }
