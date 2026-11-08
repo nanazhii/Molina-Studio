@@ -58,7 +58,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.molina.terminal.view.TerminalView
 import kotlin.math.floor
 
-private fun spToPx(ctx: Context, sp: Int): Int =
+internal fun spToPx(ctx: Context, sp: Int): Int =
     TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, sp.toFloat(), ctx.resources.displayMetrics).toInt()
 
 /** Lebar satu sel monospace pada ukuran font tertentu (sama seperti TerminalRenderer). */
@@ -171,7 +171,7 @@ private val KeyFrame = Color(0xFF454A55)  // bingkai terluar panel extra keys
 private val KeyAmber = MolinaTheme.Brand  // TAB, menu, ENTER [XK-COMMENT]
 private val KeyNeutral = MolinaTheme.OnBackground // CTRL, ALT (menyala emas saat aktif)
 
-private fun createTerminalView(ctx: Context, mods: TerminalModifiers): TerminalView {
+internal fun createTerminalView(ctx: Context, mods: TerminalModifiers): TerminalView {
     val view = TerminalView(ctx, null)
     val session = TerminalSessions.ensureSession(ctx)
     TerminalSessions.client.view = view
@@ -191,13 +191,13 @@ private fun createTerminalView(ctx: Context, mods: TerminalModifiers): TerminalV
 // jadi harus dinyalakan ulang setiap pindah sesi; dihentikan saat view dilepas agar tidak bocor.
 private const val CURSOR_BLINK_MS = 600
 
-private fun startCursorBlink(v: TerminalView) {
+internal fun startCursorBlink(v: TerminalView) {
     v.setTerminalCursorBlinkerRate(CURSOR_BLINK_MS)
     v.setTerminalCursorBlinkerState(true, true)
 }
 
 @Composable
-private fun ExtraKeys(mods: TerminalModifiers, onOpenDrawer: () -> Unit) {
+internal fun ExtraKeys(mods: TerminalModifiers, onOpenDrawer: () -> Unit) {
     val ctx = LocalContext.current
     val menu = remember {
         listOf("/", "|", "~", "\\", "_", "&").map { sym -> sym to { TerminalActions.send(sym) } } +

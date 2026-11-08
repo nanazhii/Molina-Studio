@@ -280,6 +280,10 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         runStore?.put(RunPrefs.KEY_STICKY, if (editorSticky) "1" else "0")
     }
 
+    /** [CODE-TERM] Panel Terminal di bawah editor. Isinya dipasang :app lewat [terminalPanel] (null = tidak tersedia). */
+    var terminalOpen by mutableStateOf(false)
+    var terminalPanel by mutableStateOf<(@androidx.compose.runtime.Composable (androidx.compose.ui.Modifier, File) -> Unit)?>(null)
+
     /** [CODE-TM] Dialog Tema kode, tema token aktif, dan saklar highlight TextMate. */
     var themeOpen by mutableStateOf(false)
     var editorTheme by mutableStateOf(MolinaTextMate.DEFAULT_THEME)

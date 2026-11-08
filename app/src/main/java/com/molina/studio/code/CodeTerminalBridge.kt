@@ -27,7 +27,7 @@ internal object CodeTerminalBridge {
         if (em.isAlternateBufferActive) return "Terminal sedang menjalankan program layar penuh"
         em.paste(text)
         if (execute) TerminalActions.send("\r")
-        ScriptNav.openTerminal = true
+        if (CodeInbox.session?.terminalOpen != true) ScriptNav.openTerminal = true // [CODE-TERM] panel terbuka: tetap di Code
         return null
     }
 }

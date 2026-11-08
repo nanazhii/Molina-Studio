@@ -277,6 +277,7 @@ class MainActivity : ComponentActivity() {
                         it.terminalSink = { text, execute -> com.molina.studio.code.CodeTerminalBridge.deliver(text, execute) }
                         it.guestPathResolver = { f -> com.molina.studio.code.CodeTerminalBridge.guestPath(f) } // [CODE-PYRUN]
                         it.debianRoot = { com.molina.studio.terminal.RootfsManager.rootfsDir(applicationContext) } // [CODE-DEBLIB]
+                        it.terminalPanel = { m, dir -> com.molina.studio.terminal.CodeTerminalPanel(m, dir) } // [CODE-TERM]
                         val runPrefs = this@MainActivity.getSharedPreferences("molina_code_run", android.content.Context.MODE_PRIVATE) // [CODE-PYRUN2]
                         it.runStore = object : com.molina.code.ui.RunStore { // [CODE-PYRUN2]
                             override fun get(key: String): String? = runPrefs.getString(key, null)

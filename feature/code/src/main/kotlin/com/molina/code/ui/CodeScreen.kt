@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import com.molina.code.preview.PreviewKind
 import io.github.rosemoe.sora.widget.SelectionMovement
 import kotlinx.coroutines.delay
@@ -75,6 +76,12 @@ fun CodeScreen(session: CodeSession, modifier: Modifier = Modifier) {
         if (pv.shownTabId == tab.id) delay(PreviewController.DEBOUNCE_MS)
         pv.refresh(tab)
     }
+
+    // [CODE-TERM] Panel Terminal: tinggi diukur agar pegangan geser dan BackPill tidak menimpanya.
+    val termSlot = session.terminalPanel
+    val termShown = termSlot != null && session.terminalOpen
+    var termPx by remember { mutableStateOf(0) }
+    val termPad = if (termShown) with(LocalDensity.current) { termPx.toDp() } else 0.dp
 
     Box(modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxSize().background(CodeColors.EditorBg)) {
@@ -121,6 +128,11 @@ fun CodeScreen(session: CodeSession, modifier: Modifier = Modifier) {
                     onClose = { if (tab.dirty) pendingClose = tab else session.close(tab.id) }
                 )
             }
+            if (termSlot != null && session.terminalOpen) { // [CODE-TERM]
+                Box(Modifier.weight(0.8f).fillMaxWidth().onGloballyPositioned { termPx = it.size.height }) {
+                    termSlot(Modifier.fillMaxSize(), session.dir.root)
+                }
+            }
         }
         // Pegangan geser dari tepi kiri area editor (di bawah header + tab bar, di atas toolbar)
         EdgeSwipeHandle(
@@ -129,11 +141,11 @@ fun CodeScreen(session: CodeSession, modifier: Modifier = Modifier) {
                 .align(Alignment.CenterStart)
                 .fillMaxHeight()
                 .width(CodeDimens.EdgeSwipeWidth)
-                .padding(top = CodeDimens.HeaderHeight + CodeDimens.TabBarHeight, bottom = CodeDimens.ToolbarHeight)
+                .padding(top = CodeDimens.HeaderHeight + CodeDimens.TabBarHeight, bottom = CodeDimens.ToolbarHeight + termPad)
         )
         BackPill( // [CODE-BACK]
             session,
-            Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = CodeDimens.ToolbarHeight + 10.dp),
+            Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = CodeDimens.ToolbarHeight + 10.dp + termPad),
         )
         DirectoryPanel(session)
         // Halaman penuh: Tinjauan (Markdown/JSON/HTML) atau Keluaran skrip (.sh/.py), menutupi editor sampai ditutup.
