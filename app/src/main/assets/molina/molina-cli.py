@@ -51,6 +51,7 @@ SAVE RUN UNDO FIND ALL QUIT (geser ke samping: REDO GOTO REPL CODE) muncul
 otomatis saat nano aktif.
 Saat nano bertanya simpan atau nama berkas, baris tombol berubah jadi YA TIDAK BATAL / ENTER BATAL.
 Perintah: molina-run <berkas> menjalankan skrip dari berkas (tidak terpotong seperti tempel).
+molina-run periksa skrip: pembungkus python3 << EOF di .py, tempelan terpotong, CRLF/BOM -> dialog perbaikan.
 Perintah: edit <berkas> membuka nano Molina; edit +42 <berkas> langsung ke baris 42.
 Kustom: buat ~/.nanorc (menggantikan konfigurasi Molina).
 """

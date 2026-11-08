@@ -53,13 +53,15 @@ out="$(w FAKE_FLAG=1 FAKE_EXIT=2)"; rc=$?
 check "nano gagal: skrip tidak dijalankan, exit 2" '[[ "$out" != *"RUN:"* ]] && [ $rc -eq 2 ]'
 
 # Makro Alt+R di nano ASLI: simpan + buat penanda + keluar
-if command -v nano >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
+# [NANO-TEST-REALBIN] di perangkat "nano" = pembungkus (menimpa MOLINA_RUN_FLAG): uji biner asli
+NANO_REAL="${MOLINA_NANO_BIN:-/usr/bin/nano}"; [ -x "$NANO_REAL" ] || NANO_REAL="$(command -v nano || true)"
+if [ -n "$NANO_REAL" ] && command -v python3 >/dev/null 2>&1; then
   printf 'echo satu\n' > "$T/work/m.sh"
-  res="$(cd "$T/work" && HOME="$T" TERM=xterm-256color MOLINA_RUN_FLAG="$T/flag" python3 - "$RC" << 'PYEOF'
+  res="$(cd "$T/work" && HOME="$T" TERM=xterm-256color NANO_REAL="$NANO_REAL" MOLINA_RUN_FLAG="$T/flag" python3 - "$RC" << 'PYEOF'
 import os, pty, select, sys, time
 pid, fd = pty.fork()
 if pid == 0:
-    os.execvp("nano", ["nano", "--rcfile=" + sys.argv[1], "m.sh"])
+    os.execvp(os.environ["NANO_REAL"], ["nano", "--rcfile=" + sys.argv[1], "m.sh"])
 def drain(t):
     end = time.time() + t
     while time.time() < end:
