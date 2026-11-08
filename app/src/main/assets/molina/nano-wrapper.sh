@@ -26,5 +26,19 @@ if [ -t 1 ]; then
   trap 'printf "\033]0;\007"' EXIT
   trap 'exit 143' TERM HUP
 fi
+# [NANO-RUN] Alt+R di nano: simpan + buat berkas penanda + keluar. Setelah nano selesai, skrip dijalankan dari berkasnya.
+flag="${TMPDIR:-/tmp}/molina-run.$$"
+rm -f "$flag"
+MOLINA_RUN_FLAG="$flag"; export MOLINA_RUN_FLAG
 if [ -n "$rc" ]; then "$real" --rcfile="$rc" "$@"; else "$real" "$@"; fi
-exit $?
+st=$?
+if [ -e "$flag" ]; then
+  rm -f "$flag"
+  if [ "$st" -eq 0 ] && [ -n "${MOLINA_NANO_FILE:-}" ] && [ -f "$MOLINA_NANO_FILE" ]; then
+    if [ -t 1 ]; then printf '\033]0;\007'; fi
+    trap : INT
+    "${MOLINA_RUN_BIN:-/usr/local/bin/molina-run}" "$MOLINA_NANO_FILE"
+    st=$?
+  fi
+fi
+exit $st

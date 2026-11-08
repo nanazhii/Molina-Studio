@@ -204,17 +204,18 @@ private fun startCursorBlink(v: TerminalView) {
 /**
  * [NANO-KEYS] [NANO-KEYS-V2] Baris tombol sementara saat nano aktif. Pembungkus nano menamai sesi "nano: <berkas>" lewat
  * judul terminal dan mengosongkannya saat nano selesai. Tiap tombol mengirim urutan kontrol bawaan nanorc Molina.
- * Baris bisa digeser ke samping: enam tombol pertama (SAVE UNDO REDO FIND ALL QUIT) terlihat di ponsel potret,
- * sisanya (GOTO REPL CODE) ada di sebelah kanan.
+ * Baris bisa digeser ke samping: enam tombol pertama (SAVE RUN UNDO FIND ALL QUIT) terlihat di ponsel potret,
+ * sisanya (REDO GOTO REPL CODE) ada di sebelah kanan.
  */
 private val NanoKeyWidth = 60.dp
 private val NanoKeyList = listOf(
     Triple("SAVE", KeyGreen, "\u0013"),    // ^S
+    Triple("RUN", KeyGreen, "\u001br"),    // [NANO-RUN] Alt+R: simpan, keluar, jalankan skrip dari berkasnya
     Triple("UNDO", KeyBlue, "\u001a"),     // ^Z
-    Triple("REDO", KeyBlue, "\u0019"),     // ^Y
     Triple("FIND", KeyAmber, "\u0006"),    // ^F
     Triple("ALL", KeyAmber, "\u0001"),     // ^A pilih semua (makro nanorc)
     Triple("QUIT", KeyRed, "\u0011"),      // ^Q
+    Triple("REDO", KeyBlue, "\u0019"),     // ^Y
     Triple("GOTO", KeyAmber, "\u0007"),    // ^G ke baris
     Triple("REPL", KeyAmber, "\u0012"),    // ^R ganti
     Triple("CODE", KeyGreen, "\u001bo")    // Alt+O: simpan lalu buka di Code

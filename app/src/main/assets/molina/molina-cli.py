@@ -40,14 +40,16 @@ KEYS = """Pintasan nano di Molina Terminal (gaya code editor)
   Ctrl+R   ganti                 Ctrl+G   ke baris
   Ctrl+A   pilih semua (ketuk lagi: batal)
   Ctrl+/   komentari baris (atau Alt+3)
+  Alt+R    simpan, keluar, lalu jalankan skrip ini (py sh js ...)
   Alt+O    simpan lalu buka di Molina Code
   Ctrl+O   simpan sebagai        Ctrl+K   potong baris
   Alt+A    mulai/akhiri seleksi  Alt+U    undo bawaan nano
 
 Tips: ketuk CTRL di baris tombol, tahan untuk mengunci. Baris tombol
-SAVE UNDO REDO FIND ALL QUIT (geser ke samping: GOTO REPL CODE) muncul
+SAVE RUN UNDO FIND ALL QUIT (geser ke samping: REDO GOTO REPL CODE) muncul
 otomatis saat nano aktif.
 Saat nano bertanya simpan atau nama berkas, baris tombol berubah jadi YA TIDAK BATAL / ENTER BATAL.
+Perintah: molina-run <berkas> menjalankan skrip dari berkas (tidak terpotong seperti tempel).
 Perintah: edit <berkas> membuka nano Molina; edit +42 <berkas> langsung ke baris 42.
 Kustom: buat ~/.nanorc (menggantikan konfigurasi Molina).
 """
