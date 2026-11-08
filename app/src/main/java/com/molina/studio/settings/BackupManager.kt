@@ -119,6 +119,7 @@ internal object BackupManager {
             .put("margin_adjustment", s.marginAdjustment)
             .put("logcat_reporter", s.logcatReporter)
             .put("compact_monitor", s.compactMonitor) // [MC-BK-OUT]
+            .put("paste_shape", s.pasteShape) // [PS-BK-OUT]
     }
 
     private fun applyTerminal(ctx: Context, o: JSONObject): Int {
@@ -137,6 +138,7 @@ internal object BackupManager {
         if (o.has("margin_adjustment")) { TerminalPrefs.setMarginAdjustment(o.getBoolean("margin_adjustment")); n++ }
         if (o.has("logcat_reporter")) { TerminalPrefs.setLogcatReporter(o.getBoolean("logcat_reporter")); n++ }
         if (o.has("compact_monitor")) { TerminalPrefs.setCompactMonitor(o.getBoolean("compact_monitor")); n++ } // [MC-BK-IN]
+        if (o.has("paste_shape")) { TerminalPrefs.setPasteShape(o.getBoolean("paste_shape")); n++ } // [PS-BK-IN]
         return n
     }
 

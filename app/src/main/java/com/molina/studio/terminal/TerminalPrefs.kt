@@ -83,7 +83,9 @@ data class TerminalSettings(
     val fullStorageAccess: Boolean = false,
     val cliClipboard: Boolean = false,
     val redactTranscript: Boolean = false,
-    val compactMonitor: Boolean = false // [MC-FIELD]
+    val compactMonitor: Boolean = false, // [MC-FIELD]
+    val pasteShape: Boolean = true, // [PS-FIELD]
+    val nanoKeysOpen: Boolean = false // [NK-FIELD]
 )
 
 /**
@@ -112,6 +114,8 @@ private object PrefKeys {
     val CLI_CLIPBOARD = booleanPreferencesKey("cli_clipboard")
     val REDACT_TRANSCRIPT = booleanPreferencesKey("redact_transcript")
     val COMPACT_MONITOR = booleanPreferencesKey("compact_monitor") // [MC-KEY]
+    val PASTE_SHAPE = booleanPreferencesKey("paste_shape") // [PS-KEY]
+    val NANO_KEYS_OPEN = booleanPreferencesKey("nano_keys_open") // [NK-KEY]
 }
 
 private fun Preferences.toSettings(): TerminalSettings {
@@ -134,7 +138,9 @@ private fun Preferences.toSettings(): TerminalSettings {
         fullStorageAccess = this[PrefKeys.FULL_STORAGE] ?: d.fullStorageAccess,
         cliClipboard = this[PrefKeys.CLI_CLIPBOARD] ?: d.cliClipboard,
         redactTranscript = this[PrefKeys.REDACT_TRANSCRIPT] ?: d.redactTranscript,
-        compactMonitor = this[PrefKeys.COMPACT_MONITOR] ?: d.compactMonitor // [MC-READ]
+        compactMonitor = this[PrefKeys.COMPACT_MONITOR] ?: d.compactMonitor, // [MC-READ]
+        pasteShape = this[PrefKeys.PASTE_SHAPE] ?: d.pasteShape, // [PS-READ]
+        nanoKeysOpen = this[PrefKeys.NANO_KEYS_OPEN] ?: d.nanoKeysOpen // [NK-READ]
     )
 }
 
@@ -155,6 +161,8 @@ private fun MutablePreferences.write(s: TerminalSettings) {
     this[PrefKeys.CLI_CLIPBOARD] = s.cliClipboard
     this[PrefKeys.REDACT_TRANSCRIPT] = s.redactTranscript
     this[PrefKeys.COMPACT_MONITOR] = s.compactMonitor // [MC-WRITE]
+    this[PrefKeys.PASTE_SHAPE] = s.pasteShape // [PS-WRITE]
+    this[PrefKeys.NANO_KEYS_OPEN] = s.nanoKeysOpen // [NK-WRITE]
 }
 
 /**
@@ -201,6 +209,8 @@ object TerminalPrefs {
     val cliClipboard: Boolean get() = ui.cliClipboard
     val redactTranscript: Boolean get() = ui.redactTranscript
     val compactMonitor: Boolean get() = ui.compactMonitor // [MC-GET]
+    val pasteShape: Boolean get() = ui.pasteShape // [PS-GET]
+    val nanoKeysOpen: Boolean get() = ui.nanoKeysOpen // [NK-GET]
 
     /**
      * Aman dipanggil berulang; hanya memuat sekali. Pemuatan awal sengaja sinkron
@@ -270,6 +280,8 @@ object TerminalPrefs {
     fun setCliClipboard(v: Boolean) = update { copy(cliClipboard = v) }
     fun setRedactTranscript(v: Boolean) = update { copy(redactTranscript = v) }
     fun setCompactMonitor(v: Boolean) = update { copy(compactMonitor = v) } // [MC-SET]
+    fun setPasteShape(v: Boolean) = update { copy(pasteShape = v) } // [PS-SET]
+    fun setNanoKeysOpen(v: Boolean) = update { copy(nanoKeysOpen = v) } // [NK-SET]
 
     /** Keyboard layar boleh tampil? (Soft Keyboard Enabled + Only If No Hardware). */
     fun softKeyboardAllowed(ctx: Context): Boolean {

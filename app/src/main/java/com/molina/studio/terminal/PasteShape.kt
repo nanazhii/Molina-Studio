@@ -3,7 +3,15 @@ package com.molina.studio.terminal
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ContextWrapper
+import android.graphics.drawable.GradientDrawable
+import android.widget.Toast
+import android.graphics.Typeface
+import android.widget.LinearLayout
+import android.widget.TextView
+import com.molina.studio.ui.MolinaTheme
 
 /**
  * [PASTE-SHAPE] Deteksi bentuk teks yang ditempel ke Terminal: apakah kode Python telanjang (perlu dibungkus
@@ -67,12 +75,12 @@ internal object PasteShape {
     }
 
     /** Bungkus kode Python; pembatas dipilih yang tidak muncul sebagai baris sendiri. Tanpa newline akhir (Enter oleh pengguna). */
-    fun wrap(text: String): String {
+    fun wrap(text: String, base: String = "PYEOF"): String { // [PS-UI2]
         val body = text.replace("\r\n", "\n").trimEnd('\n')
         val used = body.split('\n').toSet()
-        var d = "PYEOF"
+        var d = base
         var i = 1
-        while (d in used) d = "PYEOF" + i++
+        while (d in used) d = base + i++
         return "python3 << '" + d + "'\n" + body + "\n" + d
     }
 
@@ -87,31 +95,120 @@ internal object PasteShape {
         return null
     }
 
-    /** Tempel [text] lewat [doPaste]; bila bentuknya perlu dibenahi, tawarkan dulu. Tanpa Activity: tempel apa adanya. */
+    private class Option(val label: String, val text: String)
+
+    /** [PS-UI2] Ganti pembatas pada pembuka heredoc yang belum tertutup, lalu tutup dengan pembatas baru. Null bila bentrok. */
+    private fun renameOpener(text: String, from: String, to: String): String? {
+        val lines = text.replace("\r\n", "\n").split('\n').toMutableList()
+        if (to in lines) return null // "to" sudah muncul sebagai baris isi: akan menutup heredoc terlalu dini
+        for (i in lines.indices.reversed()) {
+            val m = OPENER.find(lines[i]) ?: continue
+            val g = m.groups[2] ?: m.groups[3] ?: m.groups[4] ?: continue
+            if (g.value != from) continue
+            lines[i] = lines[i].replaceRange(g.range, to)
+            return lines.joinToString("\n").trimEnd('\n') + "\n" + to
+        }
+        return null
+    }
+
+    /** Pratinjau teks yang akan ditempel: 3 baris pertama + baris terakhir (penutup heredoc), baris panjang dipotong. */
+    private fun preview(text: String): String {
+        val lines = text.split('\n').map { if (it.length > 56) it.take(55) + "\u2026" else it }
+        if (lines.size <= 4) return lines.joinToString("\n")
+        return lines.take(3).joinToString("\n") + "\n\u2026 (+" + (lines.size - 4) + " baris lagi)\n" + lines.last()
+    }
+
+    /**
+     * Tempel [text] lewat [doPaste]; bila bentuknya perlu dibenahi, tawarkan dulu. Dialog memuat pilihan varian
+     * (Python telanjang: Bungkus PYEOF / Bungkus EOF; heredoc terbuka: Tambah pembatas / Ganti ke pembatas lain),
+     * pratinjau, dan tombol Salin. Mati/tanpa Activity: tempel apa adanya.
+     */
     fun offer(ctx: Context, text: String, doPaste: (String) -> Unit) {
+        if (!TerminalPrefs.pasteShape) { doPaste(text); return } // sakelar Setelan Terminal I/O
         val r = classify(text)
         val activity = ctx.findActivity()?.takeIf { !it.isFinishing }
         if (activity == null || r.kind == Kind.SHELL || r.kind == Kind.HEREDOC_OK) { doPaste(text); return }
         val title: String
         val msg: String
-        val fixLabel: String
-        val fixed: String
+        val opts: List<Option>
         if (r.kind == Kind.PYTHON_BARE) {
             title = "Kode Python terdeteksi"
-            msg = "Teks ini tampak seperti skrip Python tanpa pembungkus. Jika ditempel apa adanya, shell akan menjalankannya baris demi baris dan gagal.\n\nBungkus dengan python3 << 'PYEOF' ... PYEOF?"
-            fixLabel = "Bungkus"
-            fixed = wrap(text)
+            msg = "Tanpa pembungkus, shell menjalankan teks ini baris demi baris dan gagal. Pilih pembungkus heredoc:"
+            opts = listOf(Option("Bungkus PYEOF", wrap(text, "PYEOF")), Option("Bungkus EOF", wrap(text, "EOF")))
         } else {
             val d = r.delimiter ?: "EOF"
+            val alt = if (d == "EOF") "PYEOF" else "EOF"
             title = "Heredoc belum ditutup"
-            msg = "Ada pembuka heredoc (" + d + ") tetapi baris penutupnya tidak ada. Shell akan menunggu di prompt lanjutan (>).\n\nTambahkan baris " + d + " di akhir?"
-            fixLabel = "Tambah " + d
-            fixed = close(text, d)
+            msg = "Baris penutup " + d + " tidak ada, shell akan menunggu di prompt lanjutan (>). Pilih perbaikan:"
+            opts = listOfNotNull(
+                Option("Tambah " + d, close(text, d)),
+                renameOpener(text, d, alt)?.let { Option("Ganti ke " + alt, it) }
+            )
         }
+        val density = activity.resources.displayMetrics.density
+        fun px(dp: Int) = (dp * density).toInt()
+        val ink = 0xFF0A0A0F.toInt()
+        fun bg(selected: Boolean) = GradientDrawable().apply {
+            cornerRadius = px(8).toFloat()
+            setColor(if (selected) MolinaTheme.BRAND_ARGB else ink)
+            setStroke(px(1), MolinaTheme.BRAND_ARGB)
+        }
+        fun chip(label: String): TextView = TextView(activity).apply {
+            this.text = label
+            textSize = 12f
+            typeface = Typeface.MONOSPACE
+            setPadding(px(10), px(7), px(10), px(7))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                .apply { rightMargin = px(8) }
+        }
+        var sel = 0
+        val box = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(px(20), px(8), px(20), 0)
+        }
+        box.addView(TextView(activity).apply { text = msg; textSize = 14f })
+        val chips = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                .apply { topMargin = px(10) }
+        }
+        val pv = TextView(activity).apply {
+            typeface = Typeface.MONOSPACE
+            textSize = 12f
+            setTextColor(MolinaTheme.BRAND_ARGB)
+            setBackgroundColor(ink)
+            setPadding(px(10), px(8), px(10), px(8))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                .apply { topMargin = px(10) }
+        }
+        val chipViews = opts.map { chip(it.label) }
+        fun refresh() {
+            chipViews.forEachIndexed { i, v ->
+                v.background = bg(i == sel)
+                v.setTextColor(if (i == sel) ink else MolinaTheme.BRAND_ARGB)
+            }
+            pv.text = preview(opts[sel].text)
+        }
+        chipViews.forEachIndexed { i, v -> v.setOnClickListener { sel = i; refresh() }; chips.addView(v) }
+        box.addView(chips)
+        box.addView(pv)
+        val copy = chip("Salin versi terbungkus").apply {
+            background = bg(false)
+            setTextColor(MolinaTheme.BRAND_ARGB)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                .apply { topMargin = px(10) }
+            setOnClickListener {
+                val cm = activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                cm.setPrimaryClip(ClipData.newPlainText("molina-paste", opts[sel].text))
+                Toast.makeText(activity, "Versi terbungkus disalin", Toast.LENGTH_SHORT).show()
+            }
+        }
+        box.addView(copy)
+        refresh()
         AlertDialog.Builder(activity)
             .setTitle(title)
-            .setMessage(msg)
-            .setPositiveButton(fixLabel) { _, _ -> doPaste(fixed) }
+            .setView(box)
+            .setPositiveButton("Tempel") { _, _ -> doPaste(opts[sel].text) }
             .setNegativeButton("Apa adanya") { _, _ -> doPaste(text) }
             .setNeutralButton("Batal", null)
             .show()

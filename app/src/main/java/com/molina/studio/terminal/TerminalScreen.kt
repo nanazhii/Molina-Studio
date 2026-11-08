@@ -56,6 +56,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.foundation.clickable
 import com.molina.studio.ui.MolinaTheme
 import com.molina.studio.ui.onHorizontalSwipe
 import androidx.compose.ui.viewinterop.AndroidView
@@ -268,20 +271,55 @@ private fun NanoKeys() {
         NanoPrompt.NONE -> NanoKeyList
     }
     val keyWidth = if (prompt == NanoPrompt.NONE) NanoKeyWidth else NanoPromptKeyWidth
+    val forced = prompt != NanoPrompt.NONE // [NK-DROP] prompt simpan/nama berkas: tombol wajib terlihat
+    val open = forced || TerminalPrefs.nanoKeysOpen
+    val title = when (prompt) {
+        NanoPrompt.SAVE -> "simpan perubahan?"
+        NanoPrompt.NAME -> "nama berkas"
+        NanoPrompt.NONE -> s.title?.removePrefix("nano: ").orEmpty()
+    }
     val shape = RoundedCornerShape(12.dp)
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 2.dp)
-            .clip(shape)
-            .background(Color.Black, shape)
-            .border(2.dp, if (prompt == NanoPrompt.NONE) MolinaTheme.Brand else KeyAmber, shape)
-            .horizontalScroll(rememberScrollState())
-            .padding(3.dp)
-    ) {
-        keys.forEach { (label, tint, seq) ->
-            Box(Modifier.width(keyWidth).padding(1.dp)) {
-                KeyButton(label, false, false, tint, null) { TerminalActions.send(seq) }
+    Column(Modifier.fillMaxWidth()) { // drop-up: baris tombol tumbuh ke atas dari gagang di bawahnya
+        if (open) Row(
+            Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 2.dp)
+                .clip(shape)
+                .background(Color.Black, shape)
+                .border(2.dp, if (prompt == NanoPrompt.NONE) MolinaTheme.Brand else KeyAmber, shape)
+                .horizontalScroll(rememberScrollState())
+                .padding(3.dp)
+        ) {
+            keys.forEach { (label, tint, seq) ->
+                Box(Modifier.width(keyWidth).padding(1.dp)) {
+                    KeyButton(label, false, false, tint, null) { TerminalActions.send(seq) }
+                }
             }
         }
+        NanoHandle(title, open, forced) { TerminalPrefs.setNanoKeysOpen(!TerminalPrefs.nanoKeysOpen) }
+    }
+}
+
+/** [NK-DROP] Gagang tipis di atas extra keys: ketuk untuk membuka (▴) atau melipat (▾) tombol nano. Pilihan diingat. */
+@Composable
+private fun NanoHandle(title: String, open: Boolean, forced: Boolean, onToggle: () -> Unit) {
+    val shape = RoundedCornerShape(8.dp)
+    val tint = if (forced) KeyAmber else MolinaTheme.Brand
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 1.dp)
+            .clip(shape)
+            .background(Color.Black, shape)
+            .border(1.dp, tint, shape)
+            .clickable(enabled = !forced, onClick = onToggle)
+            .heightIn(min = 24.dp)
+            .padding(horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("NANO", color = tint, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+        Spacer(Modifier.width(8.dp))
+        Text(
+            title, color = KeyNeutral.copy(alpha = 0.7f), fontSize = 11.sp, fontFamily = FontFamily.Monospace,
+            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
+        )
+        Text(if (open) "\u25BE" else "\u25B4", color = tint, fontSize = 14.sp)
     }
 }
 

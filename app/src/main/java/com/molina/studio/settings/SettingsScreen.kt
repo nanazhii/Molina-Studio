@@ -125,6 +125,7 @@ private val INDEX = listOf(
     Hit("Logcat Reporter", "Salurkan logcat aplikasi ke halaman Log", Page.Debugging),
     Hit("Terminal I/O", "Keyboard dan penyimpanan", Page.TerminalIO),
     Hit("Akses penyimpanan penuh", "Seluruh /sdcard terlihat di dalam Debian", Page.TerminalIO),
+    Hit("Deteksi bentuk paste", "Tawarkan pembungkus python3 untuk kode Python yang ditempel", Page.TerminalIO), // [PS-HIT]
     Hit("Terminal View", "Penyesuaian margin terminal (Terminal Margin Adjustment)", Page.TerminalView),
     Hit("Monitor ringkas", "Sembunyikan grafik monitor CPU/RAM di header terminal untuk layar sempit", Page.TerminalView), // [MC-HIT]
     Hit("Tampilan Molina", "Ukuran font dan tema warna prompt", Page.Tampilan),
@@ -408,7 +409,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                     Page.Terminal -> {
                         PackageStatusCard("Debugging", "Log level, key logging, dan notifikasi crash", null, onClick = { page = Page.Debugging }, icon = { W7IconDebug() }) // [LOKAL-ID]
                         Spacer(Modifier.height(8.dp))
-                        PackageStatusCard("Terminal I/O", "Keyboard layar dan akses penyimpanan", null, onClick = { page = Page.TerminalIO }, icon = { W7IconIo() })
+                        PackageStatusCard("Terminal I/O", "Keyboard layar, penyimpanan, dan tempel", null, onClick = { page = Page.TerminalIO }, icon = { W7IconIo() })
                         Spacer(Modifier.height(8.dp))
                         PackageStatusCard("Terminal View", "Penyesuaian margin dan monitor ringkas", null, // [MC-CARD]
                              onClick = { page = Page.TerminalView }, icon = { W7IconTerminal() })
@@ -659,6 +660,15 @@ private fun TerminalIoPage() {
             else "Hanya /sdcard/Molina yang terlihat di dalam Debian. (Default) Berlaku di sesi baru.",
             TerminalPrefs.fullStorageAccess
         ) { TerminalPrefs.setFullStorageAccess(it) }
+    }
+    PackageSectionHeader("Tempel (paste)") // [PS-UI]
+    PackageGroupCard {
+        PackageSwitchRow(
+            "Deteksi bentuk paste",
+            if (TerminalPrefs.pasteShape) "Kode Python telanjang atau heredoc tanpa penutup ditawari pembungkus python3 sebelum ditempel. (Default)"
+            else "Teks ditempel apa adanya tanpa pemeriksaan bentuk.",
+            TerminalPrefs.pasteShape
+        ) { TerminalPrefs.setPasteShape(it) }
     }
 }
 
