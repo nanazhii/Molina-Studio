@@ -1031,10 +1031,49 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         if (lockedUI)
             return false
         // [SPECTRUM] UI audio: potret = kontrol selalu tampil; landscape = auto-hide seperti video
-        return (useAudioUI && !isLandscapeNow()) || btnSelected != -1 || userIsOperatingSeekbar
+        // [LAND-2COL] landscape dua kolom juga selalu tampil (tidak menimpa sampul)
+        return (useAudioUI && (!isLandscapeNow() || twoColumnAudio())) || btnSelected != -1 || userIsOperatingSeekbar
     }
 
     private fun isLandscapeNow() = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    /**
+     * [LAND-2COL] Landscape + UI audio di layar lebar: sampul/banner/spektrum di kolom kiri, judul + kontrol di kolom kanan.
+     * Tidak ada tumpang tindih, jadi kontrol tetap tampil (tanpa auto-hide) seperti mode potret.
+     */
+    private fun twoColumnAudio(): Boolean =
+        useAudioUI && isLandscapeNow() && resources.configuration.screenWidthDp >= TWO_COL_MIN_DP
+
+    private fun artColumnWidth(): Int = (resources.displayMetrics.widthPixels * 0.44f).toInt()
+
+    /** [LAND-2COL] Margin bilah kontrol: potret/video = seperti semula; dua kolom = kontrol dimulai di kolom kanan. */
+    private fun applyControlMargins(isLandscape: Boolean = isLandscapeNow()) {
+        val two = twoColumnAudio()
+        val bottom = if (!controlsAtBottom) Utils.convertDp(this, 60f) else 0
+        val side = if (!controlsAtBottom) Utils.convertDp(this, if (isLandscape) 60f else 24f) else 0
+        val gap = if (controlsAtBottom) 0 else Utils.convertDp(this, 8f)
+        val edge = if (controlsAtBottom) 0 else Utils.convertDp(this, 24f)
+        binding.controls.updateLayoutParams<MarginLayoutParams> {
+            bottomMargin = bottom
+            leftMargin = if (two) artColumnWidth() + gap else side
+            rightMargin = if (two) edge else side
+        }
+    }
+
+    /** [LAND-2COL] Padding (kiri, atas, kanan, bawah) area sampul/banner. Dua kolom: dibatasi kolom kiri, tanpa cadangan kontrol. */
+    private fun artPadding(reserved: Int): IntArray {
+        val d = resources.displayMetrics.density
+        val side = (32 * d).toInt()
+        val top = (24 * d).toInt()
+        val spectrumSpace = if (spectrumReserve) (SPECTRUM_HEIGHT_DP * d).toInt() else 0 // [SPECTRUM]
+        if (twoColumnAudio()) {
+            val right = resources.displayMetrics.widthPixels - artColumnWidth() + (16 * d).toInt()
+            val bottom = spectrumSpace + ((if (spectrumReserve) 28 else 12) * d).toInt()
+            return intArrayOf(side, top, right, bottom)
+        }
+        val bottom = reserved + spectrumSpace + (if (spectrumReserve) topBarReserve() else 0) + (12 * d).toInt()
+        return intArrayOf(side, top, side, bottom)
+    }
 
     private var layoutControlsShown: Boolean? = null
 
@@ -1046,7 +1085,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
      */
     private fun relayoutArt() {
         if (!useAudioUI) return
-        val key = ((controlsReserved() + topBarReserve()).toLong() shl 32) or binding.nowPlayingArt.height.toLong()
+        val key = (((controlsReserved() + topBarReserve()).toLong() shl 32) or binding.nowPlayingArt.height.toLong()) xor
+            (if (twoColumnAudio()) 1L shl 62 else 0L) // [LAND-2COL]
         if (key == artLayoutKey) return
         artLayoutKey = key
         showNowPlayingArt(lastCover)
@@ -1359,20 +1399,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             gestures.setMetrics(dm.widthPixels.toFloat(), dm.heightPixels.toFloat())
         }
 
-        // Adjust control margins
-        binding.controls.updateLayoutParams<MarginLayoutParams> {
-            bottomMargin = if (!controlsAtBottom) {
-                Utils.convertDp(this@MPVActivity, 60f)
-            } else {
-                0
-            }
-            leftMargin = if (!controlsAtBottom) {
-                Utils.convertDp(this@MPVActivity, if (isLandscape) 60f else 24f)
-            } else {
-                0
-            }
-            rightMargin = leftMargin
-        }
+        // Adjust control margins ([LAND-2COL] mode dua kolom ditangani di applyControlMargins)
+        applyControlMargins(isLandscape)
 
         if (useAudioUI) { // [SPECTRUM] rotasi: tampilkan kontrol sebentar (landscape lalu auto-hide) dan hitung ulang tata letak
             showControls()
@@ -2413,6 +2441,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             return
         useAudioUI = shouldUseAudioUI
         MpvLog.v(TAG, "Audio UI: $useAudioUI")
+        applyControlMargins() // [LAND-2COL] mode dua kolom bergantung pada useAudioUI
 
         val seekbarGroup = binding.controlsSeekbarGroup
         val buttonGroup = binding.controlsButtonGroup
@@ -2538,9 +2567,15 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     private fun layoutSpectrum(reserved: Int) {
         val lp = binding.spectrumView.layoutParams as? android.widget.FrameLayout.LayoutParams ?: return
-        val total = reserved + topBarReserve()
-        if (lp.bottomMargin == total) return
+        val d = resources.displayMetrics.density
+        val two = twoColumnAudio() // [LAND-2COL] spektrum hanya selebar kolom kiri
+        val total = if (two) (16 * d).toInt() else reserved + topBarReserve()
+        val w = if (two) artColumnWidth() else ViewGroup.LayoutParams.MATCH_PARENT
+        val g = if (two) Gravity.BOTTOM or Gravity.START else Gravity.BOTTOM
+        if (lp.bottomMargin == total && lp.width == w && lp.gravity == g) return
         lp.bottomMargin = total
+        lp.width = w
+        lp.gravity = g
         binding.spectrumView.layoutParams = lp
     }
 
@@ -2623,16 +2658,15 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     private fun layoutMarquee() { // [STATION-LOGO] padding sama dengan kartu sampul agar tidak tertimpa spektrum/kontrol
         val d = resources.displayMetrics.density
-        val side = (32 * d).toInt()
-        val spectrumSpace = if (spectrumReserve) (SPECTRUM_HEIGHT_DP * d).toInt() else 0
-        binding.stationMarquee.setPadding(side, (24 * d).toInt(), side,
-            controlsReserved() + spectrumSpace + (if (spectrumReserve) topBarReserve() else 0) + (12 * d).toInt())
+        val pad = artPadding(controlsReserved()) // [LAND-2COL]
+        binding.stationMarquee.setPadding(pad[0], pad[1], pad[2], pad[3])
         // [BANNER-FIT] banner 16:9, tinggi menyesuaikan ruang tersisa agar tidak tertutup kontrol/spektrum (landscape)
         val artH = binding.nowPlayingArt.height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
-        val artW = binding.nowPlayingArt.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
+        val artW = if (twoColumnAudio()) resources.displayMetrics.widthPixels else // [LAND-2COL] lebar terbaru (view bisa belum ter-layout ulang)
+            binding.nowPlayingArt.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
         val availDp = (artH - binding.stationMarquee.paddingTop - binding.stationMarquee.paddingBottom) / d
         val frameH = (availDp - 102f).coerceIn(48f, 126f) // 102dp = label + jarak + nama stasiun
-        val frameW = (frameH * 16f / 9f).coerceAtMost((artW - 2 * side) / d)
+        val frameW = (frameH * 16f / 9f).coerceAtMost((artW - pad[0] - pad[2]) / d)
         val lp = binding.stationFrame.layoutParams
         val nw = (frameW * d).toInt()
         val nh = (frameH * d).toInt()
@@ -2769,11 +2803,9 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             return
         }
         // Sisakan ruang untuk bilah kontrol agar kartu sampul tidak tertimpa.
-        val d = resources.displayMetrics.density
         val reserved = controlsReserved() // [SPECTRUM] ikut status tampil/sembunyi kontrol
-        val side = (32 * d).toInt()
-        val spectrumSpace = if (spectrumReserve) (SPECTRUM_HEIGHT_DP * d).toInt() else 0 // [SPECTRUM]
-        binding.nowPlayingCover.setPadding(side, (24 * d).toInt(), side, reserved + spectrumSpace + (if (spectrumReserve) topBarReserve() else 0) + (12 * d).toInt())
+        val pad = artPadding(reserved) // [LAND-2COL]
+        binding.nowPlayingCover.setPadding(pad[0], pad[1], pad[2], pad[3])
         layoutSpectrum(reserved)
         binding.nowPlayingCover.setImageBitmap(cover.art)
         binding.nowPlayingBackdrop.setImageBitmap(cover.backdrop)
@@ -3387,6 +3419,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         // smallest aspect ratio that is considered non-square
         private const val ASPECT_RATIO_MIN = 1.2f // covers 5:4 and up
         private const val SPECTRUM_HEIGHT_DP = 96 // [SPECTRUM] samakan dengan tinggi spectrumView di player.xml
+        private const val TWO_COL_MIN_DP = 560 // [LAND-2COL] lebar layar (dp) minimum untuk mode dua kolom
         // fraction to which audio volume is ducked on loss of audio focus
         private const val AUDIO_FOCUS_DUCKING = 0.5f
         // action of result intent
