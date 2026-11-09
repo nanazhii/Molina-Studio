@@ -2,7 +2,6 @@ package com.molina.studio.terminal
 
 import com.molina.studio.ui.MolinaTheme
 import android.content.Context
-import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -23,7 +22,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -36,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -49,11 +53,11 @@ private val Brand = MolinaTheme.Brand
 private val CloseRed = MolinaTheme.Bad
 private val DrawerWidth = 240.dp
 private val DrawerButtonWidth = 100.dp
-private val DrawerButtonTextSp = 8.sp
+private val DrawerIconSize = 22.dp // [DRAWER-ICONS] tombol drawer berupa ikon saja
 
 /**
  * Drawer sesi ala Termux: daftar sesi [1] [2] ... (maks. TerminalSessions.MAX_SESSIONS),
- * tombol KEYBOARD dan NEW SESSION, tombol pengaturan, serta tombol ✕ per sesi
+ * tombol ikon Berkas baru (nano) dan Sesi baru, tombol pengaturan, serta tombol ✕ per sesi
  * untuk menutup (kill) tab. Dibuka lewat tombol ≡ (tap atau swipe); ditutup dengan
  * tap latar gelap, swipe ke kiri, atau tombol Back.
  */
@@ -132,17 +136,13 @@ fun SessionDrawer(open: Boolean, onClose: () -> Unit, onOpenSettings: () -> Unit
                 }
             }
 
-            DrawerButton("BERKAS BARU (NANO)", true, Modifier.fillMaxWidth().padding(horizontal = 8.dp)) { newFile = true } // [NANO-NEW]
-            // Tombol bawah: KEYBOARD dan NEW SESSION.
+            // [DRAWER-ICONS] Dua tombol ikon: Berkas baru (nano) dan Sesi baru. Tombol KEYBOARD dihapus.
             Row(
                 Modifier.fillMaxWidth().padding(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
             ) {
-                DrawerButton("KEYBOARD", true, Modifier.width(DrawerButtonWidth)) {
-                    onClose()
-                    toggleKeyboard(ctx)
-                }
-                DrawerButton("NEW SESSION", TerminalSessions.canAdd(), Modifier.width(DrawerButtonWidth)) {
+                DrawerButton(Icons.Filled.Edit, "Berkas baru (nano)", true, Modifier.width(DrawerButtonWidth)) { newFile = true } // [NANO-NEW]
+                DrawerButton(Icons.Filled.Add, "Sesi baru", TerminalSessions.canAdd(), Modifier.width(DrawerButtonWidth)) {
                     when {
                         RootfsManager.state.value !is RootfsState.Ready ->
                             toast(ctx, "Debian belum terpasang")
@@ -160,7 +160,7 @@ fun SessionDrawer(open: Boolean, onClose: () -> Unit, onOpenSettings: () -> Unit
 }
 
 @Composable
-private fun DrawerButton(label: String, enabledLook: Boolean, modifier: Modifier, onClick: () -> Unit) {
+private fun DrawerButton(icon: ImageVector, label: String, enabledLook: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val shape = RoundedCornerShape(8.dp)
     val a = if (enabledLook) 1f else 0.4f
     Box(
@@ -172,24 +172,12 @@ private fun DrawerButton(label: String, enabledLook: Boolean, modifier: Modifier
             .padding(vertical = 12.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(label, color = Brand.copy(alpha = a), fontSize = DrawerButtonTextSp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Icon(icon, contentDescription = label, tint = Brand.copy(alpha = a), modifier = Modifier.size(DrawerIconSize))
     }
 }
 
 private fun toast(ctx: Context, msg: String) {
     Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
-}
-
-/** Tampilkan atau sembunyikan keyboard layar untuk terminal aktif. */
-private fun toggleKeyboard(ctx: Context) {
-    val v = TerminalSessions.client.view ?: return
-    if (!TerminalPrefs.softKeyboardAllowed(ctx)) {
-        toast(ctx, "Soft keyboard dinonaktifkan di Settings")
-        return
-    }
-    v.requestFocus()
-    val imm = ctx.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-    imm.toggleSoftInput(InputMethodManager.SHOW_IMPLICIT, 0)
 }
 
 /** Dialog konfirmasi tutup sesi; dipakai drawer dan bilah pil. Sesi terakhir = Molina keluar. */
