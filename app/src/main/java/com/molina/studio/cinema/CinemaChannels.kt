@@ -234,7 +234,9 @@ internal fun CinemaChannelsDialog(
 
     fun pick(e: ChEntry) { // [DRM-FLAG]
         if (e.ch.drm) { status = "${e.ch.name} memakai DRM (Widevine) dan tidak bisa diputar di Molina."; return }
-        onPlay(visible.map { it.ch }, e.ch)
+        // [PLAYLIST-FULL] playlist pemutar = seluruh daftar M3U (urutan asli), bukan hasil filter pencarian;
+        // saluran terpilih tetap jadi item pertama (lihat IptvPlayback.memoryPlaylist), prev/next menelusuri seluruh daftar
+        onPlay(channels, e.ch)
     }
 
     fun pickFromQuery() {
