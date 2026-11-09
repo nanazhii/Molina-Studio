@@ -66,7 +66,6 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
     implementation(project(":terminal-view"))
     implementation(project(":feature:mpv"))
-    implementation(project(":feature:code"))
     implementation(project(":core:exec")) // [CORE-EXEC]
     implementation(project(":feature:preview")) // [NANO-PREVIEW]
     implementation(project(":feature:workspace")) // [WORKSPACE-W1]

@@ -58,7 +58,6 @@ import androidx.compose.ui.graphics.Color
 private enum class Tab(@StringRes val labelRes: Int, val glyph: String, val color: Color) {
     Mpv(R.string.tab_mpv, "\u25B6", Color(0xFFB388FF)),          // [NAV-SLIM] ungu pekat: bioskop
     Files(R.string.tab_files, "\u25A4", Color(0xFF5C9DFF)),       // biru pekat: penjelajah berkas (Terminal kini di Settings)
-    Code(R.string.tab_editor, "< >", Color(0xFF2ECC71)),             // aksen: editor
     Settings(R.string.tab_settings, "\u2699", Color(0xFFB8C2CC))  // abu dingin terang: pengaturan
 }
 
@@ -147,11 +146,8 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 
-    /** Sesi editor Code; dipegang agar draf bisa ditulis sinkron saat Activity berhenti (F3e). */
-    private var codeSessionRef: com.molina.code.ui.CodeSession? = null
 
     override fun onStop() {
-        codeSessionRef?.flushDrafts()
         AppVisibility.setForeground(false)
         super.onStop()
     }
@@ -217,7 +213,6 @@ class MainActivity : ComponentActivity() {
                     -1
                 }
                 "files" -> Tab.Files.ordinal
-                "code" -> Tab.Code.ordinal
                 else -> -1
             }
         }
@@ -256,65 +251,12 @@ class MainActivity : ComponentActivity() {
             MaterialTheme(colorScheme = MolinaColors) {
                 var selected by rememberSaveable { mutableIntStateOf(0) }
                 androidx.compose.runtime.LaunchedEffect(selected) { com.molina.core.common.CrashContext.tab = this@MainActivity.getString(Tab.entries[selected].labelRes) }
-                val codeSession = remember {
-                    com.molina.code.ui.CodeSession(
-                        AppPaths.get(this@MainActivity).appRoot.path, // [WORKSPACE-IN-MOLINA]
-                        java.io.File(filesDir, "code-drafts")
-                    ).also {
-                        codeSessionRef = it
-                        it.scriptExecutor = com.molina.studio.code.ProotScriptExecutor(applicationContext)
-                        it.formatExecutor = com.molina.studio.code.ProotScriptExecutor(applicationContext, com.molina.studio.code.ProotScriptExecutor.Lane.FORMAT) // [CODE-FORMAT]
-                        it.checkExecutor = com.molina.studio.code.ProotScriptExecutor(applicationContext, com.molina.studio.code.ProotScriptExecutor.Lane.CHECK) // [CODE-CHECK]
-                        it.lspExecutor = com.molina.studio.code.ProotScriptExecutor(applicationContext, com.molina.studio.code.ProotScriptExecutor.Lane.LSP) // [CODE-LSP2]
-                        it.lspPathMap = { // [CODE-LSP3] lingkup storage sama dengan bind PRoot Terminal; dibaca ulang tiap sesi LSP mulai
-                            com.molina.code.lsp.LspPathMap(
-                                android.os.Environment.getExternalStorageDirectory().absolutePath,
-                                com.molina.studio.terminal.TerminalSessions.WORKSPACE_DIR,
-                                com.molina.studio.terminal.TerminalPrefs.fullStorageAccess,
-                                listOf(com.molina.core.common.MolinaPaths.APP_FOLDER),
-                            )
-                        }
-                        it.terminalSink = { text, execute -> com.molina.studio.code.CodeTerminalBridge.deliver(text, execute) }
-                        it.guestPathResolver = { f -> com.molina.studio.code.CodeTerminalBridge.guestPath(f) } // [CODE-PYRUN]
-                        it.debianRoot = { com.molina.studio.terminal.RootfsManager.rootfsDir(applicationContext) } // [CODE-DEBLIB]
-                        val runPrefs = this@MainActivity.getSharedPreferences("molina_code_run", android.content.Context.MODE_PRIVATE) // [CODE-PYRUN2]
-                        it.runStore = object : com.molina.code.ui.RunStore { // [CODE-PYRUN2]
-                            override fun get(key: String): String? = runPrefs.getString(key, null)
-                            override fun put(key: String, value: String) { runPrefs.edit().putString(key, value).apply() }
-                        }
-                        it.snippetSink = { name, cmd -> com.molina.studio.terminal.TerminalSnippets.addFromCode(applicationContext, name, cmd) }
-                        it.vaultSink = { f -> this@MainActivity.sendToVault(f) } // MOLINA-H13-BRIDGE
-                        com.molina.studio.code.CodeInbox.session = it
-                        it.scriptSink = com.molina.code.run.ScriptSink { share ->
-                            val r = com.molina.studio.code.ScriptStore.upsertFromEditor(share)
-                            com.molina.code.run.ScriptSendResult(r.ok, r.message)
-                        }
-                    }
-                }
-                DisposableEffect(codeSession) { onDispose { com.molina.studio.code.CodeInbox.session = null; codeSession.releaseAll() } }
                 // Script execution (Settings) menjalankan skrip di Molina Terminal: pindah ke Settings > Terminal.
                 androidx.compose.runtime.LaunchedEffect(com.molina.studio.code.ScriptNav.openTerminal) {
                     if (com.molina.studio.code.ScriptNav.openTerminal) {
                         com.molina.studio.settings.SettingsNav.openTerminalApp = true
                         selected = Tab.Settings.ordinal
                         com.molina.studio.code.ScriptNav.openTerminal = false
-                    }
-                }
-                // EDIT di Script Execution membuka skrip di editor Code: pindah ke tab Code.
-                androidx.compose.runtime.LaunchedEffect(com.molina.studio.code.CodeNav.pending) {
-                    com.molina.studio.code.CodeNav.pending?.let { req ->
-                        codeSession.openScript(req.title, req.key, req.text)
-                        selected = Tab.Code.ordinal
-                        com.molina.studio.code.CodeNav.pending = null
-                    }
-                }
-                // Penjelajah Molina: Buka di Code membuka berkas di editor lalu pindah ke tab Code.
-                androidx.compose.runtime.LaunchedEffect(com.molina.studio.code.CodeNav.pendingFiles) {
-                    val files = com.molina.studio.code.CodeNav.pendingFiles
-                    if (files.isNotEmpty()) {
-                        files.forEach { codeSession.openFile(it) }
-                        selected = Tab.Code.ordinal
-                        com.molina.studio.code.CodeNav.pendingFiles = emptyList()
                     }
                 }
                 // Kartu hasil pencarian Cinema: Unduh mengirim URL ke tab Unduhan.
@@ -350,14 +292,13 @@ class MainActivity : ComponentActivity() {
                     dlWasRunning = dl.running
                 }
                 val htmlWebView by com.molina.studio.code.CodePrefs.htmlWebView.collectAsState()
-                SideEffect { codeSession.htmlWebView = htmlWebView }
                 val keyboardVisible = rememberKeyboardVisible()
                 com.molina.studio.settings.ToolRunHost() // [MINIMIZE-RUN]
                 com.molina.studio.preview.PreviewHost(htmlWebView) // [NANO-PREVIEW]
                 Scaffold(
                     containerColor = MaterialTheme.colorScheme.background,
                     bottomBar = {
-                        if (!keyboardVisible && !(selected == Tab.Code.ordinal && codeSession.previewFullScreen)) {
+                        if (!keyboardVisible) {
                             Column {
                                 com.molina.studio.settings.ToolRunPill() // [MINIMIZE-RUN]
                                 Box(
@@ -430,10 +371,6 @@ class MainActivity : ComponentActivity() {
                         }
                         Tab.Settings -> {
                             com.molina.studio.settings.SettingsScreen(Modifier.fillMaxSize().padding(pad))
-                            return@Scaffold
-                        }
-                        Tab.Code -> {
-                            com.molina.code.ui.CodeScreen(codeSession, Modifier.fillMaxSize().padding(pad))
                             return@Scaffold
                         }
                         else -> {}

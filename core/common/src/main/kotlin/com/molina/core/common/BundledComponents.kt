@@ -111,13 +111,8 @@ object BundledComponents {
             "Hanya diunduh saat Anda menekan Pasang/Perbarui; diverifikasi lewat SHA2-256SUMS rilis.", PIN_YTDLP
         ),
         BundledComponent(
-            "sora", "sora-editor + TextMate", "0.23.6", ComponentRole.Pendukung, ComponentOrigin.Apk, Assurance.Version,
-            "Rosemoe/sora-editor (Maven Central)", "LGPL-2.1-or-later", "Editor Code",
-            "Versi sengaja ditahan di 0.23.6 (syarat compileSdk dan Kotlin).", null
-        ),
-        BundledComponent(
-            "fonts", "JetBrains Mono + Fira Code", "Fira Code 6.2", ComponentRole.Opsional, ComponentOrigin.Apk, Assurance.Asset,
-            "JetBrains/JetBrainsMono, tonsky/FiraCode", "SIL OFL 1.1", "Pilihan font Editor Code",
+            "fonts", "JetBrains Mono", "", ComponentRole.Opsional, ComponentOrigin.Apk, Assurance.Asset,
+            "JetBrains/JetBrainsMono", "SIL OFL 1.1", "Font Terminal",
             "Salinan lisensi OFL disertakan.", null
         ),
         BundledComponent(
