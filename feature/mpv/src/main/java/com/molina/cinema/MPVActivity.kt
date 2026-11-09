@@ -465,6 +465,11 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         // set up initial UI state
         readSettings()
         forcedAudioOnly = MpvPrefs.current(applicationContext).audioOnlyVideo // [AUDIO-ONLY] status awal
+        val onArtRelayout = View.OnLayoutChangeListener { _, l, t, r, b, ol, ot, orr, ob -> // [BANNER-FIT]
+            if (b - t != ob - ot || r - l != orr - ol) binding.root.post { relayoutArt() }
+        }
+        binding.controls.addOnLayoutChangeListener(onArtRelayout)
+        binding.nowPlayingArt.addOnLayoutChangeListener(onArtRelayout)
         onConfigurationChanged(resources.configuration)
         run {
             // edge-to-edge & immersive mode
@@ -1032,6 +1037,21 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun isLandscapeNow() = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     private var layoutControlsShown: Boolean? = null
+
+    private var artLayoutKey = 0L
+
+    /**
+     * [BANNER-FIT] Ruang kontrol dihitung sekali saat kontrol tampil; bila judul berganti (1 vs 2 baris) atau layar
+     * diputar, tinggi berubah dan sampul/banner tertutup. Dipanggil dari OnLayoutChangeListener controls dan nowPlayingArt.
+     */
+    private fun relayoutArt() {
+        if (!useAudioUI) return
+        val key = ((controlsReserved() + topBarReserve()).toLong() shl 32) or binding.nowPlayingArt.height.toLong()
+        if (key == artLayoutKey) return
+        artLayoutKey = key
+        showNowPlayingArt(lastCover)
+        if (marqueeUrl != null) layoutMarquee()
+    }
 
     /** [SPECTRUM] Selaraskan sampul dan spektrum dengan status tampil/sembunyi kontrol (spektrum turun saat kontrol hilang). */
     private fun syncAudioLayout() {
@@ -2607,6 +2627,21 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         val spectrumSpace = if (spectrumReserve) (SPECTRUM_HEIGHT_DP * d).toInt() else 0
         binding.stationMarquee.setPadding(side, (24 * d).toInt(), side,
             controlsReserved() + spectrumSpace + (if (spectrumReserve) topBarReserve() else 0) + (12 * d).toInt())
+        // [BANNER-FIT] banner 16:9, tinggi menyesuaikan ruang tersisa agar tidak tertutup kontrol/spektrum (landscape)
+        val artH = binding.nowPlayingArt.height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
+        val artW = binding.nowPlayingArt.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
+        val availDp = (artH - binding.stationMarquee.paddingTop - binding.stationMarquee.paddingBottom) / d
+        val frameH = (availDp - 102f).coerceIn(48f, 126f) // 102dp = label + jarak + nama stasiun
+        val frameW = (frameH * 16f / 9f).coerceAtMost((artW - 2 * side) / d)
+        val lp = binding.stationFrame.layoutParams
+        val nw = (frameW * d).toInt()
+        val nh = (frameH * d).toInt()
+        if (lp.width != nw || lp.height != nh) {
+            lp.width = nw
+            lp.height = nh
+            binding.stationFrame.layoutParams = lp
+        }
+        binding.stationInitials.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, (frameH * 0.45f).coerceIn(20f, 48f))
     }
 
     private fun showStationMarquee(url: String) { // [STATION-LOGO]
