@@ -12,7 +12,7 @@ import android.os.Process
 import com.molina.cinema.MpvFolder
 import com.molina.core.common.LogLevel
 import com.molina.studio.cinema.CinemaActions
-import com.molina.studio.code.CodeNav
+import com.molina.studio.settings.MolinaExplorer
 import com.molina.studio.preview.PreviewNav
 import com.molina.studio.log.LogBus
 import com.molina.studio.system.MpvControl
@@ -165,7 +165,7 @@ object CommandServer {
         }
     }
 
-    /** Buka berkas di editor Code (tab Code); MainActivity yang mengonsumsi CodeNav.pendingFiles. */
+    /** Buka berkas pertama di nano (Terminal). */
     private fun open(app: Context, arg: String): String {
         val paths = CommandProtocol.splitPaths(arg)
         if (paths.isEmpty()) return CommandProtocol.err("usage", "open butuh minimal satu berkas")
@@ -182,8 +182,8 @@ object CommandServer {
             if (!f.isFile) return CommandProtocol.err("missing", "bukan berkas: $p")
             files.add(f)
         }
-        Handler(Looper.getMainLooper()).post { CodeNav.pendingFiles = files }
-        return CommandProtocol.ok("membuka ${files.size} berkas di Code")
+        Handler(Looper.getMainLooper()).post { MolinaExplorer.editInTerminal(app, files[0]) }
+        return CommandProtocol.ok("membuka ${files[0].name} di nano")
     }
 
     /** [NANO-PREVIEW] Pratinjau satu berkas (Markdown/HTML/JSON); PreviewHost di MainActivity yang menampilkannya. */

@@ -207,7 +207,7 @@ fun Win7OpenDialog(
     pickFolder: Boolean = false,
     onPickFolder: (File) -> Unit = {},
     onPlay: (suspend (List<File>) -> Boolean)? = null,
-    onOpenInCode: ((List<File>) -> Unit)? = null,
+    onOpenInNano: ((List<File>) -> Unit)? = null,
     onEditInTerminal: ((File) -> Unit)? = null, // [NANO-EDIT]
     onNewTextInTerminal: ((File, String) -> Boolean)? = null, // [NANO-NEW]
     onSendToScripts: ((File) -> Pair<Boolean, String>)? = null,
@@ -366,10 +366,10 @@ fun Win7OpenDialog(
         go(parent)
         return true
     }
-    /** Ketuk ulang berkas terpilih di Penjelajah: media ke mpv, teks ke Code. */
+    /** Ketuk ulang berkas terpilih di Penjelajah: media ke mpv, teks ke nano. */
     fun smartOpen(f: File) {
         val play = onPlay
-        val code = onOpenInCode
+        val nano = onOpenInNano
         when {
             play != null && f.extension.lowercase() in W7_MEDIA -> scope.launch {
                 val ok = play(listOf(f))
@@ -377,7 +377,7 @@ fun Win7OpenDialog(
             }
             f.extension.equals("zip", ignoreCase = true) -> sheet = W7Sheet.ZipView(f)
             f.isFile && ArchiveRoute.supports(f.name) -> sheet = W7Sheet.Archive(f, null) // [ARCHIVE]
-            code != null && ExplorerList.looksText(f) -> code(listOf(f))
+            nano != null && ExplorerList.looksText(f) -> nano(listOf(f))
             onOpenWith != null && f.isFile -> onOpenWith?.invoke(f)
             else -> say("Tidak ada aplikasi Molina untuk membuka jenis berkas ini. Pakai menu Alat untuk menyalin atau mengompres.")
         }
@@ -426,14 +426,12 @@ fun Win7OpenDialog(
         }
         is W7Sheet.OpenWith -> W7OpenWithDialog( // [NANO-OPENWITH]
             file = s.file,
-            canCode = onOpenInCode != null,
             canNano = onEditInTerminal != null,
             canOther = onOpenWith != null,
             onCancel = { sheet = null },
             onPick = { which ->
                 sheet = null
                 when (which) {
-                    W7OpenWith.CODE -> onOpenInCode?.invoke(listOf(s.file))
                     W7OpenWith.NANO -> onEditInTerminal?.invoke(s.file)
                     W7OpenWith.OTHER -> onOpenWith?.invoke(s.file)
                 }
@@ -645,7 +643,7 @@ fun Win7OpenDialog(
                     if (toolsOpen) W7ToolsMenu( // [SPLIT-TOOLS] isi menu ada di W7ToolsMenu.kt
                         targets = targets(), dir = dir, browse = browse, clip = clip,
                         playedFirst = playedFirst, playedRefs = playedRefs, shown = shown,
-                        onPlay = onPlay, onOpenInCode = onOpenInCode, onEditInTerminal = onEditInTerminal, newTextEnabled = onNewTextInTerminal != null, onSendToScripts = onSendToScripts,
+                        onPlay = onPlay, onOpenInNano = onOpenInNano, onEditInTerminal = onEditInTerminal, newTextEnabled = onNewTextInTerminal != null, onSendToScripts = onSendToScripts,
                         onOpenWith = onOpenWith, onShare = onShare, onCopyPath = onCopyPath,
                         onSaveToVault = onSaveToVault?.let { fn ->
                             { files: List<File> ->
@@ -826,7 +824,7 @@ fun Win7OpenDialog(
                         val dkTarget = selected?.file ?: dir
                         val dkFiles = if (multi && picked.isNotEmpty()) picked.map { File(it) } else listOf(dkTarget)
                         val dkMedia = onPlay != null && dkFiles.isNotEmpty() && dkFiles.all { it.isFile && it.extension.lowercase() in W7_MEDIA }
-                        val dkText = !dkMedia && onOpenInCode != null && dkFiles.size == 1 && dkFiles[0].isFile && ExplorerList.looksText(dkFiles[0])
+                        val dkText = !dkMedia && onOpenInNano != null && dkFiles.size == 1 && dkFiles[0].isFile && ExplorerList.looksText(dkFiles[0])
                         val dkZip = !dkMedia && !dkText && dkFiles.size == 1 && dkFiles[0].isFile && dkFiles[0].extension.equals("zip", ignoreCase = true)
                         val dkArc = !dkMedia && !dkText && !dkZip && dkFiles.size == 1 && dkFiles[0].isFile && ArchiveRoute.supports(dkFiles[0].name) // [ARCHIVE]
                         W7BrowseDock(
@@ -840,7 +838,7 @@ fun Win7OpenDialog(
                                         val ok = fn(dkFiles)
                                         say(if (ok) "Memutar di mpv: " + w7Names(dkFiles) else "Tidak ada media yang bisa diputar", ok)
                                     }
-                                } else if (dkText) onOpenInCode?.invoke(dkFiles)
+                                } else if (dkText) onOpenInNano?.invoke(dkFiles)
                                 else if (dkZip) sheet = W7Sheet.ZipView(dkFiles[0])
                                 else if (dkArc) sheet = W7Sheet.Archive(dkFiles[0], null) // [ARCHIVE]
                                 else sheet = W7Sheet.Info(dkFiles)

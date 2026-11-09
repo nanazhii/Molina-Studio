@@ -1,0 +1,33 @@
+package com.molina.studio.settings
+
+import com.molina.studio.ui.components.PackageDivider
+import com.molina.studio.ui.components.PackageGroupCard
+import com.molina.studio.ui.components.PackageInfoRow
+import com.molina.studio.ui.components.PackageSectionHeader
+import com.molina.studio.ui.components.PackageSwitchRow
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import com.molina.studio.preview.PreviewPrefs
+
+/** Halaman "Pratinjau": perilaku pratinjau berkas HTML dari nano dan Penjelajah. */
+@Composable
+internal fun PratinjauSettingsPage() {
+    val webView by PreviewPrefs.htmlWebView.collectAsState()
+    PackageSectionHeader("Pratinjau HTML") // [CODE-KARTU]
+    PackageGroupCard {
+        PackageInfoRow(
+            "Renderer native (default)",
+            "Judul, paragraf, daftar, tabel, kutipan, blok kode, dan tautan digambar langsung oleh aplikasi. " +
+                "CSS, JavaScript, dan gambar tidak diproses. Ringan dan tidak memuat apa pun dari jaringan."
+        )
+        PackageDivider()
+        PackageSwitchRow(
+            "Pakai WebView untuk HTML",
+            "Menampilkan halaman HTML dengan tampilan penuh (CSS inline dan gambar data:). JavaScript, jaringan, " +
+                "dan akses berkas tetap dimatikan, dan tautan dibuka di peramban. Cocok bila renderer native " +
+                "terlalu sederhana. Berlaku untuk berkas .html berikutnya yang dibuka dengan Play.",
+            webView
+        ) { PreviewPrefs.setHtmlWebView(it) }
+    }
+}

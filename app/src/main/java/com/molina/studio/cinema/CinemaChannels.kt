@@ -106,7 +106,7 @@ internal fun CinemaChannelsDialog(
     onDismiss: () -> Unit,
     onOpenFolder: (() -> Unit)? = null,
     refreshTick: Int = 0,
-    onOpenInCode: ((File) -> Unit)? = null,
+    onOpenInNano: ((File) -> Unit)? = null,
 ) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -315,7 +315,7 @@ internal fun CinemaChannelsDialog(
                         list.isEmpty() -> Text("Belum ada berkas .m3u / .m3u8 di folder ini. Ketuk Folder IPTV, salin playlist ke sana, lalu tutup Penjelajah.",
                             color = MolinaTheme.Muted, fontSize = 13.sp, modifier = Modifier.padding(vertical = 8.dp))
                         else -> Column(Modifier.fillMaxWidth().heightIn(max = 180.dp).verticalScroll(rememberScrollState())) {
-                            list.forEach { e -> FileRow(e, onCode = onOpenInCode?.let { fn -> { fn(e.file) } }) { pickFile(e.file) } }
+                            list.forEach { e -> FileRow(e, onNano = onOpenInNano?.let { fn -> { fn(e.file) } }) { pickFile(e.file) } }
                         }
                     }
                     Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -463,7 +463,7 @@ private fun ChKey(icon: Int?, glyph: String?, label: String, tint: Color, modifi
 
 /** Satu berkas playlist di folder IPTV Molina: nama + ukuran. */
 @Composable
-private fun FileRow(e: IptvLocal.Entry, onCode: (() -> Unit)? = null, onClick: () -> Unit) {
+private fun FileRow(e: IptvLocal.Entry, onNano: (() -> Unit)? = null, onClick: () -> Unit) {
     val shape = RoundedCornerShape(6.dp)
     Row(
         Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(shape)
@@ -475,8 +475,8 @@ private fun FileRow(e: IptvLocal.Entry, onCode: (() -> Unit)? = null, onClick: (
             overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         Spacer(Modifier.width(8.dp))
         Text(sizeLabel(e.sizeBytes), color = MolinaTheme.Muted, fontSize = 12.sp)
-        if (onCode != null) Text("Code", color = MolinaTheme.Brand, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.clickable(onClick = onCode).padding(horizontal = 8.dp, vertical = 4.dp))
+        if (onNano != null) Text("nano", color = MolinaTheme.Brand, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.clickable(onClick = onNano).padding(horizontal = 8.dp, vertical = 4.dp))
     }
 }
 

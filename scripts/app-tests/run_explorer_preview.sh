@@ -8,7 +8,7 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 "$KC" -nowarn -d "$OUT" \
   app/src/main/java/com/molina/studio/preview/ExplorerPreview.kt \
-  feature/preview/src/main/kotlin/com/molina/code/preview/PreviewKind.kt \
+  feature/preview/src/main/kotlin/com/molina/preview/engine/PreviewKind.kt \
   $(find core/exec -name '*.kt') \
   scripts/app-tests/ExplorerPreviewTests.kt
 java -cp "$OUT:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" ExplorerPreviewTestsKt

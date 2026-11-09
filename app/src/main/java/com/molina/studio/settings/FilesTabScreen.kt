@@ -62,7 +62,7 @@ fun FilesTabScreen(modifier: Modifier = Modifier, onExit: () -> Unit = {}) {
         onInsertPaths = { fs -> MolinaExplorer.insertPaths(ctx, fs) },
         isVisibleInDebian = { f -> MolinaExplorer.visibleInDebian(f) },
         onPlay = { files -> MolinaExplorer.play(ctx, files) },
-        onOpenInCode = { files -> MolinaExplorer.openInCode(ctx, files) },
+        onOpenInNano = { files -> MolinaExplorer.openInNano(ctx, files) },
         onEditInTerminal = { f -> MolinaExplorer.editInTerminal(ctx, f) }, // [NANO-EDIT]
         onNewTextInTerminal = { d, n -> MolinaExplorer.newInTerminal(ctx, d, n) }, // [NANO-NEW]
         onSendToScripts = { f -> MolinaExplorer.sendToScripts(f) },

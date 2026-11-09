@@ -4,7 +4,7 @@ import android.content.Context
 import com.molina.cinema.VideoBookmarks
 import com.molina.core.common.MolinaDir
 import com.molina.studio.AppPaths
-import com.molina.studio.code.ScriptStore
+import com.molina.studio.script.ScriptStore
 import com.molina.studio.terminal.PromptTheme
 import com.molina.studio.terminal.BannerStyle
 import com.molina.studio.terminal.TerminalLook

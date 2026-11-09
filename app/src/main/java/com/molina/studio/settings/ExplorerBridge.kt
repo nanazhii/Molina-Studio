@@ -10,11 +10,10 @@ import com.molina.studio.terminal.TerminalActions
 import com.molina.studio.terminal.TerminalPrefs
 import com.molina.studio.terminal.TerminalSessions
 import com.molina.cinema.MpvFolder
-import com.molina.code.run.ScriptShare
+import com.molina.exec.run.ScriptShare
 import com.molina.studio.cinema.CinemaActions
-import com.molina.studio.code.CodeNav
-import com.molina.studio.code.ScriptNav
-import com.molina.studio.code.ScriptStore
+import com.molina.studio.script.ScriptNav
+import com.molina.studio.script.ScriptStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -89,17 +88,17 @@ internal object MolinaExplorer {
         }
     }
 
-    /** Buka berkas teks di editor Code (tab Code): dikonsumsi MainActivity lewat [CodeNav.pendingFiles]. */
-    fun openInCode(ctx: Context, files: List<File>) {
-        val ok = files.filter { it.isFile }.take(10)
-        if (ok.isEmpty()) {
-            Toast.makeText(ctx, "Pilih berkas teks untuk dibuka di Code.", Toast.LENGTH_SHORT).show()
+    /** Buka berkas teks di nano (Terminal). Satu sesi nano satu berkas, jadi hanya berkas pertama yang dibuka. */
+    fun openInNano(ctx: Context, files: List<File>) {
+        val f = files.firstOrNull { it.isFile }
+        if (f == null) {
+            Toast.makeText(ctx, "Pilih berkas teks untuk dibuka di nano.", Toast.LENGTH_SHORT).show()
             return
         }
-        CodeNav.pendingFiles = ok
+        editInTerminal(ctx, f)
     }
 
-    /** Kirim isi berkas teks ke Script execution. Sumber = path berkas, sama dengan kiriman dari editor Code (tidak menggandakan). */
+    /** Kirim isi berkas teks ke Script execution. Sumber = path berkas, (tidak menggandakan). */
     fun sendToScripts(f: File): Pair<Boolean, String> {
         if (!f.isFile) return Pair(false, "Pilih satu berkas teks")
         if (f.length() > 1_000_000L) return Pair(false, "Berkas terlalu besar untuk Script execution")

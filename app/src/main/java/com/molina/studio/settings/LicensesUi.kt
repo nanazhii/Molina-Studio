@@ -55,17 +55,15 @@ private val DOC_GPL2 = LicenseDoc("gpl2", "GNU GPL 2.0 (mpv, PRoot, Git)", "gpl-
 private val DOC_LGPL21 = LicenseDoc("lgpl21", "GNU LGPL 2.1 (libplacebo, sora-editor)", "lgpl-2.1.txt")
 private val DOC_APACHE = LicenseDoc("apache2", "Apache License 2.0", "apache-2.0.txt")
 private val DOC_MIT_MPV = LicenseDoc("mit-mpv-android", "MIT (mpv-android)", "mit-mpv-android.txt")
-private val DOC_MIT_VSC = LicenseDoc("mit-vscode", "MIT (grammar dan tema TextMate)", "mit-vscode.txt")
 private val DOC_BSD2 = LicenseDoc("bsd2-dav1d", "BSD 2-Clause (dav1d)", "bsd-2-clause-dav1d.txt")
 private val DOC_ISC = LicenseDoc("isc-libass", "ISC (libass)", "isc-libass.txt")
 private val DOC_OFL_JB = LicenseDoc("ofl-jb", "SIL OFL 1.1 (JetBrains Mono)", "ofl-jetbrains-mono.txt")
-private val DOC_OFL_FIRA = LicenseDoc("ofl-fira", "SIL OFL 1.1 (Fira Code)", "ofl-fira-code.txt")
 private val DOC_0BSD = LicenseDoc("0bsd-xz", "0BSD (XZ for Java)", "0bsd-xz-java.txt")
 private val DOC_UNLICENSE = LicenseDoc("unlicense-ytdlp", "Unlicense (yt-dlp)", "unlicense-yt-dlp.txt")
 
 private val ALL_DOCS = listOf(
-    DOC_GPL3, DOC_GPL2, DOC_LGPL21, DOC_APACHE, DOC_MIT_MPV, DOC_MIT_VSC, DOC_BSD2, DOC_ISC,
-    DOC_OFL_JB, DOC_OFL_FIRA, DOC_0BSD, DOC_UNLICENSE
+    DOC_GPL3, DOC_GPL2, DOC_LGPL21, DOC_APACHE, DOC_MIT_MPV, DOC_BSD2, DOC_ISC,
+    DOC_OFL_JB, DOC_0BSD, DOC_UNLICENSE
 )
 
 /** id komponen (BundledComponents) -> teks lisensi yang dibundel. Komponen tanpa entri = teks ada di Debian. */

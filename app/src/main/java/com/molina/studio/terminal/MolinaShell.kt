@@ -85,7 +85,6 @@ object MolinaShell {
             Triple("molina/molina-cli.py", "usr/local/lib/molina/molina_cli.py", false),
             Triple("molina/nano-wrapper.sh", "usr/local/bin/nano", true),
             Triple("molina/nanorc", "etc/molina/nanorc", false),
-            Triple("molina/nano-open-code.sh", "usr/local/lib/molina/nano-open-code", true),
             Triple("molina/nano-preview.sh", "usr/local/lib/molina/nano-preview", true), // [NANO-PREVIEW]
             Triple("molina/edit.sh", "usr/local/bin/edit", true), // [NANO-EDIT-CMD]
             Triple("molina/molina-run.sh", "usr/local/bin/molina-run", true), // [NANO-RUN]

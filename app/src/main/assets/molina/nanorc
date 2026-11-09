@@ -51,8 +51,6 @@ bind ^_ comment main
 # Ctrl+A: pilih semua (ketuk lagi untuk membatalkan seleksi). Tombol Home tetap berfungsi.
 bind ^A "{firstline}{home}{mark}{lastline}{end}" main
 
-# Alt+O: simpan lalu buka berkas ini di Molina Code (lihat nano-open-code)
-bind M-o "{savefile}{execute}/usr/local/lib/molina/nano-open-code >/dev/null 2>&1{enter}" main
 # [NANO-PREVIEW] Alt+P: simpan lalu pratinjau Markdown/HTML/JSON (lihat nano-preview)
 bind M-p "{savefile}{execute}/usr/local/lib/molina/nano-preview >/dev/null 2>&1{enter}" main
 

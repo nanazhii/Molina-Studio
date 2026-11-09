@@ -9,7 +9,7 @@ import com.molina.core.common.YtdlpCommand
 import com.molina.core.common.YtdlpInstall
 import com.molina.studio.AppPaths
 import com.molina.studio.cinema.MpvVersionBridge
-import com.molina.studio.code.ScriptCommand
+import com.molina.studio.script.ScriptCommand
 import com.molina.studio.terminal.RootfsManager
 import com.molina.studio.terminal.RootfsState
 import kotlinx.coroutines.flow.MutableStateFlow

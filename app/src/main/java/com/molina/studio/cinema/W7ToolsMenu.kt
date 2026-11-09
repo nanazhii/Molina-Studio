@@ -28,7 +28,7 @@ import java.io.File
 internal fun W7ToolsMenu(
     targets: List<File>, dir: File, browse: Boolean, clip: W7Clip?,
     playedFirst: Boolean, playedRefs: List<String>, shown: List<W7Entry>?,
-    onPlay: (suspend (List<File>) -> Boolean)?, onOpenInCode: ((List<File>) -> Unit)?,
+    onPlay: (suspend (List<File>) -> Boolean)?, onOpenInNano: ((List<File>) -> Unit)?,
     onEditInTerminal: ((File) -> Unit)? = null, // [NANO-EDIT]
     newTextEnabled: Boolean = false, // [NANO-NEW]
     onSendToScripts: ((File) -> Pair<Boolean, String>)?, onOpenWith: ((File) -> Boolean)?,
@@ -93,14 +93,6 @@ internal fun W7ToolsMenu(
                 onDismiss()
                 onPlayedFirst(!playedFirst)
             }
-            W7MenuItem(W7Ico.CODE, "Buka di Code", onOpenInCode != null && tg.any { it.isFile }) {
-                onDismiss()
-                val fn = onOpenInCode
-                if (fn != null) {
-                    val texts = tg.filter { ExplorerList.looksText(it) }.take(10)
-                    if (texts.isEmpty()) say("Tidak ada berkas teks yang bisa dibuka di Code.") else fn(texts)
-                }
-            }
             W7MenuItem(W7Ico.EDIT, "Edit di Terminal (nano)", onEditInTerminal != null && one?.isFile == true) { // [NANO-EDIT]
                 onDismiss()
                 one?.let { onEditInTerminal?.invoke(it) }
@@ -124,7 +116,7 @@ internal fun W7ToolsMenu(
             W7MenuItem(W7Ico.OPEN_WITH, "Buka dengan...", onOpenWith != null && one?.isFile == true) {
                 onDismiss()
                 one?.let { f -> // [NANO-OPENWITH] berkas teks: pilih Code / nano / aplikasi lain dalam satu dialog
-                    if (ExplorerList.looksText(f) && (onOpenInCode != null || onEditInTerminal != null)) onSheet(W7Sheet.OpenWith(f))
+                    if (ExplorerList.looksText(f) && (onOpenInNano != null || onEditInTerminal != null)) onSheet(W7Sheet.OpenWith(f))
                     else onOpenWith?.invoke(f)
                 }
             }

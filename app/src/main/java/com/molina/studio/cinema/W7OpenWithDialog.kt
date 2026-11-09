@@ -14,23 +14,20 @@ import androidx.compose.ui.unit.sp
 import java.io.File
 
 /** [NANO-OPENWITH] Pilihan editor untuk berkas teks di Penjelajah. */
-internal enum class W7OpenWith { CODE, NANO, OTHER }
+internal enum class W7OpenWith { NANO, OTHER }
 
 /**
- * [NANO-OPENWITH] Dialog "Buka dengan": Molina Code, nano di Terminal, atau aplikasi lain (pemilih sistem Android).
- * Dua editor Molina tampil berdampingan supaya terasa seperti satu fitur.
+ * [NANO-OPENWITH] Dialog "Buka dengan": nano di Terminal atau aplikasi lain (pemilih sistem Android).
  */
 @Composable
 internal fun W7OpenWithDialog(
-    file: File, canCode: Boolean, canNano: Boolean, canOther: Boolean,
+    file: File, canNano: Boolean, canOther: Boolean,
     onCancel: () -> Unit, onPick: (W7OpenWith) -> Unit
 ) {
     W7Panel("Buka dengan", onCancel) {
         Text(file.name, color = Win7.Ink.copy(alpha = 0.7f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(10.dp))
-        Win7Button("Molina Code (editor visual)", Modifier.fillMaxWidth(), isDefault = true, enabled = canCode) { onPick(W7OpenWith.CODE) }
-        Spacer(Modifier.height(6.dp))
-        Win7Button("nano di Terminal", Modifier.fillMaxWidth(), enabled = canNano) { onPick(W7OpenWith.NANO) }
+        Win7Button("nano di Terminal", Modifier.fillMaxWidth(), isDefault = true, enabled = canNano) { onPick(W7OpenWith.NANO) }
         Spacer(Modifier.height(6.dp))
         Win7Button("Aplikasi lain...", Modifier.fillMaxWidth(), enabled = canOther) { onPick(W7OpenWith.OTHER) }
         Spacer(Modifier.height(12.dp))

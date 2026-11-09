@@ -27,15 +27,11 @@ Anda bisa menulis skrip, menjalankannya, memasang alat tambahan, lalu pindah men
 - Cadangan setelan, Recycle Bin, dan penjelajah berkas.
 - Editor nano siap pakai dengan pintasan ala code editor (Ctrl+S simpan, Ctrl+Q keluar). Ketik `molina keys` untuk daftarnya; di Penjelajah, menu Alat > Edit di Terminal (nano).
 
-## Molina Code
+## Skrip dan pratinjau
 
-- Editor dengan sorotan sintaks untuk Python, Shell, Kotlin, Java, Lua, JSON, XML, HTML, dan Markdown.
-- Jalankan skrip sh, bash, dan Python langsung di Debian.
-- Pratinjau HTML, Markdown, dan JSON.
-- Pemeriksa kode: JSON dan XML bawaan, serta Python (pyflakes) dan Shell (shellcheck) bila terpasang di Debian.
-- Pemformat JSON dan XML.
-- Dukungan language server (LSP) untuk Python.
-- Pencarian dalam berkas, palet perintah, dan riwayat perubahan dengan perbandingan (diff).
+- Script Execution: kelola dan jalankan skrip sh, bash, dan Python langsung di Debian lewat Molina Terminal.
+- Edit skrip dan berkas teks dengan nano (Edit di Terminal dari Penjelajah, Script Execution, atau perintah `molina open`).
+- Pratinjau HTML, Markdown, dan JSON dari nano (Alt+P) dan Penjelajah. Pengaturannya ada di Pengaturan > Pratinjau.
 
 ## Molina Cinema
 
@@ -54,7 +50,7 @@ Anda bisa menulis skrip, menjalankannya, memasang alat tambahan, lalu pindah men
 
 ## Contoh alur kerja
 
-1. Tulis skrip Python di Molina Code, lalu jalankan di Debian.
+1. Tulis skrip Python dengan nano, lalu jalankan di Debian lewat Script Execution.
 2. Pasang FFmpeg dari menu Paket untuk mengolah media.
 3. Unduh video dari tautan, lalu putar di Molina Cinema.
 
@@ -78,7 +74,8 @@ Android 8.0 (Oreo) atau lebih baru, dengan prosesor 64-bit (arm64).
 
 - `app`: aplikasi utama, termasuk Pengaturan, Unduhan, dan Paket.
 - `terminal-emulator` dan `terminal-view`: mesin dan tampilan terminal.
-- `feature/code`: editor Molina Code.
+- `feature/preview` dan `feature/workspace`: pratinjau Markdown/HTML/JSON dan logika Folder Kerja.
+- `core/exec`: pelaksana skrip dan proses bersama.
 - `feature/mpv`: pemutar Molina Cinema.
 - `engine/newpipe`: mesin pengenal tautan video.
 - `core/common` dan `core/storage`: kode bersama dan penyimpanan.
