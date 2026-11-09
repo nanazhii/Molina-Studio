@@ -3,5 +3,6 @@
     <string name="tab_mpv">MPV</string>
     <string name="tab_files">Berkas</string>
     <string name="tab_editor">Editor</string>
+    <string name="tab_terminal">Terminal</string>
     <string name="tab_settings">Setting</string>
 </resources>

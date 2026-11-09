@@ -1,7 +1,6 @@
 package com.molina.studio.code
 
 import com.molina.code.ui.CodeSession
-import com.molina.studio.ShortcutNav
 
 /**
  * Jembatan Terminal -> Code. Teks disisipkan di posisi kursor tab Code aktif, lalu layar pindah ke tab Code.
@@ -19,7 +18,7 @@ internal object CodeInbox {
         if (text.length > MAX_CHARS) return "Keluaran terlalu panjang, pilih 200 baris terakhir"
         val err = s.insertAtCursor(text.trimEnd() + "\n")
         if (err != null) return err
-        ShortcutNav.tab = ShortcutNav.TAB_CODE
+        CodeNav.openEditor = true
         return null
     }
 }

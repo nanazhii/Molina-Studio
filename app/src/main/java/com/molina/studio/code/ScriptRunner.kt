@@ -31,6 +31,9 @@ object CodeNav {
 
     /** Berkas dari Penjelajah Molina (Buka di Code); dikonsumsi MainActivity lalu dikosongkan. */
     var pendingFiles by mutableStateOf<List<File>>(emptyList())
+
+    /** Minta editor Code dibuka layar penuh dari tab Berkas; dikonsumsi MainActivity lalu dikembalikan ke false. */
+    var openEditor by mutableStateOf(false)
 }
 
 /**
