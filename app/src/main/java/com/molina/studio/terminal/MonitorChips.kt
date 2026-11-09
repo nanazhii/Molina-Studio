@@ -116,8 +116,8 @@ internal fun MonitorChips(onOpen: () -> Unit) {
     val txOn = st.txBps >= 1024
 
     Row(
-        Modifier.padding(horizontal = if (compact) 4.dp else 6.dp), // [MC-PAD]
-        horizontalArrangement = Arrangement.spacedBy(if (compact) 3.dp else 4.dp),
+        Modifier.padding(start = if (compact) 4.dp else 6.dp), // [MC-PAD] [MC-GAP] sisi kanan 0: jarak ke tombol ⋮ = padding tombol (4dp)
+        horizontalArrangement = Arrangement.spacedBy(4.dp), // [MC-GAP] sama dengan padding start HdrBtn di TerminalChrome
         verticalAlignment = Alignment.CenterVertically
     ) {
         MonitorChip(

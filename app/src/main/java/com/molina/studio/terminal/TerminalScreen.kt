@@ -64,6 +64,8 @@ import com.molina.studio.ui.onHorizontalSwipe
 import androidx.compose.ui.viewinterop.AndroidView
 import com.molina.terminal.view.TerminalView
 import kotlin.math.floor
+import androidx.compose.foundation.layout.fillMaxHeight
+import com.molina.studio.ui.SwipeDirection
 
 private fun spToPx(ctx: Context, sp: Int): Int =
     TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, sp.toFloat(), ctx.resources.displayMetrics).toInt()
@@ -160,15 +162,16 @@ private fun TerminalContent(modifier: Modifier, onOpenSettings: () -> Unit, onOp
                     }
                 )
             }
+            // [FILE-DRAWER] geser dari tepi kiri area terminal membuka drawer berkas (seperti editor Code)
+            Box(
+                Modifier.align(Alignment.CenterStart).fillMaxHeight().width(14.dp)
+                    .onHorizontalSwipe(24.dp, SwipeDirection.Right) { drawerOpen = true }
+            )
         }
         NanoKeys() // [NANO-KEYS]
         ExtraKeys(mods) { drawerOpen = true }
     }
-    SessionDrawer(
-        open = drawerOpen,
-        onClose = { drawerOpen = false },
-        onOpenSettings = onOpenSettings
-    )
+    TerminalFileDrawer(open = drawerOpen, onClose = { drawerOpen = false }) // [FILE-DRAWER]
     }
 }
 
