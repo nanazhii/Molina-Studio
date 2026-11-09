@@ -7,7 +7,7 @@ import org.schabi.newpipe.extractor.stream.StreamType
 import org.schabi.newpipe.extractor.stream.VideoStream
 
 /** Hasil pemilihan satu URL siap putar dari [StreamInfo]. [kind] hanya untuk log. */
-internal data class Pick(val url: String, val kind: String, val height: Int = 0)
+internal data class Pick(val url: String, val kind: String, val height: Int = 0, val audioUrl: String? = null)
 
 /**
  * Memilih satu URL yang bisa langsung dimuat mpv (v1 tanpa penggabungan video-only + audio):
@@ -16,11 +16,13 @@ internal data class Pick(val url: String, val kind: String, val height: Int = 0)
  */
 internal object StreamPicker {
 
-    fun pick(info: StreamInfo): Pick? {
+    fun pick(info: StreamInfo, quality: com.molina.core.common.VideoQuality = com.molina.core.common.VideoQuality.AUTO): Pick? {
         val hls = info.hlsUrl
         val live = info.streamType == StreamType.LIVE_STREAM ||
             info.streamType == StreamType.AUDIO_LIVE_STREAM
         if (live && !hls.isNullOrBlank()) return Pick(hls, "hls-live")
+
+        if (quality != com.molina.core.common.VideoQuality.AUTO) pickAdaptive(info, quality)?.let { return it } // [QUALITY]
 
         bestMuxed(info.videoStreams.orEmpty())?.let { v ->
             return Pick(v.content, "progresif", v.height)
@@ -30,6 +32,20 @@ internal object StreamPicker {
         }
         if (!hls.isNullOrBlank()) return Pick(hls, "hls")
         return null
+    }
+
+    /** [QUALITY] Video-only (H.264 diutamakan, tanpa AV1) <= batas + audio terbaik; audio digabung mpv lewat audio-add. */
+    private fun pickAdaptive(info: StreamInfo, quality: com.molina.core.common.VideoQuality): Pick? {
+        val cands = info.videoOnlyStreams.orEmpty().filter {
+            it.isUrl() && it.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP &&
+                it.codec?.startsWith("av01", ignoreCase = true) != true
+        }
+        val avc = cands.filter { it.codec?.startsWith("avc", ignoreCase = true) == true }
+        val pool = if (avc.isNotEmpty()) avc else cands
+        val h = quality.chooseHeight(pool.map { it.height }) ?: return null
+        val v = pool.filter { it.height == h }.maxByOrNull { it.bitrate } ?: return null
+        val a = bestAudio(info.audioStreams.orEmpty()) ?: return null
+        return Pick(v.content, "adaptif", v.height, a.content)
     }
 
     private fun bestMuxed(list: List<VideoStream>): VideoStream? =

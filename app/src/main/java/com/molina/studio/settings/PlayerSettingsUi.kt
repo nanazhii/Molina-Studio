@@ -6,6 +6,9 @@ import com.molina.studio.ui.components.PackageInfoRow
 import com.molina.studio.ui.components.PackageSectionHeader
 import com.molina.studio.ui.components.PackageStatusCard
 import com.molina.studio.ui.components.PackageSwitchRow
+import com.molina.studio.ui.components.PackageChoiceRow
+import com.molina.studio.ui.components.PackageNote
+import com.molina.core.common.VideoQuality
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.unit.dp
@@ -96,6 +99,17 @@ internal fun PlayerSettingsPage(onOpenCinema: () -> Unit) {
             HwdecBridge.setEnabled(ctx, it)
         }
     }
+
+    Spacer(Modifier.height(16.dp))
+    PackageSectionHeader("Kualitas video YouTube") // [QUALITY]
+    val quality by StreamEnginePrefs.quality.collectAsState()
+    PackageGroupCard {
+        VideoQuality.values().forEachIndexed { i, q ->
+            if (i > 0) PackageDivider()
+            PackageChoiceRow(q.label, quality == q, { StreamEnginePrefs.setQuality(q) }, q.hint)
+        }
+    }
+    PackageNote("Berlaku pada video berikutnya. Bila resolusi pilihan tidak tersedia, dipakai yang terdekat.")
 
     Spacer(Modifier.height(16.dp))
     PackageSectionHeader("Pencarian YouTube")

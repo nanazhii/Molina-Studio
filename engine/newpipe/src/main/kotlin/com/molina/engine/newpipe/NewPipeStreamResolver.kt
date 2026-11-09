@@ -7,6 +7,7 @@ import com.molina.core.common.ResolvedStream
 import com.molina.core.common.SearchLang
 import com.molina.core.common.StreamError
 import com.molina.core.common.StreamOutcome
+import com.molina.core.common.StreamQuality
 import com.molina.core.common.StreamResolver
 import com.molina.core.common.StreamSearchItem
 import kotlinx.coroutines.CancellationException
@@ -63,8 +64,9 @@ class NewPipeStreamResolver(
         val started = System.nanoTime()
         return try {
             val info = runInterruptible(Dispatchers.IO) { StreamInfo.getInfo(service, pageUrl) }
-            val pick = StreamPicker.pick(info)
+            val pick = StreamPicker.pick(info, StreamQuality.current) // [QUALITY]
                 ?: return fail(StreamError.NOT_FOUND, "tidak ada stream yang bisa diputar")
+            pick.audioUrl?.let { StreamQuality.rememberAudio(pick.url, it) } // [QUALITY]
             val ms = (System.nanoTime() - started) / 1_000_000
             AppLog.log(
                 SOURCE, LogLevel.Info, "resolve",
@@ -94,7 +96,7 @@ class NewPipeStreamResolver(
         return try {
             val items = runInterruptible(Dispatchers.IO) {
                 val service = ServiceList.YouTube
-                val handler = service.searchQHFactory.fromQuery(q)
+                val handler = service.searchQHFactory.fromQuery(q, listOf("videos"), "") // [SEARCH-FIX]
                 // Kunci bahasa menyaring sesudahnya, jadi kumpulkan kandidat 2x lebih banyak.
                 val want = if (SearchLang.enabled) (limit * 2).coerceAtMost(70) else limit
                 val first = SearchInfo.getInfo(service, handler)
@@ -103,7 +105,7 @@ class NewPipeStreamResolver(
                 var pages = 1
                 // Satu halaman YouTube hanya ~20 entri campuran; lanjutkan sampai [limit] video terkumpul.
                 try {
-                    while (page != null && pages < 6 && all.count { it is StreamInfoItem } < want) {
+                    while (page != null && pages < 8 && all.count { it is StreamInfoItem } < want) {
                         val more = SearchInfo.getMoreItems(service, handler, page)
                         all.addAll(more.items.orEmpty())
                         page = more.nextPage
@@ -147,7 +149,7 @@ class NewPipeStreamResolver(
             } else {
                 cands
             }
-            val out = SearchLang.apply(titled, limit)
+            val out = SearchLang.applyFor(q, titled, limit)
             AppLog.log(SOURCE, LogLevel.Info, "search", "OK ${out.size} hasil")
             StreamOutcome.Success(out)
         } catch (e: CancellationException) {

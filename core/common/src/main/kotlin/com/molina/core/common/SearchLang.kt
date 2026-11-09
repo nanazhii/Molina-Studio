@@ -74,13 +74,18 @@ object SearchLang {
      * Urutan stabil: Indonesia, lalu netral, (OTHER dibuang). Urutan relevansi YouTube tetap dijaga
      * di dalam tiap kelompok. Dimatikan -> hanya dipotong sampai [limit].
      */
+    /** [SEARCH-FIX] Kunci bahasa hanya berlaku bila kata kunci jelas berbahasa Indonesia; selain itu urutan YouTube dipertahankan. */
+    fun applyFor(query: String, items: List<StreamSearchItem>, limit: Int): List<StreamSearchItem> =
+        if (enabled && classify(query) != Verdict.ID) items.take(limit.coerceAtLeast(0)) else apply(items, limit)
+
     fun apply(items: List<StreamSearchItem>, limit: Int): List<StreamSearchItem> {
         val cap = limit.coerceAtLeast(0)
         if (!enabled) return items.take(cap)
         val tagged = items.map { it to classify(it.title) }
         val kept = tagged.filter { it.second == Verdict.ID }.map { it.first } +
             tagged.filter { it.second == Verdict.NEUTRAL }.map { it.first }
-        val out = if (kept.size >= MIN_KEEP) kept else kept + tagged.filter { it.second == Verdict.OTHER }.map { it.first }
+        // [SEARCH-FIX] OTHER dibuang hanya bila ID/netral sudah mengisi limit; selain itu ditaruh di belakang.
+        val out = if (kept.size >= cap) kept else kept + tagged.filter { it.second == Verdict.OTHER }.map { it.first }
         return out.take(cap)
     }
 }

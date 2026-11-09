@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.molina.core.common.NetworkPolicy
 import com.molina.core.common.SearchLang
+import com.molina.core.common.StreamQuality
+import com.molina.core.common.VideoQuality
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,6 +24,7 @@ object StreamEnginePrefs {
     private const val KEY_BLOCK_PL = "block_playlist_streams"
     private const val KEY_LOCK_ID = "lock_id"
     private const val KEY_ORIG_TITLE = "orig_title"
+    private const val KEY_QUALITY = "video_quality" // [QUALITY]
 
     private var sp: SharedPreferences? = null
     private val _ytdlpEnabled = MutableStateFlow(false)
@@ -48,6 +51,17 @@ object StreamEnginePrefs {
     /** Pakai judul asli pengunggah di hasil pencarian (default nyala). Dicerminkan ke [SearchLang.originalTitles]. */
     val originalTitles: StateFlow<Boolean> = _originalTitles.asStateFlow()
 
+    private val _quality = MutableStateFlow(VideoQuality.AUTO) // [QUALITY]
+
+    /** Batas resolusi YouTube. Dicerminkan ke [StreamQuality.current]; berlaku pada video berikutnya. */
+    val quality: StateFlow<VideoQuality> = _quality.asStateFlow()
+
+    fun setQuality(v: VideoQuality) {
+        _quality.value = v
+        StreamQuality.current = v
+        sp?.edit()?.putString(KEY_QUALITY, v.name)?.apply()
+    }
+
     fun init(ctx: Context) {
         val p = ctx.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE)
         sp = p
@@ -60,6 +74,9 @@ object StreamEnginePrefs {
         SearchLang.enabled = _lockIndonesian.value
         _originalTitles.value = p.getBoolean(KEY_ORIG_TITLE, true)
         SearchLang.originalTitles = _originalTitles.value
+        val q = VideoQuality.fromName(p.getString(KEY_QUALITY, null)) // [QUALITY]
+        _quality.value = q
+        StreamQuality.current = q
     }
 
     fun enableLan(v: Boolean) {

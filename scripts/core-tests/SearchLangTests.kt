@@ -42,7 +42,7 @@ fun main() {
         item("Sheila On 7 - Dan"), item("Berita Hari Ini Lengkap"), item("Kisah Anak Rumahan"),
     )
     val r = SearchLang.apply(mix, 50)
-    check("apply: OTHER dibuang", r.none { SearchLang.classify(it.title) == Verdict.OTHER })
+    check("apply: OTHER di belakang, tidak dibuang", r.size == mix.size && r.takeLast(2).all { SearchLang.classify(it.title) == Verdict.OTHER }) // [SEARCH-FIX]
     check("apply: ID di depan", titles(r).startsWith("Resep Nasi Goreng yang Enak | Cara Masak Rendang"))
     check("apply: netral menyusul urutan asli", titles(r).contains("Lathi | Weird Genius"))
     check("apply: urutan relevansi dalam ID dijaga", titles(r).indexOf("Resep Nasi") < titles(r).indexOf("Cara Masak Rendang"))
@@ -53,6 +53,11 @@ fun main() {
     check("fallback: tidak ada yang dibuang", f.size == 3)
     check("fallback: ID tetap paling depan", f.first().title.startsWith("Resep"))
 
+    check("kata kunci netral: urutan asli", SearchLang.applyFor("android 17", mix, 50).map { it.title } == mix.map { it.title }) // [SEARCH-FIX-2]
+    check("kata kunci ID: tetap dikunci", SearchLang.applyFor("resep nasi goreng yang enak", mix, 50).size == mix.size)
+    check("VideoQuality 720: tertinggi <= 720", com.molina.core.common.VideoQuality.P720.chooseHeight(listOf(360, 480, 720, 1080)) == 720)
+    check("VideoQuality 480: tanpa 480 -> terdekat bawah", com.molina.core.common.VideoQuality.P480.chooseHeight(listOf(360, 720, 1080)) == 360)
+    check("VideoQuality 480: semua lebih tinggi -> terendah", com.molina.core.common.VideoQuality.P480.chooseHeight(listOf(720, 1080)) == 720)
     SearchLang.enabled = false
     check("mati: urutan asli", SearchLang.apply(mix, 50).map { it.title } == mix.map { it.title })
     check("mati: tetap dipotong limit", SearchLang.apply(mix, 2).size == 2)

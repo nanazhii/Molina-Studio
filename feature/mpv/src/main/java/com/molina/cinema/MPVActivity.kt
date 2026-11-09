@@ -3344,7 +3344,20 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             updateMetadataDisplay()
     }
 
+    /** [QUALITY] Video-only YouTube (720p/1080p): tambahkan trek audio terpisah. Header per-berkas ikut berlaku. */
+    private fun attachExternalAudio() {
+        val path = MPVLib.getPropertyString("path") ?: return
+        val audio = com.molina.core.common.StreamQuality.audioFor(path) ?: return
+        if (UrlPolicy.check(audio) is UrlPolicy.Verdict.Blocked) return
+        try {
+            MPVLib.command(arrayOf("audio-add", audio, "select", "molina-audio"))
+        } catch (e: Exception) {
+            MpvLog.i(TAG, "audio-add gagal: ${e.message}")
+        }
+    }
+
     private fun eventUi(eventId: Int) {
+        if (eventId == MpvEvent.MPV_EVENT_FILE_LOADED) attachExternalAudio() // [QUALITY]
         if (!activityIsForeground) return
         if (eventId == MpvEvent.MPV_EVENT_FILE_LOADED) updateNowPlayingArt() // [COVER-ART]
     }

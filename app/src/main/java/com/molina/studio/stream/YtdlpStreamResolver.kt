@@ -62,7 +62,7 @@ internal class YtdlpStreamResolver(
         val o = YtdlpRunner.run(ctx, bin, YtdlpCommand.searchArgs(query, limit), SEARCH_TIMEOUT_MS)
         if (o.timedOut) return fail(StreamError.NETWORK, "pencarian lewat waktu")
         if (o.exit != 0) return failure(o.exit, o.stderr, "pencarian")
-        return StreamOutcome.Success(SearchLang.apply(YtdlpSearch.parse(o.stdout.lines(), limit), limit))
+        return StreamOutcome.Success(SearchLang.applyFor(query, YtdlpSearch.parse(o.stdout.lines(), limit), limit))
     }
 
     /**
