@@ -57,8 +57,8 @@ import androidx.compose.ui.graphics.Color
 
 private enum class Tab(@StringRes val labelRes: Int, val glyph: String, val color: Color) {
     Mpv(R.string.tab_mpv, "\u25B6", Color(0xFFB388FF)),          // [NAV-SLIM] ungu pekat: bioskop
-    Terminal(R.string.tab_terminal, ">_", Color(0xFF4ADE80)),     // [NAV-TERM] hijau terminal: sesi Debian (kembali jadi tab nav)
     Files(R.string.tab_files, "\u25A4", Color(0xFF5C9DFF)),       // biru pekat: penjelajah berkas
+    Terminal(R.string.tab_terminal, ">_", Color(0xFF4ADE80)),     // [NAV-TERM] hijau terminal: sesi Debian (kembali jadi tab nav)
     Settings(R.string.tab_settings, "\u2699", Color(0xFFB8C2CC))  // abu dingin terang: pengaturan
 }
 
