@@ -31,6 +31,7 @@ class BackgroundPlaybackService : Service(), MPVLib.EventObserver {
         thumbnailHandler = Handler(mainLooper)
 
         MPVLib.addObserver(this)
+        refreshRequested = { refreshNotification() } // [AUDIO-TAG-NOTIF]
     }
 
     private lateinit var thumbnailHandler: Handler
@@ -57,6 +58,14 @@ class BackgroundPlaybackService : Service(), MPVLib.EventObserver {
         }
     }
 
+    /** [AUDIO-TAG-NOTIF] Awali judul notifikasi dengan penanda saat mode audio saja aktif. */
+    private fun audioTagged(title: CharSequence?): CharSequence {
+        val t = title?.toString().orEmpty()
+        if (!BackgroundPlaybackState.audioOnly &&
+            com.molina.core.common.StreamQuality.current != com.molina.core.common.VideoQuality.AUDIO) return t
+        return if (t.isEmpty()) "\u266A Audio" else "\u266A Audio \u00B7 $t"
+    }
+
     private fun buildNotification(): Notification {
         val notificationIntent = Intent(this, MPVActivity::class.java)
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
@@ -68,7 +77,7 @@ class BackgroundPlaybackService : Service(), MPVLib.EventObserver {
         with (builder) {
             setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             setPriority(NotificationCompat.PRIORITY_LOW)
-            setContentTitle(cachedMetadata.formatTitle())
+            setContentTitle(audioTagged(cachedMetadata.formatTitle()))
             setContentText(cachedMetadata.formatArtistAlbum())
             setSmallIcon(R.drawable.ic_stat_terminal)
             setContentIntent(pendingIntent)
@@ -153,6 +162,8 @@ class BackgroundPlaybackService : Service(), MPVLib.EventObserver {
 
         MpvLog.i(TAG, "Layanan pemutaran latar dihentikan")
         BackgroundPlaybackState.setActive(false)
+        BackgroundPlaybackState.audioOnly = false // [AUDIO-TAG-NOTIF]
+        refreshRequested = null
     }
 
     override fun onBind(intent: Intent): IBinder? { return null }
@@ -210,6 +221,8 @@ class BackgroundPlaybackService : Service(), MPVLib.EventObserver {
         var mediaToken: MediaSessionCompat.Token? = null
         /* Set by MPVActivity; to notify on thumbnail changes */
         var thumbnailChanged: (() -> Unit)? = null
+        /* [AUDIO-TAG-NOTIF] Diisi service; dipanggil MPVActivity agar judul notifikasi disegarkan */
+        var refreshRequested: (() -> Unit)? = null
 
         private const val NOTIFICATION_ID = 12345
         private const val NOTIFICATION_CHANNEL_ID = "background_playback"

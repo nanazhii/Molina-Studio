@@ -600,6 +600,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     override fun onDestroy() {
         thumbnailer.release()
         MpvLog.v(TAG, "Exiting.")
+        audioReloadPrev?.let { com.molina.core.common.StreamQuality.current = it } // [AUDIO-ONLY-BTN]
 
         // Suppress any further callbacks
         activityIsForeground = false
@@ -2543,14 +2544,72 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     private var forcedAudioOnly = false
 
+    // [AUDIO-ONLY-BTN] Mode audio murni untuk item YouTube: resolve ulang hanya sebagai audio (video tidak diunduh),
+    // lanjut dari posisi terakhir. Aktif untuk item berikutnya juga sampai dimatikan.
+    private var audioReloadPrev: com.molina.core.common.VideoQuality? = null
+    private var pendingSeekSec: Double? = null
+
+    /** True bila item aktif hasil resolver web dan sudah ditangani; false = pakai perilaku lama (matikan track video). */
+    private fun reloadAsAudioOnly(): Boolean {
+        val path = MPVLib.getPropertyString("path") ?: return false
+        val page = streamSources[path] ?: return false
+        if (!StreamLoader.isWebUrl(page)) return false
+        val sq = com.molina.core.common.StreamQuality
+        val audioQ = com.molina.core.common.VideoQuality.AUDIO
+        val before = sq.current
+        val toAudio = before != audioQ
+        if (toAudio) {
+            audioReloadPrev = before
+            sq.current = audioQ
+        } else {
+            sq.current = audioReloadPrev ?: com.molina.core.common.VideoQuality.AUTO
+            audioReloadPrev = null
+        }
+        forcedAudioOnly = toAudio
+        updateMetadataDisplay() // [AUDIO-TAG]
+        val pos = MPVLib.getPropertyDouble("time-pos") ?: 0.0
+        val idx = MPVLib.getPropertyInt("playlist-pos") ?: 0
+        showToast(getString(if (toAudio) R.string.audio_only_on else R.string.audio_only_off), true)
+        streamScope.launch {
+            when (val p = StreamLoader.prepare(page) { showToast(getString(R.string.stream_resolving), true) }) {
+                is Prepared.Ready -> {
+                    p.title?.let { streamTitles[p.url] = it }
+                    streamSources[p.url] = page
+                    pendingSeekSec = pos.takeIf { it > 1.0 }
+                    val a = MpvLoad.loadfileArgs(p.url, "insert-at-play", p.headers, p.title)
+                    if (a.isNotEmpty() && a[0] == "loadfile") {
+                        // indeks eksplisit = posisi entri lama: entri baru menggantikan, entri lama bergeser ke idx + 1
+                        val cmd = if (a.size >= 5) a.copyOf().also { it[3] = idx.toString() }
+                                  else arrayOf("loadfile", a[1], "insert-at-play", idx.toString())
+                        MPVLib.command(cmd)
+                        MPVLib.command(arrayOf("playlist-remove", (idx + 1).toString()))
+                    } else {
+                        MPVLib.command(a)
+                        sq.current = before; audioReloadPrev = null; forcedAudioOnly = !toAudio; updateMetadataDisplay() // [AUDIO-TAG-2]
+                    }
+                }
+                is Prepared.Failed -> {
+                    sq.current = before
+                    audioReloadPrev = if (toAudio) null else before
+                    forcedAudioOnly = !toAudio
+                    updateMetadataDisplay() // [AUDIO-TAG-3]
+                    showToast(getString(StreamLoader.messageRes(p.error)), true)
+                }
+            }
+        }
+        return true
+    }
+
     /** Matikan/nyalakan track video lewat property `vid`; UI audio dipicu oleh observer current-tracks/video/image. */
     private fun toggleAudioOnly() {
+        if (reloadAsAudioOnly()) return // [AUDIO-ONLY-BTN]
         forcedAudioOnly = !forcedAudioOnly
         if (forcedAudioOnly)
             player.vid = -1
         else
             MPVLib.setPropertyString("vid", "auto")
         MpvLog.i(TAG, "Audio only: $forcedAudioOnly")
+        updateMetadataDisplay() // [AUDIO-TAG-4]
         showToast(getString(if (forcedAudioOnly) R.string.audio_only_on else R.string.audio_only_off), true)
     }
 
@@ -2637,13 +2696,22 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         window.attributes = lp
     }
 
+    /** [AUDIO-TAG] Awali judul dengan penanda saat mode audio saja aktif (tombol menu atau pilihan kualitas AUDIO). */
+    private fun audioTag(title: CharSequence?): CharSequence {
+        val t = title?.toString().orEmpty()
+        if (!forcedAudioOnly && com.molina.core.common.StreamQuality.current != com.molina.core.common.VideoQuality.AUDIO) return t
+        return if (t.isEmpty()) "\u266A Audio" else "\u266A Audio \u00B7 $t"
+    }
+
     private fun updateMetadataDisplay() {
+        BackgroundPlaybackState.audioOnly = forcedAudioOnly || com.molina.core.common.StreamQuality.current == com.molina.core.common.VideoQuality.AUDIO // [AUDIO-TAG-NOTIF]
+        BackgroundPlaybackService.refreshRequested?.invoke()
         if (!useAudioUI) {
             if (showMediaTitle)
-                binding.fullTitleTextView.text = psc.meta.formatTitle()
+                binding.fullTitleTextView.text = audioTag(psc.meta.formatTitle())
             binding.fullTitleTextView.isSelected = true // [TITLE-MARQUEE]
         } else {
-            binding.titleTextView.text = psc.meta.formatTitle()
+            binding.titleTextView.text = audioTag(psc.meta.formatTitle())
             binding.minorTitleTextView.text = psc.meta.formatArtistAlbum()
             binding.titleTextView.isSelected = true // [TITLE-MARQUEE] teks panjang berjalan, 1 baris
             binding.minorTitleTextView.isSelected = true
@@ -3358,6 +3426,10 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     private fun eventUi(eventId: Int) {
         if (eventId == MpvEvent.MPV_EVENT_FILE_LOADED) attachExternalAudio() // [QUALITY]
+        if (eventId == MpvEvent.MPV_EVENT_FILE_LOADED) pendingSeekSec?.let { s -> // [AUDIO-ONLY-BTN]
+            pendingSeekSec = null
+            MPVLib.command(arrayOf("seek", s.toString(), "absolute"))
+        }
         if (!activityIsForeground) return
         if (eventId == MpvEvent.MPV_EVENT_FILE_LOADED) updateNowPlayingArt() // [COVER-ART]
     }
