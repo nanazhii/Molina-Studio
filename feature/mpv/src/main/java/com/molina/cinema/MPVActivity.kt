@@ -1078,6 +1078,13 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             leftMargin = if (two) artColumnWidth() + gap else side
             rightMargin = if (two) edge else side
         }
+        // [LAND-FIX] rule: layout_centerHorizontal memusatkan ulang kontrol sehingga
+        // margin kiri kolom tidak berlaku. Dua kolom: lepas rule itu.
+        (binding.controls.layoutParams as? android.widget.RelativeLayout.LayoutParams)?.let { lp ->
+            if (two) lp.removeRule(android.widget.RelativeLayout.CENTER_HORIZONTAL)
+            else lp.addRule(android.widget.RelativeLayout.CENTER_HORIZONTAL)
+            binding.controls.layoutParams = lp
+        }
     }
 
     /** [LAND-2COL] Padding (kiri, atas, kanan, bawah) area sampul/banner. Dua kolom: dibatasi kolom kiri, tanpa cadangan kontrol. */
@@ -2708,14 +2715,15 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         val lp = binding.spectrumView.layoutParams as? android.widget.FrameLayout.LayoutParams ?: return
         val d = resources.displayMetrics.density
         val two = twoColumnAudio() // [LAND-2COL] spektrum hanya selebar kolom kiri
-        val total = if (two) reserved + (8 * d).toInt() else reserved + topBarReserve()
+        // [LAND-FIX] total: bar atas (kunci/cari/PiP) juga dicadangkan di kolom kanan
+        val total = reserved + topBarReserve() + (if (two) (8 * d).toInt() else 0)
         val left = if (two) artColumnWidth() + (8 * d).toInt() else 0
         val edge = if (two) (24 * d).toInt() else 0
         val w = ViewGroup.LayoutParams.MATCH_PARENT
         // [LAND-SPEC-RIGHT] tinggi otomatis: 60% ruang kolom kanan (96..260dp)
         val dm = resources.displayMetrics
         val artH = binding.nowPlayingArt.height.takeIf { it > 0 } ?: dm.heightPixels
-        val avail = artH - total - topBarReserve() - (16 * d).toInt()
+        val avail = artH - total - (16 * d).toInt() // [LAND-FIX] avail
         val minH = (96 * d).toInt()
         val maxH = (260 * d).toInt()
         val auto = (avail * 0.6f).toInt().coerceIn(minH, maxH)
