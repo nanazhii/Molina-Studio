@@ -43,6 +43,27 @@ internal fun CinemaAction(glyph: String, label: String, onClick: () -> Unit) {
         Text(label, color = MolinaTheme.Muted, fontSize = 10.sp)
     }
 }
+/** [QUALITY-BADGE] Lencana batas resolusi YouTube aktif (AUTO/480p/576p/720p/1080p); warna Brand, beda dari LIVE ungu. */
+@Composable
+internal fun QualityBadge(q: com.molina.core.common.VideoQuality, onClick: (() -> Unit)? = null) { // [QUALITY-TAP]
+    val text = when (q) {
+        com.molina.core.common.VideoQuality.AUTO -> "AUTO"
+        com.molina.core.common.VideoQuality.P480 -> "480p"
+        com.molina.core.common.VideoQuality.P576 -> "576p"
+        com.molina.core.common.VideoQuality.P720 -> "720p"
+        com.molina.core.common.VideoQuality.P1080 -> "1080p"
+    }
+    Row(
+        Modifier.clip(CircleShape).clickable(enabled = onClick != null) { onClick?.invoke() }
+            .background(MolinaTheme.Brand.copy(alpha = 0.14f))
+            .border(1.dp, MolinaTheme.Brand, CircleShape)
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text, color = MolinaTheme.Brand, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+    }
+}
+
 /** Penanda "video sedang main di latar belakang"; sama ungu (CinemaPurple) dengan ikon mpv di tab Log. */
 @Composable
 internal fun LiveBadge() {
