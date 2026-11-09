@@ -210,7 +210,7 @@ private fun MonitorChip(
 
 @Composable
 private fun ChipHead(label: String, value: String, color: Color, compact: Boolean = false) { // [MC-HEAD-FN]
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly /* [MC-HEAD-CENTER] pasangan label+nilai terpusat, seragam dengan chip jaringan */, verticalAlignment = Alignment.CenterVertically) {
         Text(label, color = ChipIdle, style = ChipTextStyle, fontSize = if (compact) 7.sp else 8.sp, /* [MC-LABEL] */ lineHeight = 12.sp, fontFamily = FontFamily.Monospace, maxLines = 1, softWrap = false)
         Text(value, color = color, style = ChipTextStyle, fontSize = 10.sp, lineHeight = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, maxLines = 1, softWrap = false)
     }
@@ -220,6 +220,8 @@ private fun ChipHead(label: String, value: String, color: Color, compact: Boolea
 private fun NetLine(text: String, color: Color, active: Boolean) {
     Text(
         text,
+        modifier = Modifier.fillMaxWidth(), // [MC-NET-CENTER] teks unduh/unggah di tengah bingkai chip
+        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         color = color, // [MC-COLOR] tidak lagi diredupkan saat idle agar tetap terbaca
         style = ChipTextStyle,
         fontWeight = if (active) FontWeight.Bold else FontWeight.Normal, // [MC-A11Y] penanda kedua selain warna
