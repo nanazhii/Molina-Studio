@@ -93,17 +93,18 @@ internal object CinemaActions {
     )
 
     /** Putar daftar dari folder beserta subfolder: [memoryUri] = MpvFolder.memoryPlaylist(...). */
-    fun playTree(ctx: Context, memoryUri: String): Boolean = start(
+    fun playTree(ctx: Context, memoryUri: String, startIndex: Int = -1): Boolean = start( // [ORDER-KEEP]
         ctx,
         Intent().setClassName(ctx.packageName, PLAYER)
             .putExtra("filepath", memoryUri)
             .putExtra("folder_playlist", true)
+            .apply { if (startIndex >= 0) putExtra("start_index", startIndex) }
     )
 
     /** Putar saluran terpilih sebagai playlist memory:// (prev/next di pemutar = ganti saluran). */
     fun playChannels(ctx: Context, channels: List<IptvChannel>, picked: IptvChannel): Boolean {
-        val uri = IptvPlayback.memoryPlaylist(channels, picked) ?: return false
-        val ok = playTree(ctx, uri)
+        val q = IptvPlayback.queue(channels, picked) ?: return false // [ORDER-KEEP]
+        val ok = playTree(ctx, q.uri, q.startIndex)
         if (ok) {
             CinemaRecent.add(ctx, picked.url, picked.name)
             CinemaRecent.saveSnapshot(ctx, picked.url, "ch", channels.map { it.url }, channels.map { it.name }, channels.map { it.logo }) // [RECENT-PLAYLIST]

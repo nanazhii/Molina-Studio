@@ -135,6 +135,24 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     // Playlist hasil pencarian (jendela bergulir): hanya diakses dari main thread.
     private var rolling: RollingQueue? = null
 
+    /** [ORDER-KEEP] Indeks awal playlist memory:// (urutan asli); -1 = tidak ada. */
+    @Volatile private var pendingStartIndex = -1
+
+    private fun readStartIndex(intent: Intent?): Int {
+        val v = intent?.getIntExtra("start_index", -1) ?: -1
+        return if (v in 0 until MAX_MEMORY_PLAYLIST_ENTRIES) v else -1
+    }
+
+    private fun applyPendingStart() {
+        val want = pendingStartIndex
+        if (want < 0) return
+        val count = MPVLib.getPropertyInt("playlist-count") ?: return
+        if (count <= 1) return // masih memuat wadah m3u
+        pendingStartIndex = -1
+        val pos = MPVLib.getPropertyInt("playlist-pos") ?: want
+        if (want < count && pos != want) MPVLib.setPropertyInt("playlist-pos", want)
+    }
+
     private var searchJob: kotlinx.coroutines.Job? = null
 
     /** Antrean dari extra Intent Cinema Home; null bila tidak ada atau tidak valid. */
@@ -509,6 +527,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         WatchStats.attach(applicationContext)
         player.addObserver(this)
         rolling = playlistFrom(intent, filepath)
+        pendingStartIndex = readStartIndex(intent) // [ORDER-KEEP]
         player.initialize(filesDir.path, cacheDir.path)
         MpvVersionNote.record(applicationContext)
         // Folder jadi playlist: dari pemilih lama (extra) atau dari Cinema Home (ACTION_VIEW)
@@ -709,6 +728,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     /** Ganti isi playlist: seluruh folder bila berlaku, kalau tidak berkas/URL tunggal. */
     private fun loadReplacing(intent: Intent?, filepath: String, headers: Map<String, String>) {
         rolling = playlistFrom(intent, filepath)
+        pendingStartIndex = readStartIndex(intent) // [ORDER-KEEP] baru
         streamTitles.clear()
         // [STATION-LOGO] logo hanya dibaca dari intent tepercaya (token Molina); intent luar tidak boleh memicu unduhan logo
         stationLogos = emptyMap()
@@ -1068,7 +1088,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         val spectrumSpace = if (spectrumReserve) (SPECTRUM_HEIGHT_DP * d).toInt() else 0 // [SPECTRUM]
         if (twoColumnAudio()) {
             val right = resources.displayMetrics.widthPixels - artColumnWidth() + (16 * d).toInt()
-            val bottom = spectrumSpace + ((if (spectrumReserve) 28 else 12) * d).toInt()
+            val bottom = (12 * d).toInt() // [LAND-SPEC-RIGHT] bawah: spektrum ke kolom kanan
             return intArrayOf(side, top, right, bottom)
         }
         val bottom = reserved + spectrumSpace + (if (spectrumReserve) topBarReserve() else 0) + (12 * d).toInt()
@@ -2688,12 +2708,27 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         val lp = binding.spectrumView.layoutParams as? android.widget.FrameLayout.LayoutParams ?: return
         val d = resources.displayMetrics.density
         val two = twoColumnAudio() // [LAND-2COL] spektrum hanya selebar kolom kiri
-        val total = if (two) (16 * d).toInt() else reserved + topBarReserve()
-        val w = if (two) artColumnWidth() else ViewGroup.LayoutParams.MATCH_PARENT
-        val g = if (two) Gravity.BOTTOM or Gravity.START else Gravity.BOTTOM
-        if (lp.bottomMargin == total && lp.width == w && lp.gravity == g) return
+        val total = if (two) reserved + (8 * d).toInt() else reserved + topBarReserve()
+        val left = if (two) artColumnWidth() + (8 * d).toInt() else 0
+        val edge = if (two) (24 * d).toInt() else 0
+        val w = ViewGroup.LayoutParams.MATCH_PARENT
+        // [LAND-SPEC-RIGHT] tinggi otomatis: 60% ruang kolom kanan (96..260dp)
+        val dm = resources.displayMetrics
+        val artH = binding.nowPlayingArt.height.takeIf { it > 0 } ?: dm.heightPixels
+        val avail = artH - total - topBarReserve() - (16 * d).toInt()
+        val minH = (96 * d).toInt()
+        val maxH = (260 * d).toInt()
+        val auto = (avail * 0.6f).toInt().coerceIn(minH, maxH)
+        val fit = auto.coerceAtMost(avail.coerceAtLeast((48 * d).toInt()))
+        val h = if (two) fit else (SPECTRUM_HEIGHT_DP * d).toInt()
+        val g = Gravity.BOTTOM
+        if (lp.bottomMargin == total && lp.width == w && lp.height == h &&
+            lp.gravity == g && lp.leftMargin == left && lp.rightMargin == edge) return
         lp.bottomMargin = total
+        lp.leftMargin = left
+        lp.rightMargin = edge
         lp.width = w
+        lp.height = h
         lp.gravity = g
         binding.spectrumView.layoutParams = lp
     }
@@ -3382,6 +3417,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
         if (eventId == MpvEvent.MPV_EVENT_SHUTDOWN)
             finishWithResult(if (playbackHasStarted) RESULT_OK else RESULT_CANCELED)
+
+        if (pendingStartIndex >= 0) applyPendingStart() // [ORDER-KEEP]
 
         if (eventId == MpvEvent.MPV_EVENT_START_FILE || eventId == MpvEvent.MPV_EVENT_FILE_LOADED) {
             shieldPath = MPVLib.getPropertyString("path") ?: ""

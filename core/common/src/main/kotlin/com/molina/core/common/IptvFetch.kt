@@ -98,9 +98,12 @@ object IptvFetch {
     }
 }
 
+/** [ORDER-KEEP] uri = playlist urutan asli; startIndex = posisi terpilih. */
+class IptvQueue(val uri: String, val startIndex: Int)
+
 /** Menyusun playlist memory:// untuk pemutar (prev/next = ganti saluran). Murni Kotlin. */
 object IptvPlayback {
-    const val MAX_ENTRIES = 300
+    const val MAX_ENTRIES = 1000 // [ORDER-KEEP] sama dengan batas memory://
     /** Batas karakter total: extra Intent lewat Binder (batas sekitar 1 MB per transaksi). */
     const val MAX_CHARS = 200_000
 
@@ -108,12 +111,24 @@ object IptvPlayback {
      * Saluran terpilih jadi item pertama, lalu urutan setelahnya (berputar ke awal daftar).
      * Null bila [picked] tidak ada di [channels]. Nama sudah bersih (tanpa baris baru) dari [M3uParser].
      */
-    fun memoryPlaylist(channels: List<IptvChannel>, picked: IptvChannel): String? {
-        val i = channels.indexOfFirst { it.url == picked.url }
-        if (i < 0 || picked.drm) return null // [DRM-FLAG]
+    fun memoryPlaylist(channels: List<IptvChannel>, picked: IptvChannel): String? =
+        queue(channels, picked)?.uri
+
+    /** [ORDER-KEEP] Urutan asli daftar (DRM dilewati). Di luar batas: jendela mulai dari terpilih. */
+    fun queue(channels: List<IptvChannel>, picked: IptvChannel): IptvQueue? {
+        if (picked.drm) return null // [DRM-FLAG]
+        val ok = channels.filter { !it.drm }
+        val pos = ok.indexOfFirst { it.url == picked.url }
+        if (pos < 0) return null
+        val first = build(ok, 0)
+        if (pos < first.second) return IptvQueue(first.first, pos)
+        return IptvQueue(build(ok, pos).first, 0)
+    }
+
+    private fun build(list: List<IptvChannel>, from: Int): Pair<String, Int> {
         val sb = StringBuilder("memory://#EXTM3U\n")
         var n = 0
-        for (c in (channels.drop(i) + channels.take(i)).filter { !it.drm }) { // [DRM-FLAG] prev/next melewati saluran DRM
+        for (c in list.drop(from)) {
             val logo = logoAttr(c.logo) // [STATION-LOGO]
             val add = c.name.length + c.url.length + 14 + (if (logo.isEmpty()) 0 else logo.length + 12)
             if (n >= MAX_ENTRIES || (n > 0 && sb.length + add > MAX_CHARS)) break
@@ -122,7 +137,7 @@ object IptvPlayback {
             sb.append(',').append(c.name).append('\n').append(c.url).append('\n')
             n++
         }
-        return sb.toString()
+        return Pair(sb.toString(), n)
     }
 
     /** [STATION-LOGO] Logo hanya https tanpa tanda kutip, koma, spasi, atau karakter kontrol (aman di atribut EXTINF). */
