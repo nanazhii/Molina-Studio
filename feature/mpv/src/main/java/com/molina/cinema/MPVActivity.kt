@@ -2648,6 +2648,9 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             binding.titleTextView.isSelected = true // [TITLE-MARQUEE] teks panjang berjalan, 1 baris
             binding.minorTitleTextView.isSelected = true
         }
+        // [TITLE-MARQUEE-RESTART] teks diam sebentar lalu bergulir; dipicu tiap judul berganti
+        listOf(binding.titleTextView, binding.minorTitleTextView, binding.fullTitleTextView)
+            .forEach { tv -> tv.post { tv.restartMarquee() } }
     }
 
     // [COVER-ART] Layar "Now Playing": sampul dimuat di thread IO, hanya untuk berkas lokal pada mode UI audio.

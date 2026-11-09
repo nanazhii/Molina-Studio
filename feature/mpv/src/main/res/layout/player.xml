@@ -178,7 +178,7 @@
                 tools:visibility="visible">
 
                 <!-- These two are only used for audio -->
-                <TextView
+                <com.molina.cinema.MarqueeTextView
                     android:id="@+id/titleTextView"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -187,29 +187,31 @@
                     android:gravity="center"
                     android:textColor="@color/tint_normal"
                     android:maxLines="1"
+                    android:singleLine="true"
                     android:ellipsize="marquee"
                     android:marqueeRepeatLimit="marquee_forever"
                     android:scrollHorizontally="true"
-                    android:textSize="24sp"
+                    android:textSize="20sp"
                     android:visibility="gone"
                     tools:text="Song Title" />
 
-                <TextView
+                <com.molina.cinema.MarqueeTextView
                     android:id="@+id/minorTitleTextView"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:gravity="center"
                     android:maxLines="1"
+                    android:singleLine="true"
                     android:ellipsize="marquee"
                     android:marqueeRepeatLimit="marquee_forever"
                     android:scrollHorizontally="true"
                     android:textColor="@color/tint_normal"
-                    android:textSize="14sp"
+                    android:textSize="13sp"
                     android:visibility="gone"
                     tools:text="Artist / Album" />
 
                 <!-- This one for video title display -->
-                <TextView
+                <com.molina.cinema.MarqueeTextView
                     android:id="@+id/fullTitleTextView"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -220,6 +222,7 @@
                     android:textStyle="bold"
                     android:gravity="center"
                     android:maxLines="1"
+                    android:singleLine="true"
                     android:textColor="@color/tint_normal"
                     android:textSize="16sp"
                     tools:text="Video Title" />
