@@ -30,6 +30,7 @@ internal fun W7ToolsMenu(
     playedFirst: Boolean, playedRefs: List<String>, shown: List<W7Entry>?,
     onPlay: (suspend (List<File>) -> Boolean)?, onOpenInNano: ((List<File>) -> Unit)?,
     onEditInTerminal: ((File) -> Unit)? = null, // [NANO-EDIT]
+    onOpenInEditor: ((File) -> Unit)? = null, // [EDITOR-SORA]
     newTextEnabled: Boolean = false, // [NANO-NEW]
     onSendToScripts: ((File) -> Pair<Boolean, String>)?, onOpenWith: ((File) -> Boolean)?,
     onShare: ((List<File>) -> Boolean)?, onCopyPath: ((File) -> Unit)?, onSaveToVault: ((List<File>) -> Unit)?, // MOLINA-H13-BRIDGE
@@ -92,6 +93,10 @@ internal fun W7ToolsMenu(
             W7MenuItem(W7Ico.PLAY, if (playedFirst) "Urutan: normal" else "Urutan: terakhir diputar dulu", playedRefs.isNotEmpty() || playedFirst) {
                 onDismiss()
                 onPlayedFirst(!playedFirst)
+            }
+            W7MenuItem(W7Ico.EDIT, "Edit (Molina Editor)", onOpenInEditor != null && one != null && one.isFile && ExplorerList.looksText(one)) { // [EDITOR-SORA]
+                onDismiss()
+                one?.let { onOpenInEditor?.invoke(it) }
             }
             W7MenuItem(W7Ico.EDIT, "Edit di Terminal (nano)", onEditInTerminal != null && one?.isFile == true) { // [NANO-EDIT]
                 onDismiss()

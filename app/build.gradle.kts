@@ -68,6 +68,7 @@ dependencies {
     implementation(project(":feature:mpv"))
     implementation(project(":core:exec")) // [CORE-EXEC]
     implementation(project(":feature:preview")) // [NANO-PREVIEW]
+    implementation(project(":feature:editor")) // [EDITOR-SORA]
     implementation(project(":feature:workspace")) // [WORKSPACE-W1]
     implementation(project(":engine:newpipe"))
     implementation(project(":core:common"))

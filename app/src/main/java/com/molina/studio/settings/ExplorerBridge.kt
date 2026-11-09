@@ -98,6 +98,22 @@ internal object MolinaExplorer {
         editInTerminal(ctx, f)
     }
 
+    /**
+     * [EDITOR-SORA] Boleh dibuka di editor Molina: berkas teks (maks 5 MB) yang bisa dibaca. Sama seperti nano,
+     * tidak memakai blockedSensitive: guard itu untuk berkas yang KELUAR dari Molina (share/Buka dengan).
+     */
+    fun canEditInApp(ctx: Context, f: File): Boolean {
+        if (!com.molina.studio.cinema.ExplorerList.looksText(f)) {
+            Toast.makeText(ctx, "Hanya berkas teks (maks 5 MB) yang bisa dibuka di editor.", Toast.LENGTH_SHORT).show()
+            return false
+        }
+        if (!f.canRead()) {
+            Toast.makeText(ctx, "Berkas tidak bisa dibaca.", Toast.LENGTH_SHORT).show()
+            return false
+        }
+        return true
+    }
+
     /** Kirim isi berkas teks ke Script execution. Sumber = path berkas, (tidak menggandakan). */
     fun sendToScripts(f: File): Pair<Boolean, String> {
         if (!f.isFile) return Pair(false, "Pilih satu berkas teks")
