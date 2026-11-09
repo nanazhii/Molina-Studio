@@ -120,6 +120,7 @@ internal fun FileDialogs(session: CodeSession) {
             },
             onCancel = { session.fileDialog = null }
         )
+        is FileDialog.Properties -> FilePropertiesDialog(d.file) { session.fileDialog = null } // [CODE-PROPS]
         is FileDialog.Delete -> {
             val isDir = d.file.isDirectory
             val open = session.hasTabUnder(d.file)
@@ -247,6 +248,7 @@ internal fun buildFileActions(session: CodeSession, ctx: Context, f: File): List
                 dir.reveal(f)
             })
         }
+        add(ActionItem("Properti", icon = MenuIcon.File) { session.fileDialog = FileDialog.Properties(f) }) // [CODE-PROPS]
         add(ActionItem("Hapus", danger = true, separatorBefore = true, icon = MenuIcon.Delete) { session.fileDialog = FileDialog.Delete(f) })
     }
 }
@@ -401,6 +403,80 @@ private fun NameDialog(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 DialogAction("BATAL", CodeColors.LabelNeutral, onCancel)
                 DialogAction(confirmLabel, CodeColors.Brand) { submit() }
+            }
+        }
+    }
+}
+
+/** [CODE-PROPS] Hasil baca properti berkas/folder. Folder dihitung rekursif (maks. 20.000 entri) di thread IO. */
+private class FileProps(val size: Long, val files: Int, val folders: Int, val capped: Boolean)
+
+private fun readProps(f: File): FileProps {
+    if (!f.isDirectory) return FileProps(f.length(), 0, 0, false)
+    var size = 0L
+    var files = 0
+    var folders = 0
+    var seen = 0
+    val stack = ArrayList<File>()
+    stack.add(f)
+    while (stack.isNotEmpty()) {
+        val d = stack.removeAt(stack.size - 1)
+        val list = d.listFiles() ?: continue
+        for (c in list) {
+            if (++seen > 20_000) return FileProps(size, files, folders, true)
+            if (java.nio.file.Files.isSymbolicLink(c.toPath())) { files++; continue }
+            if (c.isDirectory) { folders++; stack.add(c) } else { files++; size += c.length() }
+        }
+    }
+    return FileProps(size, files, folders, false)
+}
+
+private fun propSize(b: Long): String = when {
+    b < 1024L -> "$b B"
+    b < 1024L * 1024 -> String.format(java.util.Locale.US, "%.1f KB", b / 1024.0)
+    b < 1024L * 1024 * 1024 -> String.format(java.util.Locale.US, "%.1f MB", b / 1048576.0)
+    else -> String.format(java.util.Locale.US, "%.2f GB", b / 1073741824.0)
+}
+
+@Composable
+private fun PropRow(label: String, value: String) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+        BasicText(label, modifier = Modifier.width(64.dp), style = TextStyle(color = CodeColors.TextSecondary, fontSize = 13.sp))
+        BasicText(value, modifier = Modifier.weight(1f), style = TextStyle(color = CodeColors.TextPrimary, fontSize = 13.sp))
+    }
+}
+
+/** [CODE-PROPS] Dialog Properti: nama, lokasi, jenis, ukuran, isi (folder), waktu ubah, izin. */
+@Composable
+private fun FilePropertiesDialog(file: File, onDismiss: () -> Unit) {
+    val props by androidx.compose.runtime.produceState<FileProps?>(null, file.path) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { readProps(file) }.getOrNull() }
+    }
+    val isDir = file.isDirectory
+    val link = java.nio.file.Files.isSymbolicLink(file.toPath())
+    Dialog(onDismissRequest = onDismiss) {
+        DialogCard(Modifier.widthIn(max = 360.dp)) {
+            BasicText("Properti", style = TextStyle(color = CodeColors.Brand, fontSize = CodeDimens.DialogTitleSize))
+            Spacer(Modifier.height(12.dp))
+            PropRow("Nama", file.name.ifEmpty { file.path })
+            PropRow("Lokasi", file.parent ?: "/")
+            PropRow(
+                "Jenis",
+                if (link) "Tautan simbolik" else if (isDir) "Folder"
+                else if (file.extension.isEmpty()) "Berkas" else "Berkas ." + file.extension.lowercase()
+            )
+            val p = props
+            if (p == null) {
+                PropRow("Ukuran", "Menghitung\u2026")
+            } else {
+                PropRow("Ukuran", propSize(p.size) + (if (p.capped) "+" else "") + " (" + p.size + " byte)")
+                if (isDir) PropRow("Isi", p.files.toString() + " berkas, " + p.folders + " folder" + (if (p.capped) " (sebagian)" else ""))
+            }
+            PropRow("Diubah", java.text.SimpleDateFormat("dd/MM/yyyy HH.mm", java.util.Locale("id", "ID")).format(java.util.Date(file.lastModified())))
+            PropRow("Izin", (if (file.canRead()) "Baca" else "Tanpa baca") + ", " + (if (file.canWrite()) "Tulis" else "Tanpa tulis"))
+            Spacer(Modifier.height(12.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                DialogAction("TUTUP", CodeColors.Brand, onDismiss)
             }
         }
     }

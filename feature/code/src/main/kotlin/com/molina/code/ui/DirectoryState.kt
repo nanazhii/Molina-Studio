@@ -15,6 +15,7 @@ internal sealed class FileDialog {
     class Menu(val file: File, val fromTree: Boolean = false) : FileDialog()
     class Rename(val file: File) : FileDialog()
     class Delete(val file: File) : FileDialog()
+    class Properties(val file: File) : FileDialog() // [CODE-PROPS]
     class NewFile(val parent: File) : FileDialog()
     class NewFolder(val parent: File) : FileDialog()
 }
