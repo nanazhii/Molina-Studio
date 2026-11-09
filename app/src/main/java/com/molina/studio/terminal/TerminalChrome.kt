@@ -26,7 +26,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.molina.core.common.MolinaPaths
 import com.molina.studio.AppPaths
-import com.molina.studio.code.CodeInbox
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -127,7 +126,6 @@ internal fun TerminalHeader(onOpenSettings: () -> Unit, onOpenMonitor: () -> Uni
     var menu by remember { mutableStateOf(false) }
     var snippets by remember { mutableStateOf(false) }
     var scriptPicker by remember { mutableStateOf(false) }
-    var toCode by remember { mutableStateOf(false) }
     var links by remember { mutableStateOf(false) }
     var search by remember { mutableStateOf(false) }
 
@@ -159,7 +157,6 @@ internal fun TerminalHeader(onOpenSettings: () -> Unit, onOpenMonitor: () -> Uni
             HdrBtn("\u22EE") { menu = true }
             if (snippets) SnippetDialog { snippets = false }
             if (scriptPicker) com.molina.studio.code.ScriptPickerDialog { scriptPicker = false }
-            if (toCode) SendToCodeDialog { toCode = false }
             if (links) LinksDialog { links = false }
             if (search) TerminalSearchDialog { search = false }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
@@ -190,20 +187,6 @@ internal fun TerminalHeader(onOpenSettings: () -> Unit, onOpenMonitor: () -> Uni
                 DropdownMenuItem(
                     text = { Text("Pilih skrip") },
                     onClick = { menu = false; scriptPicker = true }
-                )
-                DropdownMenuItem(
-                    text = { Text("Sisip keluaran ke Code") },
-                    onClick = { menu = false; toCode = true }
-                )
-                DropdownMenuItem(
-                    text = { Text("Salin keluaran terakhir ke Code") },
-                    onClick = {
-                        menu = false
-                        val out = TerminalActions.lastCommandOutput()
-                        val msg = if (out.isNullOrBlank()) "Keluaran perintah terakhir tidak ditemukan"
-                        else CodeInbox.deliver(out)
-                        if (msg != null) Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
-                    }
                 )
                 DropdownMenuItem(
                     text = { Text("Cari di scrollback") },
