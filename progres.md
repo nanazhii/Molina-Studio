@@ -1,1 +1,0 @@
-- [MC-HEAD-CENTER] fix(term): label+nilai chip CPU/RAM dipusatkan (SpaceEvenly), seragam dengan chip jaringan. Menunggu CI.

@@ -133,3 +133,4 @@ patch_*.py
 *.mvr
 *.mvault
 .mkc/
+progres.md
