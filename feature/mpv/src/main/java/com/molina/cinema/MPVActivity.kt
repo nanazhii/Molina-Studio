@@ -2069,6 +2069,19 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         }
     }
 
+    /** Headset: pemutaran lanjut di latar, layar kembali ke Home Molina (tab Cinema). Player hidup di task sendiri. */
+    private fun openCinemaHome() {
+        val home = Intent().setClassName(packageName, "com.molina.studio.MainActivity")
+            .putExtra("molina_open_tab", "cinema")
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        try {
+            startActivity(home)
+        } catch (e: Exception) {
+            MpvLog.w(TAG, "Home Molina gagal dibuka, pakai moveTaskToBack: ${e.message}")
+            moveTaskToBack(true)
+        }
+    }
+
     private fun openTopMenu() {
         val restoreState = pauseForDialog()
 
@@ -2086,7 +2099,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                     restoreState()
                     backgroundPlayMode = "always"
                     player.paused = false
-                    moveTaskToBack(true)
+                    openCinemaHome()
                     false
                 },
                 MenuItem(R.id.audioOnlyBtn) { toggleAudioOnly(); true },

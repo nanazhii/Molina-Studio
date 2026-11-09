@@ -19,6 +19,7 @@
 
         <activity
             android:name=".MPVActivity"
+            android:taskAffinity="com.molina.studio.player"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenLayout|uiMode|screenSize|smallestScreenSize"
             android:supportsPictureInPicture="true"
             android:launchMode="singleTask"
