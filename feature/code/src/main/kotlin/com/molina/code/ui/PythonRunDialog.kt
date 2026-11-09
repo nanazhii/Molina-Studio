@@ -53,7 +53,7 @@ private const val MAX_HEREDOC_CHARS = 20_000
 @Composable
 internal fun PythonRunDialog(session: CodeSession, tab: EditorTab, onDismiss: () -> Unit) {
     val lang = remember { session.runLang() ?: TerminalRunLang.PY }
-    var mode by remember { mutableStateOf(if (session.runSavedFile()) PyRunMode.FILE else PyRunMode.HEREDOC) }
+    var mode by remember { mutableStateOf(PyRunMode.FILE) }
     var name by remember { mutableStateOf(PythonTerminalRun.suggestStem(tab.file?.name ?: tab.title, lang)) }
     var dontAsk by remember { mutableStateOf(!session.runAsk()) }
     val focus = remember { FocusRequester() }
@@ -73,7 +73,7 @@ internal fun PythonRunDialog(session: CodeSession, tab: EditorTab, onDismiss: ()
     }
     val preview = when (mode) {
         PyRunMode.HEREDOC -> heredoc?.let { PythonTerminalRun.preview(it) } ?: "(isi kosong)"
-        PyRunMode.FILE -> lang.interpreter + " " + (parsed.name ?: ("nama" + lang.ext))
+        PyRunMode.FILE -> "molina-run " + (parsed.name ?: ("nama" + lang.ext))
     }
 
     fun run() {
@@ -96,14 +96,8 @@ internal fun PythonRunDialog(session: CodeSession, tab: EditorTab, onDismiss: ()
             Spacer(Modifier.height(8.dp))
 
             PyOption(
-                selected = mode == PyRunMode.HEREDOC,
-                title = "Heredoc: ${lang.interpreter} << '${lang.delimiter}'",
-                subtitle = (if (hasSelection) "Hanya seleksi" else "Seluruh isi tab") + " dikirim apa adanya; tanpa berkas. " + (if (lang == TerminalRunLang.PY) "input()" else "read") + " dari keyboard tidak berfungsi.",
-                onClick = { mode = PyRunMode.HEREDOC }
-            )
-            PyOption(
                 selected = mode == PyRunMode.FILE,
-                title = "Berkas: ${lang.interpreter} nama${lang.ext}",
+                title = "Berkas: molina-run nama${lang.ext}",
                 subtitle = "Isi tab ditulis ke berkas lalu dijalankan. Berkas lama dicadangkan dan bisa diurungkan.",
                 onClick = { mode = PyRunMode.FILE }
             )

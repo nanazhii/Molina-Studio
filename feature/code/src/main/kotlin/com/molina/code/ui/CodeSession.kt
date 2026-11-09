@@ -773,7 +773,7 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         val s = runStore ?: return
         val ask = !runAsk()
         s.put(RunPrefs.KEY_ASK, if (ask) "1" else "0")
-        toast(if (ask) "Jalankan di Terminal: tanya dulu" else "Jalankan di Terminal: langsung (" + (if (runSavedFile()) "berkas" else "heredoc") + ")")
+        toast(if (ask) "Jalankan di Terminal: tanya dulu" else "Jalankan di Terminal: langsung (berkas)")
     }
 
     /**
@@ -784,10 +784,9 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         val lang = runLang()
         val tab = active
         if (lang == null || tab == null) { sendToTerminal(true); return }
-        val file = runSavedFile()
-        val own = tab.file
-        if (runAsk() || (file && own == null)) { pyRunOpen = true; return }
-        if (file && own != null) runScriptFileAt(tab, own, lang) else runScriptHeredoc(lang)
+        val own = tab.file // [CODE-ROLES] heredoc dipensiunkan: selalu dari berkas, diperiksa molina-run
+        if (runAsk() || own == null) { pyRunOpen = true; return }
+        runScriptFileAt(tab, own, lang)
     }
 
     internal fun scriptHasSelection(): Boolean = try {
@@ -851,9 +850,9 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         if (tab.file == target && !tab.dirty) { sink(cmd, true)?.let { toast(it) }; return }
         val raw = FileStore.applyEol(tab.currentTextOrNull(Int.MAX_VALUE) ?: "", tab.eol)
         if (raw.isBlank()) { toast("Tidak ada kode untuk dijalankan"); return }
-        guardedRun(tab.title, raw, kindOf(lang)) { rep -> // [CODE-GUARD]
-            val content = FileStore.applyEol(rep.body, tab.eol)
-            if (content.isBlank()) { toast("Tidak ada kode untuk dijalankan"); return@guardedRun }
+        checkedByMolinaRun { // [CODE-ROLES]
+            val content = raw // [CODE-ROLES]
+            if (content.isBlank()) { toast("Tidak ada kode untuk dijalankan"); return@checkedByMolinaRun }
             runIo {
                 var undo: TerminalRunUndo? = null
                 var err: String? = null
@@ -869,7 +868,7 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
                     if (failure != null) { toast(failure); return@post }
                     lastTerminalRun = made
                     dir.refresh()
-                    sink(cmd, true)?.let { toast(it) } ?: toast(rep.banner())
+                    sink(cmd, true)?.let { toast(it) }
                 }
             }
         }
@@ -1535,6 +1534,9 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
             }
         }
     }
+
+    /** [CODE-ROLES] Mode berkas: pemeriksaan skrip dilakukan molina-run di Terminal, bukan di Code. */
+    private inline fun checkedByMolinaRun(go: () -> Unit) = go()
 
     private var lastStaleCheck = 0L
 

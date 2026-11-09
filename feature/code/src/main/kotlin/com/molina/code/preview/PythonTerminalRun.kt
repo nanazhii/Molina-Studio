@@ -79,7 +79,7 @@ object PythonTerminalRun {
         val i = guestPath.lastIndexOf('/')
         val dir = if (i <= 0) "/" else guestPath.substring(0, i)
         val name = guestPath.substring(i + 1)
-        return "(cd ${ScriptLaunch.shellQuote(dir)} && ${lang.interpreter} ${ScriptLaunch.shellQuote(name)})"
+        return "(cd ${ScriptLaunch.shellQuote(dir)} && /usr/local/bin/molina-run ${ScriptLaunch.shellQuote(name)})" // [CODE-ROLES] pemeriksaan hanya di molina-run
     }
 
     /** Pratinjau singkat perintah untuk dialog (aturan potong seragam: [CommandBlockSpec.clip]). */

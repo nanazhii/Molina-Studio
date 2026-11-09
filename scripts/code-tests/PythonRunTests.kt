@@ -29,9 +29,9 @@ fun main() {
     check("pembatas bentrok dua kali", P.uniqueDelimiter("PYEOF\nPYEOF_1") == "PYEOF_2")
     check("PYEOF di tengah baris aman", P.uniqueDelimiter("print('PYEOF')") == "PYEOF")
 
-    check("fileCommand biasa", P.fileCommand("/sdcard/Proyek/tes.py") == "(cd '/sdcard/Proyek' && python3 'tes.py')")
-    check("fileCommand root", P.fileCommand("/x.py") == "(cd '/' && python3 'x.py')")
-    check("fileCommand kutip", P.fileCommand("/sdcard/a'b/x.py") == "(cd '/sdcard/a'\\''b' && python3 'x.py')")
+    check("fileCommand biasa", P.fileCommand("/sdcard/Proyek/tes.py") == "(cd '/sdcard/Proyek' && /usr/local/bin/molina-run 'tes.py')")
+    check("fileCommand root", P.fileCommand("/x.py") == "(cd '/' && /usr/local/bin/molina-run 'x.py')")
+    check("fileCommand kutip", P.fileCommand("/sdcard/a'b/x.py") == "(cd '/sdcard/a'\\''b' && /usr/local/bin/molina-run 'x.py')")
 
     check("preview pendek", P.preview("a\nb") == "a\nb")
     check("preview panjang", P.preview("1\n2\n3\n4\n5\n6", 4) == "1\n2\n3\n4\n...")
@@ -45,7 +45,7 @@ fun main() {
     check("sh stem", P.suggestStem("deploy.sh", SH) == "deploy" && P.suggestStem("x.py", SH) == "x.py")
     check("sh heredoc", P.heredoc("echo \$HOME\n", SH) == "bash << 'SHEOF'\necho \$HOME\nSHEOF")
     check("sh pembatas bentrok", P.heredoc("a\nSHEOF\n", SH) == "bash << 'SHEOF_1'\na\nSHEOF\nSHEOF_1")
-    check("sh fileCommand", P.fileCommand("/sdcard/a/d.sh", SH) == "(cd '/sdcard/a' && bash 'd.sh')")
+    check("sh fileCommand", P.fileCommand("/sdcard/a/d.sh", SH) == "(cd '/sdcard/a' && /usr/local/bin/molina-run 'd.sh')")
     check("py tetap default", P.heredoc("print(1)", PY) == P.heredoc("print(1)") && P.fileCommand("/a/b.py", PY) == P.fileCommand("/a/b.py"))
 
     // [CODE-CMDBLOCK] aturan potong pratinjau seragam
