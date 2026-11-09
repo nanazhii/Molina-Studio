@@ -10,4 +10,4 @@ C=core/common/src/main/kotlin/com/molina/core/common
   $C/MiniJson.kt $C/JsonCursor.kt $C/LogRedact.kt $C/DownloadEvent.kt $C/DownloadSession.kt $C/DownloadErrorText.kt \
   $C/DownloadCommand.kt $C/DownloadFeed.kt \
   scripts/core-tests/DownloadFeedTests.kt
-java -cp "$OUT:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" DownloadFeedTestsKt
+java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" DownloadFeedTestsKt

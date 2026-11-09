@@ -11,4 +11,4 @@ C=core/common/src/main/kotlin/com/molina/core/common
   $C/LogRedact.kt $C/MiniJson.kt $C/JsonCursor.kt $C/DownloadEvent.kt $C/DownloadSession.kt $C/DownloadErrorText.kt \
   $C/DownloadCommand.kt $C/DownloadUi.kt $C/DownloadHistory.kt \
   scripts/core-tests/DownloadHistoryTests.kt
-java -cp "$OUT:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" DownloadHistoryTestsKt
+java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" DownloadHistoryTestsKt

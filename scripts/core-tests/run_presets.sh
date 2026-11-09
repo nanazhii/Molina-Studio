@@ -10,4 +10,4 @@ C=core/common/src/main/kotlin/com/molina/core/common
 "$KC" -nowarn -d "$OUT" \
   $C/LogRedact.kt $C/DownloadCommand.kt $C/DownloadUi.kt $C/DownloadPreset.kt \
   scripts/core-tests/DownloadPresetTests.kt
-java -cp "$OUT:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" DownloadPresetTestsKt
+java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" DownloadPresetTestsKt

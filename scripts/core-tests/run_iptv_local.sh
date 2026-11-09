@@ -8,4 +8,4 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 C=core/common/src/main/kotlin/com/molina/core/common
 "$KC" -nowarn -d "$OUT" $C/IptvLocal.kt $C/IptvFetch.kt $C/M3uParser.kt $C/UrlPolicy.kt scripts/core-tests/IptvLocalTests.kt
-java -cp "$OUT:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" IptvLocalTestsKt
+java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" IptvLocalTestsKt

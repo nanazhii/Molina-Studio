@@ -8,4 +8,4 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 C=core/common/src/main/kotlin/com/molina/core/common
 "$KC" -nowarn -d "$OUT" $C/SearchOrder.kt $C/RelativeTime.kt $C/StreamResolver.kt scripts/core-tests/SearchOrderTests.kt
-java -cp "$OUT:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" SearchOrderTestsKt
+java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" SearchOrderTestsKt

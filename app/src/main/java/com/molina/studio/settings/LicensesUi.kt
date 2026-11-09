@@ -75,7 +75,8 @@ private val LICENSE_DOCS: Map<String, List<LicenseDoc>> = mapOf(
     "terminal" to listOf(DOC_APACHE),
     "proot" to listOf(DOC_GPL2),
     "ytdlp" to listOf(DOC_UNLICENSE),
-    "fonts" to listOf(DOC_OFL_JB),
+    "sora" to listOf(DOC_LGPL21, DOC_MIT_VSC),
+    "fonts" to listOf(DOC_OFL_JB, DOC_OFL_FIRA),
     "archive" to listOf(DOC_APACHE, DOC_0BSD),
     "git" to listOf(DOC_GPL2)
 )
@@ -88,6 +89,7 @@ private val LICENSE_CHIP: Map<String, String> = mapOf(
     "proot" to "GPL-2.0+",
     "rootfs" to "Beragam",
     "ytdlp" to "Unlicense",
+    "sora" to "LGPL-2.1+",
     "fonts" to "OFL-1.1",
     "archive" to "Apache-2.0 / 0BSD",
     "python3" to "PSF",
@@ -98,7 +100,7 @@ private val LICENSE_CHIP: Map<String, String> = mapOf(
 private val LICENSE_GROUPS: List<Pair<String, List<String>>> = listOf(
     "Pemutar media dan unduhan" to listOf("libmpv", "newpipe", "ytdlp"),
     "Terminal dan Debian" to listOf("terminal", "proot", "rootfs", "python3", "git", "ffmpeg"),
-    "Font dan berkas" to listOf("fonts", "archive")
+    "Editor dan berkas" to listOf("sora", "fonts", "archive")
 )
 
 private const val REPO_URL = "https://github.com/nanazhii/Molina-Studio"

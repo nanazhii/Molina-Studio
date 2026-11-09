@@ -8,4 +8,4 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 C=core/common/src/main/kotlin/com/molina/core/common
 "$KC" -nowarn -d "$OUT" $C/TrashBin.kt scripts/core-tests/TrashBinTests.kt
-java -cp "$OUT:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" TrashBinTestsKt
+java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" TrashBinTestsKt

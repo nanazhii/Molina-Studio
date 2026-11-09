@@ -54,5 +54,5 @@ else
   echo "python3 tidak ada: uji pty dilewati"
 fi
 "$KC" -nowarn -d "$OUT/cls" app/src/main/java/com/molina/studio/terminal/NanoRunPrompt.kt scripts/app-tests/NanoRunPromptTests.kt
-java -cp "$OUT/cls:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" NanoRunPromptTestsKt "${cap[@]}" || fail=1
+java -cp "$OUT/cls:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" NanoRunPromptTestsKt "${cap[@]}" || fail=1
 [ "$fail" -eq 0 ]

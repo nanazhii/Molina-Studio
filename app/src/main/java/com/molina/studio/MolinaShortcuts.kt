@@ -51,6 +51,7 @@ internal object MolinaShortcuts {
         }
         all += item(ctx, "molina_downloads", "downloads", R.string.shortcut_downloads_short, R.string.shortcut_downloads_long, R.mipmap.ic_shortcut_downloads, 1)
         all += item(ctx, "molina_storage", "storage", R.string.shortcut_storage_short, R.string.shortcut_storage_long, R.mipmap.ic_shortcut_storage, 2)
+        all += item(ctx, "molina_code_dyn", "code", R.string.shortcut_code_short, R.string.shortcut_code_long, R.mipmap.ic_shortcut_code, 3)
         val room = (sm.maxShortcutCountPerActivity - sm.manifestShortcuts.size).coerceAtLeast(0)
         if (!sm.setDynamicShortcuts(all.take(room))) {
             LogBus.log("sistem", LogLevel.Warn, "shortcut", "Shortcut dinamis ditolak sistem (kemungkinan dibatasi laju)")

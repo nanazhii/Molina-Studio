@@ -14,4 +14,4 @@ S=scripts/app-tests/w7thumb-stubs
 "$KC" -nowarn -d "$OUT" $S/*.kt \
   $C/MiniJson.kt $C/JsonCursor.kt $C/MediaSidecar.kt $C/ThumbMath.kt $A/W7Thumb.kt \
   scripts/app-tests/W7ThumbTests.kt
-java -Djava.awt.headless=true -cp "$OUT:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" W7ThumbTestsKt
+java -Djava.awt.headless=true -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" W7ThumbTestsKt

@@ -112,6 +112,8 @@ for bad in ("HttpURLConnection", "URL(", "Runtime.getRuntime", "ProcessBuilder")
 # Versi statis di daftar harus sama dengan Gradle
 def must(text, pat, label):
     if pat not in text: problems.append("versi %s di daftar tidak sama dengan Gradle (harap %s)" % (label, pat))
+sora = re.search(r"sora-editor:editor:([\d.]+)", rd("feature/code/build.gradle.kts"))
+if sora: must(reg, '"%s"' % sora.group(1), "sora-editor")
 app = rd("app/build.gradle.kts")
 for key, rx in (("commons-compress", r"commons-compress:([\d.]+)"), ("zip4j", r"zip4j:([\d.]+)"), ("xz", r"org\.tukaani:xz:([\d.]+)")):
     v = re.search(rx, app)

@@ -9,4 +9,4 @@ P=feature/code/src/main/kotlin/com/molina/code
 "$KC" -nowarn -d "$OUT" \
   core/exec/src/main/kotlin/com/molina/code/preview/RunPlan.kt core/exec/src/main/kotlin/com/molina/code/preview/ScriptLaunch.kt core/exec/src/main/kotlin/com/molina/code/run/ScriptFolder.kt \
   scripts/code-tests/ScriptFolderTests.kt
-java -cp "$OUT:$(dirname "$(readlink -f "$(command -v "$KC")")")/../lib/kotlin-stdlib.jar" ScriptFolderTestsKt
+java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" ScriptFolderTestsKt
