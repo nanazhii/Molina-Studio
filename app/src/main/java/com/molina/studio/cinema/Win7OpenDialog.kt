@@ -208,6 +208,7 @@ fun Win7OpenDialog(
     onPickFolder: (File) -> Unit = {},
     onPlay: (suspend (List<File>) -> Boolean)? = null,
     onOpenInCode: ((List<File>) -> Unit)? = null,
+    onOpenEditor: (() -> Unit)? = null, // [EDITOR-IN-DROP] masuk Editor layar penuh dari menu drop
     onEditInTerminal: ((File) -> Unit)? = null, // [NANO-EDIT]
     onNewTextInTerminal: ((File, String) -> Boolean)? = null, // [NANO-NEW]
     onSendToScripts: ((File) -> Pair<Boolean, String>)? = null,
@@ -747,6 +748,10 @@ fun Win7OpenDialog(
                                                 .background(Win7.Input).border(1.dp, Win7.FrameLine)
                                                 .verticalScroll(rememberScrollState())
                                         ) {
+                                            if (onOpenEditor != null) { // [EDITOR-IN-DROP]
+                                                W7MenuItem(W7Ico.CODE, "Editor", true) { menuOpen = false; onOpenEditor() }
+                                                W7MenuDivider()
+                                            }
                                             if (portrait) W7MenuItem(W7Ico.NAV, "Panel lokasi", true) { menuOpen = false; navOpen = !navOpen } // [DROP-HAMBURGER]
                                             if (portrait) W7MenuDivider() // [DROP-DIVIDER]
                                             W7MenuItem(W7Ico.REFRESH, "Segarkan", true) { menuOpen = false; tick++ }

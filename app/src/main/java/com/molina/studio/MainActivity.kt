@@ -441,24 +441,12 @@ class MainActivity : ComponentActivity() {
                                 androidx.activity.compose.BackHandler(onBack = { codeOpen = false })
                                 com.molina.code.ui.CodeScreen(codeSession, Modifier.fillMaxSize().padding(pad), onExit = { codeOpen = false })
                             } else {
-                                Box(Modifier.fillMaxSize().padding(pad)) {
-                                    com.molina.studio.settings.FilesTabScreen(Modifier.fillMaxSize(), onExit = { selected = Tab.Mpv.ordinal })
-                                    // Pintu masuk Editor (layar penuh). Ubah padding bila menimpa bilah perintah Penjelajah.
-                                    val pill = RoundedCornerShape(18.dp)
-                                    Box(
-                                        Modifier.align(Alignment.BottomEnd).padding(end = 14.dp, bottom = 72.dp)
-                                            .clip(pill)
-                                            .background(Color(0xFF2ECC71).copy(alpha = 0.22f), pill)
-                                            .clickable(role = Role.Button) { codeOpen = true }
-                                            .padding(horizontal = 14.dp, vertical = 8.dp)
-                                    ) {
-                                        Text(
-                                            "< > Editor",
-                                            color = androidx.compose.ui.graphics.lerp(Color(0xFF2ECC71), Color.White, 0.15f),
-                                            fontSize = 12.sp, fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
+                                // [EDITOR-IN-DROP] Editor kini di menu drop (ikon kisi) Penjelajah; pil mengambang dihapus agar tidak menimpa.
+                                com.molina.studio.settings.FilesTabScreen(
+                                    Modifier.fillMaxSize().padding(pad),
+                                    onExit = { selected = Tab.Mpv.ordinal },
+                                    onOpenEditor = { codeOpen = true }
+                                )
                             }
                             return@Scaffold
                         }

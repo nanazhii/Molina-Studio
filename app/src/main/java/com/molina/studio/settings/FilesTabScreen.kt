@@ -31,7 +31,7 @@ import java.io.File
  * layar ini menyisakan tombol untuk membukanya lagi. Dulu hidup di ubin Berkas Settings.
  */
 @Composable
-fun FilesTabScreen(modifier: Modifier = Modifier, onExit: () -> Unit = {}) {
+fun FilesTabScreen(modifier: Modifier = Modifier, onExit: () -> Unit = {}, onOpenEditor: (() -> Unit)? = null) {
     val ctx = LocalContext.current
     remember { MolinaExplorer.attach(ctx) }
     // MOLINA-H13-BRIDGE: hasil impor Vault kembali lewat startActivityForResult. State ini sengaja tidak disimpan
@@ -63,6 +63,7 @@ fun FilesTabScreen(modifier: Modifier = Modifier, onExit: () -> Unit = {}) {
         isVisibleInDebian = { f -> MolinaExplorer.visibleInDebian(f) },
         onPlay = { files -> MolinaExplorer.play(ctx, files) },
         onOpenInCode = { files -> MolinaExplorer.openInCode(ctx, files) },
+        onOpenEditor = onOpenEditor, // [EDITOR-IN-DROP]
         onEditInTerminal = { f -> MolinaExplorer.editInTerminal(ctx, f) }, // [NANO-EDIT]
         onNewTextInTerminal = { d, n -> MolinaExplorer.newInTerminal(ctx, d, n) }, // [NANO-NEW]
         onSendToScripts = { f -> MolinaExplorer.sendToScripts(f) },
