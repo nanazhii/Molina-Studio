@@ -30,6 +30,8 @@
     <string name="pref_hardware_decoding_summary">Memakai chip khusus di HP agar video lebih lancar dan hemat baterai. Matikan jika gambar hijau, hitam, atau patah-patah.</string>
     <string name="pref_background_play_title">Lanjut main saat aplikasi ditutup</string>
     <string name="pref_background_play_summary">Pilih kapan suara tetap terdengar setelah Anda keluar dari aplikasi.</string>
+    <string name="pref_audio_only_video_title">Audio saja untuk video</string>
+    <string name="pref_audio_only_video_summary">Video hanya diputar suaranya (gambar tidak ditampilkan). Bisa dimatikan per video lewat menu pemutar.</string>
     <string name="pref_save_position_title">Ingat terakhir nonton</string>
     <string name="pref_save_position_summary">Saat video yang sama diputar lagi, pemutaran lanjut dari menit terakhir.</string>
     <string name="pref_remember_brightness_title">Ingat kecerahan layar</string>

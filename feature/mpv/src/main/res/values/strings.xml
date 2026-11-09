@@ -131,6 +131,9 @@
     <string name="pref_background_play_summary">Decide when playback should be automatically resumed background.</string>
     <string name="pref_background_play_default" translatable="false">never</string>
 
+    <string name="pref_audio_only_video_title">Audio only for video</string>
+    <string name="pref_audio_only_video_summary">Play only the sound of videos (the picture is not shown). Can be turned off per video from the player menu.</string>
+
     <string name="pref_save_position_title">Save position on quit</string>
     <string name="pref_save_position_summary">Remember current playback position on exit. When the same file is played again mpv will seek to the previous position.</string>
 

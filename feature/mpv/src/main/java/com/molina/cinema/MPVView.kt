@@ -59,6 +59,10 @@ internal class MPVView(context: Context, attrs: AttributeSet) : BaseMPVView(cont
 
         MPVLib.setOptionString("video-sync", cfg.videoSync)
 
+        // [AUDIO-ONLY] setelan "Audio only untuk video": tanpa track video sejak awal
+        if (cfg.audioOnlyVideo)
+            MPVLib.setOptionString("vid", "no")
+
         if (cfg.videoInterpolation)
             MPVLib.setOptionString("interpolation", "yes")
 

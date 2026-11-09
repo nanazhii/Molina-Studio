@@ -34,6 +34,7 @@ data class MpvSettings(
     val playFolder: Boolean = true,
     val newIntentReplace: Boolean = false,
     val seekGestureSmooth: Boolean = false,
+    val audioOnlyVideo: Boolean = false,
 
     // Gestur (dipakai TouchGestures.syncSettings)
     val gestureHoriz: String = "seek",

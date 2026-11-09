@@ -138,6 +138,7 @@ object MpvPrefs {
             playFolder = bool("play_folder", true),
             newIntentReplace = bool("new_intent_replace", false),
             seekGestureSmooth = bool("seek_gesture_smooth", false),
+            audioOnlyVideo = bool("audio_only_video", false),
 
             gestureHoriz = gesture("gesture_horiz", R.string.pref_gesture_horiz_default),
             gestureVertLeft = gesture("gesture_vert_left", R.string.pref_gesture_vert_left_default),

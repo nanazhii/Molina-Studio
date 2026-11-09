@@ -464,6 +464,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
         // set up initial UI state
         readSettings()
+        forcedAudioOnly = MpvPrefs.current(applicationContext).audioOnlyVideo // [AUDIO-ONLY] status awal
         onConfigurationChanged(resources.configuration)
         run {
             // edge-to-edge & immersive mode

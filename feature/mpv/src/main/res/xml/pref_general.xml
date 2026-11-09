@@ -51,6 +51,13 @@
     <SwitchPreferenceCompat
         android:defaultValue="false"
         app:iconSpaceReserved="false"
+        android:key="audio_only_video"
+        android:summary="@string/pref_audio_only_video_summary"
+        android:title="@string/pref_audio_only_video_title" />
+
+    <SwitchPreferenceCompat
+        android:defaultValue="false"
+        app:iconSpaceReserved="false"
         android:key="save_position"
         android:summary="@string/pref_save_position_summary"
         android:title="@string/pref_save_position_title" />
