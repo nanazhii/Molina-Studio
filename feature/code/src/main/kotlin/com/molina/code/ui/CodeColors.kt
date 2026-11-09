@@ -65,7 +65,7 @@ object CodeColors {
     val SelectFill = Brand.copy(alpha = 0.18f)     // seleksi baris tree
     val SelectBorder = Brand.copy(alpha = 0.45f)
     val EditorSelection = Color(0x80D97757)   // blok/hasil aktif: terakota Claude 50%
-    val SearchMatch = Color(0x47D97757)       // hasil lain: terakota Claude 28%
+    val SearchMatch = Color(0xA6FF3B3B)       // [FIND-RED] blok hasil cari: merah terang 65% agar jelas di latar hitam
     val RailPeak = Brand.copy(alpha = 0.40f)       // puncak gradient rail aksen toolbar
     val LabelNeutral = IconDefault.copy(alpha = 0.70f)
     val SecondaryNeutral = IconDefault.copy(alpha = 0.60f)

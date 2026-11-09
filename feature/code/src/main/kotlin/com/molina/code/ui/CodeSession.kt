@@ -940,8 +940,7 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
                 if ('\n' !in sel) find.query = sel
             }
         }
-        find.open = true
-        find.focusTick++
+        find.dialogOpen = true // [FIND-DIALOG] find bar muncul setelah CARI/GANTI ditekan di dialog
     }
 
     fun select(id: Int) {

@@ -87,6 +87,7 @@ fun CodeScreen(session: CodeSession, modifier: Modifier = Modifier, onExit: (() 
             if (session.find.open) {
                 session.active?.let { FindBar(session, it) }
             }
+            if (session.find.dialogOpen) session.active?.let { FindDialog(session, it) } // [FIND-DIALOG]
             session.active?.let { tab ->
                 // Membaca revision: jenis berkas bisa berubah saat shebang diketik.
                 val kind = if (tab.revision >= 0) tab.previewKind() else PreviewKind.NONE

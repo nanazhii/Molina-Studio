@@ -21,6 +21,9 @@ class FindState {
     var wrapAround by mutableStateOf(true)
     var regexError by mutableStateOf(false)
 
+    /** [FIND-DIALOG] dialog Cari (layar isian) sedang terbuka. */
+    var dialogOpen by mutableStateOf(false)
+
     /** Naik setiap find bar diminta fokus (ketuk Cari saat sudah terbuka). */
     var focusTick by mutableIntStateOf(0)
 }

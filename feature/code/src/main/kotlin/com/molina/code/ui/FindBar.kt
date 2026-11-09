@@ -50,7 +50,7 @@ import java.util.regex.PatternSyntaxException
 /**
  * Find bar (F3c, blueprint bagian 15): tepat di atas toolbar. Baris 1 = field Cari, penghitung
  * (3/12), panah sebelumnya/berikutnya, OPSI, tutup. Baris 2 (bila mode Ganti aktif) = field Ganti
- * + GANTI + SEMUA. Penyorotan hasil digambar editor (MATCHED_TEXT_BACKGROUND, emas 35%).
+ * + GANTI + SEMUA. Penyorotan hasil digambar editor (MATCHED_TEXT_BACKGROUND, merah).
  */
 @Composable
 internal fun FindBar(session: CodeSession, tab: EditorTab) {
@@ -146,7 +146,7 @@ internal fun FindBar(session: CodeSession, tab: EditorTab) {
     if (optionsOpen) FindOptionsDialog(find) { optionsOpen = false }
 }
 
-private fun runSearch(ed: CodeEditor?, find: FindState) {
+internal fun runSearch(ed: CodeEditor?, find: FindState) {
     val s = ed?.searcher ?: return
     if (find.query.isEmpty()) {
         if (s.hasQuery()) s.stopSearch()
