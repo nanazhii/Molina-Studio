@@ -4,7 +4,7 @@ import android.content.Context
 import android.graphics.Typeface
 
 /**
- * Font terminal Molina: JetBrains Mono (aset modul feature/code, SIL OFL 1.1, lisensi sudah tercatat di
+ * Font terminal Molina: JetBrains Mono (aset app, SIL OFL 1.1, lisensi sudah tercatat di
  * THIRD_PARTY_NOTICES.md). Gagal memuat -> Typeface.MONOSPACE, terminal tetap jalan.
  */
 object MolinaFont {
