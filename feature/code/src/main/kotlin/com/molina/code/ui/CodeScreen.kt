@@ -117,6 +117,7 @@ fun CodeScreen(session: CodeSession, modifier: Modifier = Modifier, onExit: (() 
                         }
                     },
                     onFind = { session.openFind() },
+                    findActive = session.find.pinned, // [FIND-PIN]
                     play = play,
                     onPlay = { session.playActive() },
                     onClose = { if (tab.dirty) pendingClose = tab else session.close(tab.id) }

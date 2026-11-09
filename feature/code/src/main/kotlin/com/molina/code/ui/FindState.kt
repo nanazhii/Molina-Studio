@@ -24,6 +24,12 @@ class FindState {
     /** [FIND-DIALOG] dialog Cari (layar isian) sedang terbuka. */
     var dialogOpen by mutableStateOf(false)
 
+    /** [FIND-PIN] centang di dialog Cari: sorotan hasil tetap ada setelah find bar ditutup (X). */
+    var keepHighlight by mutableStateOf(true)
+
+    /** [FIND-PIN] sorotan sedang ditahan (bar ditutup dengan X saat keepHighlight aktif); ikon Cari di toolbar menyala. */
+    var pinned by mutableStateOf(false)
+
     /** Naik setiap find bar diminta fokus (ketuk Cari saat sudah terbuka). */
     var focusTick by mutableIntStateOf(0)
 }

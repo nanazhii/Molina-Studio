@@ -64,7 +64,7 @@ internal fun FindBar(session: CodeSession, tab: EditorTab) {
     LaunchedEffect(ed, find.query, find.matchCase, find.wholeWord, find.useRegex, find.wrapAround) {
         runSearch(ed, find)
     }
-    DisposableEffect(ed) { onDispose { stopSearchKeepSelection(ed) } }
+    DisposableEffect(ed) { onDispose { if (!find.keepHighlight || find.regexError) stopSearchKeepSelection(ed) } } // [FIND-PIN]
 
     val (counter, bad) = counterOf(ed, find, tab.findRevision)
     val canStep = ed != null && find.query.isNotEmpty() && !find.regexError
@@ -108,7 +108,10 @@ internal fun FindBar(session: CodeSession, tab: EditorTab) {
             BarButton("\u25B2", enabled = canStep) { step(false) }
             BarButton("\u25BC", enabled = canStep) { step(true) }
             BarButton("OPSI", width = 48.dp) { optionsOpen = true }
-            BarButton("\u2715", color = CodeColors.Danger) { find.open = false }
+            BarButton("\u2715", color = CodeColors.Danger) { // [FIND-PIN] X: sorotan tetap bila dicentang di dialog
+                find.pinned = find.keepHighlight && find.query.isNotEmpty() && !find.regexError
+                find.open = false
+            }
         }
         if (find.replaceMode) {
             val canReplace = canStep && !tab.readOnly
@@ -172,7 +175,7 @@ internal fun runSearch(ed: CodeEditor?, find: FindState) {
  * Menutup find bar menghentikan pencarian, tetapi kata hasil terakhir tetap terblok (warna Claude):
  * rentang seleksi dicatat sebelum stopSearch lalu dipasang lagi sesudahnya.
  */
-private fun stopSearchKeepSelection(ed: CodeEditor?) {
+internal fun stopSearchKeepSelection(ed: CodeEditor?) {
     if (ed == null) return
     val c = ed.cursor
     val selected = c.isSelected

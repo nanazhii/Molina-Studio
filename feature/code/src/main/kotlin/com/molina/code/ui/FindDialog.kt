@@ -66,6 +66,7 @@ internal fun FindDialog(session: CodeSession, tab: EditorTab) {
     var whole by remember { mutableStateOf(find.wholeWord) }
     var regex by remember { mutableStateOf(find.useRegex) }
     var wrap by remember { mutableStateOf(find.wrapAround) }
+    var keep by remember { mutableStateOf(find.keepHighlight) } // [FIND-PIN]
     var queryFocused by remember { mutableStateOf(false) }
     var replaceFocused by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
@@ -75,7 +76,15 @@ internal fun FindDialog(session: CodeSession, tab: EditorTab) {
 
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
 
-    fun close() { find.dialogOpen = false }
+    fun close() {
+        // [FIND-PIN] centang dilepas saat sorotan sedang ditahan: sorotan dihapus sekarang
+        find.keepHighlight = keep
+        if (!keep && find.pinned && !find.open) {
+            stopSearchKeepSelection(ed)
+            find.pinned = false
+        }
+        find.dialogOpen = false
+    }
 
     fun applyFind(action: FindAction) {
         val s = ed?.searcher
@@ -90,6 +99,8 @@ internal fun FindDialog(session: CodeSession, tab: EditorTab) {
         find.wrapAround = wrap
         find.replaceMode = replace.isNotEmpty()
         find.open = true
+        find.keepHighlight = keep // [FIND-PIN]
+        find.pinned = false
         val replaceCurrent = action == FindAction.REPLACE_ONE && sameSearch
         if (!replaceCurrent) runSearch(ed, find)
         if (find.regexError) {
@@ -157,6 +168,7 @@ internal fun FindDialog(session: CodeSession, tab: EditorTab) {
             DialogCheck("Kata utuh", whole) { whole = it }
             DialogCheck("Persamaan reguler", regex) { regex = it }
             DialogCheck("Membungkus di sekitar", wrap) { wrap = it }
+            DialogCheck("Tetap sorot setelah ditutup", keep) { keep = it } // [FIND-PIN]
             Spacer(Modifier.height(12.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Win7DialogButton(

@@ -51,6 +51,7 @@ internal fun EditorToolbar(
     onRight: () -> Unit,
     onSelectAllCopy: () -> Unit,
     onFind: () -> Unit,
+    findActive: Boolean = false, // [FIND-PIN] sorotan hasil cari sedang ditahan
     play: PlayState,
     onPlay: () -> Unit,
     onClose: () -> Unit
@@ -111,7 +112,7 @@ internal fun EditorToolbar(
                 enabled = canRedo, onClick = onRedo
             )
             GroupDivider()
-            ToolbarButton(ToolbarIcon.Find, CodeColors.IconDefault, enabled = true, onClick = onFind)
+            ToolbarButton(ToolbarIcon.Find, if (findActive) CodeColors.Brand else CodeColors.IconDefault, enabled = true, onClick = onFind)
             ToolbarButton(ToolbarIcon.Left, CodeColors.IconDefault, enabled = true, onClick = onLeft)
             ToolbarButton(ToolbarIcon.Right, CodeColors.IconDefault, enabled = true, onClick = onRight)
             GroupDivider()
