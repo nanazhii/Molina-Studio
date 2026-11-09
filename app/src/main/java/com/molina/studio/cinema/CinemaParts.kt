@@ -52,6 +52,7 @@ internal fun QualityBadge(q: com.molina.core.common.VideoQuality, onClick: (() -
         com.molina.core.common.VideoQuality.P576 -> "576p"
         com.molina.core.common.VideoQuality.P720 -> "720p"
         com.molina.core.common.VideoQuality.P1080 -> "1080p"
+        com.molina.core.common.VideoQuality.AUDIO -> "AUDIO" // [AUDIO-ONLY]
     }
     Row(
         Modifier.clip(CircleShape).clickable(enabled = onClick != null) { onClick?.invoke() }

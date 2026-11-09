@@ -8,7 +8,8 @@ enum class VideoQuality(val label: String, val maxHeight: Int, val hint: String)
     P480("480p", 480, "Hemat data. Video dan audio digabung oleh pemutar."),
     P576("576p", 576, "Menengah. Video dan audio digabung oleh pemutar."),
     P720("720p HD", 720, "Tajam, cukup ringan untuk Android 8."),
-    P1080("Full HD 1080p", 1080, "Paling tajam; butuh dekoder H.264 dan koneksi cepat.");
+    P1080("Full HD 1080p", 1080, "Paling tajam; butuh dekoder H.264 dan koneksi cepat."),
+    AUDIO("Hanya audio", 0, "Putar suaranya saja (tanpa mengunduh video): hemat data dan baterai, cocok untuk musik dan podcast."); // [AUDIO-ONLY]
 
     /** Tinggi tersedia terbaik: tertinggi <= batas; bila semuanya di atas batas, yang terendah. Null bila kosong. */
     fun chooseHeight(heights: Collection<Int>): Int? {

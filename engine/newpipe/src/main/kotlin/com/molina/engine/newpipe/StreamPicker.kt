@@ -22,7 +22,13 @@ internal object StreamPicker {
             info.streamType == StreamType.AUDIO_LIVE_STREAM
         if (live && !hls.isNullOrBlank()) return Pick(hls, "hls-live")
 
-        if (quality != com.molina.core.common.VideoQuality.AUTO) pickAdaptive(info, quality)?.let { return it } // [QUALITY]
+        // [AUDIO-ONLY] hanya audio: URL audio terbaik, video tidak diunduh sama sekali
+        if (quality == com.molina.core.common.VideoQuality.AUDIO) {
+            bestAudio(info.audioStreams.orEmpty())?.let { a -> return Pick(a.content, "audio") }
+        }
+        if (quality != com.molina.core.common.VideoQuality.AUTO && quality != com.molina.core.common.VideoQuality.AUDIO) {
+            pickAdaptive(info, quality)?.let { return it } // [QUALITY]
+        }
 
         bestMuxed(info.videoStreams.orEmpty())?.let { v ->
             return Pick(v.content, "progresif", v.height)
