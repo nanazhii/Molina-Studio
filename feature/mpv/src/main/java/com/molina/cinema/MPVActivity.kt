@@ -2641,9 +2641,12 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         if (!useAudioUI) {
             if (showMediaTitle)
                 binding.fullTitleTextView.text = psc.meta.formatTitle()
+            binding.fullTitleTextView.isSelected = true // [TITLE-MARQUEE]
         } else {
             binding.titleTextView.text = psc.meta.formatTitle()
             binding.minorTitleTextView.text = psc.meta.formatArtistAlbum()
+            binding.titleTextView.isSelected = true // [TITLE-MARQUEE] teks panjang berjalan, 1 baris
+            binding.minorTitleTextView.isSelected = true
         }
     }
 
