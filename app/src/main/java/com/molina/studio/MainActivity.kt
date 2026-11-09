@@ -276,7 +276,7 @@ class MainActivity : ComponentActivity() {
                                 listOf(com.molina.core.common.MolinaPaths.APP_FOLDER),
                             )
                         }
-                        it.terminalSink = { text, execute -> com.molina.studio.code.CodeTerminalBridge.deliver(text, execute) }
+                        it.terminalSink = { text, execute -> com.molina.studio.code.CodeTerminalBridge.deliver(this@MainActivity, text, execute) }
                         it.guestPathResolver = { f -> com.molina.studio.code.CodeTerminalBridge.guestPath(f) } // [CODE-PYRUN]
                         it.debianRoot = { com.molina.studio.terminal.RootfsManager.rootfsDir(applicationContext) } // [CODE-DEBLIB]
                         val runPrefs = this@MainActivity.getSharedPreferences("molina_code_run", android.content.Context.MODE_PRIVATE) // [CODE-PYRUN2]

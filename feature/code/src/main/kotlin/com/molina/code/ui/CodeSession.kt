@@ -759,22 +759,20 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
     /** True = dialog tampil (bawaan). False = pengguna memilih "ingat pilihan", langsung jalankan dengan mode terakhir. */
     internal fun runAsk(): Boolean = runStore?.get(RunPrefs.KEY_ASK) != "0"
 
-    /** True bila mode terakhir adalah berkas (selain itu heredoc). */
-    internal fun runSavedFile(): Boolean = runStore?.get(RunPrefs.KEY_MODE) == "file"
-
-    internal fun saveRunChoice(file: Boolean, ask: Boolean) {
+    internal fun saveRunAsk(ask: Boolean) {
         val s = runStore ?: return
-        s.put(RunPrefs.KEY_MODE, if (file) "file" else "heredoc")
         s.put(RunPrefs.KEY_ASK, if (ask) "1" else "0")
     }
 
-    /** Menu "Dialog jalankan": balik antara tanya dulu dan langsung. */
-    fun toggleRunAsk() {
-        val s = runStore ?: return
-        val ask = !runAsk()
-        s.put(RunPrefs.KEY_ASK, if (ask) "1" else "0")
-        toast(if (ask) "Jalankan di Terminal: tanya dulu" else "Jalankan di Terminal: langsung (" + (if (runSavedFile()) "berkas" else "heredoc") + ")")
-    }
+    /** [CODE-ROLES] Untuk halaman Pengaturan Editor Code: tanya dulu (dialog) atau langsung jalankan. */
+    var runDialogAsks: Boolean
+        get() = runAsk()
+        set(v) { saveRunAsk(v) }
+
+    /** [CODE-ROLES] Ada penulisan berkas terakhir dari Jalankan di Terminal yang bisa diurungkan. */
+    val terminalRunUndoReady: Boolean get() = lastTerminalRun != null
+
+    fun undoTerminalRun() = undoLastTerminalRun()
 
     /**
      * Titik masuk menu "Jalankan di Terminal" untuk tab .py/.sh. Dialog tampil kecuali pengguna memilih langsung;
@@ -784,10 +782,9 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         val lang = runLang()
         val tab = active
         if (lang == null || tab == null) { sendToTerminal(true); return }
-        val file = runSavedFile()
-        val own = tab.file
-        if (runAsk() || (file && own == null)) { pyRunOpen = true; return }
-        if (file && own != null) runScriptFileAt(tab, own, lang) else runScriptHeredoc(lang)
+        val own = tab.file // [CODE-ROLES] heredoc dipensiunkan: selalu dari berkas, diperiksa molina-run
+        if (runAsk() || own == null) { pyRunOpen = true; return }
+        runScriptFileAt(tab, own, lang)
     }
 
     internal fun scriptHasSelection(): Boolean = try {
@@ -796,33 +793,10 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         false
     }
 
-    /** Sumber mode heredoc: seleksi bila ada, selain itu seluruh isi tab (bukan hanya baris kursor). */
-    internal fun scriptSourceText(): String {
-        val tab = active ?: return ""
-        val ed = tab.editor
-        try {
-            if (ed != null && ed.cursor.isSelected) return ed.text.substring(ed.cursor.left, ed.cursor.right)
-        } catch (e: Exception) {
-        }
-        return tab.currentTextOrNull(Int.MAX_VALUE) ?: ""
-    }
-
     /** Berkas tujuan mode berkas: folder berkas tab (atau folder simpan bawaan) + [fileName]. */
     internal fun scriptTarget(tab: EditorTab, fileName: String?): File? {
         if (fileName == null) return null
         return File(tab.file?.parentFile ?: defaultSaveDir(tab), fileName)
-    }
-
-    /** Mode 1: kirim sebagai heredoc (`python3 << 'PYEOF'` atau `bash << 'SHEOF'`) lalu Enter. Editor dan disk tidak disentuh. */
-    fun runScriptHeredoc(lang: TerminalRunLang) {
-        val sink = terminalSink
-        if (sink == null) { toast("Terminal belum tersedia"); return }
-        val src = scriptSourceText()
-        guardedRun(active?.title ?: "skrip", src, kindOf(lang)) { rep -> // [CODE-GUARD]
-            val cmd = PythonTerminalRun.heredoc(rep.body, lang)
-            if (cmd == null) { toast("Tidak ada kode untuk dikirim"); return@guardedRun }
-            sink(cmd, true)?.let { toast(it) } ?: toast(rep.banner())
-        }
     }
 
     /** Mode 2: nama dari dialog (ekstensi otomatis) lalu [runScriptFileAt]. */
@@ -851,9 +825,9 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         if (tab.file == target && !tab.dirty) { sink(cmd, true)?.let { toast(it) }; return }
         val raw = FileStore.applyEol(tab.currentTextOrNull(Int.MAX_VALUE) ?: "", tab.eol)
         if (raw.isBlank()) { toast("Tidak ada kode untuk dijalankan"); return }
-        guardedRun(tab.title, raw, kindOf(lang)) { rep -> // [CODE-GUARD]
-            val content = FileStore.applyEol(rep.body, tab.eol)
-            if (content.isBlank()) { toast("Tidak ada kode untuk dijalankan"); return@guardedRun }
+        checkedByMolinaRun { // [CODE-ROLES]
+            val content = raw // [CODE-ROLES]
+            if (content.isBlank()) { toast("Tidak ada kode untuk dijalankan"); return@checkedByMolinaRun }
             runIo {
                 var undo: TerminalRunUndo? = null
                 var err: String? = null
@@ -869,7 +843,7 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
                     if (failure != null) { toast(failure); return@post }
                     lastTerminalRun = made
                     dir.refresh()
-                    sink(cmd, true)?.let { toast(it) } ?: toast(rep.banner())
+                    sink(cmd, true)?.let { toast(it) }
                 }
             }
         }
@@ -1535,6 +1509,9 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
             }
         }
     }
+
+    /** [CODE-ROLES] Mode berkas: pemeriksaan skrip dilakukan molina-run di Terminal, bukan di Code. */
+    private inline fun checkedByMolinaRun(go: () -> Unit) = go()
 
     private var lastStaleCheck = 0L
 

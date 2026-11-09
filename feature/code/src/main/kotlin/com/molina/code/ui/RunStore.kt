@@ -7,9 +7,6 @@ interface RunStore {
 }
 
 internal object RunPrefs {
-    /** "heredoc" atau "file": mode terakhir yang dipakai. */
-    const val KEY_MODE = "run_mode"
-
     /** "0" = jangan tanya lagi (langsung pakai mode terakhir), selain itu dialog tampil. */
     const val KEY_ASK = "run_ask"
 

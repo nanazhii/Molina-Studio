@@ -51,26 +51,6 @@ object PythonTerminalRun {
         return PyName(s + lang.ext, null)
     }
 
-    /** Pembatas heredoc yang tidak bentrok dengan isi: PYEOF, PYEOF_1, PYEOF_2, ... */
-    fun uniqueDelimiter(body: String, delimiter: String = DELIMITER): String {
-        val lines = body.lineSequence().map { it.trimEnd() }.toHashSet()
-        if (delimiter !in lines) return delimiter
-        var i = 1
-        while ("${delimiter}_$i" in lines) i++
-        return "${delimiter}_$i"
-    }
-
-    /**
-     * Mode 1: `python3 << 'PYEOF'` + isi + `PYEOF` (shell: `bash << 'SHEOF'`). Pembatas dikutip sehingga shell
-     * tidak mengubah isi ($, `, \). Null bila isi kosong. Catatan: stdin dipakai heredoc, jadi input()/read tidak berfungsi.
-     */
-    fun heredoc(text: String, lang: TerminalRunLang = TerminalRunLang.PY): String? {
-        val body = ScriptLaunch.normalizeEol(text).trimEnd('\n')
-        if (body.isBlank()) return null
-        val d = uniqueDelimiter(body, lang.delimiter)
-        return "${lang.interpreter} << '$d'\n$body\n$d"
-    }
-
     /**
      * Mode 2: `python3 nama.py` (shell: `bash nama.sh`), dijalankan dari folder berkas lewat subshell sehingga
      * folder aktif Terminal tidak berubah dan berkas relatif tetap benar. [guestPath] jalur absolut di Debian.
@@ -79,7 +59,7 @@ object PythonTerminalRun {
         val i = guestPath.lastIndexOf('/')
         val dir = if (i <= 0) "/" else guestPath.substring(0, i)
         val name = guestPath.substring(i + 1)
-        return "(cd ${ScriptLaunch.shellQuote(dir)} && ${lang.interpreter} ${ScriptLaunch.shellQuote(name)})"
+        return "(cd ${ScriptLaunch.shellQuote(dir)} && /usr/local/bin/molina-run ${ScriptLaunch.shellQuote(name)})" // [CODE-ROLES] pemeriksaan hanya di molina-run
     }
 
     /** Pratinjau singkat perintah untuk dialog (aturan potong seragam: [CommandBlockSpec.clip]). */
