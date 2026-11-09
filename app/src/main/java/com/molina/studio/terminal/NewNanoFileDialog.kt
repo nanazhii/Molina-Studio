@@ -63,9 +63,9 @@ internal object NanoName {
  * ekstensi dipilih lewat dropdown atau diketik bebas, tidak dikunci ke .txt.
  */
 @Composable
-internal fun NewNanoFileDialog(onDismiss: () -> Unit, onOpened: () -> Unit) {
+internal fun NewNanoFileDialog(onDismiss: () -> Unit, onOpened: () -> Unit, baseDir: java.io.File? = null) {
     val ctx = LocalContext.current
-    val dir = remember { ExplorerRecent.last(ctx) ?: Environment.getExternalStorageDirectory() }
+    val dir = remember { baseDir ?: ExplorerRecent.last(ctx) ?: Environment.getExternalStorageDirectory() } // [FILE-DRAWER3] folder aktif drawer
     val init = remember { NanoName.initial(null) } // [NANO-TEMPLATE] selalu template, bukan nama berkas terakhir
     var stem by remember { mutableStateOf(init.first) }
     var ext by remember { mutableStateOf(init.second) }

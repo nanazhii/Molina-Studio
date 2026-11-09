@@ -8,6 +8,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -80,6 +82,7 @@ private sealed class Sheet {
     class Rename(val f: File) : Sheet()
     class Delete(val f: File) : Sheet()
     class Info(val f: File) : Sheet()
+    class NewDir(val parent: File) : Sheet() // [FILE-DRAWER3]
 }
 
 /** Isi folder: folder dulu, lalu berkas, urut nama. Memblokir: panggil dari thread IO. */
@@ -101,6 +104,10 @@ private fun volumeDirs(): List<File> {
     }
     return out
 }
+
+/** [FILE-DRAWER3] Label chip volume: internal = "Internal", kartu SD = nama folder volume. */
+private fun volumeLabel(v: File): String =
+    if (v.path == Environment.getExternalStorageDirectory().path) "Internal" else v.name
 
 /** Jalur yang dilindungi dari hapus: akar volume, folder Recycle Bin, dan folder Molina. */
 private fun trashGuard(vols: List<File>): Set<String> =
@@ -133,6 +140,7 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
     val scope = rememberCoroutineScope()
     val swallow = remember { MutableInteractionSource() }
     val storageRoot = remember { Environment.getExternalStorageDirectory() }
+    val vols = remember { volumeDirs() } // [FILE-DRAWER3] internal + kartu SD, dibaca setiap drawer dibuka
     val st = FileTreeStore
     val initialRoot = remember { ExplorerRecent.last(ctx) ?: storageRoot }
     val root: File = st.root ?: initialRoot
@@ -171,7 +179,7 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
         }
     }
     walk(root, 0)
-    val canUp = root.parentFile != null && root.path != storageRoot.path
+    val canUp = root.parentFile != null && vols.none { it.path == root.path } // [FILE-DRAWER3] berhenti di akar volume
     val dim = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
 
     Box(Modifier.fillMaxSize()) {
@@ -202,8 +210,25 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
                         maxLines = 1, overflow = TextOverflow.Ellipsis
                     )
                 }
+                Box(Modifier.size(44.dp).clickable { sheet = Sheet.NewDir(root) }, contentAlignment = Alignment.Center) { // [FILE-DRAWER3] Folder baru
+                    Win7Folder(22.dp)
+                    Text("+", color = Brand, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.BottomEnd).padding(end = 6.dp))
+                }
                 Box(Modifier.size(44.dp).clickable { newFile = true }, contentAlignment = Alignment.Center) { // [NANO-NEW]
                     Icon(Icons.Filled.Edit, contentDescription = "Berkas baru (nano)", tint = Brand, modifier = Modifier.size(22.dp))
+                }
+            }
+            if (vols.size > 1) { // [FILE-DRAWER3] chip pilihan volume
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 2.dp)) {
+                    vols.forEach { v ->
+                        val on = root.path == v.path || root.path.startsWith(v.path + "/")
+                        Box(
+                            Modifier.padding(end = 6.dp)
+                                .background(if (on) Brand.copy(alpha = 0.25f) else dim.copy(alpha = 0.12f))
+                                .clickable { if (root.path != v.path) setRoot(v) }
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                        ) { Text(volumeLabel(v), color = if (on) Brand else dim, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1) }
+                    }
                 }
             }
             Box(Modifier.fillMaxWidth().height(1.dp).background(dim.copy(alpha = 0.3f)))
@@ -246,6 +271,7 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
                             if (isDir) {
                                 DropdownMenuItem(text = { Text("cd ke folder ini") }, onClick = { menuFor = null; if (cdHere(ctx, f)) onClose() })
                                 DropdownMenuItem(text = { Text("Jadikan folder utama") }, onClick = { menuFor = null; setRoot(f) })
+                                DropdownMenuItem(text = { Text("Folder baru di sini") }, onClick = { menuFor = null; sheet = Sheet.NewDir(f) }) // [FILE-DRAWER3]
                             } else {
                                 DropdownMenuItem(text = { Text("Edit di nano") }, onClick = { menuFor = null; if (MolinaExplorer.editInTerminal(ctx, f)) onClose() })
                             }
@@ -284,6 +310,21 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
             }
         }
         is Sheet.Info -> W7InfoDialog(listOf(s.f), MolinaExplorer.visibleInDebian(s.f)) { sheet = null }
+        is Sheet.NewDir -> W7NameDialog( // [FILE-DRAWER3]
+            title = "Folder baru", initial = "Folder baru", selectEnd = "Folder baru".length, okLabel = "Buat",
+            hint = "Di: " + s.parent.path,
+            onCancel = { sheet = null }
+        ) { name ->
+            sheet = null
+            scope.launch {
+                val r = withContext(Dispatchers.IO) { runCatching { FileOps.mkdir(s.parent, name) } }
+                r.onSuccess { nf ->
+                    if (s.parent.path != root.path && s.parent.path !in st.expanded) st.expanded.add(s.parent.path)
+                    load(s.parent)
+                    toast(ctx, "Folder dibuat: " + nf.name)
+                }.onFailure { toast(ctx, it.message ?: "Gagal membuat folder") }
+            }
+        }
     }
-    if (newFile) NewNanoFileDialog(onDismiss = { newFile = false }, onOpened = { newFile = false; onClose() }) // [NANO-NEW]
+    if (newFile) NewNanoFileDialog(onDismiss = { newFile = false }, onOpened = { newFile = false; onClose() }, baseDir = root) // [NANO-NEW] [FILE-DRAWER3] buat di folder aktif drawer
 }
