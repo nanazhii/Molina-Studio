@@ -15,7 +15,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.molina.exec.plan.CommandBlockSpec
+import com.molina.code.preview.CommandBlockSpec
 
 /**
  * [CODE-CMDBLOCK] Blok perintah/skrip standar Molina di :app: monospace, tanpa bungkus baris (geser horizontal),

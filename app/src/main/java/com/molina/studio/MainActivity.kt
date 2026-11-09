@@ -57,8 +57,7 @@ import androidx.compose.ui.graphics.Color
 
 private enum class Tab(@StringRes val labelRes: Int, val glyph: String, val color: Color) {
     Mpv(R.string.tab_mpv, "\u25B6", Color(0xFFB388FF)),          // [NAV-SLIM] ungu pekat: bioskop
-    Files(R.string.tab_files, "\u25A4", Color(0xFF5C9DFF)),       // biru pekat: penjelajah berkas
-    Terminal(R.string.tab_terminal, ">_", Color(0xFF4ADE80)),     // [NAV-TERM] hijau terminal: sesi Debian (kembali jadi tab nav)
+    Files(R.string.tab_files, "\u25A4", Color(0xFF5C9DFF)),       // biru pekat: penjelajah berkas (Terminal kini di Settings)
     Settings(R.string.tab_settings, "\u2699", Color(0xFFB8C2CC))  // abu dingin terang: pengaturan
 }
 
@@ -186,7 +185,10 @@ class MainActivity : ComponentActivity() {
             i.removeExtra("molina_open_tab")
             ShortcutNav.tab = when (tabKey) {
                 "cinema" -> Tab.Mpv.ordinal
-                "terminal" -> Tab.Terminal.ordinal // [NAV-TERM]
+                "terminal" -> {
+                    com.molina.studio.settings.SettingsNav.openTerminalApp = true
+                    Tab.Settings.ordinal
+                }
                 "downloads" -> {
                     com.molina.studio.download.DownloadNav.openTab = true
                     -1
@@ -217,7 +219,7 @@ class MainActivity : ComponentActivity() {
         val runId = i?.getStringExtra(ScriptShortcuts.EXTRA_RUN)
         if (i != null && runId != null) {
             i.removeExtra(ScriptShortcuts.EXTRA_RUN)
-            if (trustedShortcut(i)) com.molina.studio.script.ScriptNav.confirmRunId = runId
+            if (trustedShortcut(i)) com.molina.studio.code.ScriptNav.confirmRunId = runId
         }
         val key = com.molina.studio.download.DownloadService.EXTRA_OPEN_TAB
         if (i?.getStringExtra(key) == com.molina.studio.download.DownloadService.OPEN_TAB_DOWNLOADS) {
@@ -250,17 +252,11 @@ class MainActivity : ComponentActivity() {
                 var selected by rememberSaveable { mutableIntStateOf(0) }
                 androidx.compose.runtime.LaunchedEffect(selected) { com.molina.core.common.CrashContext.tab = this@MainActivity.getString(Tab.entries[selected].labelRes) }
                 // Script execution (Settings) menjalankan skrip di Molina Terminal: pindah ke Settings > Terminal.
-                androidx.compose.runtime.LaunchedEffect(com.molina.studio.script.ScriptNav.openTerminal) {
-                    if (com.molina.studio.script.ScriptNav.openTerminal) {
-                        selected = Tab.Terminal.ordinal // [NAV-TERM]
-                        com.molina.studio.script.ScriptNav.openTerminal = false
-                    }
-                }
-                // [NAV-TERM] Monitor Sistem (dibuka dari Terminal) ditutup: kembali ke tab Terminal.
-                androidx.compose.runtime.LaunchedEffect(com.molina.studio.settings.SettingsNav.returnToTerminal) {
-                    if (com.molina.studio.settings.SettingsNav.returnToTerminal) {
-                        selected = Tab.Terminal.ordinal
-                        com.molina.studio.settings.SettingsNav.returnToTerminal = false
+                androidx.compose.runtime.LaunchedEffect(com.molina.studio.code.ScriptNav.openTerminal) {
+                    if (com.molina.studio.code.ScriptNav.openTerminal) {
+                        com.molina.studio.settings.SettingsNav.openTerminalApp = true
+                        selected = Tab.Settings.ordinal
+                        com.molina.studio.code.ScriptNav.openTerminal = false
                     }
                 }
                 // Kartu hasil pencarian Cinema: Unduh mengirim URL ke tab Unduhan.
@@ -285,7 +281,7 @@ class MainActivity : ComponentActivity() {
                     ShortcutNav.tab = -1
                 }
                 // Pintasan skrip di layar utama: dialog konfirmasi sebelum skrip dijalankan.
-                com.molina.studio.script.ScriptRunHost()
+                com.molina.studio.code.ScriptRunHost()
                 // Lencana tab Unduhan: emas saat berjalan, hijau saat selesai dan belum dilihat.
                 val dl by com.molina.studio.download.DownloadRunner.state.collectAsState()
                 var dlWasRunning by remember { mutableStateOf(dl.running) }
@@ -295,7 +291,7 @@ class MainActivity : ComponentActivity() {
                     }
                     dlWasRunning = dl.running
                 }
-                val htmlWebView by com.molina.studio.preview.PreviewPrefs.htmlWebView.collectAsState()
+                val htmlWebView by com.molina.studio.code.CodePrefs.htmlWebView.collectAsState()
                 val keyboardVisible = rememberKeyboardVisible()
                 com.molina.studio.settings.ToolRunHost() // [MINIMIZE-RUN]
                 com.molina.studio.preview.PreviewHost(htmlWebView) // [NANO-PREVIEW]
@@ -365,20 +361,6 @@ class MainActivity : ComponentActivity() {
                     }
                 ) { pad ->
                     when (Tab.entries[selected]) {
-                        Tab.Terminal -> {
-                            com.molina.studio.terminal.TerminalScreen(
-                                Modifier.fillMaxSize().padding(pad),
-                                onOpenSettings = {
-                                    com.molina.studio.settings.SettingsNav.openTerminal = true
-                                    selected = Tab.Settings.ordinal
-                                },
-                                onOpenMonitor = {
-                                    com.molina.studio.settings.SettingsNav.openMonitor = true
-                                    selected = Tab.Settings.ordinal
-                                }
-                            )
-                            return@Scaffold
-                        }
                         Tab.Files -> {
                             com.molina.studio.settings.FilesTabScreen(Modifier.fillMaxSize().padding(pad), onExit = { selected = Tab.Mpv.ordinal })
                             return@Scaffold

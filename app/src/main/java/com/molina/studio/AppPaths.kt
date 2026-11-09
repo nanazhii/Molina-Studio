@@ -40,7 +40,7 @@ object AppPaths {
             ready = ok
             if (ok) {
                 BundledScripts.install(context.applicationContext)
-                com.molina.studio.script.ScriptStore.syncFromFolder() // [SCRIPT-FOLDER] daftar Script Execution mengikuti folder Scripts sejak awal
+                com.molina.studio.code.ScriptStore.syncFromFolder() // [SCRIPT-FOLDER] daftar Script Execution mengikuti folder Scripts sejak awal
             }
             busy.set(false)
             val level = if (ok) LogLevel.Info else LogLevel.Warn

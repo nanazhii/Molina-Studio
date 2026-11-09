@@ -50,14 +50,16 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.molina.exec.plan.CommandBlockSpec // [CODE-CMDBLOCK]
-import com.molina.exec.plan.ScriptLaunch
-import com.molina.studio.script.ScriptItem
+import com.molina.code.preview.CommandBlockSpec // [CODE-CMDBLOCK]
+import com.molina.code.preview.ScriptLaunch
+import com.molina.studio.code.CodeNav
+import com.molina.studio.code.CodeOpenRequest
+import com.molina.studio.code.ScriptItem
 import com.molina.studio.ScriptShortcuts
-import com.molina.studio.script.ScriptRunDialog
-import com.molina.studio.script.ScriptRunner
-import com.molina.studio.script.runIfTrusted
-import com.molina.studio.script.ScriptStore
+import com.molina.studio.code.ScriptRunDialog
+import com.molina.studio.code.ScriptRunner
+import com.molina.studio.code.runIfTrusted
+import com.molina.studio.code.ScriptStore
 import com.molina.studio.terminal.TerminalSessions
 import com.molina.studio.ui.MolinaTheme
 import java.text.SimpleDateFormat
@@ -154,10 +156,13 @@ internal fun ScriptsPage() {
                 onRun = { if (!runIfTrusted(ctx, item)) { toRun = item } },
                 onFav = { ScriptStore.setFavorite(item.id, !item.favorite) },
                 onOpts = { optsOf = item },
-                onEdit = { // [NAV-TERM] editor visual dihapus: EDIT membuka nano di Terminal
+                onEdit = {
                     val f = item.path?.let { File(it) }
-                    if (f != null && f.isFile) MolinaExplorer.editInTerminal(ctx, f)
-                    else toast(ctx, "Skrip ini belum berupa berkas di folder Scripts.")
+                    if (f != null && f.isFile) {
+                        CodeNav.pendingFiles = listOf(f)
+                    } else {
+                        CodeNav.pending = CodeOpenRequest(item.title, item.sourceKey ?: "script:${item.id}", item.body)
+                    }
                 },
                 onNano = { // [NANO-SCRIPT] edit skrip di nano; isi dibaca ulang dari berkas saat skrip dijalankan
                     val f = item.path?.let { File(it) }
@@ -176,7 +181,7 @@ internal fun ScriptsPage() {
         NewScriptDialog(onDismiss = { adding = false }) { raw ->
             adding = false
             val (made, error) = ScriptStore.createFile(raw)
-            if (made != null) MolinaExplorer.editInTerminal(ctx, made) else toast(ctx, error)
+            if (made != null) CodeNav.pendingFiles = listOf(made) else toast(ctx, error)
         }
     }
     toRun?.let { item -> ScriptRunDialog(item) { toRun = null } }

@@ -2,9 +2,6 @@ package com.molina.studio.settings
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import com.molina.editor.EditorScreen
-import com.molina.editor.EditorSession
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -36,23 +33,6 @@ import java.io.File
 @Composable
 fun FilesTabScreen(modifier: Modifier = Modifier, onExit: () -> Unit = {}) {
     val ctx = LocalContext.current
-    val editing = EditorSession.file // [EDITOR-SORA]
-    // Penjelajah tetap tergambar di bawah editor: folder, pilihan, dan scroll tidak hilang saat editor ditutup.
-    Box(modifier) {
-        ExplorerLayer(Modifier, onExit)
-        if (editing != null) {
-            val tf = remember {
-                runCatching { android.graphics.Typeface.createFromAsset(ctx.assets, "fonts/JetBrainsMono-Regular.ttf") }
-                    .getOrDefault(android.graphics.Typeface.MONOSPACE)
-            }
-            EditorScreen(file = editing, onClose = { EditorSession.close() }, modifier = Modifier.fillMaxSize(), typeface = tf)
-        }
-    }
-}
-
-@Composable
-private fun ExplorerLayer(modifier: Modifier, onExit: () -> Unit) {
-    val ctx = LocalContext.current
     remember { MolinaExplorer.attach(ctx) }
     // MOLINA-H13-BRIDGE: hasil impor Vault kembali lewat startActivityForResult. State ini sengaja tidak disimpan
     // lintas rotasi/proses: bila hilang, hasil diabaikan dan tidak ada berkas asli yang dihapus (fail-safe).
@@ -82,9 +62,8 @@ private fun ExplorerLayer(modifier: Modifier, onExit: () -> Unit) {
         onInsertPaths = { fs -> MolinaExplorer.insertPaths(ctx, fs) },
         isVisibleInDebian = { f -> MolinaExplorer.visibleInDebian(f) },
         onPlay = { files -> MolinaExplorer.play(ctx, files) },
-        onOpenInNano = { files -> MolinaExplorer.openInNano(ctx, files) },
+        onOpenInCode = { files -> MolinaExplorer.openInCode(ctx, files) },
         onEditInTerminal = { f -> MolinaExplorer.editInTerminal(ctx, f) }, // [NANO-EDIT]
-        onOpenInEditor = { f -> if (MolinaExplorer.canEditInApp(ctx, f)) EditorSession.open(f) }, // [EDITOR-SORA]
         onNewTextInTerminal = { d, n -> MolinaExplorer.newInTerminal(ctx, d, n) }, // [NANO-NEW]
         onSendToScripts = { f -> MolinaExplorer.sendToScripts(f) },
         onSaveToVault = { files, done ->

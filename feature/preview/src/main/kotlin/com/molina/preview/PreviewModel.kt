@@ -8,16 +8,16 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
-import com.molina.preview.engine.HtmlPreview
-import com.molina.preview.engine.JsonPretty
-import com.molina.preview.engine.JsonPreview
-import com.molina.preview.engine.JsonTok
-import com.molina.preview.engine.MdBlock
-import com.molina.preview.engine.MdDoc
-import com.molina.preview.engine.MdFlag
-import com.molina.preview.engine.MdSpan
-import com.molina.preview.engine.Markdown
-import com.molina.preview.engine.PreviewKind
+import com.molina.code.preview.HtmlPreview
+import com.molina.code.preview.JsonPretty
+import com.molina.code.preview.JsonPreview
+import com.molina.code.preview.JsonTok
+import com.molina.code.preview.MdBlock
+import com.molina.code.preview.MdDoc
+import com.molina.code.preview.MdFlag
+import com.molina.code.preview.MdSpan
+import com.molina.code.preview.Markdown
+import com.molina.code.preview.PreviewKind
 
 // [NANO-PREVIEW] Model + pembangun isi pratinjau (disalin dari editor Code, tanpa keterkaitan CodeSession).
 

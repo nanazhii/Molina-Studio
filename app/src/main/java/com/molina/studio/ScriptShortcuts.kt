@@ -5,7 +5,7 @@ import android.content.Intent
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.graphics.drawable.Icon
-import com.molina.studio.script.ScriptItem
+import com.molina.studio.code.ScriptItem
 import com.molina.studio.security.ShortcutToken
 
 /**
@@ -31,7 +31,7 @@ internal object ScriptShortcuts {
         val info = ShortcutInfo.Builder(app, shortcutId(item.id))
             .setShortLabel(item.title.take(12))
             .setLongLabel(item.title.take(40))
-            .setIcon(Icon.createWithResource(app, R.mipmap.ic_shortcut_script))
+            .setIcon(Icon.createWithResource(app, R.mipmap.ic_shortcut_code))
             .setIntent(runIntent(app, item.id, ShortcutToken.get(app)))
             .build()
         return if (runCatching { sm.requestPinShortcut(info, null) }.getOrDefault(false)) {

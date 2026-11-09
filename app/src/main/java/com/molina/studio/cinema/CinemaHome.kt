@@ -160,7 +160,7 @@ fun CinemaHome(modifier: Modifier = Modifier) {
         onDismiss = { channelsOpen = false },
         onOpenFolder = { runCatching { iptvDir.mkdirs() }; iptvFolderOpen = true },
         refreshTick = iptvTick,
-        onOpenInNano = { f -> channelsOpen = false; MolinaExplorer.openInNano(ctx, listOf(f)) },
+        onOpenInCode = { f -> channelsOpen = false; MolinaExplorer.openInCode(ctx, listOf(f)) },
         onPlay = { list, picked ->
             channelsOpen = false
             info = if (CinemaActions.playChannels(ctx, list, picked)) "" else FAIL
@@ -216,7 +216,7 @@ fun CinemaHome(modifier: Modifier = Modifier) {
             onInsertPaths = { fs -> MolinaExplorer.insertPaths(ctx, fs) },
             isVisibleInDebian = { f -> MolinaExplorer.visibleInDebian(f) },
             onPlay = { files -> MolinaExplorer.play(ctx, files) },
-            onOpenInNano = { files -> iptvFolderOpen = false; channelsOpen = false; MolinaExplorer.openInNano(ctx, files) },
+            onOpenInCode = { files -> iptvFolderOpen = false; channelsOpen = false; MolinaExplorer.openInCode(ctx, files) },
             onEditInTerminal = { f -> if (MolinaExplorer.editInTerminal(ctx, f)) { iptvFolderOpen = false; channelsOpen = false } }, // [NANO-EDIT]
         )
     }

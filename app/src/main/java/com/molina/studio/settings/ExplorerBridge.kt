@@ -10,10 +10,11 @@ import com.molina.studio.terminal.TerminalActions
 import com.molina.studio.terminal.TerminalPrefs
 import com.molina.studio.terminal.TerminalSessions
 import com.molina.cinema.MpvFolder
-import com.molina.exec.run.ScriptShare
+import com.molina.code.run.ScriptShare
 import com.molina.studio.cinema.CinemaActions
-import com.molina.studio.script.ScriptNav
-import com.molina.studio.script.ScriptStore
+import com.molina.studio.code.CodeNav
+import com.molina.studio.code.ScriptNav
+import com.molina.studio.code.ScriptStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -88,33 +89,17 @@ internal object MolinaExplorer {
         }
     }
 
-    /** Buka berkas teks di nano (Terminal). Satu sesi nano satu berkas, jadi hanya berkas pertama yang dibuka. */
-    fun openInNano(ctx: Context, files: List<File>) {
-        val f = files.firstOrNull { it.isFile }
-        if (f == null) {
-            Toast.makeText(ctx, "Pilih berkas teks untuk dibuka di nano.", Toast.LENGTH_SHORT).show()
+    /** Buka berkas teks di editor Code (tab Code): dikonsumsi MainActivity lewat [CodeNav.pendingFiles]. */
+    fun openInCode(ctx: Context, files: List<File>) {
+        val ok = files.filter { it.isFile }.take(10)
+        if (ok.isEmpty()) {
+            Toast.makeText(ctx, "Pilih berkas teks untuk dibuka di Code.", Toast.LENGTH_SHORT).show()
             return
         }
-        editInTerminal(ctx, f)
+        CodeNav.pendingFiles = ok
     }
 
-    /**
-     * [EDITOR-SORA] Boleh dibuka di editor Molina: berkas teks (maks 5 MB) yang bisa dibaca. Sama seperti nano,
-     * tidak memakai blockedSensitive: guard itu untuk berkas yang KELUAR dari Molina (share/Buka dengan).
-     */
-    fun canEditInApp(ctx: Context, f: File): Boolean {
-        if (!com.molina.studio.cinema.ExplorerList.looksText(f)) {
-            Toast.makeText(ctx, "Hanya berkas teks (maks 5 MB) yang bisa dibuka di editor.", Toast.LENGTH_SHORT).show()
-            return false
-        }
-        if (!f.canRead()) {
-            Toast.makeText(ctx, "Berkas tidak bisa dibaca.", Toast.LENGTH_SHORT).show()
-            return false
-        }
-        return true
-    }
-
-    /** Kirim isi berkas teks ke Script execution. Sumber = path berkas, (tidak menggandakan). */
+    /** Kirim isi berkas teks ke Script execution. Sumber = path berkas, sama dengan kiriman dari editor Code (tidak menggandakan). */
     fun sendToScripts(f: File): Pair<Boolean, String> {
         if (!f.isFile) return Pair(false, "Pilih satu berkas teks")
         if (f.length() > 1_000_000L) return Pair(false, "Berkas terlalu besar untuk Script execution")

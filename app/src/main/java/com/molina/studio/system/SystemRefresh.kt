@@ -14,7 +14,7 @@ import com.molina.core.common.TaskGroup
 import com.molina.core.common.TaskProbe
 import com.molina.core.common.TaskTable
 import com.molina.studio.cinema.MemoryRefresh
-import com.molina.studio.script.ProotScriptExecutor
+import com.molina.studio.code.ProotScriptExecutor
 import com.molina.studio.stream.StreamCache
 import com.molina.studio.stream.YtdlpRunner
 import com.molina.studio.terminal.TerminalService

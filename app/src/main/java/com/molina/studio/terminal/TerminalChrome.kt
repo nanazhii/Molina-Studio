@@ -156,7 +156,7 @@ internal fun TerminalHeader(onOpenSettings: () -> Unit, onOpenMonitor: () -> Uni
         Box {
             HdrBtn("\u22EE") { menu = true }
             if (snippets) SnippetDialog { snippets = false }
-            if (scriptPicker) com.molina.studio.script.ScriptPickerDialog { scriptPicker = false }
+            if (scriptPicker) com.molina.studio.code.ScriptPickerDialog { scriptPicker = false }
             if (links) LinksDialog { links = false }
             if (search) TerminalSearchDialog { search = false }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {

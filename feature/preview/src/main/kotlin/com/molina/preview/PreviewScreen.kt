@@ -23,14 +23,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.molina.preview.engine.PreviewKind
-import com.molina.preview.engine.PreviewKinds
+import com.molina.code.preview.PreviewKind
+import com.molina.code.preview.PreviewKinds
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.File
 
-/** Batas pratinjau; batas pratinjau yang sama seperti sebelumnya. */
+/** Batas pratinjau; sama dengan editor Code lama. */
 object PreviewLimits {
     const val MAX_FILE_BYTES = 2_000_000L
     const val MAX_CHARS = 500_000

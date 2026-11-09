@@ -39,13 +39,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.molina.exec.plan.RunPlan
-import com.molina.exec.run.RunHandle
-import com.molina.exec.run.RunListener
-import com.molina.exec.run.RunRequest
-import com.molina.exec.run.RunResult
+import com.molina.code.preview.RunPlan
+import com.molina.code.run.RunHandle
+import com.molina.code.run.RunListener
+import com.molina.code.run.RunRequest
+import com.molina.code.run.RunResult
 import com.molina.studio.cinema.Win7
-import com.molina.studio.script.ProotScriptExecutor
+import com.molina.studio.code.ProotScriptExecutor
 import com.molina.studio.ui.MolinaTheme
 import kotlinx.coroutines.delay
 

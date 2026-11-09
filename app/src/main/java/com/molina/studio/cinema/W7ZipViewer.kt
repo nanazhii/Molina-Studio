@@ -89,7 +89,7 @@ internal fun W7ZipDialog(
         listing = r.getOrNull()
         err = r.exceptionOrNull()?.let { it.message ?: it.javaClass.simpleName }
     }
-    // Deteksi suntingan di salinan sementara (mis. dari nano) tiap detik selama dialog terbuka
+    // Deteksi suntingan di salinan sementara (mis. dari Code) tiap detik selama dialog terbuka
     LaunchedEffect(zip) {
         while (true) {
             dirty = opened.entries.filter { it.value.file.lastModified() != it.value.lm || it.value.file.length() != it.value.len }.map { it.key }
@@ -102,7 +102,7 @@ internal fun W7ZipDialog(
             r.getOrNull()?.let { listing = it }
         }
     }
-    // [ZIP-OPEN] salin satu entri ke folder sementara lalu buka: media -> mpv, teks -> nano di Terminal
+    // [ZIP-OPEN] salin satu entri ke folder sementara lalu buka: media -> mpv, teks -> Code, atau Terminal
     fun openEntry(name: String, pw0: String?, toTerminal: Boolean = false) {
         if (busy) return
         val pw = pw0 ?: zipPw
@@ -351,7 +351,7 @@ internal fun W7ZipDialog(
         "Cara memakai ZIP", "Telusuri, buka, dan ubah isi ZIP tanpa mengekstraknya lebih dulu.",
         listOf(
             "Folder" to "Ketuk untuk masuk.",
-            "Berkas" to "Ketuk untuk memilih, ketuk lagi atau tekan Buka (media ke mpv, teks ke nano).",
+            "Berkas" to "Ketuk untuk memilih, ketuk lagi atau tekan Buka (media ke mpv, teks ke Code).",
             "Terminal" to "Membuka folder salinan berkas terpilih.",
             "Tempel" to "Menambah berkas yang disalin di Penjelajah ke folder ini.",
             "Hapus" to "Membuang berkas terpilih, atau folder ini bila tak ada yang dipilih.",

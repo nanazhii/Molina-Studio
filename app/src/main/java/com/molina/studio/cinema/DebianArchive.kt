@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicReference
  *   di folder tujuan bila 7z keluar 0 (exit 1 = sumber tak terbaca = gagal, arsip dibuang); tidak pernah menimpa berkas.
  *
  * Catatan: logika proses disalin dari ProotScriptExecutor.newProotProcess (lingkungan bersih proot). Refactor menjadi
- * satu pembangun proses bersama sengaja ditunda agar jalur Terminal yang sudah stabil tidak tersentuh.
+ * satu pembangun proses bersama sengaja ditunda agar jalur Code/Terminal yang sudah stabil tidak tersentuh.
  */
 internal class DebianArchive(context: Context) {
     private val app = context.applicationContext

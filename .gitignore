@@ -133,16 +133,3 @@ patch_*.py
 *.mvr
 *.mvault
 .mkc/
-
-# --- Catatan progres lokal (dilarang di repo oleh scripts/secret_gate.py) ---
-/progres.md
-
-# --- Berkas lokal terlarang oleh scripts/secret_gate.py (jangan di-commit) ---
-/docs/BLUEPRINT.md
-/docs/blueprint-code-editor.md
-/docs/HANDOFF.md
-/docs/UJI_PERANGKAT.md
-/docs/SIGNING.md
-/docs/lsp_probe.txt
-/docs/rootfs_audit.txt
-/molina-keys/
