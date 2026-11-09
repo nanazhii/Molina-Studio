@@ -336,4 +336,15 @@
     <string name="spectrum_colors_freq">Spectrum colors: by frequency</string>
     <string name="spectrum_colors_accent">Spectrum colors: single accent</string>
     <string name="spectrum_colors_cinema">Spectrum colors: Cinema (gold &amp; maroon)</string>
+    <!-- [VIDEO-QUALITY] -->
+    <string name="quality_btn">Video quality</string>
+    <string name="quality_auto">Auto (mpv default)</string>
+    <string name="quality_now">Now: %1$s</string>
+    <string name="quality_net">Network: %1$s \u00B7 Dropped frames: %2$d \u00B7 Buffering: %3$s</string>
+    <string name="quality_recommended">Recommended: %1$s</string>
+    <string name="quality_single">Only one quality is available for this source.</string>
+    <string name="quality_switched">Quality: %1$s</string>
+    <string name="quality_unknown">n/a</string>
+    <string name="quality_yes">Yes</string>
+    <string name="quality_no">No</string>
 </resources>

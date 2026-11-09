@@ -2337,15 +2337,22 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             pickSleepTimer(restoreState)
             false
         })
+        buttons.add(MenuItem(R.id.qualityBtn) { // [VIDEO-QUALITY]
+            restoreState() // lanjutkan putar agar statistik mencerminkan kondisi nyata
+            showQualityDialog()
+            false
+        })
 
         if (player.vid == -1)
-            hiddenButtons.addAll(arrayOf(R.id.rowVideo1, R.id.rowVideo2, R.id.aspectBtn))
+            hiddenButtons.addAll(arrayOf(R.id.rowVideo1, R.id.rowVideo2, R.id.aspectBtn, R.id.qualityBtn))
         if (player.aid == -1 || player.vid == -1)
             hiddenButtons.add(R.id.audioDelayBtn)
         if (player.sid == -1)
             hiddenButtons.addAll(arrayOf(R.id.subDelayBtn, R.id.rowSubSeek, R.id.rowSubStyle))
         if (!useAudioUI)
             hiddenButtons.addAll(arrayOf(R.id.spectrumToggleBtn, R.id.spectrumColorBtn)) // [SPECTRUM]
+        else
+            hiddenButtons.add(R.id.qualityBtn) // [VIDEO-QUALITY] sampul audio bukan pilihan resolusi
         /******/
 
         genericMenu(R.layout.dialog_advanced_menu, buttons, hiddenButtons, restoreState) { v ->
@@ -2355,6 +2362,118 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                     getString(R.string.sleep_timer_active, left)
             }
         }
+    }
+
+    // [VIDEO-QUALITY] Pilihan resolusi menurut kondisi nyata: resolusi keluaran, jaringan, buffering, frame terlewat, dekoder.
+    private fun readVideoVariants(): List<VideoVariant> {
+        val out = mutableListOf<VideoVariant>()
+        val count = MPVLib.getPropertyInt("track-list/count") ?: return out
+        for (i in 0 until count) {
+            if (MPVLib.getPropertyString("track-list/$i/type") != "video") continue
+            if (MPVLib.getPropertyBoolean("track-list/$i/albumart") == true) continue
+            val id = MPVLib.getPropertyInt("track-list/$i/id") ?: continue
+            val bitrate = MPVLib.getPropertyInt("track-list/$i/hls-bitrate")
+                ?: MPVLib.getPropertyInt("track-list/$i/demux-bitrate") ?: 0
+            out.add(VideoVariant(
+                mpvId = id,
+                width = MPVLib.getPropertyInt("track-list/$i/demux-w") ?: 0,
+                height = MPVLib.getPropertyInt("track-list/$i/demux-h") ?: 0,
+                fps = MPVLib.getPropertyDouble("track-list/$i/demux-fps") ?: 0.0,
+                bitrateBps = bitrate.toLong(),
+                codec = MPVLib.getPropertyString("track-list/$i/codec"),
+            ))
+        }
+        return out
+    }
+
+    private fun readPlayConditions(): PlayConditions {
+        val dm = resources.displayMetrics
+        val dropped = (MPVLib.getPropertyInt("frame-drop-count") ?: 0) +
+            (MPVLib.getPropertyInt("decoder-frame-drop-count") ?: 0)
+        return PlayConditions(
+            outWidth = MPVLib.getPropertyInt("video-params/w") ?: 0,
+            outHeight = MPVLib.getPropertyInt("video-params/h") ?: 0,
+            fps = MPVLib.getPropertyDouble("estimated-vf-fps") ?: MPVLib.getPropertyDouble("container-fps") ?: 0.0,
+            hwdec = player.hwdecActive,
+            droppedFrames = dropped.toLong(),
+            netSpeedBps = (MPVLib.getPropertyInt("cache-speed") ?: 0).toLong() * 8L,
+            buffering = MPVLib.getPropertyBoolean("paused-for-cache") == true,
+            displayShortSidePx = minOf(dm.widthPixels, dm.heightPixels),
+        )
+    }
+
+    private fun qualityStatus(c: PlayConditions, rec: VideoVariant?): String {
+        val unk = getString(R.string.quality_unknown)
+        val now = listOfNotNull(
+            if (c.outWidth > 0 && c.outHeight > 0) "${c.outWidth}\u00D7${c.outHeight}" else null,
+            if (c.fps > 0) String.format(java.util.Locale.US, "%.0f fps", c.fps) else null,
+            c.hwdec,
+        ).joinToString(" \u00B7 ").ifEmpty { unk }
+        val net = if (c.netSpeedBps > 0) VideoQuality.mbps(c.netSpeedBps) else unk
+        val yesNo = getString(if (c.buffering) R.string.quality_yes else R.string.quality_no)
+        val lines = mutableListOf(
+            getString(R.string.quality_now, now),
+            getString(R.string.quality_net, net, c.droppedFrames, yesNo),
+        )
+        if (rec != null) lines.add(getString(R.string.quality_recommended, VideoQuality.label(rec)))
+        return lines.joinToString("\n")
+    }
+
+    /** Dialog kualitas: header kondisi nyata diperbarui tiap detik saat dialog terbuka; daftar varian bila sumber punya >1. */
+    private fun showQualityDialog() {
+        val variants = readVideoVariants()
+            .sortedWith(compareByDescending<VideoVariant> { it.height }.thenByDescending { it.bitrateBps })
+        val builder = AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog)
+        val header = android.widget.TextView(builder.context).apply {
+            val pad = Utils.convertDp(this@MPVActivity, 24f)
+            setPadding(pad, pad, pad, pad / 2)
+            textSize = 13f
+            val ta = builder.context.obtainStyledAttributes(intArrayOf(android.R.attr.textColorPrimary))
+            setTextColor(ta.getColor(0, android.graphics.Color.WHITE))
+            ta.recycle()
+        }
+        fun refresh() {
+            val c = readPlayConditions()
+            val recId = VideoQuality.recommend(variants, c, player.vid)
+            header.text = qualityStatus(c, variants.firstOrNull { it.mpvId == recId })
+        }
+        refresh()
+        builder.setCustomTitle(header)
+
+        if (variants.size > 1) {
+            val recAtOpen = VideoQuality.recommend(variants, readPlayConditions(), player.vid)
+            val labels = arrayOf(getString(R.string.quality_auto)) +
+                variants.map { VideoQuality.label(it) + (if (it.mpvId == recAtOpen) " \u2605" else "") }
+            val checked = variants.indexOfFirst { it.mpvId == player.vid }.let { if (it < 0) -1 else it + 1 }
+            builder.setSingleChoiceItems(labels, checked) { dialog, item ->
+                val name: String
+                if (item == 0) {
+                    MPVLib.setPropertyString("vid", "auto")
+                    name = getString(R.string.quality_auto)
+                } else {
+                    val v = variants[item - 1]
+                    player.vid = v.mpvId
+                    name = VideoQuality.label(v)
+                }
+                dialog.dismiss()
+                showToast(getString(R.string.quality_switched, name), true)
+            }
+        } else {
+            builder.setMessage(R.string.quality_single)
+            builder.setPositiveButton(R.string.dialog_ok, null)
+        }
+
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        val tick = object : Runnable {
+            override fun run() {
+                if (isFinishing || isDestroyed) return
+                refresh()
+                handler.postDelayed(this, 1000L)
+            }
+        }
+        builder.setOnDismissListener { handler.removeCallbacks(tick) }
+        builder.create().show()
+        handler.postDelayed(tick, 1000L)
     }
 
     private val sleepHandler = android.os.Handler(android.os.Looper.getMainLooper())

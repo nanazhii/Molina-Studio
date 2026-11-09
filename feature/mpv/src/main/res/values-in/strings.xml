@@ -164,4 +164,15 @@
     <string name="spectrum_colors_freq">Warna spektrum: per frekuensi</string>
     <string name="spectrum_colors_accent">Warna spektrum: aksen tunggal</string>
     <string name="spectrum_colors_cinema">Warna spektrum: Cinema (emas &amp; marun)</string>
+    <!-- [VIDEO-QUALITY] -->
+    <string name="quality_btn">Kualitas video</string>
+    <string name="quality_auto">Otomatis (bawaan mpv)</string>
+    <string name="quality_now">Sekarang: %1$s</string>
+    <string name="quality_net">Jaringan: %1$s \u00B7 Frame terlewat: %2$d \u00B7 Buffering: %3$s</string>
+    <string name="quality_recommended">Disarankan: %1$s</string>
+    <string name="quality_single">Sumber ini hanya menyediakan satu kualitas.</string>
+    <string name="quality_switched">Kualitas: %1$s</string>
+    <string name="quality_unknown">-</string>
+    <string name="quality_yes">Ya</string>
+    <string name="quality_no">Tidak</string>
 </resources>
