@@ -53,7 +53,7 @@ import kotlinx.coroutines.delay
  * Menu titik tiga ada di OverflowMenu.kt (F3b). Semua warna/ukuran dari [CodeColors] dan [CodeDimens].
  */
 @Composable
-fun CodeScreen(session: CodeSession, modifier: Modifier = Modifier) {
+fun CodeScreen(session: CodeSession, modifier: Modifier = Modifier, onExit: (() -> Unit)? = null) {
     var pendingClose by remember { mutableStateOf<EditorTab?>(null) }
     val ctx = LocalContext.current
     SideEffect { session.toast = { msg -> Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show() } }
@@ -78,7 +78,7 @@ fun CodeScreen(session: CodeSession, modifier: Modifier = Modifier) {
 
     Box(modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxSize().background(CodeColors.EditorBg)) {
-            PathHeader(session)
+            PathHeader(session, onExit)
             EditorTabBar(session) { tab ->
                 if (tab.dirty) pendingClose = tab else session.close(tab.id)
             }
@@ -202,7 +202,7 @@ private fun Hairline() {
  * chip status isi (Diubah / Tersimpan / Baru), dan tombol titik tiga yang membuka [OverflowMenu].
  */
 @Composable
-private fun PathHeader(session: CodeSession) {
+private fun PathHeader(session: CodeSession, onExit: (() -> Unit)? = null) {
     var menuOpen by remember { mutableStateOf(false) }
     val tab = session.active
     val path = tab?.file?.path ?: session.dir.root.path
@@ -213,6 +213,10 @@ private fun PathHeader(session: CodeSession) {
             .win7Aero(),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (onExit != null) Box( // keluar ke Berkas (editor dibuka layar penuh dari Penjelajah)
+            Modifier.width(CodeDimens.HeaderHeight).fillMaxHeight().clickable { onExit() },
+            contentAlignment = Alignment.Center
+        ) { BasicText("\u2039", style = TextStyle(color = Win7Code.Ink, fontSize = CodeDimens.PathTextSize * 1.8f)) }
         Box(
             Modifier
                 .width(CodeDimens.HeaderHeight)

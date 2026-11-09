@@ -67,17 +67,19 @@ object SettingsNav {
     var openPackages by mutableStateOf(false)
     /** [SUBTITLE-EXTRACT-SCROLL] Setelah halaman Paket terbuka, gulir ke bagian Alat lalu kembalikan ke false. */
     var scrollToTools by mutableStateOf(false)
-    /** Buka halaman Terminal (sesi Debian) di dalam Settings; dulu tab nav bawah. */
-    var openTerminalApp by mutableStateOf(false)
+    /** Terminal (sesi Debian) kini tab nav sendiri; Monitor yang dibuka dari Terminal tampil di Settings. */
+    var openMonitorFromTerminal by mutableStateOf(false)
+    /** Tombol kembali di Monitor (dari Terminal) meminta MainActivity kembali ke tab Terminal. */
+    var backToTerminal by mutableStateOf(false)
 }
 
 private enum class Page {
-    Home, System, Terminal, Debugging, TerminalIO, TerminalView, Tampilan, CrashReports, Log, Stream, Network, Scripts, Packages, Bundle, Code, TerminalApp, Downloads, Storage, Monitor, Player, Stats, Info, Licenses, AboutMolina
+    Home, System, Terminal, Debugging, TerminalIO, TerminalView, Tampilan, CrashReports, Log, Stream, Network, Scripts, Packages, Bundle, Code, Downloads, Storage, Monitor, Player, Stats, Info, Licenses, AboutMolina
 }
 
 private fun parentOf(p: Page): Page? = when (p) {
     Page.Home -> null
-    Page.System, Page.Scripts, Page.Packages, Page.TerminalApp, Page.Downloads, Page.Monitor, Page.Player, Page.Stats -> Page.Home
+    Page.System, Page.Scripts, Page.Packages, Page.Downloads, Page.Monitor, Page.Player, Page.Stats -> Page.Home
     Page.Stream, Page.Bundle -> Page.Packages
     Page.Debugging, Page.TerminalIO, Page.TerminalView, Page.Tampilan -> Page.Terminal
     Page.CrashReports -> Page.Debugging
@@ -101,7 +103,6 @@ private fun titleOf(p: Page): String = when (p) {
     Page.Code -> "Editor Code"
     Page.Packages -> "Paket"
     Page.Bundle -> "Komponen bawaan Molina"
-    Page.TerminalApp -> "Terminal"
     Page.Downloads -> "Unduhan"
     Page.Storage -> "Penyimpanan"
     Page.Monitor -> "Monitor Sistem"
@@ -149,7 +150,6 @@ private val INDEX = listOf(
     Hit("Pulihkan dari Backup", "Pulihkan penanda video, snippet, dan setelan dari molina-backup.json", Page.System),
     Hit("Profil setelan", "Simpan setelan sebagai profil bernama (mis. Nonton, Dev, Hemat Baterai) dan ganti dengan satu ketukan", Page.System),
     Hit("Diagnostik dan laporan bug", "Salin info debug, diagnostik sekali klik (satu ZIP), dan laporan bug ke folder Export dalam satu tempat", Page.Info),
-    Hit("Terminal (sesi)", "Buka layar perintah Debian di Molina Terminal", Page.TerminalApp),
     Hit("Unduhan", "Simpan video atau lagu dari tautan: daftar tunggu, riwayat, dan ulangi yang gagal", Page.Downloads),
     Hit("Penyimpanan", "Lihat pemakaian ruang (Debian, cache, Recycle Bin, folder kerja) dan bersihkan", Page.Storage),
     Hit("Bersihkan cache", "Hapus file sementara aplikasi (sisa program Debian dibersihkan lewat Paket)", Page.Storage),
@@ -212,10 +212,16 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
     val autoSt by com.molina.studio.automation.AutoPrefs.state.collectAsState()
     var monitorFromTerminal by rememberSaveable { mutableStateOf(false) } // [MONITOR-FROM-TERM]
     fun open(p: Page) { query = ""; if (p != Page.Monitor) monitorFromTerminal = false; page = p }
-    fun upTarget(): Page =
-        if (page == Page.Monitor && monitorFromTerminal) Page.TerminalApp else (parentOf(page) ?: Page.Home)
+    fun upTarget(): Page = parentOf(page) ?: Page.Home
+    fun goUp() { // [MONITOR-BACK] Monitor yang dibuka dari tab Terminal pulang ke tab Terminal
+        if (page == Page.Monitor && monitorFromTerminal) {
+            monitorFromTerminal = false
+            SettingsNav.backToTerminal = true
+            open(Page.Home)
+        } else open(upTarget())
+    }
     BackHandler(enabled = query.isNotBlank() || page != Page.Home) {
-        if (query.isNotBlank()) query = "" else open(upTarget()) // [MONITOR-BACK]
+        if (query.isNotBlank()) query = "" else goUp() // [MONITOR-BACK]
     }
     LaunchedEffect(SettingsNav.openTerminal) {
         if (SettingsNav.openTerminal) {
@@ -223,10 +229,11 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
             SettingsNav.openTerminal = false
         }
     }
-    LaunchedEffect(SettingsNav.openTerminalApp) {
-        if (SettingsNav.openTerminalApp) {
-            open(Page.TerminalApp)
-            SettingsNav.openTerminalApp = false
+    LaunchedEffect(SettingsNav.openMonitorFromTerminal) {
+        if (SettingsNav.openMonitorFromTerminal) {
+            open(Page.Monitor)
+            monitorFromTerminal = true // [MONITOR-OPEN]
+            SettingsNav.openMonitorFromTerminal = false
         }
     }
     LaunchedEffect(SettingsNav.openDownloads) {
@@ -260,13 +267,13 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
         modifier = modifier,
         crumbs = trail.map { titleOf(it) },
         canUp = page != Page.Home,
-        onUp = { open(upTarget()) }, // [MONITOR-UP]
+        onUp = { goUp() }, // [MONITOR-UP]
         onCrumb = { i -> open(trail[i]) },
         query = query,
         onQuery = { query = it },
         dark = !searching && (page == Page.Log || page == Page.Tampilan),
         actions = { RefreshIconButton { showRefresh = true } },
-        showHeader = searching || page != Page.TerminalApp
+        showHeader = true
     ) {
         if (showRefresh) SystemRefreshDialog { showRefresh = false }
         apt?.let { job -> DebianAptDialog(job) { apt = null } }
@@ -281,11 +288,6 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
             searching -> SearchResults(query) { open(it) }
             page == Page.Log -> LogScreen(Modifier.fillMaxSize())
             page == Page.Downloads -> com.molina.studio.download.UnduhanScreen(Modifier.fillMaxSize())
-            page == Page.TerminalApp -> com.molina.studio.terminal.TerminalScreen(
-                Modifier.fillMaxSize(),
-                onOpenSettings = { open(Page.Terminal) },
-                onOpenMonitor = { open(Page.Monitor); monitorFromTerminal = true } // [MONITOR-OPEN]
-            )
             else -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
                 W7Heading(if (page == Page.Home) "Sesuaikan setelan Molina" else titleOf(page))
                 when (page) {
@@ -313,13 +315,6 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                             badge = updateCount(autoSt, aptPending).let { if (it > 0) it.toString() else null },
                             badgeGold = true,
                             onOpen = { lastTile = Page.Packages; open(Page.Packages) }
-                        )
-                        W7CategoryTile(
-                            icon = { W7IconTerminal() },
-                            title = "Terminal",
-                            links = emptyList(),
-                            selected = lastTile == Page.TerminalApp,
-                            onOpen = { lastTile = Page.TerminalApp; open(Page.TerminalApp) }
                         )
                         W7CategoryTile(
                             icon = { W7IconDownloadBig(52.dp) },
@@ -443,7 +438,6 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                     Page.Monitor -> SystemMonitorPage()
                     Page.Licenses -> LicensesPage()
                     Page.AboutMolina -> AboutMolinaPage(onLicenses = { open(Page.Licenses) })
-                    Page.TerminalApp -> {}
                 }
             }
         }

@@ -57,8 +57,8 @@ import androidx.compose.ui.graphics.Color
 
 private enum class Tab(@StringRes val labelRes: Int, val glyph: String, val color: Color) {
     Mpv(R.string.tab_mpv, "\u25B6", Color(0xFFB388FF)),          // [NAV-SLIM] ungu pekat: bioskop
-    Files(R.string.tab_files, "\u25A4", Color(0xFF5C9DFF)),       // biru pekat: penjelajah berkas (Terminal kini di Settings)
-    Code(R.string.tab_editor, "< >", Color(0xFF2ECC71)),             // aksen: editor
+    Files(R.string.tab_files, "\u25A4", Color(0xFF5C9DFF)),       // biru pekat: penjelajah berkas (Editor dibuka dari sini, layar penuh)
+    Terminal(R.string.tab_terminal, ">_", Color(0xFFFFB74D)),      // amber: terminal (slot lama Editor)
     Settings(R.string.tab_settings, "\u2699", Color(0xFFB8C2CC))  // abu dingin terang: pengaturan
 }
 
@@ -189,10 +189,7 @@ class MainActivity : ComponentActivity() {
             i.removeExtra("molina_open_tab")
             ShortcutNav.tab = when (tabKey) {
                 "cinema" -> Tab.Mpv.ordinal
-                "terminal" -> {
-                    com.molina.studio.settings.SettingsNav.openTerminalApp = true
-                    Tab.Settings.ordinal
-                }
+                "terminal" -> Tab.Terminal.ordinal
                 "downloads" -> {
                     com.molina.studio.download.DownloadNav.openTab = true
                     -1
@@ -217,7 +214,10 @@ class MainActivity : ComponentActivity() {
                     -1
                 }
                 "files" -> Tab.Files.ordinal
-                "code" -> Tab.Code.ordinal
+                "code" -> {
+                    com.molina.studio.code.CodeNav.openEditor = true
+                    -1
+                }
                 else -> -1
             }
         }
@@ -255,6 +255,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme(colorScheme = MolinaColors) {
                 var selected by rememberSaveable { mutableIntStateOf(0) }
+                var codeOpen by rememberSaveable { mutableStateOf(false) } // Editor Code layar penuh, dibuka dari Berkas
+                androidx.compose.runtime.LaunchedEffect(selected) { if (selected != Tab.Files.ordinal) codeOpen = false }
                 androidx.compose.runtime.LaunchedEffect(selected) { com.molina.core.common.CrashContext.tab = this@MainActivity.getString(Tab.entries[selected].labelRes) }
                 val codeSession = remember {
                     com.molina.code.ui.CodeSession(
@@ -292,19 +294,33 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 DisposableEffect(codeSession) { onDispose { com.molina.studio.code.CodeInbox.session = null; codeSession.releaseAll() } }
-                // Script execution (Settings) menjalankan skrip di Molina Terminal: pindah ke Settings > Terminal.
+                // Script execution (Settings) menjalankan skrip di Molina Terminal: pindah ke tab Terminal.
                 androidx.compose.runtime.LaunchedEffect(com.molina.studio.code.ScriptNav.openTerminal) {
                     if (com.molina.studio.code.ScriptNav.openTerminal) {
-                        com.molina.studio.settings.SettingsNav.openTerminalApp = true
-                        selected = Tab.Settings.ordinal
+                        selected = Tab.Terminal.ordinal
                         com.molina.studio.code.ScriptNav.openTerminal = false
+                    }
+                }
+                // Editor Code: layar penuh dari tab Berkas (bukan tab nav). Dipakai jembatan Terminal -> Code dan pintasan "code".
+                androidx.compose.runtime.LaunchedEffect(com.molina.studio.code.CodeNav.openEditor) {
+                    if (com.molina.studio.code.CodeNav.openEditor) {
+                        selected = Tab.Files.ordinal
+                        codeOpen = true
+                        com.molina.studio.code.CodeNav.openEditor = false
+                    }
+                }
+                // Monitor yang dibuka dari Terminal: tombol kembali memulangkan ke tab Terminal.
+                androidx.compose.runtime.LaunchedEffect(com.molina.studio.settings.SettingsNav.backToTerminal) {
+                    if (com.molina.studio.settings.SettingsNav.backToTerminal) {
+                        selected = Tab.Terminal.ordinal
+                        com.molina.studio.settings.SettingsNav.backToTerminal = false
                     }
                 }
                 // EDIT di Script Execution membuka skrip di editor Code: pindah ke tab Code.
                 androidx.compose.runtime.LaunchedEffect(com.molina.studio.code.CodeNav.pending) {
                     com.molina.studio.code.CodeNav.pending?.let { req ->
                         codeSession.openScript(req.title, req.key, req.text)
-                        selected = Tab.Code.ordinal
+                        selected = Tab.Files.ordinal; codeOpen = true
                         com.molina.studio.code.CodeNav.pending = null
                     }
                 }
@@ -313,7 +329,7 @@ class MainActivity : ComponentActivity() {
                     val files = com.molina.studio.code.CodeNav.pendingFiles
                     if (files.isNotEmpty()) {
                         files.forEach { codeSession.openFile(it) }
-                        selected = Tab.Code.ordinal
+                        selected = Tab.Files.ordinal; codeOpen = true
                         com.molina.studio.code.CodeNav.pendingFiles = emptyList()
                     }
                 }
@@ -357,7 +373,7 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     containerColor = MaterialTheme.colorScheme.background,
                     bottomBar = {
-                        if (!keyboardVisible && !(selected == Tab.Code.ordinal && codeSession.previewFullScreen)) {
+                        if (!keyboardVisible && !codeOpen) {
                             Column {
                                 com.molina.studio.settings.ToolRunPill() // [MINIMIZE-RUN]
                                 Box(
@@ -421,7 +437,29 @@ class MainActivity : ComponentActivity() {
                 ) { pad ->
                     when (Tab.entries[selected]) {
                         Tab.Files -> {
-                            com.molina.studio.settings.FilesTabScreen(Modifier.fillMaxSize().padding(pad), onExit = { selected = Tab.Mpv.ordinal })
+                            if (codeOpen) {
+                                androidx.activity.compose.BackHandler(onBack = { codeOpen = false })
+                                com.molina.code.ui.CodeScreen(codeSession, Modifier.fillMaxSize().padding(pad), onExit = { codeOpen = false })
+                            } else {
+                                Box(Modifier.fillMaxSize().padding(pad)) {
+                                    com.molina.studio.settings.FilesTabScreen(Modifier.fillMaxSize(), onExit = { selected = Tab.Mpv.ordinal })
+                                    // Pintu masuk Editor (layar penuh). Ubah padding bila menimpa bilah perintah Penjelajah.
+                                    val pill = RoundedCornerShape(18.dp)
+                                    Box(
+                                        Modifier.align(Alignment.BottomEnd).padding(end = 14.dp, bottom = 72.dp)
+                                            .clip(pill)
+                                            .background(Color(0xFF2ECC71).copy(alpha = 0.22f), pill)
+                                            .clickable(role = Role.Button) { codeOpen = true }
+                                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                                    ) {
+                                        Text(
+                                            "< > Editor",
+                                            color = androidx.compose.ui.graphics.lerp(Color(0xFF2ECC71), Color.White, 0.15f),
+                                            fontSize = 12.sp, fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
                             return@Scaffold
                         }
                         Tab.Mpv -> {
@@ -432,8 +470,18 @@ class MainActivity : ComponentActivity() {
                             com.molina.studio.settings.SettingsScreen(Modifier.fillMaxSize().padding(pad))
                             return@Scaffold
                         }
-                        Tab.Code -> {
-                            com.molina.code.ui.CodeScreen(codeSession, Modifier.fillMaxSize().padding(pad))
+                        Tab.Terminal -> {
+                            com.molina.studio.terminal.TerminalScreen(
+                                Modifier.fillMaxSize().padding(pad),
+                                onOpenSettings = {
+                                    com.molina.studio.settings.SettingsNav.openTerminal = true
+                                    selected = Tab.Settings.ordinal
+                                },
+                                onOpenMonitor = {
+                                    com.molina.studio.settings.SettingsNav.openMonitorFromTerminal = true
+                                    selected = Tab.Settings.ordinal
+                                }
+                            )
                             return@Scaffold
                         }
                         else -> {}
