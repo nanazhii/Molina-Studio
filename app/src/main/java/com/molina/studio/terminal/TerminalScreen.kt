@@ -366,7 +366,7 @@ private fun ExtraKeys(mods: TerminalModifiers, onOpenDrawer: () -> Unit) {
     val shape = RoundedCornerShape(12.dp)
     val lit = mods.ctrl || mods.alt || mods.ctrlLocked || mods.altLocked
     Column(
-        Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp)
+        Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 2.dp) // [XK-COMPACT] padding vertikal 4dp -> 2dp
             .clip(shape)
             .background(Color.Black, shape) // [TERM-KEYS-BLACK] hitam pekat solid; bingkai hanya di sisi terluar
             .border(2.dp, if (lit) MolinaTheme.Brand else KeyFrame, shape) // [TERM-KEYS-BOLD] bingkai 2dp
@@ -378,6 +378,7 @@ private fun ExtraKeys(mods: TerminalModifiers, onOpenDrawer: () -> Unit) {
             Key("HOME", color = KeyBlue) { TerminalActions.sendKey(KeyEvent.KEYCODE_MOVE_HOME) } // [XK-ORDER] "-" dihapus; HOME, CLEAR, COPY, PASTE bergeser satu slot
             Key("CLEAR", color = KeyRed) { TerminalActions.clear() }
             Key("\u2191", color = KeyBlue) { TerminalActions.sendKey(KeyEvent.KEYCODE_DPAD_UP) }
+            Key("PASTE", color = KeyGreen) { TerminalActions.paste(ctx) } // [XK-SWAP] PASTE di slot lama COPY, COPY di slot paling kanan
             Key("COPY", color = KeyGreen) {
                 val ok = TerminalActions.copyAll(ctx)
                 Toast.makeText(
@@ -385,7 +386,6 @@ private fun ExtraKeys(mods: TerminalModifiers, onOpenDrawer: () -> Unit) {
                     Toast.LENGTH_SHORT
                 ).show()
             }
-            Key("PASTE", color = KeyGreen) { TerminalActions.paste(ctx) }
         }
         Row(Modifier.fillMaxWidth()) {
             Key("\u21C6", color = KeyAmber) { TerminalActions.send("\t") }
@@ -462,7 +462,7 @@ private fun KeyButton(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 38.dp)
+            .heightIn(min = 32.dp) // [XK-COMPACT] tinggi tombol 38dp -> 32dp, hemat ruang terminal
             .clip(shape)
             .background(bg, shape)
             .then(
