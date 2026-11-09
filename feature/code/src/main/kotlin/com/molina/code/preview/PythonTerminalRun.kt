@@ -51,26 +51,6 @@ object PythonTerminalRun {
         return PyName(s + lang.ext, null)
     }
 
-    /** Pembatas heredoc yang tidak bentrok dengan isi: PYEOF, PYEOF_1, PYEOF_2, ... */
-    fun uniqueDelimiter(body: String, delimiter: String = DELIMITER): String {
-        val lines = body.lineSequence().map { it.trimEnd() }.toHashSet()
-        if (delimiter !in lines) return delimiter
-        var i = 1
-        while ("${delimiter}_$i" in lines) i++
-        return "${delimiter}_$i"
-    }
-
-    /**
-     * Mode 1: `python3 << 'PYEOF'` + isi + `PYEOF` (shell: `bash << 'SHEOF'`). Pembatas dikutip sehingga shell
-     * tidak mengubah isi ($, `, \). Null bila isi kosong. Catatan: stdin dipakai heredoc, jadi input()/read tidak berfungsi.
-     */
-    fun heredoc(text: String, lang: TerminalRunLang = TerminalRunLang.PY): String? {
-        val body = ScriptLaunch.normalizeEol(text).trimEnd('\n')
-        if (body.isBlank()) return null
-        val d = uniqueDelimiter(body, lang.delimiter)
-        return "${lang.interpreter} << '$d'\n$body\n$d"
-    }
-
     /**
      * Mode 2: `python3 nama.py` (shell: `bash nama.sh`), dijalankan dari folder berkas lewat subshell sehingga
      * folder aktif Terminal tidak berubah dan berkas relatif tetap benar. [guestPath] jalur absolut di Debian.

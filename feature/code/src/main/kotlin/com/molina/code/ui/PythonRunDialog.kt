@@ -41,49 +41,35 @@ import com.molina.code.preview.CommandBlockSpec
 import com.molina.code.preview.PythonTerminalRun
 import com.molina.code.preview.TerminalRunLang
 
-private enum class PyRunMode { HEREDOC, FILE }
-
-private const val MAX_HEREDOC_CHARS = 20_000
-
 /**
- * [CODE-PYRUN2] Dialog "Jalankan di Terminal" untuk .py dan .sh. Opsi 1: bungkus isi dengan heredoc (tanpa berkas).
- * Opsi 2: interpreter + nama berkas; pengguna cukup mengisi nama, ekstensi dideteksi/ditambah otomatis.
+ * [CODE-PYRUN2] Dialog "Jalankan di Terminal" untuk .py dan .sh: isi tab ditulis ke berkas lalu dijalankan lewat molina-run.
+ * Pengguna cukup mengisi nama, ekstensi dideteksi/ditambah otomatis.
  * Pratinjau perintah (CommandBlockSpec, seragam dengan layar :app) selalu tampil; pilihan terakhir diingat dan bisa dijadikan "langsung" tanpa dialog.
  */
 @Composable
 internal fun PythonRunDialog(session: CodeSession, tab: EditorTab, onDismiss: () -> Unit) {
     val lang = remember { session.runLang() ?: TerminalRunLang.PY }
-    var mode by remember { mutableStateOf(PyRunMode.FILE) }
     var name by remember { mutableStateOf(PythonTerminalRun.suggestStem(tab.file?.name ?: tab.title, lang)) }
     var dontAsk by remember { mutableStateOf(!session.runAsk()) }
     val focus = remember { FocusRequester() }
     val shape = RoundedCornerShape(CodeDimens.DialogCorner)
     val hasSelection = remember { session.scriptHasSelection() }
-    val source = remember { session.scriptSourceText() }
 
     val parsed = PythonTerminalRun.normalizeName(name, lang)
-    val heredoc = PythonTerminalRun.heredoc(source, lang)
     val target = session.scriptTarget(tab, parsed.name)
-    val overwrite = mode == PyRunMode.FILE && target != null && target.exists() && target != tab.file
+    val overwrite = target != null && target.exists() && target != tab.file
 
-    val tooLong = mode == PyRunMode.HEREDOC && heredoc != null && heredoc.length > MAX_HEREDOC_CHARS
-    val canRun = when (mode) {
-        PyRunMode.HEREDOC -> heredoc != null && !tooLong
-        PyRunMode.FILE -> parsed.name != null
-    }
-    val preview = when (mode) {
-        PyRunMode.HEREDOC -> heredoc?.let { PythonTerminalRun.preview(it) } ?: "(isi kosong)"
-        PyRunMode.FILE -> "molina-run " + (parsed.name ?: ("nama" + lang.ext))
-    }
+    val canRun = parsed.name != null
+    val preview = "molina-run " + (parsed.name ?: ("nama" + lang.ext))
 
     fun run() {
         if (!canRun) return
-        session.saveRunChoice(mode == PyRunMode.FILE, !dontAsk)
-        if (mode == PyRunMode.HEREDOC) session.runScriptHeredoc(lang) else session.runScriptFile(name, lang)
+        session.saveRunAsk(!dontAsk)
+        session.runScriptFile(name, lang)
         onDismiss()
     }
 
-    LaunchedEffect(mode) { if (mode == PyRunMode.FILE) runCatching { focus.requestFocus() } }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
 
     Dialog(onDismissRequest = onDismiss) {
         Column(
@@ -96,13 +82,12 @@ internal fun PythonRunDialog(session: CodeSession, tab: EditorTab, onDismiss: ()
             Spacer(Modifier.height(8.dp))
 
             PyOption(
-                selected = mode == PyRunMode.FILE,
+                selected = true,
                 title = "Berkas: molina-run nama${lang.ext}",
                 subtitle = "Isi tab ditulis ke berkas lalu dijalankan. Berkas lama dicadangkan dan bisa diurungkan.",
-                onClick = { mode = PyRunMode.FILE }
+                onClick = {}
             )
 
-            if (mode == PyRunMode.FILE) {
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     BasicTextField(
@@ -124,8 +109,6 @@ internal fun PythonRunDialog(session: CodeSession, tab: EditorTab, onDismiss: ()
                 if (hasSelection) PyNote("Seleksi diabaikan; seluruh isi tab ditulis ke berkas.", CodeColors.LabelNeutral)
                 parsed.error?.let { if (name.isNotBlank()) PyNote(it, CodeColors.Danger) }
                 if (overwrite) PyNote(parsed.name + " sudah ada dan akan ditimpa (bisa diurungkan).", CodeColors.Danger)
-            }
-            if (tooLong) PyNote("Isi terlalu panjang untuk heredoc (maks. 20.000 karakter). Pakai opsi Berkas.", CodeColors.Danger)
 
             PyCheck(dontAsk, "Ingat pilihan ini, langsung jalankan lain kali") { dontAsk = !dontAsk }
 
