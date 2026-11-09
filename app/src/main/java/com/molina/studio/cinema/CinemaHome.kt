@@ -115,7 +115,8 @@ fun CinemaHome(modifier: Modifier = Modifier) {
         onSettings = { if (!CinemaActions.openSettings(ctx)) info = "Setelan gagal dibuka." },
         onReset = { confirmReset = true },
         onRecent = { r ->
-            if (r.ref.startsWith("/")) {
+            if (CinemaActions.playSnapshot(ctx, r.ref)) Unit // [RECENT-PLAYLIST]
+            else if (r.ref.startsWith("/")) {
                 if (!CinemaActions.playPath(ctx, r.ref)) info = FAIL
             } else submit(r.ref)
         },
@@ -150,7 +151,8 @@ fun CinemaHome(modifier: Modifier = Modifier) {
         onDismiss = { tvOpen = false },
         recents = remember(CinemaRecent.version) { CinemaRecent.load(ctx) },
         onPlayRecent = { r ->
-            if (r.ref.startsWith("/")) {
+            if (CinemaActions.playSnapshot(ctx, r.ref)) Unit // [RECENT-PLAYLIST]
+            else if (r.ref.startsWith("/")) {
                 if (!CinemaActions.playPath(ctx, r.ref)) info = FAIL
             } else submit(r.ref)
         },

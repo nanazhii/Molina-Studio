@@ -16,6 +16,47 @@ internal object CinemaRecent {
             get() = if (ref.startsWith("/")) (File(ref).parent ?: "") else (runCatching { Uri.parse(ref).host }.getOrNull() ?: "")
     }
 
+    /** [RECENT-PLAYLIST] Daftar putar yang berlaku saat entri dipilih (saluran M3U atau hasil pencarian). */
+    class Snapshot(val kind: String, val urls: List<String>, val titles: List<String>, val logos: List<String>)
+
+    private fun plDir(ctx: Context) = File(ctx.applicationContext.filesDir, "cinema_recent_pl")
+
+    private fun plFile(ctx: Context, ref: String): File {
+        val h = java.security.MessageDigest.getInstance("SHA-256").digest(ref.toByteArray())
+            .joinToString("") { "%02x".format(it) }.take(24)
+        return File(plDir(ctx), "$h.json")
+    }
+
+    /** Simpan daftar untuk [ref]; abaikan bila kurang dari 2 item. [titles]/[logos] harus sepanjang [urls]. */
+    fun saveSnapshot(ctx: Context, ref: String, kind: String, urls: List<String>, titles: List<String>, logos: List<String> = emptyList()) {
+        if (urls.size < 2 || titles.size != urls.size) return
+        try {
+            plDir(ctx).mkdirs()
+            val lg = if (logos.size == urls.size) logos else List(urls.size) { "" }
+            val o = JSONObject().put("k", kind).put("u", JSONArray(urls)).put("t", JSONArray(titles)).put("l", JSONArray(lg))
+            plFile(ctx, ref).writeText(o.toString())
+        } catch (e: Exception) { }
+    }
+
+    fun snapshot(ctx: Context, ref: String): Snapshot? = try {
+        val f = plFile(ctx, ref)
+        if (!f.isFile) null else {
+            val o = JSONObject(f.readText())
+            fun list(k: String) = o.getJSONArray(k).let { a -> (0 until a.length()).map { a.getString(it) } }
+            val u = list("u")
+            val t = list("t")
+            val l = list("l")
+            if (u.size != t.size || u.size != l.size) null else Snapshot(o.getString("k"), u, t, l)
+        }
+    } catch (e: Exception) {
+        null
+    }
+
+    private fun prunePlaylists(ctx: Context, items: List<Item>) {
+        val keep = items.map { plFile(ctx, it.ref).name }.toSet()
+        plDir(ctx).listFiles()?.forEach { if (it.name !in keep) it.delete() }
+    }
+
     private const val PREFS = "molina_ui"
     private const val KEY = "cinema_recent"
     private const val MAX = 8
@@ -49,6 +90,7 @@ internal object CinemaRecent {
 
     fun clear(ctx: Context) {
         prefs(ctx).edit().remove(KEY).apply()
+        plDir(ctx).deleteRecursively()
         version++
         com.molina.studio.MolinaShortcuts.refresh(ctx)
     }
@@ -57,6 +99,7 @@ internal object CinemaRecent {
         val arr = JSONArray()
         items.forEach { arr.put(JSONObject().put("r", it.ref).put("t", it.title).put("v", it.video)) }
         prefs(ctx).edit().putString(KEY, arr.toString()).apply()
+        prunePlaylists(ctx, items)
         com.molina.studio.MolinaShortcuts.refresh(ctx)
         version++
     }

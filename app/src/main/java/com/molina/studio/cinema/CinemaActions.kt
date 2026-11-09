@@ -66,6 +66,7 @@ internal object CinemaActions {
         val idx = list.indexOfFirst { it.pageUrl == picked.pageUrl }
         val uri = Uri.parse(picked.pageUrl)
         if (idx < 0 || list.size < 2) return play(ctx, uri)
+        CinemaRecent.saveSnapshot(ctx, picked.pageUrl, "res", list.map { it.pageUrl }, list.map { it.title }) // [RECENT-PLAYLIST]
         return start(
             ctx,
             Intent(Intent.ACTION_VIEW, uri)
@@ -103,13 +104,38 @@ internal object CinemaActions {
     fun playChannels(ctx: Context, channels: List<IptvChannel>, picked: IptvChannel): Boolean {
         val uri = IptvPlayback.memoryPlaylist(channels, picked) ?: return false
         val ok = playTree(ctx, uri)
-        if (ok) CinemaRecent.add(ctx, picked.url, picked.name)
+        if (ok) {
+            CinemaRecent.add(ctx, picked.url, picked.name)
+            CinemaRecent.saveSnapshot(ctx, picked.url, "ch", channels.map { it.url }, channels.map { it.name }, channels.map { it.logo }) // [RECENT-PLAYLIST]
+        }
         return ok
+    }
+
+    /**
+     * [RECENT-PLAYLIST] Putar ulang [ref] bersama daftar yang berlaku saat dipilih dulu (saluran M3U atau hasil
+     * pencarian), bukan satu item saja. False bila tidak ada cuplikan: pemanggil jatuh ke pemutaran tunggal.
+     */
+    fun playSnapshot(ctx: Context, ref: String): Boolean {
+        val s = CinemaRecent.snapshot(ctx, ref) ?: return false
+        val idx = s.urls.indexOf(ref)
+        if (idx < 0) return false
+        return when (s.kind) {
+            "ch" -> {
+                val list = s.urls.indices.map { IptvChannel(s.titles[it], s.urls[it], "", s.logos[it]) }
+                playChannels(ctx, list, list[idx])
+            }
+            "res" -> {
+                val items = s.urls.indices.map { StreamSearchItem(s.urls[it], s.titles[it]) }
+                playResults(ctx, items, items[idx])
+            }
+            else -> false
+        }
     }
 
     /** Putar item teratas riwayat Cinema (shortcut "Putar terakhir"); false bila riwayat kosong atau gagal. */
     fun playLast(ctx: Context): Boolean {
         val r = CinemaRecent.load(ctx).firstOrNull() ?: return false
+        if (playSnapshot(ctx, r.ref)) return true // [RECENT-PLAYLIST]
         if (r.ref.startsWith("/")) return playPath(ctx, r.ref)
         return when (val i = classify(r.ref)) {
             is Input.Direct -> play(ctx, i.uri)
