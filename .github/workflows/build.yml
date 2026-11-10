@@ -21,6 +21,8 @@ jobs:
       - name: Gerbang telemetri dan URL
         run: python3 scripts/telemetry_gate.py
       - name: Gerbang rahasia
+      - name: Gerbang offline (Code, Penjelajah, Preview, Exec)
+        run: python3 scripts/offline_gate.py
         run: python3 scripts/secret_gate.py
       - name: Gerbang komponen bundel
         run: python3 scripts/bundle_gate.py
