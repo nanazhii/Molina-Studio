@@ -58,3 +58,6 @@ bind M-p "{savefile}{execute}/usr/local/lib/molina/nano-preview >/dev/null 2>&1{
 
 # Alt+R: simpan, keluar, lalu jalankan skrip dari berkasnya (molina-run). Pembungkus nano yang menjalankannya.
 bind M-r "{savefile}{execute}touch $MOLINA_RUN_FLAG{enter}{exit}" main
+
+# [NANO-FIX] Alt+F: simpan, keluar; pembungkus menjalankan 'molina-run --fix' (shebang + chmod +x) lalu membuka nano lagi.
+bind M-f "{savefile}{execute}touch $MOLINA_FIX_FLAG >/dev/null 2>&1{enter}{exit}" main

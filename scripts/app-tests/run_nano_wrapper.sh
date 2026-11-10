@@ -47,4 +47,42 @@ out="$(inpty "a${BEL}b.txt")"
 check "pty: karakter kontrol dibuang dari judul" '[[ "$out" == *"${ESC}]0;nano: ab.txt${BEL}"* ]]'
 FAKE_EXIT=3 inpty a.txt >/dev/null; rc=$?
 check "pty: exit 3 diteruskan" '[ $rc -eq 3 ]'
+# [NANO-FIX]
+# [NANO-FIX] Alt+F: nano keluar dengan penanda -> molina-run --fix -> (di terminal) nano dibuka lagi
+cat > "$T/fixnano" << 'EOS'
+#!/bin/sh
+n=$(cat "$T_COUNT" 2>/dev/null || echo 0); n=$((n+1)); echo "$n" > "$T_COUNT"
+echo "NANO#$n"
+if [ "$n" -eq 1 ] && [ -n "${FAKE_FIX:-}" ]; then touch "$MOLINA_FIX_FLAG"; fi
+exit "${FAKE_EXIT:-0}"
+EOS
+printf '#!/bin/sh\necho "FIXRUN:$*"\n' > "$T/fakerun"; chmod +x "$T/fixnano" "$T/fakerun"
+echo isi > "$T/work/a.txt"
+fixrun() { (cd "$T/work" && rm -f "$T/count" && T_COUNT="$T/count" FAKE_FIX=1 HOME="$T/home" MOLINA_NANO_BIN="$T/fixnano" MOLINA_RUN_BIN="$T/fakerun" MOLINA_NANORC="$T/rc" sh "$W" a.txt 2>&1); }
+out="$(fixrun)"
+check "fix (non-terminal): molina-run --fix dipanggil dengan berkas absolut" '[[ "$out" == *"FIXRUN:--fix $T/work/a.txt"* ]]'
+check "fix (non-terminal): nano tidak dibuka ulang tanpa terminal" '[ "$(cat "$T/count")" = "1" ]'
+out="$(cd "$T/work" && rm -f "$T/count" && T_COUNT="$T/count" HOME="$T/home" MOLINA_NANO_BIN="$T/fixnano" MOLINA_RUN_BIN="$T/fakerun" MOLINA_NANORC="$T/rc" sh "$W" a.txt 2>&1)"
+check "tanpa penanda: molina-run --fix tidak dipanggil" '[[ "$out" != *"FIXRUN"* ]]'
+if command -v python3 >/dev/null 2>&1; then
+  out="$(cd "$T/work" && rm -f "$T/count" && T_COUNT="$T/count" FAKE_FIX=1 HOME="$T/home" MOLINA_NANO_BIN="$T/fixnano" MOLINA_RUN_BIN="$T/fakerun" MOLINA_NANORC="$T/rc" python3 -c '
+import os, pty, select, sys, time
+pid, fd = pty.fork()
+if pid == 0:
+    os.execvp("sh", ["sh", sys.argv[1], "a.txt"])
+buf = b""; sent = False; end = time.time() + 15
+while time.time() < end:
+    r, _, _ = select.select([fd], [], [], 0.2)
+    if r:
+        try: d = os.read(fd, 4096)
+        except OSError: break
+        if not d: break
+        buf += d
+        if not sent and b"Tekan Enter" in buf:
+            os.write(fd, b"\n"); sent = True
+sys.stdout.buffer.write(buf)' "$W")"
+  check "pty: nano dibuka lagi sesudah Enter" '[[ "$out" == *"NANO#1"*"FIXRUN:--fix"*"Tekan Enter"*"NANO#2"* ]]'
+  check "pty: judul nano dipasang ulang sebelum nano kedua" '[[ "$out" == *"Tekan Enter"*"${ESC}]0;nano: a.txt${BEL}"*"NANO#2"* ]]'
+fi
+
 echo "Selesai: $runs kasus, $fails gagal"; [ "$fails" -eq 0 ]

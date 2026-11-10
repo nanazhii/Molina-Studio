@@ -219,7 +219,8 @@ private val NanoKeyList = listOf(
     Triple("GOTO", KeyAmber, "\u0007"),    // ^G ke baris
     Triple("REPL", KeyAmber, "\u0012"),    // ^R ganti
     Triple("CODE", KeyGreen, "\u001bo"),   // Alt+O: simpan lalu buka di Code
-    Triple("VIEW", KeyGreen, "\u001bp")    // [NANO-PREVIEW] Alt+P: simpan lalu pratinjau MD/HTML/JSON
+    Triple("VIEW", KeyGreen, "\u001bp"),   // [NANO-PREVIEW] Alt+P: simpan lalu pratinjau MD/HTML/JSON
+    Triple("FIX", KeyAmber, "\u001bf")     // [NANO-FIX] Alt+F: simpan, molina-run --fix (shebang + chmod +x), lalu nano dibuka lagi
 )
 
 private enum class NanoPrompt { NONE, SAVE, NAME, RUNFIX } // [NANO-PROMPT] [NANO-RUNFIX]

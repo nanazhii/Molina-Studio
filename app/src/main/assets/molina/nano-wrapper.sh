@@ -30,8 +30,27 @@ fi
 flag="${TMPDIR:-/tmp}/molina-run.$$"
 rm -f "$flag"
 MOLINA_RUN_FLAG="$flag"; export MOLINA_RUN_FLAG
-if [ -n "$rc" ]; then "$real" --rcfile="$rc" "$@"; else "$real" "$@"; fi
-st=$?
+# [NANO-FIX] Alt+F di nano: simpan + keluar + berkas penanda. Pembungkus menjalankan molina-run --fix, lalu membuka nano lagi.
+fixflag="$flag.fix"
+MOLINA_FIX_FLAG="$fixflag"; export MOLINA_FIX_FLAG
+while :; do
+  rm -f "$fixflag"
+  if [ -n "$rc" ]; then "$real" --rcfile="$rc" "$@"; else "$real" "$@"; fi
+  st=$?
+  if [ -e "$fixflag" ] && [ "$st" -eq 0 ] && [ -n "${MOLINA_NANO_FILE:-}" ] && [ -f "$MOLINA_NANO_FILE" ]; then
+    rm -f "$fixflag"
+    if [ -t 1 ]; then printf '\033]0;\007'; fi
+    "${MOLINA_RUN_BIN:-/usr/local/bin/molina-run}" --fix "$MOLINA_NANO_FILE"
+    if [ -t 1 ] && ( : < /dev/tty ) 2>/dev/null; then
+      printf 'Tekan Enter untuk kembali ke nano... '
+      IFS= read -r _ < /dev/tty
+      printf '\033]0;nano: %s\007' "$name"
+      continue
+    fi
+  fi
+  break
+done
+rm -f "$fixflag"
 if [ -e "$flag" ]; then
   rm -f "$flag"
   if [ "$st" -eq 0 ] && [ -n "${MOLINA_NANO_FILE:-}" ] && [ -f "$MOLINA_NANO_FILE" ]; then
