@@ -66,10 +66,18 @@ internal object DownloadRunner {
     fun isRunning(): Boolean = _state.value.running
 
     /** @return pesan galat siap tampil, atau null bila sesi unduhan dimulai. */
+    /** [SHIELD-DL-ENV] Alamat proxy Shield untuk skrip unduhan; kosong bila Shield tidak berjalan/dimatikan pengguna. */
+    private fun shieldEnv(): Map<String, String> {
+        val url = com.molina.core.common.ShieldProxy.proxyUrl() ?: return emptyMap()
+        return linkedMapOf("MOLINA_SHIELD_PROXY" to url, "MOLINA_SHIELD_PORT" to url.substringAfterLast(':'))
+    }
+
     fun start(ctx: Context, request: DownloadRequest): String? {
         val req = request.copy(allowLan = com.molina.core.common.NetworkPolicy.allowLan) // [DL-NETGUARD]
         DownloadCommand.validate(req)?.let { return it }
         DownloadUrlGuard.check(req.urls)?.let { return it } // [DL-SSRF-GUARD]
+        // [SHIELD-DL-CLOSED] Shield menyala tetapi mati: jangan unduh langsung tanpa filter.
+        if (com.molina.core.common.ShieldProxy.failClosed()) return "Molina Shield tidak berjalan. Buka ulang aplikasi."
         val app = ctx.applicationContext
         // [WIFI-ONLY] pengguna memilih unduh hanya di jaringan tidak berkuota
         if (DownloadPrefs.wifiOnly(app) && NetworkGuard.isMetered(app)) return NetworkGuard.BLOCK_MSG
@@ -96,6 +104,7 @@ internal object DownloadRunner {
             hostDir = null,
             timeoutMs = DownloadCommand.TIMEOUT_MS,
             args = DownloadCommand.args(req),
+            env = shieldEnv(), // [SHIELD-DL-ENV]
             maxOutputChars = Long.MAX_VALUE,
         )
         val h = ProotScriptExecutor(app, ProotScriptExecutor.Lane.DOWNLOAD).start(rr, object : RunListener {

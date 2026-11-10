@@ -383,6 +383,64 @@ class SubsRateLimitFallbackTests(unittest.TestCase):
         self.assertIn(("done", 1), rep.events)
 
 
+class ShieldProxyEnvTests(unittest.TestCase):
+    PX = "http" + "://molina:abc123@127.0.0.1:"
+
+    def setUp(self):
+        self.saved = dict(os.environ)
+
+    def tearDown(self):
+        os.environ.clear()
+        os.environ.update(self.saved)
+
+    def test_tanpa_env_tidak_mengubah_apa_pun(self):
+        os.environ.pop("MOLINA_SHIELD_PROXY", None)
+        os.environ.pop("MOLINA_SHIELD_PORT", None)
+        os.environ["no_proxy"] = "example.com"
+        self.assertFalse(dl.apply_shield_proxy())
+        self.assertEqual(os.environ["no_proxy"], "example.com")
+
+    def test_env_valid_dipasang_dan_no_proxy_dibuang(self):
+        os.environ["MOLINA_SHIELD_PORT"] = "4567"
+        os.environ["MOLINA_SHIELD_PROXY"] = self.PX + "4567"
+        os.environ["no_proxy"] = "internal.lan"
+        os.environ["NO_PROXY"] = "internal.lan"
+        self.assertTrue(dl.apply_shield_proxy())
+        for k in ("http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY"):
+            self.assertEqual(os.environ[k], self.PX + "4567")
+        self.assertNotIn("no_proxy", os.environ)
+        self.assertNotIn("NO_PROXY", os.environ)
+
+    def test_env_tidak_konsisten_atau_bukan_loopback_ditolak(self):
+        for px, port in ((self.PX + "4567", "9999"), ("http" + "://u:p@10.0.0.5:4567", "4567"),
+                         ("http" + "://u:p@127.0.0.1.evil.com:4567", "4567"), (self.PX + "4567", "abc")):
+            os.environ["MOLINA_SHIELD_PROXY"], os.environ["MOLINA_SHIELD_PORT"] = px, port
+            os.environ.pop("http_proxy", None)
+            self.assertFalse(dl.apply_shield_proxy(), px)
+            self.assertNotIn("http_proxy", os.environ)
+
+    def _connect(self, port, env):
+        code = dl.GUARD_SRC + "\ninstall()\nimport socket\ns = socket.socket()\ns.settimeout(3)\ntry:\n    s.connect(('127.0.0.1', %d))\n    print('OK')\nexcept OSError as e:\n    print('ERR', e)\n" % port
+        e = dict(os.environ)
+        e.pop("MOLINA_NETGUARD_ALLOW_LOOPBACK", None)
+        e.pop("MOLINA_SHIELD_PORT", None)
+        e.update(env)
+        return subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=e, timeout=30).stdout.strip()
+
+    def test_penjaga_hanya_mengizinkan_port_shield(self):
+        import socket
+        a, b = socket.socket(), socket.socket()
+        for s in (a, b):
+            s.bind(("127.0.0.1", 0)); s.listen(5)
+        pa, pb = a.getsockname()[1], b.getsockname()[1]
+        try:
+            self.assertEqual(self._connect(pa, {"MOLINA_SHIELD_PORT": str(pa)}), "OK")
+            self.assertIn("MOLINA-NETGUARD", self._connect(pb, {"MOLINA_SHIELD_PORT": str(pa)}))
+            self.assertIn("MOLINA-NETGUARD", self._connect(pa, {}))
+        finally:
+            a.close(); b.close()
+
+
 class NetGuardTests(unittest.TestCase):
     def ns(self):
         ns = {}

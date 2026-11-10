@@ -432,6 +432,7 @@ def classify(ip, lan=False):
 def install():
     lan = os.environ.get("MOLINA_NETGUARD_ALLOW_LAN") == "1"
     loop = os.environ.get("MOLINA_NETGUARD_ALLOW_LOOPBACK") == "1"
+    pport = os.environ.get("MOLINA_SHIELD_PORT", "")  # [SHIELD-DL] satu-satunya loopback yang diizinkan: proxy Shield
     orig_connect = socket.socket.connect
     orig_connect_ex = socket.socket.connect_ex
 
@@ -439,6 +440,8 @@ def install():
         if sock.family not in (socket.AF_INET, socket.AF_INET6) or not isinstance(address, tuple) or not address:
             return None, None
         host = address[0]
+        if pport and str(host) == "127.0.0.1" and len(address) > 1 and str(address[1]) == pport:  # SHIELD-DL-PORT
+            return None, None
         try:
             ipaddress.ip_address(str(host).split("%")[0])
             ips = [host]
@@ -1682,6 +1685,19 @@ def run_cli(args, ytdlp, has_ffmpeg, urls):
     return 130 if cancelled else (1 if failed else 0)
 
 
+def apply_shield_proxy():
+    """[SHIELD-DL] Arahkan yt-dlp dan subprosesnya (ffmpeg, curl) lewat proxy lokal Molina Shield bila diberikan aplikasi."""
+    px = os.environ.get("MOLINA_SHIELD_PROXY", "").strip()
+    port = os.environ.get("MOLINA_SHIELD_PORT", "").strip()
+    if not port.isdigit() or not px.startswith("http" + "://") or not px.endswith("@127.0.0.1:" + port):
+        return False
+    for k in ("http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY"):
+        os.environ[k] = px
+    for k in ("no_proxy", "NO_PROXY", "all_proxy", "ALL_PROXY"):
+        os.environ.pop(k, None)
+    return True
+
+
 def main(argv=None):
     args = parse_args(sys.argv[1:] if argv is None else argv)
     if args.version:
@@ -1691,6 +1707,7 @@ def main(argv=None):
     if args.allow_lan:
         os.environ["MOLINA_NETGUARD_ALLOW_LAN"] = "1"
     apply_ca_env()
+    apply_shield_proxy()
     urls = args.url + args.urls
     ytdlp = find_ytdlp()
     if args.doctor or args.update_ytdlp:
