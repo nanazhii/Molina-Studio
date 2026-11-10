@@ -1304,7 +1304,8 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
                         if (!seen.add(f.path)) continue
                         val l = led.get(f.path) ?: continue
                         val disk = if (f.isFile) FileStore.readForOpen(f) else null
-                        if (disk != null && HistoryStore.fingerprint(disk.text) == l.writtenFp) out.add("$idx|${c.path}")
+                        val dt = disk?.text // [EXT-DIFF5-FIX] OpenResult.text bertipe String?, smart cast tidak berlaku
+                        if (dt != null && HistoryStore.fingerprint(dt) == l.writtenFp) out.add("$idx|${c.path}")
                     }
                 }
             } catch (e: Exception) {
