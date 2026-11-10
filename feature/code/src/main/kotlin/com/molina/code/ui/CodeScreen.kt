@@ -231,13 +231,22 @@ private fun PathHeader(session: CodeSession, onExit: (() -> Unit)? = null) {
         ) {
             Canvas(Modifier.size(CodeDimens.DrawerHeaderIcon)) { drawDirIcon(DirIcon.Folder, CodeColors.FolderYellow) }
         }
-        BasicText(
-            text = path,
-            modifier = Modifier.weight(1f).clickable { session.dir.openPanel() },
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            style = TextStyle(color = Win7Code.Ink, fontSize = CodeDimens.PathTextSize)
-        )
+        Box( // [CODE-TITLE-FRAME] judul/path berkas berbingkai putih keabuan 1dp, sudut 6dp
+            Modifier
+                .weight(1f)
+                .padding(horizontal = 2.dp, vertical = 5.dp)
+                .border(1.dp, CodeColors.TitleFrame, RoundedCornerShape(6.dp))
+                .clickable { session.dir.openPanel() }
+                .padding(horizontal = 8.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            BasicText(
+                text = path,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = TextStyle(color = Win7Code.Ink, fontSize = CodeDimens.PathTextSize)
+            )
+        }
         if (tab != null) StatusChip(tab)
         Box(
             Modifier
@@ -362,12 +371,15 @@ private fun TabItem(
             .widthIn(min = CodeDimens.TabMinWidth, max = CodeDimens.TabMaxWidth)
             .onGloballyPositioned { onBounds(it.positionInParent().x.toInt(), it.size.width) }
             .win7Tab(active)
+            .padding(horizontal = 3.dp, vertical = 4.dp) // [CODE-TAB-FRAME] jarak antartab
+            .border(1.dp, if (active) CodeColors.TabFrame else CodeColors.TabFrameIdle, RoundedCornerShape(6.dp))
             .clickable(onClick = onSelect)
     ) {
         if (active) {
             Box(
                 Modifier
                     .align(Alignment.BottomStart) // [CODE-TABS-BLACK] garis hijau di BAWAH tab aktif
+                    .padding(start = 6.dp, end = 6.dp, bottom = 1.dp) // [CODE-TAB-FRAME] di dalam bingkai
                     .fillMaxWidth()
                     .height(CodeDimens.TabTopLine)
                     .background(Win7Code.TabLine)

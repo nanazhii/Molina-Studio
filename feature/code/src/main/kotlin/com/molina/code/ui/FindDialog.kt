@@ -142,10 +142,10 @@ internal fun FindDialog(session: CodeSession, tab: EditorTab) {
                 .background(Color.Black, shape)
                 .border(1.dp, Color.White, shape)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 18.dp)
+                .padding(horizontal = 18.dp, vertical = 12.dp) // [FIND-COMPACT] dulu 20/18
         ) {
             BasicText("Cari", style = TextStyle(color = Color.White, fontSize = CodeDimens.DialogTitleSize))
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(8.dp)) // [FIND-COMPACT] dulu 14
             FieldLabel("Cari teks:")
             DialogField(
                 value = query, onChange = { query = it },
@@ -154,7 +154,7 @@ internal fun FindDialog(session: CodeSession, tab: EditorTab) {
                 onAction = { if (canSearch) applyFind(FindAction.FIND) },
                 fieldModifier = Modifier.focusRequester(focus).onFocusChanged { queryFocused = it.isFocused }
             )
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(8.dp)) // [FIND-COMPACT] dulu 14
             FieldLabel("Ganti dengan:")
             DialogField(
                 value = replace, onChange = { replace = it },
@@ -163,13 +163,13 @@ internal fun FindDialog(session: CodeSession, tab: EditorTab) {
                 onAction = {},
                 fieldModifier = Modifier.onFocusChanged { replaceFocused = it.isFocused }
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(2.dp)) // [FIND-COMPACT] dulu 8
             DialogCheck("Kasus sensitif", matchCase) { matchCase = it }
             DialogCheck("Kata utuh", whole) { whole = it }
             DialogCheck("Persamaan reguler", regex) { regex = it }
             DialogCheck("Membungkus di sekitar", wrap) { wrap = it }
             DialogCheck("Tetap sorot setelah ditutup", keep) { keep = it } // [FIND-PIN]
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(8.dp)) // [FIND-COMPACT] dulu 12
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Win7DialogButton(
                     "GANTI SEMUA", { if (canReplace) applyFind(FindAction.REPLACE_ALL) },
@@ -218,7 +218,7 @@ private fun DialogField(
         BasicTextField(
             value = value,
             onValueChange = onChange,
-            modifier = fieldModifier.fillMaxWidth().padding(top = 8.dp, bottom = 6.dp),
+            modifier = fieldModifier.fillMaxWidth().padding(top = 4.dp, bottom = 4.dp), // [FIND-COMPACT] dulu 8/6
             singleLine = true,
             textStyle = TextStyle(color = Color.White, fontSize = 16.sp),
             cursorBrush = SolidColor(CodeColors.Brand),
@@ -229,10 +229,13 @@ private fun DialogField(
     }
 }
 
+// [FIND-COMPACT] tinggi baris opsi dialog Cari: 44dp (MenuRowHeight) -> 32dp; seluruh lebar baris tetap area ketuk
+private val FindCheckRowHeight = 32.dp
+
 @Composable
 private fun DialogCheck(label: String, on: Boolean, onChange: (Boolean) -> Unit) {
     Row(
-        Modifier.fillMaxWidth().height(CodeDimens.MenuRowHeight).clickable { onChange(!on) },
+        Modifier.fillMaxWidth().height(FindCheckRowHeight).clickable { onChange(!on) }, // [FIND-COMPACT] baris opsi rapat
         verticalAlignment = Alignment.CenterVertically
     ) {
         CheckMark(on)

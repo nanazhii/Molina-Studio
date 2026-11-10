@@ -18,6 +18,9 @@ object CodeColors {
     val SurfaceDialog = Color(0xFF171A20) // dialog
     val SurfaceNav = Color(0xFF0A0A0F)    // bottom nav aktual (= MolinaTheme.Background)
     val Hairline = Color(0xFF2A2D35)      // pembatas 1dp, border popup/dialog
+    val TabFrame = Color(0xFFD0D4DB)      // [CODE-TAB-FRAME] bingkai tab nama berkas aktif: putih keabuan
+    val TabFrameIdle = TabFrame.copy(alpha = 0.45f) // [CODE-TAB-FRAME] tab tidak aktif: redup
+    val TitleFrame = Color(0xFFD0D4DB)    // [CODE-TITLE-FRAME] bingkai judul/path berkas di header: putih keabuan
 
     // Ikon
     val IconDefault = Color(0xFFC4CBD3)   // netral dingin
