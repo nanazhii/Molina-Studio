@@ -7,6 +7,7 @@
 #   molina-run --check <berkas>   hanya cetak hasil pemeriksaan (untuk tes dan alat lain)
 #   molina-run --fix <berkas>     [RUN-HINT] tambah shebang yang hilang (cadangan .bak) dan chmod +x bila berlaku
 #   molina-run --init <berkas>    [NANO-DETECT] berkas belum ada/kosong + ekstensi dikenal: tulis baris shebang (keluar 0 = dibuat, 3 = dilewati)
+#   molina-run --scan <folder>    [SCRIPT-SCAN] satu baris per skrip yang punya saran: nama<TAB>fix|warn<TAB>pesan (fix = shebang belum ada, bisa --fix)
 #   molina-run --hint <berkas>    [NANO-DETECT] saran singkat sesudah nano ditutup (keluar 10 = shebang belum ada, bisa --fix); diam bila tips dimatikan
 # [RUN-HINT] Selain pemeriksaan di atas, ada "tips" satu-dua baris (tidak menghentikan skrip): tanpa shebang, belum +x,
 # dan penyimpanan bersama Android (chmod +x tidak berlaku di sana). Shebang yang tak cocok dengan ekstensi masuk dialog.
@@ -14,6 +15,25 @@
 # Atur lewat MOLINA_RUN_ASK = ask (bawaan) | fix (perbaiki sementara tanpa tanya) | no (jalankan apa adanya).
 # MOLINA_RUN_ANSWER = 1|2|3|a|e|x menjawab dialog tanpa interaksi (otomasi dan tes).
 # Direktori kerja tidak diubah (sama seperti `sh berkas`). Dipakai nano lewat Alt+R.
+# [SCRIPT-SCAN] --scan <folder>: dipakai halaman Script Execution (satu proses untuk seluruh folder). Memakai logika --hint yang sama,
+# jadi ikut sakelar tips (mati = tidak ada baris). Maksimal 200 berkas; nama berisi tab/baris baru dilewati; berkas titik-awal tak dipindai.
+if [ "$1" = "--scan" ]; then
+  sd="${2%/}"
+  [ -d "$sd" ] || exit 2
+  stab=$(printf '\t'); scnt=0
+  for sp in "$sd"/*; do
+    [ -f "$sp" ] || continue
+    case "${sp##*/}" in *"$stab"*|*"
+"*) continue ;; esac
+    scnt=$((scnt+1)); [ "$scnt" -le 200 ] || break
+    sout=$(sh "$0" --hint "$sp" 2>/dev/null); src_rc=$?
+    [ -n "$sout" ] || continue
+    smsg=$(printf '%s\n' "$sout" | sed -n '2p' | sed 's/^[[:space:]]*[^[:space:]]*[[:space:]]*//')
+    if [ "$src_rc" -eq 10 ]; then sk=fix; else sk=warn; fi
+    printf '%s\t%s\t%s\n' "${sp##*/}" "$sk" "$smsg"
+  done
+  exit 0
+fi
 check_only=0; fix_only=0; init_only=0; hint_only=0 # [RUN-HINT] [NANO-DETECT]
 if [ "$1" = "--check" ]; then check_only=1; shift
 elif [ "$1" = "--fix" ]; then fix_only=1; shift

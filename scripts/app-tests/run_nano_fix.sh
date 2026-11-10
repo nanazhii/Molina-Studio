@@ -199,4 +199,30 @@ check "hint: .sh tanpa shebang -> keluar 10 dan --fix memperbaiki" '[ $rc -eq 10
 mx sh "$R" --fix h7.sh >/dev/null; check "hint lalu fix: shebang ada" '[ "$(head -n 1 "$T/h7.sh")" = "#!/bin/sh" ]'
 out="$(mx sh "$R" --hint h7.sh)"; check "hint: sesudah fix -> diam" '[ -z "$out" ]'
 
+# [SCRIPT-SCAN]
+# [SCRIPT-SCAN] --scan <folder>
+tb=$(printf '\t')
+rm -rf "$T/sc"; mkdir -p "$T/sc"
+printf "print(1)\n" > "$T/sc/a.py"
+printf '#!/bin/sh\necho ok\n' > "$T/sc/b.sh"
+printf "python3 << 'EOF'\nprint(1)\n" > "$T/sc/c.py"
+printf 'catatan\n' > "$T/sc/d.txt"
+printf 'echo hai\n' > "$T/sc/.hidden.sh"
+: > "$T/sc/e.py"
+out="$(mx sh "$R" --scan sc)"; rc=$?
+check "scan: keluar 0" '[ $rc -eq 0 ]'
+check "scan: .py tanpa shebang -> fix" '[[ "$out" == *"a.py${tb}fix${tb}"*"shebang"* ]]'
+check "scan: skrip bershebang -> tidak muncul" '[[ "$out" != *"b.sh"* ]]'
+check "scan: heredoc terpotong -> warn" '[[ "$out" == *"c.py${tb}warn${tb}"* ]]'
+check "scan: .txt, berkas titik, dan berkas kosong -> tidak muncul" '[[ "$out" != *"d.txt"* && "$out" != *".hidden"* && "$out" != *"e.py"* ]]'
+check "scan: tepat dua baris (a.py, c.py)" '[ "$(printf "%s\n" "$out" | grep -c .)" -eq 2 ]'
+out="$(mx env MOLINA_RUN_NOTES=off sh "$R" --scan sc)"
+check "scan: tips dimatikan -> kosong" '[ -z "$out" ]'
+mx sh "$R" --scan nodir >/dev/null; rc=$?
+check "scan: folder tidak ada -> keluar 2" '[ $rc -eq 2 ]'
+mx sh "$R" --fix sc/a.py >/dev/null
+out="$(mx sh "$R" --scan sc)"
+check "scan: sesudah --fix, a.py hilang dari daftar" '[[ "$out" != *"a.py"* ]]'
+check "scan: berkas cadangan a.py.bak tidak dianggap skrip" '[ -e "$T/sc/a.py.bak" ] && [[ "$out" != *".bak"* ]]'
+
 echo "Selesai: $runs kasus, $fails gagal"; [ "$fails" -eq 0 ]
