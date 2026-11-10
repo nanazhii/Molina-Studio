@@ -36,7 +36,7 @@ import com.molina.code.guard.RunReport
 // [CODE-RUNREPORT] Kartu "Perubahan skrip" di bawah status Keluaran + dialog konfirmasi Urungkan.
 
 /** Pindaian sebelum skrip ([snap], berisi cadangan isi) dan hasil perbandingannya ([report]). */
-internal class RunChanges(val snap: RunReport.Snapshot, val report: RunReport.Report)
+internal class RunChanges(val snap: RunReport.Snapshot, val report: RunReport.Report, val via: String? = null) // [CODE-FEED]
 
 private const val MAX_ROWS = 100
 
@@ -56,7 +56,7 @@ internal fun RunChangesCard(session: CodeSession) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             BasicText(
-                text = (if (expanded.value) "\u25B4 " else "\u25BE ") + "Perubahan: ${rep.changes.size} berkas",
+                text = (if (expanded.value) "\u25B4 " else "\u25BE ") + "Perubahan: ${rep.changes.size} berkas" + (c.via?.let { " \u00B7 $it" } ?: ""),
                 maxLines = 1,
                 style = TextStyle(color = CodeColors.TextPrimary, fontSize = CodeDimens.StatusTextSize)
             )

@@ -89,6 +89,7 @@ internal fun menuGroups(session: CodeSession, ctx: Context, onDismiss: () -> Uni
             MenuEntry("Riwayat versi", enabled = tab?.file != null && !tab.loading && session.history != null, icon = MenuIcon.History) { session.historyOpen = true; onDismiss() }, // [CODE-HISTORY]
             MenuEntry("Jadikan folder proyek", enabled = true, icon = MenuIcon.NewFolder) { session.pickProjectFolder(); onDismiss() }, // [CODE-PROJECT]
             MenuEntry("Riwayat proyek", enabled = true, icon = MenuIcon.History) { session.openProjectLog(); onDismiss() }, // [CODE-PROJLOG]
+            MenuEntry("Notifikasi perubahan" + (if (session.feedUnread > 0) " (${session.feedUnread})" else ""), enabled = true, icon = MenuIcon.History) { session.openChangeFeed(); onDismiss() }, // [CODE-FEED]
             MenuEntry("Aksi file", enabled = tab?.file != null && !session.isLibraryFile(tab.file), icon = MenuIcon.Actions) { // [CODE-DEBLIB]
                 tab?.file?.let { session.fileDialog = FileDialog.Menu(it) }
                 onDismiss()

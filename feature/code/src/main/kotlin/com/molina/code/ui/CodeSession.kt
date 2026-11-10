@@ -16,6 +16,7 @@ import com.molina.code.guard.ProjectRestore
 import com.molina.code.guard.ProjectStore
 import com.molina.code.guard.RunReport
 import com.molina.code.guard.NanoRunSnap // [NANO-RUNSNAP]
+import com.molina.code.guard.ChangeFeed // [CODE-FEED]
 import com.molina.code.guard.ScriptPrecheck
 import com.molina.code.history.HistoryKind
 import com.molina.code.history.HistoryStore
@@ -393,6 +394,10 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
 
     /** [CODE-HISTORY] Riwayat versi per berkas (folder privat, bersama folder draf); null bila sesi tanpa folder draf. */
     internal val history: HistoryStore? = draftDir?.let { HistoryStore(File(it, "history")) }
+    /** [CODE-FEED] Notifikasi perubahan berkas (berkas privat aplikasi), jumlah belum dibaca untuk lencana menu, dan potret dialog. */
+    private val feedFile: File? = draftDir?.let { File(it, "changes.jsonl") }
+    internal var feedUnread by mutableStateOf(0)
+    internal var changeFeedView by mutableStateOf<ChangeFeedView?>(null)
     /** [NANO-INBOX] Folder inbox snapshot dari nano dan akar storage Android; diisi :app. Null = fitur mati. */
     var nanoInboxDir: File? = null
     var nanoStorageRoot: File? = null
@@ -406,7 +411,9 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         if (!dir.isDirectory) return 0
         return synchronized(nanoLock) {
             val n = try { NanoInbox.import(dir, h, root) } catch (e: Exception) { 0 }
-            n + importNanoRunSnaps(dir, root) // [NANO-RUNSNAP]
+            val total = n + importNanoRunSnaps(dir, root) // [NANO-RUNSNAP]
+            refreshFeedBadge() // [CODE-FEED]
+            total
         }
     }
 
@@ -1011,6 +1018,39 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         picker = PickerRequest(PickMode.Folder, start, "Pilih folder proyek") { createProjectAt(it) }
     }
 
+    /** [CODE-FEED] Di thread IO: catat perubahan skrip sebagai notifikasi (folder mana pun) dan segarkan lencana menu. */
+    private fun recordFeed(snap: RunReport.Snapshot, rep: RunReport.Report, source: String, label: String) {
+        val f = feedFile ?: return
+        try { ChangeFeed.append(f, snap.root, ProjectLog.fromReport(rep, System.currentTimeMillis(), source, label)) } catch (e: Exception) { return }
+        refreshFeedBadge()
+    }
+
+    /** [CODE-FEED] Di thread IO: hitung notifikasi belum dibaca lalu perbarui lencana di thread utama. */
+    internal fun refreshFeedBadge() {
+        val f = feedFile ?: return
+        val n = try { ChangeFeed.unreadCount(f) } catch (e: Exception) { 0 }
+        mainHandler.post { feedUnread = n }
+    }
+
+    /** [CODE-FEED] Menu "Notifikasi perubahan": tampilkan feed, lalu tandai semuanya sudah dibaca (potret dialog tetap memuat titik belum dibaca). */
+    internal fun openChangeFeed() {
+        val f = feedFile ?: run { toast("Notifikasi tidak tersedia"); return }
+        runIo {
+            val items = try { ChangeFeed.read(f) } catch (e: Exception) { emptyList() }
+            try { ChangeFeed.markAllRead(f) } catch (e: Exception) { /* best-effort */ }
+            mainHandler.post { feedUnread = 0; changeFeedView = ChangeFeedView(items) }
+        }
+    }
+
+    /** [CODE-FEED] Tombol "Hapus semua" di dialog notifikasi. */
+    internal fun clearChangeFeed() {
+        val f = feedFile ?: return
+        runIo {
+            try { ChangeFeed.clear(f) } catch (e: Exception) { /* best-effort */ }
+            mainHandler.post { feedUnread = 0; changeFeedView = ChangeFeedView(emptyList()) }
+        }
+    }
+
     /** [CODE-PROJLOG] Menu "Riwayat proyek": tampilkan log proyek `.molina` yang memuat folder aktif. */
     internal fun openProjectLog() {
         val ri = RunReport.findRootInfo(defaultOpenDir())
@@ -1424,6 +1464,7 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
             }
             if (rep != null && !rep.isEmpty) recordScriptHistory(snap, rep)
             if (rep != null && !rep.isEmpty) recordProjectLog(snap, rep, runTitleNow) // [CODE-PROJLOG]
+            if (rep != null && !rep.isEmpty) recordFeed(snap, rep, ProjectLog.SRC_SCRIPT, if (runTitleNow.isBlank()) "Skrip" else "Skrip: $runTitleNow") // [CODE-FEED]
             mainHandler.post {
                 if (runSnap === snap && rep != null && !rep.isEmpty) runChanges = RunChanges(snap, rep)
             }
@@ -1471,11 +1512,14 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
     private fun importNanoRunSnaps(dir: File, root: File): Int {
         val results = try { NanoRunSnap.collect(dir, root) } catch (e: Exception) { return 0 }
         if (results.isEmpty()) return 0
-        for (r in results) recordScriptHistory(r.snap, r.report)
+        for (r in results) {
+            recordScriptHistory(r.snap, r.report)
+            recordFeed(r.snap, r.report, ChangeFeed.SRC_NANO, "Skrip dijalankan lewat nano") // [CODE-FEED]
+        }
         val last = results.last()
         mainHandler.post {
             if (!run.running) {
-                runChanges = RunChanges(last.snap, last.report)
+                runChanges = RunChanges(last.snap, last.report, via = "via nano") // [CODE-FEED]
                 preview.mode = PaneMode.Output
                 preview.open = true
                 toast("Perubahan skrip nano: ${last.report.changes.size} berkas")

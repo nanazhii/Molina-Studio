@@ -168,6 +168,7 @@ fun CodeScreen(session: CodeSession, modifier: Modifier = Modifier, onExit: (() 
     session.definitionChoices?.let { DefinitionDialog(session, it) { session.definitionChoices = null } } // [CODE-LSP6]
     if (session.problemsOpen) session.problems?.let { ProblemsDialog(session, it) { session.problemsOpen = false } } // [CODE-CHECK]
     session.projectLogView?.let { ProjectLogDialog(session, it) { session.projectLogView = null } } // [CODE-PROJLOG]
+    session.changeFeedView?.let { ChangeFeedDialog(session, it) { session.changeFeedView = null } } // [CODE-FEED]
     if (session.outlineOpen) session.active?.let { OutlineDialog(it) { session.outlineOpen = false } }
     if (session.infoOpen) session.active?.let { FileInfoScreen(it) { session.infoOpen = false } } // [CODE-INFO]
     if (session.fontOpen) FontSizeDialog(session) { session.fontOpen = false } // [CODE-FONT]
