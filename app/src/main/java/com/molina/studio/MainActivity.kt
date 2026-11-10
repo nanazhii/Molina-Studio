@@ -126,6 +126,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         AppVisibility.setForeground(true)
+        codeSessionRef?.checkFolderChanges() // [CODE-FEED5] aplikasi kembali ke latar depan: cek perubahan folder (git pull, aplikasi lain)
     }
 
     override fun onResume() {

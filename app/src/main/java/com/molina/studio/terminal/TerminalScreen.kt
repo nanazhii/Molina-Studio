@@ -176,6 +176,7 @@ private fun TerminalContent(modifier: Modifier, onOpenSettings: () -> Unit, onOp
 private val KeyRed = Color(0xFFFF5252)    // ESC, CLEAR [TERM-KEYS-BOLD] lebih pekat
 private val KeyBlue = Color(0xFF448AFF)   // HOME, panah
 private val KeyGreen = Color(0xFF00E676)  // COPY, PASTE
+private val KeySave = Color(0xFF1EA7FF)   // [CODE-FEED5] SAVE nano: biru cerah, beda dari UNDO/REDO (KeyBlue) agar aksi simpan menonjol
 private val KeyFrame = Color(0xFF454A55)  // bingkai terluar panel extra keys
 private val KeyAmber = MolinaTheme.Brand  // TAB, menu, ENTER [XK-COMMENT]
 private val KeyNeutral = MolinaTheme.OnBackground // CTRL, ALT (menyala emas saat aktif)
@@ -213,7 +214,7 @@ private fun startCursorBlink(v: TerminalView) {
  */
 private val NanoKeyWidth = 48.dp // [NANO-KEYS-V3] 60dp -> 48dp
 private val NanoKeyList = listOf(
-    Triple("SAVE", KeyGreen, "\u0013"),    // ^S
+    Triple("SAVE", KeySave, "\u0013"),    // ^S [CODE-FEED5]
     Triple("\u25B8", KeyGreen, "\u001br"), // RUN [NANO-RUN] Alt+R: simpan, keluar, jalankan skrip dari berkasnya
     Triple("UNDO", KeyBlue, "\u001a"),     // ^Z
     Triple("FIND", KeyAmber, "\u0006"),    // ^F

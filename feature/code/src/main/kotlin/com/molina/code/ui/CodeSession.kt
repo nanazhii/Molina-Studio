@@ -400,6 +400,7 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
     internal var feedUnread by mutableStateOf(0)
     /** [CODE-FEED4] Baseline sidik jari folder (berkas privat aplikasi), dibandingkan tiap layar Code dibuka. */
     private val watchDir: File? = draftDir?.let { File(it, "folder-watch") }
+    private var lastFolderCheck = 0L // [CODE-FEED5] jeda antar pengecekan folder (layar Code dibuka + aplikasi kembali ke latar depan)
     internal var changeFeedView by mutableStateOf<ChangeFeedView?>(null)
     /** [NANO-INBOX] Folder inbox snapshot dari nano dan akar storage Android; diisi :app. Null = fitur mati. */
     var nanoInboxDir: File? = null
@@ -1046,8 +1047,11 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
     }
 
     /** [CODE-FEED4] Layar Code dibuka: bandingkan folder utama dengan baseline terakhir; selisihnya (di luar yang sudah tercatat skrip/nano) jadi satu notifikasi. */
-    internal fun checkFolderChanges() {
+    fun checkFolderChanges() { // [CODE-FEED5] public: dipanggil MainActivity (modul :app)
         val wd = watchDir ?: return
+        val tNow = android.os.SystemClock.elapsedRealtime() // [CODE-FEED5]
+        if (tNow - lastFolderCheck < 2_000L) return
+        lastFolderCheck = tNow
         val root = dir.root
         val ff = feedFile
         runIo {
