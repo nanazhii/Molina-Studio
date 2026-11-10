@@ -18,7 +18,10 @@ enum class HistoryKind(val code: Char, val label: String) {
     AFTER_SCRIPT('a', "Sesudah skrip"), // [CODE-HISTORY5]
     RELOAD('r', "Sebelum muat ulang"),
     NANO_BEFORE('n', "Sebelum nano"), // [NANO-INBOX]
-    NANO_SAVED('o', "Sesudah nano"); // [NANO-INBOX]
+    NANO_SAVED('o', "Sesudah nano"), // [NANO-INBOX]
+    EXTERNAL_BEFORE('x', "Sebelum diubah luar"), // [EXT-DIFF]
+    EXTERNAL_AFTER('e', "Sesudah diubah luar"), // [EXT-DIFF]
+    RESTORE_BEFORE('u', "Sebelum pulihkan"); // [EXT-DIFF]
 
     companion object {
         fun of(c: Char): HistoryKind? = entries.firstOrNull { it.code == c }

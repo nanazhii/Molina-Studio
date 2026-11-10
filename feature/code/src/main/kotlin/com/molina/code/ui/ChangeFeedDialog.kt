@@ -35,6 +35,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.molina.code.guard.ChangeFeed
 import com.molina.code.guard.ProjectLog
+import com.molina.code.history.HistoryKind // [EXT-DIFF]
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -106,7 +107,12 @@ internal fun ChangeFeedDialog(session: CodeSession, view: ChangeFeedView, onDism
                                     val f = File(File(item.folder), c.path)
                                     if (c.kind != 'D' && f.isFile) {
                                         onDismiss()
-                                        if (c.kind == 'M' && e.source != ChangeFeed.SRC_EXTERNAL) session.openFeedFileDiff(f) else session.openFile(f) // [CODE-FEED2]
+                                        val ext = e.source == ChangeFeed.SRC_EXTERNAL // [EXT-DIFF]
+                                        if (c.kind == 'M' && (!ext || c.added + c.removed > 0)) {
+                                            session.openFeedFileDiff(f, if (ext) HistoryKind.EXTERNAL_AFTER else HistoryKind.AFTER_SCRIPT)
+                                        } else {
+                                            session.openFile(f) // [CODE-FEED2]
+                                        }
                                     } else {
                                         session.toast("Berkas tidak ada lagi: ${c.path}")
                                     }

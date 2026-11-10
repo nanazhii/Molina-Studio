@@ -21,6 +21,7 @@ import com.molina.code.guard.FolderWatch // [CODE-FEED4]
 import com.molina.code.guard.ScriptPrecheck
 import com.molina.code.history.HistoryKind
 import com.molina.code.history.HistoryStore
+import com.molina.code.history.LineDiff // [EXT-DIFF]
 import com.molina.code.history.NanoInbox // [NANO-INBOX]
 import com.molina.code.preview.PreviewKind
 import com.molina.code.preview.PythonTerminalRun
@@ -1087,21 +1088,34 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
     }
 
     /** [CODE-FEED3] Di thread IO: catat berkas tab yang diubah dari luar editor (Terminal, git, aplikasi lain), kecuali sudah tercatat oleh skrip/nano. */
-    private fun recordExternal(f: File) {
+    private fun recordExternal(f: File, oldText: String? = null) { // [EXT-DIFF] oldText = isi tab sebelum dimuat ulang
         val ff = feedFile ?: return
         val dir = f.parentFile ?: return
         try {
             if (ChangeFeed.covered(ff, f, f.lastModified())) return
-            if (!ChangeFeed.append(ff, dir, ChangeFeed.externalEntry(f.name, System.currentTimeMillis()))) return
+            var added = 0
+            var removed = 0
+            val h = history
+            if (h != null && oldText != null) {
+                val cur = FileStore.readForOpen(f).text
+                if (cur != null && cur != oldText) {
+                    h.record(f, oldText, HistoryKind.EXTERNAL_BEFORE)
+                    h.record(f, cur, HistoryKind.EXTERNAL_AFTER)
+                    val d = LineDiff.diff(oldText, cur)
+                    added = d.added
+                    removed = d.removed
+                }
+            }
+            if (!ChangeFeed.append(ff, dir, ChangeFeed.externalEntry(f.name, System.currentTimeMillis(), added, removed))) return
         } catch (e: Exception) { return }
         refreshFeedBadge()
     }
 
     /** [CODE-FEED2] Ketuk berkas berstatus M di notifikasi: buka berkasnya, lalu Riwayat pada versi "Sesudah skrip". */
-    internal fun openFeedFileDiff(f: File) {
+    internal fun openFeedFileDiff(f: File, focus: HistoryKind = HistoryKind.AFTER_SCRIPT) { // [EXT-DIFF]
         openFile(f)
         if (history == null) return
-        historyFocus = HistoryKind.AFTER_SCRIPT
+        historyFocus = focus
         historyOpen = true
     }
 
@@ -1697,7 +1711,8 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
                     if (tabs.none { it === t } || t.loading || t.file != p.file || t.baseFp != p.base) continue
                     if (DiskGuard.autoReload(v, t.dirty)) {
                         toast("Diubah dari luar, dimuat ulang: ${t.title}")
-                        runIo { recordExternal(p.file) } // [CODE-FEED3]
+                        val oldText = t.currentTextOrNull(HistoryStore.MAX_CHARS) // [EXT-DIFF] isi lama sebelum dimuat ulang
+                        runIo { recordExternal(p.file, oldText) } // [CODE-FEED3]
                         doReload(t)
                     } else if (DiskGuard.flagStale(v, t.dirty)) {
                         if (!t.staleDisk) {

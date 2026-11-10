@@ -70,8 +70,8 @@ object ChangeFeed {
     }
 
     /** [CODE-FEED3] Butir untuk satu berkas yang diubah dari luar editor. */
-    fun externalEntry(name: String, time: Long): ProjectLog.Entry =
-        ProjectLog.Entry(time, SRC_EXTERNAL, "Diubah dari luar editor", listOf(ProjectLog.FileChange(name, 'M', 0, 0)))
+    fun externalEntry(name: String, time: Long, added: Int = 0, removed: Int = 0): ProjectLog.Entry = // [EXT-DIFF]
+        ProjectLog.Entry(time, SRC_EXTERNAL, "Diubah dari luar editor", listOf(ProjectLog.FileChange(name, 'M', added, removed)))
 
     /**
      * [CODE-FEED3] Sudah tercakup butir yang ada? Benar bila ada butir (skrip/nano) yang memuat [target] dan dicatat tidak lebih

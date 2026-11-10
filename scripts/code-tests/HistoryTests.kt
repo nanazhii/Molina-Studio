@@ -245,6 +245,16 @@ fun main() {
         check("gutter: berkas sama = null", gh("a\nb\n", "a\nb\n", 0) == null)
         val gh7 = gh(h9, h9y, 7)
         check("gutter: urungkan lewat nomor blok", gh7 != null && HunkRevert.revertAt(h9y, LineDiff.diff(h9, h9y).lines, gh7.index) == "1\nX\n3\n4\n5\n6\n7\n8\n9\n")
+        // [EXT-DIFF] jenis versi untuk perubahan dari luar
+        check("kind: x/e/u dikenali", HistoryKind.of('x') == HistoryKind.EXTERNAL_BEFORE && HistoryKind.of('e') == HistoryKind.EXTERNAL_AFTER && HistoryKind.of('u') == HistoryKind.RESTORE_BEFORE)
+        val xs = HistoryStore(File(tmp, "ext-hist"))
+        val xf = File(tmp, "ext.txt")
+        xs.record(xf, "a\nb\n", HistoryKind.EXTERNAL_BEFORE)
+        xs.record(xf, "a\nB\nc\n", HistoryKind.EXTERNAL_AFTER)
+        val xl = xs.list(xf)
+        check("ext: dua versi, terbaru = Sesudah diubah luar", xl.size == 2 && xl[0].kind == HistoryKind.EXTERNAL_AFTER && VersionCompare.previous(xl, xl[0])?.kind == HistoryKind.EXTERNAL_BEFORE)
+        val xd = LineDiff.diff("a\nb\n", "a\nB\nc\n")
+        check("ext: diff +2 -1", xd.added == 2 && xd.removed == 1)
     } finally {
         tmp.deleteRecursively()
     }

@@ -74,6 +74,9 @@ fun main() {
         check("covered: berkas lain tidak tercakup", !ChangeFeed.covered(x, File("/sdcard/proj/src/b.kt"), 4500L))
         val ee = ChangeFeed.externalEntry("a.kt", 7000)
         check("externalEntry: sumber, jenis M, satu berkas", ee.source == ChangeFeed.SRC_EXTERNAL && ee.files.size == 1 && ee.files[0].kind == 'M' && ee.files[0].path == "a.kt")
+        val ed = ChangeFeed.externalEntry("b.kt", 7100, 3, 1) // [EXT-DIFF]
+        check("externalEntry: hitungan +/- terbawa", ed.files[0].added == 3 && ed.files[0].removed == 1)
+        check("externalEntry: tanpa hitungan = 0/0 (kompatibel)", ee.files[0].added == 0 && ee.files[0].removed == 0)
         check("sourceLabel: dari luar", ChangeFeed.sourceLabel(ChangeFeed.SRC_EXTERNAL) == "dari luar")
         check("headline: butir dari luar", ChangeFeed.headline(ChangeFeed.Item("/sdcard/proj/src", true, ee)) == "a.kt di folder src diubah")
         ChangeFeed.append(x, File("/sdcard/proj/src"), ee)
