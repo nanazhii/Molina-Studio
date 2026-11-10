@@ -41,6 +41,18 @@ internal fun CodeSettingsPage() {
         ) { CodePrefs.setHtmlWebView(it) }
     }
 
+    // [CODE-OFFLINE] Penjelasan privasi (tanpa sakelar: kunci offline tidak boleh dimatikan dari Setelan)
+    PackageSectionHeader("Privasi")
+    PackageGroupCard {
+        PackageInfoRow(
+            "Editor, Penjelajah, dan Pratinjau bekerja offline",
+            "Kode editor, Penjelajah, dan Pratinjau tidak membuka koneksi internet. Riwayat dan snapshot " +
+                "proyek tersimpan di perangkat. Pratinjau HTML selalu tanpa JavaScript dan tanpa jaringan, " +
+                "dan ini dijaga otomatis saat build. Skrip yang Anda jalankan di Debian memakai jaringan " +
+                "perangkat seperti biasa."
+        )
+    }
+
     // [CODE-ROLES] Jalankan di Terminal: dialog, pemeriksaan molina-run, urungkan
     val ctx = LocalContext.current
     val session = CodeInbox.session

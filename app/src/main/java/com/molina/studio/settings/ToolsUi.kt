@@ -172,7 +172,7 @@ internal fun PackagesPage(
     )
     UpdateStatusSection(onApt)
     Spacer(Modifier.height(16.dp)) // [PAKET-KARTU2]
-    PackageSectionHeader("Program Debian")
+    PackageSectionHeader("Program Debian", trailing = "Memakai internet") // [CODE-OFFLINE]
     DebianInfoRow(aptLast to aptPending) // [DEBIAN-INFO]
     // [PAKET-TERPUSAT] cek/perbarui dipindah ke bagian Pembaruan di atas
     Spacer(Modifier.height(8.dp))
@@ -194,7 +194,7 @@ internal fun PackagesPage(
         null, onClick = onManageDebian // [TERM-ROOTFS2]
     )
     Spacer(Modifier.height(16.dp))
-    Box(Modifier.bringIntoViewRequester(toolsRequester)) { PackageSectionHeader("Alat") }
+    Box(Modifier.bringIntoViewRequester(toolsRequester)) { PackageSectionHeader("Alat", trailing = "Memakai internet") }
     // [YTDLP-PUSAT] status dan pasang/versi/hapus yt-dlp hanya di kartu "Alat tambahan di Debian"; kartu ini tautan ke sakelar
     PackageStatusCard(
         "Pengaturan pengunduh tambahan (yt-dlp)",

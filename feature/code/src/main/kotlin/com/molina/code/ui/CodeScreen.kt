@@ -261,6 +261,12 @@ private fun PathHeader(session: CodeSession, onExit: (() -> Unit)? = null) {
                 style = TextStyle(color = Win7Code.Ink, fontSize = CodeDimens.PathTextSize)
             )
         }
+        BasicText( // [CODE-OFFLINE] lencana privasi; dijaga scripts/offline_gate.py
+            text = "Offline",
+            maxLines = 1,
+            modifier = Modifier.padding(horizontal = 4.dp),
+            style = TextStyle(color = CodeColors.Brand, fontSize = CodeDimens.StatusTextSize)
+        )
         if (tab != null) StatusChip(tab)
         Box(
             Modifier

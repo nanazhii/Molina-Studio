@@ -97,6 +97,13 @@ internal fun ScriptCheckDialog(session: CodeSession, p: ScriptCheckPrompt) {
                         style = TextStyle(color = CodeColors.TextSecondary, fontSize = 13.sp)
                     )
                 }
+                if (r.network.isNotEmpty()) { // [CODE-OFFLINE]
+                    Spacer(Modifier.height(6.dp))
+                    BasicText(
+                        text = "Skrip ini tampak memakai internet: " + r.network.joinToString(", "),
+                        style = TextStyle(color = CodeColors.Danger, fontSize = 13.sp)
+                    )
+                }
                 Spacer(Modifier.height(6.dp))
                 BasicText(
                     text = "Cocokkan jumlah baris dan sha1 dengan pengirim. Tempelan yang terpotong tepat di batas " +

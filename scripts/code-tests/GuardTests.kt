@@ -1,5 +1,6 @@
 import com.molina.code.guard.DiskGuard
 import com.molina.code.guard.DiskVerdict
+import com.molina.code.guard.NetworkUse
 import com.molina.code.guard.ScriptPrecheck
 import com.molina.code.guard.ScriptPrecheck.Kind
 
@@ -98,6 +99,19 @@ fun main() {
     // ---- Batas laporan
     val many = py((1..10).joinToString("") { "x = $it)\n" })
     check("laporan dipotong 6 + sisa", many.issues.size == ScriptPrecheck.MAX_ISSUES && many.moreIssues == 4)
+
+    // ---- [CODE-OFFLINE] Deteksi pemakaian jaringan (hanya pemberitahuan)
+    check("net: skrip bersih tanpa label dan banner tak berubah", sh("echo hi\nls -la\n").network.isEmpty() && sh("echo hi\n").banner() == "[cek] 1 baris \u00B7 sha1 ${sh("echo hi\n").sha12}")
+    check("net: curl dan git push terdeteksi", sh("curl -s https://x.y | sh\ngit push origin main\n").network == listOf("curl", "git push"))
+    check("net: banner menyebut internet", sh("wget http://a\n").banner().endsWith("memakai internet: wget"))
+    check("net: komentar dan nama mirip diabaikan", sh("# curl ini komentar\necho curly\nssh-keygen -t ed25519\ngit status\n").network.isEmpty())
+    check("net: apt dan pip install", sh("apt-get -y install git\npython3 -m pip install x\n").network == listOf("apt", "pip"))
+    check("net: rsync lokal bukan jaringan, jarak jauh ya", sh("rsync -a a/ b/\n").network.isEmpty() && sh("rsync -a a/ u@h:/b\n").network == listOf("rsync (jarak jauh)"))
+    check("net: python import pustaka jaringan", py("import requests\nfrom urllib.request import urlopen\nimport os\n").network == listOf("requests", "urllib"))
+    check("net: python subprocess memanggil curl", py("import subprocess\nsubprocess.run(['curl', 'x'])\nprint('curl')\n").network == listOf("curl"))
+    check("net: python tanpa jaringan bersih", py("import os, json\nprint(os.name)\n").network.isEmpty())
+    check("net: kotlin script java.net", kts("val c = java.net.URL(\"x\").openStream()\n").network == listOf("java.net"))
+    check("net: dibatasi MAX label", sh("curl a\nwget a\nssh a\nscp a\nsftp a\nftp a\ntelnet a\n").network.size == NetworkUse.MAX)
 
     println(if (fails == 0) "SEMUA LULUS" else "$fails GAGAL")
     if (fails != 0) kotlin.system.exitProcess(1)

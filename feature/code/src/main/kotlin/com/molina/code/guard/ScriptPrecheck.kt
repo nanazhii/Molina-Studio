@@ -35,7 +35,9 @@ object ScriptPrecheck {
         /** Paling banyak [MAX_ISSUES], terurut menurut baris. */
         val issues: List<Issue>,
         /** Masalah tambahan yang tidak ditampilkan. */
-        val moreIssues: Int
+        val moreIssues: Int,
+        /** [CODE-OFFLINE] Perintah/pustaka jaringan yang terdeteksi (heuristik, hanya pemberitahuan). */
+        val network: List<String> = emptyList()
     ) {
         val clean: Boolean get() = issues.isEmpty()
 
@@ -43,6 +45,7 @@ object ScriptPrecheck {
         fun banner(): String {
             val sb = StringBuilder("[cek] ").append(lines).append(" baris \u00B7 sha1 ").append(sha12)
             if (unwrapped) sb.append(" \u00B7 isi heredoc ").append(wrapper).append(" diambil")
+            if (network.isNotEmpty()) sb.append(" \u00B7 memakai internet: ").append(network.joinToString(", ")) // [CODE-OFFLINE]
             return sb.toString()
         }
     }
@@ -130,7 +133,8 @@ object ScriptPrecheck {
             lines = countLines(src),
             sha12 = sha12(src),
             issues = sorted.take(MAX_ISSUES),
-            moreIssues = maxOf(0, sorted.size - MAX_ISSUES)
+            moreIssues = maxOf(0, sorted.size - MAX_ISSUES),
+            network = NetworkUse.scan(body, kind) // [CODE-OFFLINE]
         )
     }
 

@@ -36,6 +36,7 @@ Anda bisa menulis skrip, menjalankannya, memasang alat tambahan, lalu pindah men
 - Pemformat JSON dan XML.
 - Dukungan language server (LSP) untuk Python.
 - Pencarian dalam berkas, palet perintah, dan riwayat perubahan dengan perbandingan (diff).
+- Offline di sisi kode: editor, Penjelajah, dan pratinjau tidak membuka koneksi internet. Skrip yang Anda jalankan di Debian memakai jaringan perangkat seperti biasa.
 
 ## Molina Cinema
 
@@ -69,6 +70,9 @@ Anda bisa menulis skrip, menjalankannya, memasang alat tambahan, lalu pindah men
 Molina tidak memakai iklan, pelacak, atau layanan analitik. Riwayat dan statistik tontonan tersimpan di perangkat
 Anda. Koneksi internet hanya dipakai untuk hal yang Anda jalankan sendiri, seperti memutar atau mengunduh dari tautan
 dan memperbarui paket Debian.
+
+Editor Code, Penjelajah, dan Pratinjau tidak memakai jaringan sama sekali. Pratinjau HTML dikunci tanpa JavaScript dan
+tanpa jaringan. Jaminan ini dicek otomatis di setiap build oleh `scripts/offline_gate.py`.
 
 ## Kebutuhan
 

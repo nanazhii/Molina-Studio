@@ -187,6 +187,7 @@ fun UnduhanScreen(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item { Box(Modifier.height(4.dp)) }
+        item { Text("Memakai internet \u00B7 hanya berjalan saat Anda menekan Unduh", color = W7D.TextDim, fontSize = 11.sp) } // [CODE-OFFLINE]
         // [win7-form] formulir dalam jendela kaca Aero; frame RGB berputar hanya saat unduhan berjalan.
         item {
             RgbFrame(Modifier.fillMaxWidth(), animate = run.running, spot = RgbSpot.Unduhan) {
