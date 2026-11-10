@@ -1,6 +1,7 @@
 package com.molina.studio.terminal
 
 import android.os.Environment
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,7 +30,12 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.rememberCoroutineScope
 import com.molina.studio.cinema.ExplorerRecent
+import com.molina.studio.cinema.FileOps
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.molina.studio.settings.MolinaExplorer
 
 /** [NANO-EXT] Pecah/gabung nama berkas + daftar ekstensi umum. Dotfile (.bashrc) dianggap tanpa ekstensi. */
@@ -63,8 +69,12 @@ internal object NanoName {
  * ekstensi dipilih lewat dropdown atau diketik bebas, tidak dikunci ke .txt.
  */
 @Composable
-internal fun NewNanoFileDialog(onDismiss: () -> Unit, onOpened: () -> Unit, baseDir: java.io.File? = null) {
+internal fun NewNanoFileDialog(
+    onDismiss: () -> Unit, onOpened: () -> Unit, baseDir: java.io.File? = null,
+    createOnly: Boolean = false, onCreated: (java.io.File) -> Unit = {} // [DRAWER-BOTTOM] createOnly: buat berkas kosong, tanpa membuka nano
+) {
     val ctx = LocalContext.current
+    val scope = rememberCoroutineScope() // [DRAWER-BOTTOM]
     val dir = remember { baseDir ?: ExplorerRecent.last(ctx) ?: Environment.getExternalStorageDirectory() } // [FILE-DRAWER3] folder aktif drawer
     val init = remember { NanoName.initial(null) } // [NANO-TEMPLATE] selalu template, bukan nama berkas terakhir
     var stem by remember { mutableStateOf(init.first) }
@@ -72,11 +82,18 @@ internal fun NewNanoFileDialog(onDismiss: () -> Unit, onOpened: () -> Unit, base
     var menu by remember { mutableStateOf(false) }
     val full = NanoName.join(stem, ext)
     fun go() {
-        if (stem.isNotBlank() && MolinaExplorer.newInTerminal(ctx, dir, full)) onOpened()
+        if (stem.isBlank()) return
+        if (createOnly) { // [DRAWER-BOTTOM]
+            scope.launch {
+                val r = withContext(Dispatchers.IO) { runCatching { FileOps.touch(dir, full) } }
+                r.onSuccess { onCreated(it) }
+                    .onFailure { Toast.makeText(ctx, it.message ?: "Gagal membuat berkas", Toast.LENGTH_SHORT).show() }
+            }
+        } else if (MolinaExplorer.newInTerminal(ctx, dir, full)) onOpened()
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Berkas baru (nano)") },
+        title = { Text(if (createOnly) "Tambah berkas" else "Berkas baru (nano)") },
         text = {
             Column {
                 Text("Folder: " + MolinaExplorer.debianPath(dir), fontFamily = FontFamily.Monospace, fontSize = 12.sp)
@@ -120,7 +137,7 @@ internal fun NewNanoFileDialog(onDismiss: () -> Unit, onOpened: () -> Unit, base
                 Text("Hasil: " + full, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
             }
         },
-        confirmButton = { TextButton(onClick = { go() }, enabled = stem.isNotBlank()) { Text("Buka") } },
+        confirmButton = { TextButton(onClick = { go() }, enabled = stem.isNotBlank()) { Text(if (createOnly) "Buat" else "Buka") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Batal") } }
     )
 }

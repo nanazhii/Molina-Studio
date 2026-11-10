@@ -12,6 +12,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -154,6 +156,7 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
     var menuFor by remember { mutableStateOf<String?>(null) }
     var sheet by remember { mutableStateOf<Sheet?>(null) }
     var newFile by remember { mutableStateOf(false) }
+    var addFile by remember { mutableStateOf(false) } // [DRAWER-BOTTOM]
     BackHandler(onBack = onClose)
 
     fun load(dir: File) {
@@ -218,13 +221,6 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
                         maxLines = 1, overflow = TextOverflow.Ellipsis
                     )
                 }
-                Box(Modifier.size(44.dp).clickable { sheet = Sheet.NewDir(root) }, contentAlignment = Alignment.Center) { // [FILE-DRAWER3] Folder baru
-                    Win7Folder(22.dp)
-                    Text("+", color = Brand, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.BottomEnd).padding(end = 6.dp))
-                }
-                Box(Modifier.size(44.dp).clickable { newFile = true }, contentAlignment = Alignment.Center) { // [NANO-NEW]
-                    Icon(Icons.Filled.Edit, contentDescription = "Berkas baru (nano)", tint = Brand, modifier = Modifier.size(22.dp))
-                }
             }
             if (vols.size > 1) { // [FILE-DRAWER3] chip pilihan volume
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 2.dp)) {
@@ -243,7 +239,7 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
             if (rows.isEmpty() && st.children[root.path] != null) {
                 Text("Folder kosong atau tidak bisa dibaca.", color = dim, fontSize = 12.sp, modifier = Modifier.padding(20.dp))
             }
-            LazyColumn(Modifier.fillMaxSize()) {
+            LazyColumn(Modifier.weight(1f).fillMaxWidth()) { // [DRAWER-BOTTOM]
                 items(rows, key = { it.first.path }) { (f, depth) ->
                     val isDir = f.isDirectory
                     val isOpen = f.path in st.expanded
@@ -291,6 +287,29 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
                     }
                 }
             }
+            // [DRAWER-BOTTOM] Bar aksi di bawah: Tambah berkas (kosong) + Nano baru. Folder baru khusus editor Code.
+            Box(Modifier.fillMaxWidth().height(1.dp).background(dim.copy(alpha = 0.3f)))
+            Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    Modifier.weight(1f).height(44.dp).clickable { addFile = true },
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        W7FileIcon("", 22.dp)
+                        Text("+", color = Brand, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.BottomEnd))
+                    }
+                    Spacer(Modifier.width(6.dp))
+                    Text("Tambah berkas", color = Brand, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Row(
+                    Modifier.weight(1f).height(44.dp).clickable { newFile = true }, // [NANO-NEW]
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(Icons.Filled.Edit, contentDescription = "Berkas baru (nano)", tint = Brand, modifier = Modifier.size(22.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Nano baru", color = Brand, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
         }
     }
 
@@ -335,4 +354,8 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
         }
     }
     if (newFile) NewNanoFileDialog(onDismiss = { newFile = false }, onOpened = { newFile = false; onClose() }, baseDir = root) // [NANO-NEW] [FILE-DRAWER3] buat di folder aktif drawer
+    if (addFile) NewNanoFileDialog( // [DRAWER-BOTTOM] dropdown ekstensi sama dengan Nano baru, tapi hanya membuat berkas
+        onDismiss = { addFile = false }, onOpened = {}, baseDir = root, createOnly = true,
+        onCreated = { nf -> addFile = false; load(root); toast(ctx, "Berkas dibuat: " + nf.name) }
+    )
 }

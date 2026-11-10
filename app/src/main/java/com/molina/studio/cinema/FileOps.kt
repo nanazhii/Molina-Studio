@@ -232,6 +232,16 @@ internal object FileOps {
         return t
     }
 
+    /** [DRAWER-BOTTOM] Buat berkas kosong [name] di [parent]. Gagal bila nama sudah ada. */
+    fun touch(parent: File, name: String): File {
+        val n = validName(name)
+        if (!parent.isDirectory || !parent.canWrite()) throw IOException("Folder ini tidak bisa ditulisi")
+        val t = File(parent, n)
+        if (present(t)) throw IOException("Sudah ada \"" + n + "\" di folder ini")
+        if (!t.createNewFile()) throw IOException("Gagal membuat berkas (periksa izin tulis)")
+        return t
+    }
+
     /** Ubah nama [src] (hanya nama, tanpa jalur). Mengembalikan File baru. */
     fun rename(src: File, newName: String): File {
         val n = validName(newName)
