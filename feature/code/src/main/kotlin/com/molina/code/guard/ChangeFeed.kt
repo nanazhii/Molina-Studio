@@ -12,6 +12,7 @@ object ChangeFeed {
     private const val TAG = "FEED1"
     const val SRC_NANO = "nano"
     const val SRC_EXTERNAL = "external" // [CODE-FEED3] berkas terbuka di tab diubah dari luar editor
+    const val SRC_RESTORE = "restore" // [EXT-DIFF3] berkas dipulihkan (atau pemulihan dibatalkan) dari butir feed
 
     class Item(val folder: String, val unread: Boolean, val entry: ProjectLog.Entry)
 
@@ -66,6 +67,7 @@ object ChangeFeed {
         SRC_NANO -> "via nano"
         ProjectLog.SRC_SCRIPT -> "dari Code"
         SRC_EXTERNAL -> "dari luar"
+        SRC_RESTORE -> "pemulihan"
         else -> ""
     }
 

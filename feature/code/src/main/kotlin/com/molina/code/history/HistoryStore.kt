@@ -21,7 +21,9 @@ enum class HistoryKind(val code: Char, val label: String) {
     NANO_SAVED('o', "Sesudah nano"), // [NANO-INBOX]
     EXTERNAL_BEFORE('x', "Sebelum diubah luar"), // [EXT-DIFF]
     EXTERNAL_AFTER('e', "Sesudah diubah luar"), // [EXT-DIFF]
-    RESTORE_BEFORE('u', "Sebelum pulihkan"); // [EXT-DIFF]
+    RESTORE_BEFORE('u', "Sebelum pulihkan"), // [EXT-DIFF]
+    SHADOW('t', "Titik pantau"), // [EXT-DIFF2]
+    RESTORED('v', "Sesudah pulihkan"); // [EXT-DIFF3]
 
     companion object {
         fun of(c: Char): HistoryKind? = entries.firstOrNull { it.code == c }
@@ -128,6 +130,36 @@ class HistoryStore(private val root: File, private val clock: () -> Long = { Sys
             for (d in dirs) for (v in listIn(d)) { all.add(Pair(d, v)); total += v.bytes }
             // [CODE-HISTORY2] versi tanpa sematan dibuang dulu (tertua dulu); yang disematkan hanya bila masih melebihi batas
             all.sortWith(compareBy({ it.second.pinned }, { it.second.time }))
+            var i = 0
+            while (total > maxBytes && i < all.size) {
+                val (d, v) = all[i++]
+                if (File(d, v.name).delete()) total -= v.bytes
+            }
+            for (d in dirs) if (listIn(d).isEmpty()) d.deleteRecursively()
+        } catch (e: Exception) {
+            // best-effort
+        }
+    }
+
+    /** [EXT-DIFF2] Total ukuran snapshot berjenis [kind] di seluruh penyimpanan. */
+    @Synchronized
+    fun bytesOfKind(kind: HistoryKind): Long = try {
+        var total = 0L
+        root.listFiles { f -> f.isDirectory && f.name.startsWith("h") }?.forEach { d -> for (v in listIn(d)) if (v.kind == kind) total += v.bytes }
+        total
+    } catch (e: Exception) {
+        0L
+    }
+
+    /** [EXT-DIFF2] Pangkas snapshot berjenis [kind] (tak disematkan) ke [maxBytes], tertua dulu, lalu folder yang kosong. */
+    @Synchronized
+    fun trimKind(kind: HistoryKind, maxBytes: Long) {
+        try {
+            val dirs = root.listFiles { f -> f.isDirectory && f.name.startsWith("h") } ?: return
+            val all = ArrayList<Pair<File, HistoryVersion>>()
+            var total = 0L
+            for (d in dirs) for (v in listIn(d)) if (v.kind == kind && !v.pinned) { all.add(Pair(d, v)); total += v.bytes }
+            all.sortBy { it.second.time }
             var i = 0
             while (total > maxBytes && i < all.size) {
                 val (d, v) = all[i++]

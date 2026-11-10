@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateMapOf // [EXT-DIFF3]
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -36,6 +37,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.molina.code.guard.ChangeFeed
 import com.molina.code.guard.ProjectLog
 import com.molina.code.history.HistoryKind // [EXT-DIFF]
+import com.molina.code.history.RestorePlan // [EXT-DIFF3]
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -52,6 +54,7 @@ internal fun ChangeFeedDialog(session: CodeSession, view: ChangeFeedView, onDism
     val shape = RoundedCornerShape(CodeDimens.DialogCorner)
     val maxH = (LocalConfiguration.current.screenHeightDp * 0.6f).dp
     val open = remember(view) { mutableStateOf(-1) }
+    val acts = remember(view) { mutableStateMapOf<String, Int>() } // [EXT-DIFF3] status tombol per berkas: 0 Pulihkan, 1 Yakin?, 2 Urungkan, 3 sibuk
     val fmt = remember { SimpleDateFormat("dd MMM yyyy HH:mm", Locale("id", "ID")) }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp).win7DialogFrame(shape)) {
@@ -103,7 +106,7 @@ internal fun ChangeFeedDialog(session: CodeSession, view: ChangeFeedView, onDism
                             )
                             if (expanded) {
                                 Spacer(Modifier.height(4.dp))
-                                for (c in e.files) FeedFileRow(c) {
+                                for (c in e.files) FeedFileRow(c, feedAction(acts, idx, c, e.source), { feedActionClick(session, acts, idx, item.folder, c, e.time) }) {
                                     val f = File(File(item.folder), c.path)
                                     if (c.kind != 'D' && f.isFile) {
                                         onDismiss()
@@ -144,7 +147,7 @@ internal fun ChangeFeedDialog(session: CodeSession, view: ChangeFeedView, onDism
 }
 
 @Composable
-private fun FeedFileRow(c: ProjectLog.FileChange, onClick: () -> Unit) {
+private fun FeedFileRow(c: ProjectLog.FileChange, action: String?, onAction: () -> Unit, onClick: () -> Unit) {
     val (letter, color) = when (c.kind) {
         'A' -> "A" to CodeColors.OutputOk
         'D' -> "D" to CodeColors.Danger
@@ -171,5 +174,36 @@ private fun FeedFileRow(c: ProjectLog.FileChange, onClick: () -> Unit) {
                 style = TextStyle(color = CodeColors.TextSecondary, fontSize = CodeDimens.PaneMonoSize, fontFamily = FontFamily.Monospace)
             )
         }
+        if (action != null) { // [EXT-DIFF3]
+            Spacer(Modifier.width(10.dp))
+            BasicText(
+                text = action,
+                maxLines = 1,
+                modifier = Modifier.clickable(onClick = onAction),
+                style = TextStyle(color = CodeColors.Brand, fontSize = CodeDimens.PaneMonoSize, fontWeight = FontWeight.Bold)
+            )
+        }
+    }
+}
+
+/** [EXT-DIFF3] Label tombol pemulihan untuk satu berkas pada butir [idx]; null bila tak ditawarkan. */
+private fun feedAction(acts: Map<String, Int>, idx: Int, c: ProjectLog.FileChange, source: String): String? {
+    if (!RestorePlan.canOffer(source == ChangeFeed.SRC_EXTERNAL, c.kind, c.added, c.removed)) return null
+    return when (acts["$idx|${c.path}"] ?: 0) {
+        1 -> "Yakin?"
+        2 -> "Urungkan"
+        3 -> "\u2026"
+        else -> "Pulihkan"
+    }
+}
+
+/** [EXT-DIFF3] Ketuk pertama minta konfirmasi, ketuk kedua memulihkan, lalu tombol jadi Urungkan. */
+private fun feedActionClick(session: CodeSession, acts: MutableMap<String, Int>, idx: Int, folder: String, c: ProjectLog.FileChange, time: Long) {
+    val key = "$idx|${c.path}"
+    val dir = File(folder)
+    when (acts[key] ?: 0) {
+        0 -> acts[key] = 1
+        1 -> { acts[key] = 3; session.restoreFeedFile(dir, c, time) { ok -> acts[key] = if (ok) 2 else 0 } }
+        2 -> { acts[key] = 3; session.undoFeedRestore(dir, c) { ok -> acts[key] = if (ok) 0 else 2 } }
     }
 }

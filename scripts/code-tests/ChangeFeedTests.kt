@@ -78,6 +78,7 @@ fun main() {
         check("externalEntry: hitungan +/- terbawa", ed.files[0].added == 3 && ed.files[0].removed == 1)
         check("externalEntry: tanpa hitungan = 0/0 (kompatibel)", ee.files[0].added == 0 && ee.files[0].removed == 0)
         check("sourceLabel: dari luar", ChangeFeed.sourceLabel(ChangeFeed.SRC_EXTERNAL) == "dari luar")
+        check("sourceLabel: pemulihan", ChangeFeed.sourceLabel(ChangeFeed.SRC_RESTORE) == "pemulihan") // [EXT-DIFF3]
         check("headline: butir dari luar", ChangeFeed.headline(ChangeFeed.Item("/sdcard/proj/src", true, ee)) == "a.kt di folder src diubah")
         ChangeFeed.append(x, File("/sdcard/proj/src"), ee)
         val xr = ChangeFeed.read(x)

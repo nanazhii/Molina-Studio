@@ -255,6 +255,18 @@ fun main() {
         check("ext: dua versi, terbaru = Sesudah diubah luar", xl.size == 2 && xl[0].kind == HistoryKind.EXTERNAL_AFTER && VersionCompare.previous(xl, xl[0])?.kind == HistoryKind.EXTERNAL_BEFORE)
         val xd = LineDiff.diff("a\nb\n", "a\nB\nc\n")
         check("ext: diff +2 -1", xd.added == 2 && xd.removed == 1)
+        // [EXT-DIFF2] titik pantau dan plafon per jenis
+        val ss = HistoryStore(File(tmp, "shadow-hist"))
+        val sf1 = File(tmp, "s1.txt")
+        val sf2 = File(tmp, "s2.txt")
+        ss.record(sf1, "satu\n".repeat(200), HistoryKind.SHADOW, 1000L)
+        ss.record(sf2, "dua\n".repeat(200), HistoryKind.SHADOW, 2000L)
+        ss.record(sf1, "satu\nlain\n", HistoryKind.SAVED, 3000L)
+        check("shadow: bytesOfKind menghitung per jenis", ss.bytesOfKind(HistoryKind.SHADOW) > 0 && ss.bytesOfKind(HistoryKind.SAVED) > 0)
+        ss.trimKind(HistoryKind.SHADOW, 0L)
+        check("shadow: trimKind membuang titik pantau, versi lain tetap", ss.bytesOfKind(HistoryKind.SHADOW) == 0L && ss.list(sf1).size == 1 && ss.list(sf1)[0].kind == HistoryKind.SAVED && ss.list(sf2).isEmpty())
+        check("shadow: kode t dikenali", HistoryKind.of('t') == HistoryKind.SHADOW)
+        check("restore: kode v dikenali", HistoryKind.of('v') == HistoryKind.RESTORED) // [EXT-DIFF3]
     } finally {
         tmp.deleteRecursively()
     }
