@@ -97,4 +97,56 @@ check "check: BOM + shebang terdeteksi" '[[ "$out" == *"clean=1"* ]]'
 out="$(mx MOLINA_RUN_ANSWER=1 sh "$R" b.sh)"; rc=$?
 check "[1] BOM dibuang, skrip jalan" '[ $rc -eq 0 ] && [[ "$out" == *"bom-ok"* ]]'
 
+# [RUN-HINT]
+# ---- [RUN-HINT] shebang vs ekstensi, tips shebang/izin eksekusi, dan --fix
+printf '#!/bin/sh\nprint(1)\n' > "$T/m.py"
+out="$(mx sh "$R" --check m.py)"
+check "check: shebang sh di berkas .py -> mismatch + issues=1" '[[ "$out" == *"sheb=mismatch"* && "$out" == *"issues=1"* ]]'
+printf '#!/usr/bin/env python3\nprint(1)\n' > "$T/g.py"
+out="$(mx sh "$R" --check g.py)"
+check "check: shebang python3 di .py -> cocok, tanpa masalah" '[[ "$out" == *"sheb=ok"* && "$out" == *"issues=0"* ]]'
+printf "print('hai')\n" > "$T/n.py"
+out="$(mx sh "$R" --check n.py)"
+check "check: .py tanpa shebang -> tips (bukan masalah)" '[[ "$out" == *"sheb=none"* && "$out" == *"issues=0"* && "$out" == *"hints=1"* ]]'
+printf '#!/bin/sh\necho x\n' > "$T/p.sh"; chmod -x "$T/p.sh"
+out="$(mx sh "$R" --check p.sh)"
+check "check: shebang tanpa +x -> exec=0 + tips" '[[ "$out" == *"exec=0"* && "$out" == *"hints=1"* ]]'
+chmod +x "$T/p.sh"
+out="$(mx sh "$R" --check p.sh)"
+check "check: shebang + x -> tanpa tips" '[[ "$out" == *"exec=1"* && "$out" == *"hints=0"* ]]'
+printf 'echo tanpa-ekstensi\ncd /tmp\n' > "$T/noext"
+out="$(mx sh "$R" --check noext)"
+check "check: tanpa ekstensi, isi shell -> tips shebang" '[[ "$out" == *"hints=1"* ]]'
+# tips hanya di terminal atau MOLINA_RUN_NOTES=on; off mematikannya
+out="$(mx MOLINA_RUN_NOTES=on sh "$R" n.py)"
+check "tips tampil dengan MOLINA_RUN_NOTES=on" '[[ "$out" == *"belum ada shebang"* ]]'
+out="$(mx MOLINA_RUN_NOTES=off sh "$R" n.py)"
+check "tips mati dengan MOLINA_RUN_NOTES=off" '[[ "$out" != *"belum ada shebang"* ]]'
+out="$(mx sh "$R" n.py)"
+check "tanpa terminal: tidak ada tips (keluaran lama tidak berubah)" '[[ "$out" != *"belum ada shebang"* ]]'
+# --fix
+cp "$T/n.py" "$T/f1.py"; chmod -x "$T/f1.py"
+out="$(mx sh "$R" --fix f1.py)"; rc=$?
+check "--fix: shebang ditambah di baris 1" '[ $rc -eq 0 ] && [ "$(head -n 1 "$T/f1.py")" = "#!/usr/bin/env python3" ]'
+check "--fix: cadangan .bak = isi lama" 'cmp -s "$T/n.py" "$T/f1.py.bak"'
+check "--fix: chmod +x berlaku di folder biasa" '[ -x "$T/f1.py" ]'
+out="$(mx sh "$R" --fix f1.py)"
+check "--fix: kedua kali tidak mengubah apa-apa" '[[ "$out" == *"Tidak ada yang perlu diperbaiki"* ]]'
+printf 'echo a\r\necho b\r\n' > "$T/f2.sh"
+out="$(mx sh "$R" --fix f2.sh)"
+check "--fix: .sh CRLF -> shebang ditambah dan CR dibuang" '[ "$(head -n 1 "$T/f2.sh")" = "#!/bin/sh" ] && ! grep -q "$(printf "\r")" "$T/f2.sh"'
+printf 'hal biasa\n' > "$T/f3.txt"
+out="$(mx sh "$R" --fix f3.txt)"; rc=$?
+check "--fix: bahasa tak dikenal -> exit 2 dan berkas utuh" '[ $rc -eq 2 ] && [ "$(cat "$T/f3.txt")" = "hal biasa" ]'
+printf "python3 << 'EOF'\nprint(1)\nEOF\n" > "$T/f4.py"
+out="$(mx sh "$R" --fix f4.py)"; rc=$?
+check "--fix: ada pembungkus heredoc -> ditolak, arahkan ke [2]" '[ $rc -eq 2 ] && [[ "$out" == *"[2]"* ]]'
+if [ $have_py -eq 1 ]; then
+  printf '#!/usr/bin/python\nprint("lama-ok")\n' > "$T/old.py"
+  out="$(mx sh "$R" old.py)"; rc=$?
+  if ! command -v /usr/bin/python >/dev/null 2>&1 && ! command -v python >/dev/null 2>&1; then
+    check "shebang /usr/bin/python tak ada -> pakai python3" '[ $rc -eq 0 ] && [[ "$out" == *"lama-ok"* && "$out" == *"dipakai python3"* ]]'
+  fi
+fi
+
 echo "Selesai: $runs kasus, $fails gagal"; [ "$fails" -eq 0 ]

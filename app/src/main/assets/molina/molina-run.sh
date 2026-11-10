@@ -5,14 +5,19 @@
 # Sebelum jalan, skrip diperiksa: pembungkus heredoc yang tak valid di dalam berkas (python3 << EOF ... EOF),
 # isi shell di berkas bukan-shell, tempelan terpotong (penutup EOF hilang), CRLF, dan BOM. Bila ada, tampil dialog.
 #   molina-run --check <berkas>   hanya cetak hasil pemeriksaan (untuk tes dan alat lain)
+#   molina-run --fix <berkas>     [RUN-HINT] tambah shebang yang hilang (cadangan .bak) dan chmod +x bila berlaku
+# [RUN-HINT] Selain pemeriksaan di atas, ada "tips" satu-dua baris (tidak menghentikan skrip): tanpa shebang, belum +x,
+# dan penyimpanan bersama Android (chmod +x tidak berlaku di sana). Shebang yang tak cocok dengan ekstensi masuk dialog.
+# Matikan tips: MOLINA_RUN_NOTES=off atau isi ~/.config/molina/run-notes dengan 'off' (on = tampil juga bukan-terminal).
 # Atur lewat MOLINA_RUN_ASK = ask (bawaan) | fix (perbaiki sementara tanpa tanya) | no (jalankan apa adanya).
 # MOLINA_RUN_ANSWER = 1|2|3|a|e|x menjawab dialog tanpa interaksi (otomasi dan tes).
 # Direktori kerja tidak diubah (sama seperti `sh berkas`). Dipakai nano lewat Alt+R.
-check_only=0
-if [ "$1" = "--check" ]; then check_only=1; shift; fi
+check_only=0; fix_only=0 # [RUN-HINT]
+if [ "$1" = "--check" ]; then check_only=1; shift
+elif [ "$1" = "--fix" ]; then fix_only=1; shift; fi
 f="$1"
 if [ -z "$f" ]; then
-  echo "Pemakaian: molina-run [--check] <berkas> [argumen...]" >&2
+  echo "Pemakaian: molina-run [--check|--fix] <berkas> [argumen...]" >&2
   exit 2
 fi
 shift
@@ -56,6 +61,27 @@ lang_label() {
   case "$1" in py) echo Python ;; sh) echo shell ;; js) echo JavaScript ;; pl) echo Perl ;; rb) echo Ruby ;; lua) echo Lua ;; php) echo PHP ;; awk) echo awk ;; *) echo "$1" ;; esac
 }
 shell_bin() { if command -v bash >/dev/null 2>&1; then echo bash; else echo sh; fi; }
+# [RUN-HINT] tebak bahasa dari isi (hanya untuk saran/perbaikan shebang); kosong bila tidak yakin
+guess_lang() {
+  if grep -m1 -Eq '^[[:space:]]*(import [A-Za-z_]|from [A-Za-z_.]+ import |def [A-Za-z_]+\(|class [A-Za-z_]+|print\()' "$1" 2>/dev/null; then echo py
+  elif grep -m1 -Eq '^[[:space:]]*(console\.log\(|const [A-Za-z_]+ *=|require\()' "$1" 2>/dev/null; then echo js
+  elif grep -m1 -Eq '^[[:space:]]*(echo |cd |export |set -[eu]|if \[|for [A-Za-z_]+ in |mkdir |apt(-get)? |pkg |chmod |source )' "$1" 2>/dev/null; then echo sh
+  fi
+}
+sheb_for() { # bahasa -> baris shebang yang disarankan
+  case "$1" in
+    py) echo '#!/usr/bin/env python3' ;;
+    sh) case "$src" in *.bash) echo '#!/usr/bin/env bash' ;; *) echo '#!/bin/sh' ;; esac ;;
+    js) echo '#!/usr/bin/env node' ;;
+    pl) echo '#!/usr/bin/env perl' ;;
+    rb) echo '#!/usr/bin/env ruby' ;;
+    lua) echo '#!/usr/bin/env lua' ;;
+    php) echo '#!/usr/bin/env php' ;;
+    *) echo "" ;;
+  esac
+}
+# Penyimpanan bersama Android (/sdcard dll.) tidak menyimpan bit eksekusi; skrip di sana dijalankan lewat penerjemah.
+shared_storage() { case "$1" in /sdcard|/sdcard/*|/storage/emulated/*|/storage/*-*/*|/mnt/sdcard*|/mnt/shared*) return 0 ;; esac; return 1; }
 
 # ---- pemeriksaan
 bom=0
@@ -136,8 +162,32 @@ fi
 fixable=0
 if [ "$plan_unwrap" -eq 1 ] || [ "$plan_clean" -eq 1 ] || [ -n "$plan_interp" ]; then fixable=1; fi
 
+# ---- [RUN-HINT] shebang vs ekstensi (masalah) + tips shebang/izin eksekusi (bukan masalah, tidak masuk 'issues')
+extlang=$(lang_of "$src")
+hasheb=0; shlang=""; sstate=none
+case "$first" in '#!'*) hasheb=1; sstate=ok; shlang=$(lang_of "$(sheb_name "${first#??}")") ;; esac
+if [ "$wrap" = "none" ] && [ "$hasheb" -eq 1 ] && [ -n "$extlang" ] && [ -n "$shlang" ] && [ "$extlang" != "$shlang" ]; then
+  sstate=mismatch
+  add "shebang '$first' menandakan $(lang_label "$shlang"), tetapi ekstensi $name menandakan $(lang_label "$extlang"); skrip dijalankan sebagai $(lang_label "$shlang")"
+fi
+notes=""
+nadd() { notes="${notes}  ℹ $1${nl}"; }
+tl="$extlang"; if [ -z "$tl" ] && [ "$wrap" = "none" ]; then tl=$(guess_lang "$src"); fi
+xstate=0; if [ -x "$src" ]; then xstate=1; fi
+if [ "$wrap" = "none" ]; then
+  if [ "$hasheb" -eq 0 ] && [ -n "$tl" ]; then
+    nadd "belum ada shebang (baris 1, contoh: $(sheb_for "$tl")). Lewat molina-run tetap jalan; shebang perlu untuk './$name' atau dibagikan. Otomatis: molina-run --fix $name"
+  elif [ "$hasheb" -eq 1 ]; then
+    if shared_storage "$src"; then
+      nadd "$name ada di penyimpanan bersama Android: chmod +x tidak berlaku di sini. Jalankan lewat 'molina-run $name', atau salin ke ~ lalu chmod +x"
+    elif [ "$xstate" -eq 0 ]; then
+      nadd "belum ada izin eksekusi: './$name' akan 'Permission denied'. Perbaiki: chmod +x $name (atau molina-run --fix $name)"
+    fi
+  fi
+fi
+
 if [ "$check_only" -eq 1 ]; then
-  echo "lang=$srclang wrap=$wrap issues=$(printf '%s' "$issues" | grep -c .) unwrap=$plan_unwrap clean=$plan_clean interp=$plan_interp trunc=$trunc"
+  echo "lang=$srclang wrap=$wrap issues=$(printf '%s' "$issues" | grep -c .) unwrap=$plan_unwrap clean=$plan_clean interp=$plan_interp trunc=$trunc sheb=$sstate exec=$xstate hints=$(printf '%s' "$notes" | grep -c .)"
   exit 0
 fi
 
@@ -152,6 +202,45 @@ cleanup() {
   if [ "$title_set" -eq 1 ]; then printf '\033]0;\007'; fi # [NANO-RUNFIX]
 }
 trap cleanup EXIT
+
+# ---- [RUN-HINT] molina-run --fix: tambah shebang yang hilang + chmod +x (berkas dicadangkan sebagai .bak)
+if [ "$fix_only" -eq 1 ]; then
+  if [ "$wrap" != "none" ]; then
+    echo "molina-run: $name memuat pembungkus heredoc; jalankan 'molina-run $name' dan pilih [2] dulu." >&2
+    exit 2
+  fi
+  fl="$tl"
+  did=0
+  if [ "$hasheb" -eq 0 ]; then
+    sl=$(sheb_for "$fl")
+    if [ -z "$sl" ]; then
+      echo "molina-run: bahasa $name tidak dikenali; tambahkan shebang manual (contoh: #!/bin/sh)" >&2
+      exit 2
+    fi
+    bak="${src}.bak"; n=1
+    while [ -e "$bak" ]; do bak="${src}.bak.$n"; n=$((n+1)); done
+    td=$(mktemp -d "${TMPDIR:-/tmp}/molina-run.XXXXXX")
+    {
+      printf '%s\n' "$sl"
+      if [ "$bom" -eq 1 ]; then tail -c +4 "$src"; else cat "$src"; fi
+    } | { if [ "$crlf" -eq 1 ] && [ "$fl" = "sh" ]; then tr -d '\r'; else cat; fi; } > "$td/$name" \
+      && cp "$src" "$bak" && cp "$td/$name" "$src" || { echo "molina-run: gagal menambah shebang" >&2; exit 1; }
+    printf '%s✔ Shebang ditambah: %s (cadangan: %s)%s\n' "$g" "$sl" "${bak##*/}" "$z"
+    did=1
+  fi
+  if shared_storage "$src"; then
+    printf '%sℹ %s di penyimpanan bersama Android: chmod +x tidak berlaku. Jalankan: molina-run %s%s\n' "$y" "$name" "$name" "$z"
+  elif [ -x "$src" ]; then
+    :
+  elif chmod +x "$src" 2>/dev/null; then
+    printf '%s✔ Izin eksekusi ditambah (chmod +x)%s\n' "$g" "$z"; did=1
+  else
+    echo "molina-run: gagal chmod +x $name" >&2
+  fi
+  if [ "$did" -eq 0 ]; then echo "Tidak ada yang perlu diperbaiki."; fi
+  if [ "$sstate" = "mismatch" ]; then echo "Catatan: shebang tidak cocok dengan ekstensi; periksa manual (molina-run $name lalu [e])." >&2; fi
+  exit 0
+fi
 force_interp=""
 if [ -n "$issues" ]; then
   conf="${XDG_CONFIG_HOME:-${HOME:-/root}/.config}/molina/run-ask"
@@ -235,6 +324,17 @@ if [ -n "$issues" ]; then
   esac
 fi
 
+# [RUN-HINT] tips: dicetak setelah dialog, sebelum skrip jalan; tidak pernah menghentikan
+notes_on=0
+nconf="${XDG_CONFIG_HOME:-${HOME:-/root}/.config}/molina/run-notes"
+nmode="${MOLINA_RUN_NOTES:-}"
+if [ -z "$nmode" ] && [ -f "$nconf" ]; then nmode=$(head -n 1 "$nconf" 2>/dev/null); fi
+if [ "$nmode" = "on" ] || { [ "$nmode" != "off" ] && [ -t 1 ]; }; then notes_on=1; fi
+if [ -n "$notes" ] && [ "$notes_on" -eq 1 ]; then
+  printf '%sTips skrip %s:%s\n%s' "$y" "$name" "$z" "$notes"
+  printf '  (matikan tips: mkdir -p %s && echo off > %s)\n' "${nconf%/*}" "$nconf"
+fi
+
 # ---- pilih penerjemah
 set -f
 if [ -n "$force_interp" ]; then
@@ -255,6 +355,17 @@ else
         if [ -n "$alt" ]; then
           shift
           set -- "$alt" "$@"
+        else
+          # [RUN-HINT] shebang lama '#!/usr/bin/python' (Python 2) tidak ada di Debian: pakai python3 bila tersedia
+          case "${1##*/}" in
+            python|python2)
+              if command -v python3 >/dev/null 2>&1; then
+                echo "molina-run: '$1' tidak ada; dipakai python3" >&2
+                shift
+                set -- python3 "$@"
+              fi
+              ;;
+          esac
         fi
       fi
       ;;
