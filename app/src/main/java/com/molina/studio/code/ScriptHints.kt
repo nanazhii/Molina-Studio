@@ -125,7 +125,7 @@ object ScriptHints {
                         busy.set(false)
                         val first = text.lineSequence().map { it.trim() }.firstOrNull { it.isNotEmpty() }
                         val msg = when {
-                            result.startError != null -> result.startError
+                            result.startError != null -> result.startError.orEmpty()
                             result.timedOut -> "Perbaikan melewati batas waktu."
                             fixed -> first ?: "Diperbaiki: ${File(path).name}"
                             else -> first ?: "Gagal memperbaiki ${File(path).name}."
