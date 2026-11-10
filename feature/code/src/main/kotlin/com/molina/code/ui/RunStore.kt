@@ -36,4 +36,7 @@ internal object RunPrefs {
 
     /** [CODE-RUNTIMEOUT] Batas waktu skrip di panel Keluaran (ms; salah satu dari RunTimeout.OPTIONS_MS). */
     const val KEY_RUN_TIMEOUT = "run_timeout_ms"
+
+    /** [EXT-DIFF4] Saklar "Pantau perubahan otomatis" ("0" = mati; bawaan aktif). */
+    const val KEY_WATCH_AUTO = "ext_watch_auto"
 }

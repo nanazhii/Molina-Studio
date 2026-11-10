@@ -21,6 +21,10 @@ fun main() {
         ShadowPolicy.Entry("big.txt", 9_999_999, 50), ShadowPolicy.Entry("mid.kt", 10, 5)
     ))
     check("candidates: terbaru dulu, tanpa rahasia dan berkas besar", c == listOf("new.kt", "mid.kt", "old.kt"))
+    check("sizeLabel: KB dibulatkan ke atas", ShadowPolicy.sizeLabel(0) == "0 KB" && ShadowPolicy.sizeLabel(1) == "1 KB" && ShadowPolicy.sizeLabel(512L * 1024) == "512 KB") // [EXT-DIFF4]
+    check("sizeLabel: MB bulat dan desimal", ShadowPolicy.sizeLabel(30L * 1024 * 1024) == "30 MB" && ShadowPolicy.sizeLabel(1572864L) == "1,5 MB")
+    check("usageLine: format pemakaian", ShadowPolicy.usageLine(12L * 1024 * 1024) == "Titik pantau: 12 MB dari 30 MB")
+    check("EXCLUSION_NOTE: menyebut batas berkas dan .env", ShadowPolicy.EXCLUSION_NOTE.contains("512 KB") && ShadowPolicy.EXCLUSION_NOTE.contains(".env"))
     println(if (fails == 0) "SEMUA LULUS" else "$fails GAGAL")
     if (fails != 0) kotlin.system.exitProcess(1)
 }

@@ -44,6 +44,22 @@ object ShadowPolicy {
         return name.substringAfterLast('.', "") !in BINARY_EXT
     }
 
+    /** [EXT-DIFF4] Ukuran ringkas untuk tampilan: "512 KB", "12 MB", "1,5 MB". */
+    fun sizeLabel(bytes: Long): String {
+        val b = if (bytes < 0) 0L else bytes
+        if (b < 1024L * 1024) return "${(b + 1023) / 1024} KB"
+        val tenths = b * 10 / (1024L * 1024)
+        return if (tenths % 10 == 0L) "${tenths / 10} MB" else "${tenths / 10},${tenths % 10} MB"
+    }
+
+    /** [EXT-DIFF4] Baris pemakaian ruang titik pantau di Pengaturan/feed. */
+    fun usageLine(bytes: Long): String = "Titik pantau: ${sizeLabel(bytes)} dari ${sizeLabel(MAX_BYTES)}"
+
+    /** [EXT-DIFF4] Daftar kecualian yang tampil ke pengguna (transparansi: apa yang TIDAK pernah direkam). */
+    val EXCLUSION_NOTE: String =
+        "Tidak pernah direkam: kunci dan sertifikat (.pem, .key, .p12, id_rsa), .env, folder .ssh/.gnupg/.aws, " +
+            "berkas credentials/secret, berkas biner, dan berkas di atas ${sizeLabel(MAX_FILE_BYTES)}."
+
     /** Jalur layak, yang paling baru diubah dulu. */
     fun candidates(entries: List<Entry>): List<String> =
         entries.filter { eligible(it.path, it.size) }.sortedByDescending { it.mtime }.map { it.path }

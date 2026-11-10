@@ -24,6 +24,7 @@ import com.molina.code.history.HistoryStore
 import com.molina.code.history.LineDiff // [EXT-DIFF]
 import com.molina.code.history.ShadowPolicy // [EXT-DIFF2]
 import com.molina.code.history.RestorePlan // [EXT-DIFF3]
+import com.molina.code.history.UndoLedger // [EXT-DIFF5]
 import com.molina.code.history.NanoInbox // [NANO-INBOX]
 import com.molina.code.preview.PreviewKind
 import com.molina.code.preview.PythonTerminalRun
@@ -317,6 +318,7 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         runStore?.get(RunPrefs.KEY_RUN_TIMEOUT)?.let { run.timeoutMs = RunTimeout.parse(it) } // [CODE-RUNTIMEOUT]
         runStore?.get(RunPrefs.KEY_CHECK_SAVE)?.let { checkOnSave = it == "1" } // [CODE-CHECK-SAVE]
         runStore?.get(RunPrefs.KEY_LSP_LIVE)?.let { liveEnabled = it == "1"; live.setEnabled(liveEnabled) } // [CODE-LSP3]
+        runStore?.get(RunPrefs.KEY_WATCH_AUTO)?.let { watchAuto = it != "0" } // [EXT-DIFF4]
     }
 
     /** [CODE-FORMAT] Format otomatis sebelum menyimpan berkas (bawaan mati). Galat format tidak pernah menahan simpan. */
@@ -338,6 +340,38 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
     /** [CODE-HISTORY2] Diff kontras tinggi di Riwayat versi (Tema kode). Bawaan mati: memakai token Clean/Danger transparan. */
     var diffContrast by mutableStateOf(false)
         private set
+
+    /** [EXT-DIFF4] Pantau perubahan luar otomatis (bawaan aktif) dan pemakaian ruang titik pantau (byte) untuk tampilan. */
+    var watchAuto by mutableStateOf(true)
+        private set
+    var shadowBytes by mutableStateOf(0L)
+        private set
+
+    fun toggleWatchAuto() {
+        watchAuto = !watchAuto
+        runStore?.put(RunPrefs.KEY_WATCH_AUTO, if (watchAuto) "1" else "0")
+        if (watchAuto) captureFolderBaseline() // mulai dari kondisi sekarang agar tak muncul perubahan lama sekaligus
+        toast(if (watchAuto) "Pantau perubahan otomatis aktif" else "Pantau perubahan otomatis mati")
+    }
+
+    /** [EXT-DIFF4] Hitung ulang pemakaian ruang titik pantau (thread IO). */
+    fun refreshShadowUsage() {
+        val h = history ?: return
+        runIo {
+            val b = try { h.bytesOfKind(HistoryKind.SHADOW) } catch (e: Exception) { 0L }
+            mainHandler.post { shadowBytes = b }
+        }
+    }
+
+    /** [EXT-DIFF4] Hapus semua snapshot titik pantau (versi bertanda sematan tetap). Perubahan luar berikutnya kehilangan dasar diff sampai direkam ulang. */
+    fun clearShadow() {
+        val h = history ?: return
+        runIo {
+            try { h.trimKind(HistoryKind.SHADOW, 0L) } catch (e: Exception) { /* best-effort */ }
+            val b = try { h.bytesOfKind(HistoryKind.SHADOW) } catch (e: Exception) { 0L }
+            mainHandler.post { shadowBytes = b; toast("Titik pantau dibersihkan") }
+        }
+    }
 
     fun toggleDiffContrast() {
         diffContrast = !diffContrast
@@ -1051,6 +1085,7 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
 
     /** [CODE-FEED4] Layar Code dibuka: bandingkan folder utama dengan baseline terakhir; selisihnya (di luar yang sudah tercatat skrip/nano) jadi satu notifikasi. */
     fun checkFolderChanges() { // [CODE-FEED5] public: dipanggil MainActivity (modul :app)
+        if (!watchAuto) return // [EXT-DIFF4]
         val wd = watchDir ?: return
         val tNow = android.os.SystemClock.elapsedRealtime() // [CODE-FEED5]
         if (tNow - lastFolderCheck < 2_000L) return
@@ -1078,6 +1113,7 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
 
     /** [CODE-FEED4] Layar Code ditinggalkan / Activity berhenti: simpan baseline sidik jari folder utama (perubahan sendiri ikut tercatat). */
     internal fun captureFolderBaseline() {
+        if (!watchAuto) return // [EXT-DIFF4]
         val wd = watchDir ?: return
         val root = dir.root
         runIo {
@@ -1166,6 +1202,7 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
     /** [EXT-DIFF3] Bekas pemulihan di memori untuk Urungkan: isi sebelum dipulihkan (null = berkas belum ada) dan isi yang ditulis. */
     private class RestoreUndo(val prev: String?, val written: String)
     private val restoreUndo = java.util.concurrent.ConcurrentHashMap<String, RestoreUndo>()
+    private val undoLedger: UndoLedger? = draftDir?.let { UndoLedger(File(it, "restore_undo.tsv")) } // [EXT-DIFF5] tahan restart
 
     /** [EXT-DIFF3] Ada tab yang sedang diedit untuk [f]? Pemulihan menolak menimpa berkas semacam itu. */
     private fun tabBlocksRestore(f: File): Boolean {
@@ -1183,12 +1220,12 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
      * [EXT-DIFF3] Pulihkan satu berkas dari butir feed "dari luar": M kembali ke isi sebelum perubahan, D dibuat ulang.
      * Isi sekarang dicatat dulu di Riwayat; akhir baris dan BOM berkas dipertahankan. [done] dipanggil di thread utama.
      */
-    internal fun restoreFeedFile(folder: File, c: ProjectLog.FileChange, entryTime: Long, done: (Boolean) -> Unit) {
+    internal fun restoreFeedFile(folder: File, c: ProjectLog.FileChange, entryTime: Long, quiet: Boolean = false, sink: MutableList<ProjectLog.FileChange>? = null, done: (Boolean) -> Unit) {
         val h = history
         val ff = feedFile
         val f = File(folder, c.path)
-        if (h == null || ff == null) { toast("Riwayat tidak tersedia"); done(false); return }
-        if (tabBlocksRestore(f)) { toast("${f.name} sedang diedit di tab. Simpan atau tutup dulu."); done(false); return }
+        if (h == null || ff == null) { if (!quiet) toast("Riwayat tidak tersedia"); done(false); return }
+        if (tabBlocksRestore(f)) { if (!quiet) toast("${f.name} sedang diedit di tab. Simpan atau tutup dulu."); done(false); return }
         runIo {
             var ok = false
             var msg = "Gagal memulihkan ${f.name}"
@@ -1204,8 +1241,10 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
                     FileStore.writeUtf8Atomic(f, (if (disk?.hadBom == true) "\uFEFF" else "") + FileStore.applyEol(text, disk?.eol ?: Eol.LF))
                     h.record(f, text, HistoryKind.RESTORED)
                     restoreUndo[f.path] = RestoreUndo(disk?.text, text)
+                    undoLedger?.put(f.path, disk?.text?.let { HistoryStore.fingerprint(it) }, HistoryStore.fingerprint(text))
                     val ch = if (c.kind == 'D') ProjectLog.FileChange(c.path, 'A', c.removed, 0) else ProjectLog.FileChange(c.path, 'M', c.removed, c.added)
-                    ChangeFeed.append(ff, folder, ProjectLog.Entry(System.currentTimeMillis(), ChangeFeed.SRC_RESTORE, "Dipulihkan dari Riwayat", listOf(ch)))
+                    if (sink != null) synchronized(sink) { sink.add(ch) } // satu butir gabungan dibuat restoreFeedBatch
+                    else ChangeFeed.append(ff, folder, ProjectLog.Entry(System.currentTimeMillis(), ChangeFeed.SRC_RESTORE, "Dipulihkan dari Riwayat", listOf(ch)))
                     refreshFeedBadge()
                     ok = true
                     msg = "Dipulihkan: ${f.name}"
@@ -1215,8 +1254,63 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
             }
             val okF = ok
             val msgF = msg
-            mainHandler.post { toast(msgF); if (okF) syncTabsAfterWrite(f); done(okF) }
+            mainHandler.post { if (!quiet) toast(msgF); if (okF) syncTabsAfterWrite(f); done(okF) }
         }
+    }
+
+    /** [EXT-DIFF5] Bahan Urungkan dari buku catatan: isi lama dicari di Riwayat lewat sidik jari. Null bila disk tak cocok atau versi lama sudah dipangkas. */
+    private fun ledgerUndo(h: HistoryStore, f: File, l: UndoLedger.Entry, diskText: String?): RestoreUndo? {
+        if (diskText == null || HistoryStore.fingerprint(diskText) != l.writtenFp) return null
+        val pf = l.prevFp ?: return RestoreUndo(null, diskText)
+        val v = h.list(f).firstOrNull { it.fp == pf } ?: return null
+        val prev = h.read(f, v) ?: return null
+        return RestoreUndo(prev, diskText)
+    }
+
+    /** [EXT-DIFF5] Setelah restart: kunci "idx|jalur" butir yang pemulihannya masih bisa diurungkan (isi disk masih persis hasil pemulihan). Hanya butir luar terbaru per berkas. [done] di thread utama. */
+    internal fun findUndoable(items: List<ChangeFeed.Item>, done: (List<String>) -> Unit) {
+        val led = undoLedger ?: return
+        runIo {
+            val out = ArrayList<String>()
+            try {
+                val seen = HashSet<String>()
+                items.forEachIndexed { idx, item ->
+                    if (item.entry.source != ChangeFeed.SRC_EXTERNAL) return@forEachIndexed
+                    for (c in item.entry.files) {
+                        val f = File(File(item.folder), c.path)
+                        if (!seen.add(f.path)) continue
+                        val l = led.get(f.path) ?: continue
+                        val disk = if (f.isFile) FileStore.readForOpen(f) else null
+                        if (disk != null && HistoryStore.fingerprint(disk.text) == l.writtenFp) out.add("$idx|${c.path}")
+                    }
+                }
+            } catch (e: Exception) {
+                // best-effort
+            }
+            mainHandler.post { done(out) }
+        }
+    }
+
+    /** [EXT-DIFF5] Pulihkan beberapa berkas satu butir feed berurutan; satu butir feed "pemulihan" gabungan, satu toast ringkasan. [done] di thread utama (hasil per berkas, urutan sama). */
+    internal fun restoreFeedBatch(folder: File, files: List<ProjectLog.FileChange>, entryTime: Long, done: (List<Boolean>) -> Unit) {
+        val ff = feedFile
+        val sink = ArrayList<ProjectLog.FileChange>()
+        val res = ArrayList<Boolean>()
+        fun next(i: Int) {
+            if (i >= files.size) {
+                val n = res.count { it }
+                toast(if (n == files.size) "Dipulihkan $n berkas" else "Dipulihkan $n dari ${files.size} berkas")
+                val merged = synchronized(sink) { sink.toList() }
+                if (ff != null && merged.isNotEmpty()) runIo {
+                    ChangeFeed.append(ff, folder, ProjectLog.Entry(System.currentTimeMillis(), ChangeFeed.SRC_RESTORE, "Dipulihkan dari Riwayat", merged))
+                    refreshFeedBadge()
+                }
+                done(res)
+                return
+            }
+            restoreFeedFile(folder, files[i], entryTime, true, sink) { ok -> res.add(ok); next(i + 1) }
+        }
+        next(0)
     }
 
     /** [EXT-DIFF3] Batalkan pemulihan terakhir [c] (hanya bila isi disk masih persis hasil pemulihan). [done] di thread utama. */
@@ -1225,17 +1319,19 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         val ff = feedFile
         val f = File(folder, c.path)
         val u = restoreUndo[f.path]
-        if (h == null || ff == null || u == null) { toast("Tidak ada pemulihan yang bisa dibatalkan"); done(false); return }
+        val led = if (u == null) undoLedger?.get(f.path) else null // [EXT-DIFF5] setelah restart: pakai buku catatan
+        if (h == null || ff == null || (u == null && led == null)) { toast("Tidak ada pemulihan yang bisa dibatalkan"); done(false); return }
         if (tabBlocksRestore(f)) { toast("${f.name} sedang diedit di tab. Simpan atau tutup dulu."); done(false); return }
         runIo {
             var ok = false
             var msg = "Gagal membatalkan pemulihan ${f.name}"
             try {
                 val disk = if (f.isFile) FileStore.readForOpen(f) else null
-                if (disk == null || disk.text != u.written) {
-                    msg = "Berkas sudah berubah lagi, pemulihan tidak dibatalkan"
+                val u2 = u ?: led?.let { l -> ledgerUndo(h, f, l, disk?.text) }
+                if (disk == null || u2 == null || disk.text != u2.written) {
+                    msg = "Berkas sudah berubah lagi atau versi lama sudah dipangkas, pemulihan tidak dibatalkan"
                 } else {
-                    val prev = u.prev
+                    val prev = u2.prev
                     if (prev == null) {
                         ok = f.delete()
                     } else {
@@ -1245,6 +1341,7 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
                     }
                     if (ok) {
                         restoreUndo.remove(f.path)
+                        undoLedger?.remove(f.path)
                         val ch = if (prev == null) ProjectLog.FileChange(c.path, 'D', 0, c.removed) else ProjectLog.FileChange(c.path, 'M', c.added, c.removed)
                         ChangeFeed.append(ff, folder, ProjectLog.Entry(System.currentTimeMillis(), ChangeFeed.SRC_RESTORE, "Pemulihan dibatalkan", listOf(ch)))
                         refreshFeedBadge()

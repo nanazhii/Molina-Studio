@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect // [EXT-DIFF4]
 import androidx.compose.runtime.mutableStateMapOf // [EXT-DIFF3]
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,6 +39,7 @@ import com.molina.code.guard.ChangeFeed
 import com.molina.code.guard.ProjectLog
 import com.molina.code.history.HistoryKind // [EXT-DIFF]
 import com.molina.code.history.RestorePlan // [EXT-DIFF3]
+import com.molina.code.history.ShadowPolicy // [EXT-DIFF4]
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -56,6 +58,10 @@ internal fun ChangeFeedDialog(session: CodeSession, view: ChangeFeedView, onDism
     val open = remember(view) { mutableStateOf(-1) }
     val acts = remember(view) { mutableStateMapOf<String, Int>() } // [EXT-DIFF3] status tombol per berkas: 0 Pulihkan, 1 Yakin?, 2 Urungkan, 3 sibuk
     val fmt = remember { SimpleDateFormat("dd MMM yyyy HH:mm", Locale("id", "ID")) }
+    val confirmClear = remember { mutableStateOf(false) } // [EXT-DIFF4]
+    LaunchedEffect(Unit) { session.refreshShadowUsage() }
+    val bulkConfirm = remember(view) { mutableStateOf(-1) } // [EXT-DIFF5] butir yang menunggu konfirmasi "Pulihkan semua"
+    LaunchedEffect(view) { session.findUndoable(view.items) { keys -> for (k in keys) acts[k] = 2 } } // tombol Urungkan tahan restart
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp).win7DialogFrame(shape)) {
             BasicText(
@@ -99,7 +105,11 @@ internal fun ChangeFeedDialog(session: CodeSession, view: ChangeFeedView, onDism
                             )
                             val via = ChangeFeed.sourceLabel(e.source)
                             BasicText(
-                                text = fmt.format(Date(e.time)) + (if (via.isEmpty()) "" else " \u00B7 $via") + " \u00B7 ${item.folder}",
+                                text = buildAnnotatedString {
+                                    append(fmt.format(Date(e.time)))
+                                    if (via.isNotEmpty()) { append(" \u00B7 "); withStyle(SpanStyle(color = feedSourceColor(e.source))) { append(via) } }
+                                    append(" \u00B7 ${item.folder}")
+                                },
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 style = TextStyle(color = CodeColors.TextSecondary, fontSize = 11.sp)
@@ -120,6 +130,24 @@ internal fun ChangeFeedDialog(session: CodeSession, view: ChangeFeedView, onDism
                                         session.toast("Berkas tidak ada lagi: ${c.path}")
                                     }
                                 }
+                                if (e.source == ChangeFeed.SRC_EXTERNAL) { // [EXT-DIFF5]
+                                    val todo = e.files.filter { RestorePlan.canOffer(true, it.kind, it.added, it.removed) && (acts["$idx|${it.path}"] ?: 0) == 0 }
+                                    if (todo.size >= 2) {
+                                        BasicText(
+                                            text = if (bulkConfirm.value == idx) "Yakin pulihkan ${todo.size} berkas?" else "Pulihkan semua (${todo.size})",
+                                            modifier = Modifier.padding(vertical = 6.dp).clickable {
+                                                if (bulkConfirm.value == idx) {
+                                                    bulkConfirm.value = -1
+                                                    for (t in todo) acts["$idx|${t.path}"] = 3
+                                                    session.restoreFeedBatch(File(item.folder), todo, e.time) { res ->
+                                                        todo.forEachIndexed { i, t -> acts["$idx|${t.path}"] = if (res.getOrNull(i) == true) 2 else 0 }
+                                                    }
+                                                } else bulkConfirm.value = idx
+                                            },
+                                            style = TextStyle(color = CodeColors.Brand, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        )
+                                    }
+                                }
                                 if (e.omitted > 0) {
                                     BasicText(
                                         text = "dan ${e.omitted} berkas lain",
@@ -132,6 +160,36 @@ internal fun ChangeFeedDialog(session: CodeSession, view: ChangeFeedView, onDism
                         Box(Modifier.fillMaxWidth().height(CodeDimens.Hairline).background(CodeColors.Hairline))
                     }
                 }
+            }
+            Box(Modifier.fillMaxWidth().height(CodeDimens.Hairline).background(CodeColors.Hairline))
+            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) { // [EXT-DIFF4] pengaturan pantau
+                ChoiceChip(
+                    "Pantau perubahan otomatis: ${if (session.watchAuto) "aktif" else "mati"}",
+                    session.watchAuto, Modifier.fillMaxWidth()
+                ) { session.toggleWatchAuto() }
+                Spacer(Modifier.height(6.dp))
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    BasicText(
+                        text = ShadowPolicy.usageLine(session.shadowBytes),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                        style = TextStyle(color = CodeColors.TextSecondary, fontSize = 12.sp)
+                    )
+                    BasicText(
+                        text = if (confirmClear.value) "Yakin?" else "Bersihkan",
+                        maxLines = 1,
+                        modifier = Modifier.clickable {
+                            if (confirmClear.value) { confirmClear.value = false; session.clearShadow() } else confirmClear.value = true
+                        }.padding(start = 10.dp),
+                        style = TextStyle(color = CodeColors.Brand, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+                BasicText(
+                    text = ShadowPolicy.EXCLUSION_NOTE,
+                    style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 11.sp)
+                )
             }
             Box(Modifier.fillMaxWidth().height(CodeDimens.Hairline).background(CodeColors.Hairline))
             Row(
@@ -184,6 +242,13 @@ private fun FeedFileRow(c: ProjectLog.FileChange, action: String?, onAction: () 
             )
         }
     }
+}
+
+/** [EXT-DIFF5] Warna label sumber butir: dari luar = amber (peringatan), pemulihan = hijau merek, lainnya netral. */
+private fun feedSourceColor(source: String): androidx.compose.ui.graphics.Color = when (source) {
+    ChangeFeed.SRC_EXTERNAL -> CodeColors.Warning
+    ChangeFeed.SRC_RESTORE -> CodeColors.Brand
+    else -> CodeColors.TextSecondary
 }
 
 /** [EXT-DIFF3] Label tombol pemulihan untuk satu berkas pada butir [idx]; null bila tak ditawarkan. */

@@ -234,6 +234,9 @@ class HistoryStore(private val root: File, private val clock: () -> Long = { Sys
         fun countLines(text: String): Int =
             if (text.isEmpty()) 0 else text.count { it == '\n' } + (if (text.endsWith('\n')) 0 else 1)
 
+        /** [EXT-DIFF5] Sidik jari isi, sama dengan HistoryVersion.fp (12 hex pertama SHA-1 UTF-8). */
+        fun fingerprint(text: String): String = sha1(text.toByteArray(Charsets.UTF_8)).take(12)
+
         private fun sha1(b: ByteArray): String =
             MessageDigest.getInstance("SHA-1").digest(b).joinToString("") { "%02x".format(it) }
     }
