@@ -46,6 +46,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -75,8 +78,8 @@ import java.io.File
 
 private val Brand = MolinaTheme.Brand
 // [DRAWER-HAMBURGER] lebar drawer: porsi layar, dijepit ke rentang ini (header butuh sekitar 200dp)
-private val DrawerMinWidth = 200.dp
-private val DrawerMaxWidth = 240.dp
+private val DrawerMinWidth = 224.dp // [DRAWER-FRAME] 200 -> 224
+private val DrawerMaxWidth = 264.dp // 240 -> 264
 private const val DrawerFraction = 0.36f
 
 /** [FILE-DRAWER2] Keadaan tree dipegang di sini (bukan remember) agar folder utama dan folder terbuka bertahan lintas pembukaan drawer. */
@@ -200,7 +203,14 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
         Column(
             Modifier.fillMaxHeight().width(drawerWidth)
                 .background(MaterialTheme.colorScheme.surface)
-                .border(1.dp, Color.White) // [DRAWER-HAMBURGER] bingkai putih: pembeda dari latar terminal yang sama-sama hitam
+                .drawWithContent { // [DRAWER-FRAME] bingkai putih redup (70%) di atas, bawah, dan kanan; tepi kiri tanpa garis
+                    drawContent()
+                    val w = 1.dp.toPx()
+                    val c = Color.White.copy(alpha = 0.7f)
+                    drawRect(c, Offset.Zero, Size(size.width, w))
+                    drawRect(c, Offset(0f, size.height - w), Size(size.width, w))
+                    drawRect(c, Offset(size.width - w, 0f), Size(w, size.height))
+                }
                 .clickable(interactionSource = swallow, indication = null, onClick = {})
                 .onHorizontalSwipe(22.dp, SwipeDirection.Left) { onClose() }
         ) {
