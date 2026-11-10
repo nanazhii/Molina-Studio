@@ -83,6 +83,11 @@ object ChangeFeed {
 
     private const val COVER_SLACK_MS = 2_000L
 
+    /** [CODE-FEED4] Sudah ada butir yang memuat [target] dan dicatat sejak [since] (waktu baseline folder)? Mencegah notifikasi ganda dengan nano/skrip. */
+    @Synchronized
+    fun coveredSince(file: File, target: File, since: Long): Boolean = parseAll(file).any { it.entry.time >= since &&
+        it.entry.files.any { c -> File(File(it.folder), c.path).path == target.path } }
+
     private fun line(unread: Boolean, folder: String, e: ProjectLog.Entry) = TAG + "\t" + (if (unread) "1" else "0") + "\t" + folder + "\t" + ProjectLog.encode(e)
 
     private fun parseAll(file: File): List<Item> {

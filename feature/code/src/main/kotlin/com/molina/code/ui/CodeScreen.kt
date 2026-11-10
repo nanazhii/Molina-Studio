@@ -58,6 +58,8 @@ fun CodeScreen(session: CodeSession, modifier: Modifier = Modifier, onExit: (() 
     val ctx = LocalContext.current
     SideEffect { session.toast = { msg -> Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show() } }
     LaunchedEffect(Unit) { session.refreshExternal() } // [CODE-GUARD] berkas berubah saat layar Code ditinggalkan
+    LaunchedEffect(Unit) { session.checkFolderChanges() } // [CODE-FEED4] perubahan folder saat Code tidak aktif (git pull, Terminal)
+    DisposableEffect(Unit) { onDispose { session.captureFolderBaseline() } } // [CODE-FEED4] baseline saat layar Code ditinggalkan
     session.active?.let { t -> // [CODE-LSP3] sinkron ke server saat tab aktif/dimuat/berkasnya berubah atau saklar dinyalakan
         LaunchedEffect(t.id, t.loading, t.file, t.editor, session.liveEnabled) { session.liveSync(t) }
     }

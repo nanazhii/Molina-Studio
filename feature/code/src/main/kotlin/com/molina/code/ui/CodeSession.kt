@@ -17,6 +17,7 @@ import com.molina.code.guard.ProjectStore
 import com.molina.code.guard.RunReport
 import com.molina.code.guard.NanoRunSnap // [NANO-RUNSNAP]
 import com.molina.code.guard.ChangeFeed // [CODE-FEED]
+import com.molina.code.guard.FolderWatch // [CODE-FEED4]
 import com.molina.code.guard.ScriptPrecheck
 import com.molina.code.history.HistoryKind
 import com.molina.code.history.HistoryStore
@@ -397,6 +398,8 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
     /** [CODE-FEED] Notifikasi perubahan berkas (berkas privat aplikasi), jumlah belum dibaca untuk lencana menu, dan potret dialog. */
     private val feedFile: File? = draftDir?.let { File(it, "changes.jsonl") }
     internal var feedUnread by mutableStateOf(0)
+    /** [CODE-FEED4] Baseline sidik jari folder (berkas privat aplikasi), dibandingkan tiap layar Code dibuka. */
+    private val watchDir: File? = draftDir?.let { File(it, "folder-watch") }
     internal var changeFeedView by mutableStateOf<ChangeFeedView?>(null)
     /** [NANO-INBOX] Folder inbox snapshot dari nano dan akar storage Android; diisi :app. Null = fitur mati. */
     var nanoInboxDir: File? = null
@@ -1039,6 +1042,43 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
             val items = try { ChangeFeed.read(f) } catch (e: Exception) { emptyList() }
             try { ChangeFeed.markAllRead(f) } catch (e: Exception) { /* best-effort */ }
             mainHandler.post { feedUnread = 0; changeFeedView = ChangeFeedView(items) }
+        }
+    }
+
+    /** [CODE-FEED4] Layar Code dibuka: bandingkan folder utama dengan baseline terakhir; selisihnya (di luar yang sudah tercatat skrip/nano) jadi satu notifikasi. */
+    internal fun checkFolderChanges() {
+        val wd = watchDir ?: return
+        val root = dir.root
+        val ff = feedFile
+        runIo {
+            try {
+                importNanoInbox() // catat dulu skrip nano yang tertunda agar tidak ganda
+                if (!root.isDirectory) return@runIo
+                val cur = FolderWatch.capture(root) ?: return@runIo
+                if (cur.isEmpty()) return@runIo // folder tak terbaca/kosong: jangan anggap semua berkas terhapus
+                val key = FolderWatch.keyFile(wd, root)
+                val old = FolderWatch.load(key, root)
+                val now = System.currentTimeMillis()
+                if (old != null && ff != null) {
+                    val ch = FolderWatch.diff(old.meta, cur).filter { !ChangeFeed.coveredSince(ff, File(root, it.path), old.time) }
+                    if (ch.isNotEmpty() && ChangeFeed.append(ff, root, FolderWatch.entry(ch, now))) refreshFeedBadge()
+                }
+                FolderWatch.save(key, FolderWatch.Baseline(now, root.path, cur))
+            } catch (e: Exception) { /* best-effort */ }
+        }
+    }
+
+    /** [CODE-FEED4] Layar Code ditinggalkan / Activity berhenti: simpan baseline sidik jari folder utama (perubahan sendiri ikut tercatat). */
+    internal fun captureFolderBaseline() {
+        val wd = watchDir ?: return
+        val root = dir.root
+        runIo {
+            try {
+                if (!root.isDirectory) return@runIo
+                val cur = FolderWatch.capture(root) ?: return@runIo
+                if (cur.isEmpty()) return@runIo
+                FolderWatch.save(FolderWatch.keyFile(wd, root), FolderWatch.Baseline(System.currentTimeMillis(), root.path, cur))
+            } catch (e: Exception) { /* best-effort */ }
         }
     }
 
@@ -1746,6 +1786,7 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         } catch (e: Exception) {
             // best-effort
         }
+        captureFolderBaseline() // [CODE-FEED4]
     }
 
     private fun snapshot(): DraftSnapshot? {
