@@ -178,6 +178,7 @@ private val KeyBlue = Color(0xFF448AFF)   // HOME, panah
 private val KeyGreen = Color(0xFF00E676)  // COPY, PASTE
 private val KeySave = Color(0xFF1EA7FF)   // [CODE-FEED5] SAVE nano: biru cerah, beda dari UNDO/REDO (KeyBlue) agar aksi simpan menonjol
 private val KeyFrame = Color(0xFF454A55)  // bingkai terluar panel extra keys
+private val NanoFrame = Color(0xFFD0D4DB)  // [NANO-FRAME-GREY] bingkai baris tombol nano: putih keabuan agar ikon RUN hijau menonjol
 private val KeyAmber = MolinaTheme.Brand  // TAB, menu, ENTER [XK-COMMENT]
 private val KeyNeutral = MolinaTheme.OnBackground // CTRL, ALT (menyala emas saat aktif)
 
@@ -233,7 +234,7 @@ private const val NanoRunGlyph = "\u25B8"
 /** [NANO-FRAMEKEYS] Tombol nano berbingkai tipis 1dp (warna tombol): dipakai RUN (ikon 26dp) dan QUIT (aksi utama). */
 @OptIn(ExperimentalFoundationApi::class) // combinedClickable [NANO-FRAMEKEYS-FIX]
 @Composable
-private fun FramedNanoKey(tint: Color, onClick: () -> Unit, content: @Composable () -> Unit) {
+private fun FramedNanoKey(tint: Color, onClick: () -> Unit, frame: Color = tint, content: @Composable () -> Unit) { // [NANO-RUN-CONTRAST]
     val haptic = LocalHapticFeedback.current
     val shape = RoundedCornerShape(8.dp)
     Box(
@@ -241,8 +242,8 @@ private fun FramedNanoKey(tint: Color, onClick: () -> Unit, content: @Composable
             .fillMaxWidth()
             .heightIn(min = 34.dp)
             .clip(shape)
-            .background(tint.copy(alpha = 0.12f), shape)
-            .border(1.dp, tint, shape)
+            .background(tint.copy(alpha = 0.20f), shape)
+            .border(1.dp, frame, shape)
             .combinedClickable(onClick = {
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 onClick()
@@ -339,13 +340,13 @@ private fun NanoKeys() {
             Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 2.dp)
                 .clip(shape)
                 .background(Color.Black, shape)
-                .border(2.dp, if (prompt == NanoPrompt.NONE) MolinaTheme.Brand else KeyAmber, shape)
+                .border(2.dp, if (prompt == NanoPrompt.NONE) NanoFrame else KeyAmber, shape) // [NANO-FRAME-GREY]
                 .horizontalScroll(rememberScrollState())
                 .padding(3.dp)
         ) {
             keys.forEach { (label, tint, seq) ->
                 Box(Modifier.width(keyWidth).padding(1.dp)) {
-                    if (prompt == NanoPrompt.NONE && label == NanoRunGlyph) FramedNanoKey(tint, { TerminalActions.send(seq) }) { // [NANO-FRAMEKEYS]
+                    if (prompt == NanoPrompt.NONE && label == NanoRunGlyph) FramedNanoKey(tint, { TerminalActions.send(seq) }, NanoFrame) { // [NANO-FRAMEKEYS] [NANO-RUN-CONTRAST] bingkai abu, ikon hijau
                         Icon(Icons.Filled.PlayArrow, contentDescription = "Jalankan skrip (Alt+R)", tint = tint, modifier = Modifier.size(26.dp))
                     } else if (prompt == NanoPrompt.NONE && label == "QUIT") FramedNanoKey(tint, { TerminalActions.send(seq) }) {
                         Text(label, fontSize = 14.sp, maxLines = 1, fontWeight = FontWeight.Bold, color = tint)
@@ -361,7 +362,7 @@ private fun NanoKeys() {
 @Composable
 private fun NanoHandle(title: String, open: Boolean, forced: Boolean, onToggle: () -> Unit) {
     val shape = RoundedCornerShape(8.dp)
-    val tint = if (forced) KeyAmber else MolinaTheme.Brand
+    val tint = if (forced) KeyAmber else NanoFrame // [NANO-FRAME-GREY]
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 1.dp)
             .clip(shape)
