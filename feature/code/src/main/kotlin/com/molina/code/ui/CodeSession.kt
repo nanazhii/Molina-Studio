@@ -18,6 +18,7 @@ import com.molina.code.guard.RunReport
 import com.molina.code.guard.ScriptPrecheck
 import com.molina.code.history.HistoryKind
 import com.molina.code.history.HistoryStore
+import com.molina.code.history.NanoInbox // [NANO-INBOX]
 import com.molina.code.preview.PreviewKind
 import com.molina.code.preview.PythonTerminalRun
 import com.molina.code.preview.TerminalRunLang
@@ -391,6 +392,20 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
 
     /** [CODE-HISTORY] Riwayat versi per berkas (folder privat, bersama folder draf); null bila sesi tanpa folder draf. */
     internal val history: HistoryStore? = draftDir?.let { HistoryStore(File(it, "history")) }
+    /** [NANO-INBOX] Folder inbox snapshot dari nano dan akar storage Android; diisi :app. Null = fitur mati. */
+    var nanoInboxDir: File? = null
+    var nanoStorageRoot: File? = null
+    private val nanoLock = Any()
+
+    /** [NANO-INBOX] Impor snapshot nano ke Riwayat. Memblokir: panggil dari thread IO. Mengembalikan jumlah versi baru. */
+    fun importNanoInbox(): Int {
+        val h = history ?: return 0
+        val dir = nanoInboxDir ?: return 0
+        val root = nanoStorageRoot ?: return 0
+        if (!dir.isDirectory) return 0
+        return synchronized(nanoLock) { try { NanoInbox.import(dir, h, root) } catch (e: Exception) { 0 } }
+    }
+
     var historyOpen by mutableStateOf(false)
     /** [CODE-HISTORY6] Bila terisi, dialog Riwayat langsung membuka versi terbaru berjenis ini (dari kartu perubahan skrip). */
     var historyFocus by mutableStateOf<HistoryKind?>(null)

@@ -20,6 +20,8 @@ if [ -n "$file" ]; then
   case "$file" in /*) ;; *) file="$PWD/$file" ;; esac
   MOLINA_NANO_FILE="$file"; export MOLINA_NANO_FILE
   name=$(basename "$file" | tr -d '\000-\037\177' | cut -c1-40)
+else
+  unset MOLINA_NANO_FILE # [NANO-STALE-ENV] tanpa berkas: jangan warisi berkas lama dari skrip yang dijalankan lewat RUN nano
 fi
 if [ -t 1 ]; then
   printf '\033]0;nano: %s\007' "$name"
@@ -39,6 +41,37 @@ if [ -n "$file" ] && [ "${MOLINA_NANO_TEMPLATE:-on}" != "off" ] && [ -x "$runbin
     if [ "$has_line" -eq 0 ]; then set -- +2 "$@"; fi
   fi
 fi
+# [NANO-INBOX] Salin berkas ke inbox riwayat Code (<Molina>/.history-inbox) sebelum/sesudah nano; aplikasi mengimpornya ke
+# Riwayat versi. Jenis: n = sebelum nano, o = sesudah nano. Hanya berkas di /sdcard (terlihat oleh aplikasi), maks 2 MB,
+# tanpa duplikat (cksum), inbox maks 200 berkas. Matikan: MOLINA_NANO_HISTORY=off. Gagal = diam (tidak mengganggu nano).
+inbox="${MOLINA_HISTORY_INBOX:-/sdcard/Molina/.history-inbox}"
+snap_last=""; snap_n=0
+snap() {
+  [ "${MOLINA_NANO_HISTORY:-on}" != "off" ] || return 0
+  [ -n "$file" ] && [ -f "$file" ] && [ -s "$file" ] || return 0
+  case "$file" in /sdcard/*|/storage/emulated/0/*) ;; *) [ -n "${MOLINA_HISTORY_PREFIX:-}" ] && case "$file" in "$MOLINA_HISTORY_PREFIX"/*) ;; *) return 0 ;; esac || return 0 ;; esac
+  [ -d "$(dirname "$inbox")" ] || return 0
+  [ "$(printf %s "$file" | tr -d '\000-\037\177')" = "$file" ] || return 0
+  sn_sz=$(wc -c < "$file" 2>/dev/null) || return 0
+  [ "${sn_sz:-0}" -le 2000000 ] || return 0
+  sn_sum=$(cksum < "$file" 2>/dev/null) || return 0
+  [ "$sn_sum" != "$snap_last" ] || return 0
+  mkdir -p "$inbox" 2>/dev/null || return 0
+  sn_cnt=$(ls -1 "$inbox" 2>/dev/null | wc -l)
+  [ "${sn_cnt:-0}" -lt 200 ] || return 0
+  sn_ts=$(date +%s%3N 2>/dev/null)
+  case "$sn_ts" in ""|*[!0-9]*) sn_ts="$(date +%s)000" ;; esac
+  snap_n=$((snap_n + 1))
+  sn_id="${sn_ts}_$1_$$_$snap_n"
+  cp "$file" "$inbox/$sn_id.snap" 2>/dev/null || return 0
+  if printf '%s\n' "$file" > "$inbox/$sn_id.tmp" 2>/dev/null && mv "$inbox/$sn_id.tmp" "$inbox/$sn_id.path" 2>/dev/null; then
+    snap_last="$sn_sum"
+  else
+    rm -f "$inbox/$sn_id.snap" "$inbox/$sn_id.tmp"
+  fi
+  return 0
+}
+[ "$tpl_made" -eq 1 ] || snap n
 # [NANO-RUN] Alt+R di nano: simpan + buat berkas penanda + keluar. Setelah nano selesai, skrip dijalankan dari berkasnya.
 flag="${TMPDIR:-/tmp}/molina-run.$$"
 rm -f "$flag"
@@ -68,6 +101,7 @@ rm -f "$fixflag"
 if [ "$tpl_made" -eq 1 ] && [ -f "$file" ] && [ "$(cksum < "$file")" = "$tpl_sum" ]; then
   if [ "$tpl_existed" -eq 1 ]; then : > "$file"; else rm -f "$file"; fi
 fi
+snap o
 if [ ! -e "$flag" ] && [ "$st" -eq 0 ] && [ -x "$runbin" ] && [ -n "${MOLINA_NANO_FILE:-}" ] && [ -f "$MOLINA_NANO_FILE" ] \
    && [ -t 1 ] && ( : < /dev/tty ) 2>/dev/null; then
   "$runbin" --hint "$MOLINA_NANO_FILE"
@@ -86,4 +120,5 @@ if [ -e "$flag" ]; then
     st=$?
   fi
 fi
+snap o
 exit $st

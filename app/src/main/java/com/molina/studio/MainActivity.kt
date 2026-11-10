@@ -258,6 +258,9 @@ class MainActivity : ComponentActivity() {
                 var codeOpen by rememberSaveable { mutableStateOf(false) } // Editor Code layar penuh, dibuka dari Berkas
                 androidx.compose.runtime.LaunchedEffect(selected) { if (selected != Tab.Files.ordinal) codeOpen = false }
                 androidx.compose.runtime.LaunchedEffect(selected) { com.molina.core.common.CrashContext.tab = this@MainActivity.getString(Tab.entries[selected].labelRes) }
+                androidx.compose.runtime.LaunchedEffect(selected, codeOpen) { // [NANO-INBOX] snapshot nano masuk Riwayat Code saat pindah tab
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { codeSessionRef?.importNanoInbox() }
+                }
                 val codeSession = remember {
                     com.molina.code.ui.CodeSession(
                         AppPaths.get(this@MainActivity).appRoot.path, // [WORKSPACE-IN-MOLINA]
@@ -278,6 +281,8 @@ class MainActivity : ComponentActivity() {
                         }
                         it.terminalSink = { text, execute -> com.molina.studio.code.CodeTerminalBridge.deliver(this@MainActivity, text, execute) }
                         it.guestPathResolver = { f -> com.molina.studio.code.CodeTerminalBridge.guestPath(f) } // [CODE-PYRUN]
+                        it.nanoInboxDir = java.io.File(AppPaths.get(this@MainActivity).appRoot, com.molina.code.history.NanoInbox.DIR_NAME) // [NANO-INBOX]
+                        it.nanoStorageRoot = android.os.Environment.getExternalStorageDirectory()
                         it.debianRoot = { com.molina.studio.terminal.RootfsManager.rootfsDir(applicationContext) } // [CODE-DEBLIB]
                         val runPrefs = this@MainActivity.getSharedPreferences("molina_code_run", android.content.Context.MODE_PRIVATE) // [CODE-PYRUN2]
                         it.runStore = object : com.molina.code.ui.RunStore { // [CODE-PYRUN2]

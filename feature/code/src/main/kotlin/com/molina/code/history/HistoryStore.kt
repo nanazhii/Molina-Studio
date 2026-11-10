@@ -16,7 +16,9 @@ enum class HistoryKind(val code: Char, val label: String) {
     BEFORE('b', "Sebelum simpan"),
     SCRIPT('p', "Sebelum skrip"),
     AFTER_SCRIPT('a', "Sesudah skrip"), // [CODE-HISTORY5]
-    RELOAD('r', "Sebelum muat ulang");
+    RELOAD('r', "Sebelum muat ulang"),
+    NANO_BEFORE('n', "Sebelum nano"), // [NANO-INBOX]
+    NANO_SAVED('o', "Sesudah nano"); // [NANO-INBOX]
 
     companion object {
         fun of(c: Char): HistoryKind? = entries.firstOrNull { it.code == c }
@@ -48,7 +50,7 @@ class HistoryStore(private val root: File, private val clock: () -> Long = { Sys
      * terlalu besar, atau gagal. Waktu dijamin naik terus per berkas walau jam sistem mundur.
      */
     @Synchronized
-    fun record(file: File, text: String, kind: HistoryKind): HistoryVersion? {
+    fun record(file: File, text: String, kind: HistoryKind, at: Long? = null): HistoryVersion? { // [NANO-INBOX] at = waktu asli (ms)
         if (text.length > MAX_CHARS) return null
         return try {
             val dir = dirFor(file)
@@ -58,7 +60,7 @@ class HistoryStore(private val root: File, private val clock: () -> Long = { Sys
             if (!dir.isDirectory && !dir.mkdirs() && !dir.isDirectory) return null
             val marker = File(dir, "path.txt")
             if (!marker.isFile) marker.writeText(file.path, Charsets.UTF_8)
-            val time = maxOf(clock(), (latest?.time ?: 0L) + 1)
+            val time = maxOf(at ?: clock(), (latest?.time ?: 0L) + 1)
             val lines = countLines(text)
             val name = String.format(Locale.US, "%013d_%c_%s_%d_%d.gz", time, kind.code, fp, text.length, lines)
             val tmp = File(dir, "$name.tmp")

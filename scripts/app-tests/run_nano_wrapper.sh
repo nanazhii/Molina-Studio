@@ -31,6 +31,9 @@ out="$(run -l +5 /x/y.txt)"
 check "opsi dan +BARIS dilewati" '[[ "$out" == *"FILE:/x/y.txt"* ]]'
 out="$(run)"
 check "tanpa berkas: MOLINA_NANO_FILE kosong" '[[ "$out" == *"FILE:" || "$out" == *"FILE:"[[:space:]]* ]]'
+# [NANO-STALE-ENV] MOLINA_NANO_FILE warisan (mis. tes dijalankan dari skrip lewat RUN nano) tidak bocor ke nano tanpa berkas
+out="$(MOLINA_NANO_FILE=/warisan/lama.sh run)"
+check "tanpa berkas: MOLINA_NANO_FILE warisan dibersihkan" '[[ "$out" != *"/warisan/lama.sh"* ]]'
 touch "$T/home/.nanorc"; out="$(run a.txt)"
 check "~/.nanorc pengguna diutamakan" '[[ "$out" == *"ARGS:a.txt"* && "$out" != *"--rcfile"* ]]'
 rm -f "$T/home/.nanorc"
@@ -158,5 +161,27 @@ PYX
   out="$(MOLINA_RUN_NOTES=off ptyw ENTER o.py)"
   check "pty: tips dimatikan -> tidak ada saran" '[[ "$out" != *"Perbaiki sekarang"* && "$out" != *"saran untuk"* ]] && [ "$(cat "$T/work/o.py")" = "print(5)" ]'
 fi
+
+# [NANO-INBOX] snapshot sebelum/sesudah nano masuk inbox riwayat Code
+mkdir -p "$T/sd/Molina" "$T/sd/work"; IB="$T/sd/Molina/.history-inbox"
+hist() { (cd "$T/sd/work" && HOME="$T/home" XDG_CONFIG_HOME="$T/home/.config" MOLINA_NANO_TEMPLATE=off MOLINA_HISTORY_INBOX="$IB" MOLINA_HISTORY_PREFIX="$T/sd" MOLINA_NANO_BIN="$T/tplnano" MOLINA_RUN_BIN="$T/mrun" MOLINA_NANORC="$T/rc" sh "$W" "$@" 2>&1); }
+printf 'satu\n' > "$T/sd/work/h.txt"
+FAKE_EDIT=1 hist h.txt >/dev/null
+nb=$(ls "$IB"/*_n_*.snap 2>/dev/null | head -n 1); no=$(ls "$IB"/*_o_*.snap 2>/dev/null | head -n 1)
+check "inbox: snapshot sebelum nano (n) berisi isi awal" '[ -n "$nb" ] && [ "$(cat "$nb")" = "satu" ]'
+check "inbox: snapshot sesudah nano (o) berisi hasil edit" '[ -n "$no" ] && grep -q "print(1)" "$no"'
+check "inbox: .path berisi jalur berkas" '[ -n "$nb" ] && [ "$(cat "${nb%.snap}.path")" = "$T/sd/work/h.txt" ]'
+check "inbox: urutan nama = n lalu o" '[ "$(ls "$IB" | grep "\.path$" | sed "s/^[0-9]*_\(.\)_.*/\1/" | tr -d "\n")" = "no" ]'
+rm -rf "$IB"; hist h.txt >/dev/null
+check "inbox: nano tanpa perubahan -> hanya snapshot sebelum" '[ "$(ls "$IB" | grep -c "_n_.*\.path$")" = "1" ] && [ "$(ls "$IB" | grep -c "_o_.*\.path$")" = "0" ]'
+rm -rf "$IB"; MOLINA_NANO_HISTORY=off FAKE_EDIT=1 hist h.txt >/dev/null
+check "inbox: MOLINA_NANO_HISTORY=off -> tidak ada inbox" '[ ! -e "$IB" ]'
+rm -rf "$IB"; rm -f "$T/sd/work/baru.txt"; FAKE_EDIT=1 hist baru.txt >/dev/null
+check "inbox: berkas baru dari nano -> hanya snapshot sesudah (o)" '[ "$(ls "$IB" | grep -c "_n_.*\.path$")" = "0" ] && [ "$(ls "$IB" | grep -c "_o_.*\.path$")" = "1" ]'
+rm -rf "$IB"; printf 'x\n' > "$T/work/luar.txt"; (cd "$T/work" && HOME="$T/home" XDG_CONFIG_HOME="$T/home/.config" MOLINA_NANO_TEMPLATE=off MOLINA_HISTORY_INBOX="$IB" MOLINA_HISTORY_PREFIX="$T/sd" MOLINA_NANO_BIN="$T/tplnano" MOLINA_RUN_BIN="$T/mrun" MOLINA_NANORC="$T/rc" FAKE_EDIT=1 sh "$W" luar.txt >/dev/null 2>&1)
+check "inbox: berkas di luar /sdcard tidak disalin" '[ ! -e "$IB" ]'
+rm -rf "$IB"; mkdir -p "$IB"; i=0; while [ $i -lt 200 ]; do : > "$IB/pad$i"; i=$((i+1)); done; FAKE_EDIT=1 hist h.txt >/dev/null
+check "inbox: penuh (200 berkas) -> tidak menambah" '[ "$(ls "$IB" | grep -c "\.snap$")" = "0" ]'
+rm -rf "$IB"
 
 echo "Selesai: $runs kasus, $fails gagal"; [ "$fails" -eq 0 ]

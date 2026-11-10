@@ -83,7 +83,7 @@ internal fun HistoryDialog(session: CodeSession, tab: EditorTab, onDismiss: () -
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(file?.path) {
-        versions = if (store == null || file == null) emptyList() else withContext(Dispatchers.IO) { store.list(file) }
+        versions = if (store == null || file == null) emptyList() else withContext(Dispatchers.IO) { session.importNanoInbox(); store.list(file) } // [NANO-INBOX]
         // [CODE-HISTORY6] dibuka dari kartu perubahan skrip: langsung tampilkan versi terbaru berjenis itu ("Sesudah skrip")
         val focus = session.historyFocus
         if (focus != null) {
@@ -580,6 +580,8 @@ private fun kindColor(k: HistoryKind): Color = when (k) {
     HistoryKind.SAVED -> CodeColors.Brand.copy(alpha = 0.85f)
     HistoryKind.SCRIPT, HistoryKind.AFTER_SCRIPT -> CodeColors.Warning
     HistoryKind.BEFORE, HistoryKind.RELOAD -> CodeColors.SecondaryNeutral
+    HistoryKind.NANO_BEFORE -> CodeColors.SecondaryNeutral // [NANO-INBOX]
+    HistoryKind.NANO_SAVED -> CodeColors.Brand.copy(alpha = 0.85f)
 }
 
 /** [CODE-HISTORY7] Pasang hasil pengembalian satu blok ke editor sebagai SATU langkah undo (tanpa menyimpan ke disk). */
