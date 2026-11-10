@@ -204,13 +204,13 @@ private fun startCursorBlink(v: TerminalView) {
 /**
  * [NANO-KEYS] [NANO-KEYS-V2] Baris tombol sementara saat nano aktif. Pembungkus nano menamai sesi "nano: <berkas>" lewat
  * judul terminal dan mengosongkannya saat nano selesai. Tiap tombol mengirim urutan kontrol bawaan nanorc Molina.
- * Baris bisa digeser ke samping: enam tombol pertama (SAVE RUN UNDO FIND ALL QUIT) terlihat di ponsel potret,
- * sisanya (REDO GOTO REPL CODE) ada di sebelah kanan.
+ * Baris bisa digeser ke samping: tujuh tombol pertama (SAVE ▸ UNDO FIND ALL QUIT REDO) terlihat di ponsel potret,
+ * sisanya (GOTO REPL CODE FIX) ada di sebelah kanan. [NANO-KEYS-V3] RUN berupa ikon; VIEW dihapus (ada di editor Code).
  */
-private val NanoKeyWidth = 60.dp
+private val NanoKeyWidth = 48.dp // [NANO-KEYS-V3] 60dp -> 48dp
 private val NanoKeyList = listOf(
     Triple("SAVE", KeyGreen, "\u0013"),    // ^S
-    Triple("RUN", KeyGreen, "\u001br"),    // [NANO-RUN] Alt+R: simpan, keluar, jalankan skrip dari berkasnya
+    Triple("\u25B8", KeyGreen, "\u001br"), // RUN [NANO-RUN] Alt+R: simpan, keluar, jalankan skrip dari berkasnya
     Triple("UNDO", KeyBlue, "\u001a"),     // ^Z
     Triple("FIND", KeyAmber, "\u0006"),    // ^F
     Triple("ALL", KeyAmber, "\u0001"),     // ^A pilih semua (makro nanorc)
@@ -219,7 +219,6 @@ private val NanoKeyList = listOf(
     Triple("GOTO", KeyAmber, "\u0007"),    // ^G ke baris
     Triple("REPL", KeyAmber, "\u0012"),    // ^R ganti
     Triple("CODE", KeyGreen, "\u001bo"),   // Alt+O: simpan lalu buka di Code
-    Triple("VIEW", KeyGreen, "\u001bp"),   // [NANO-PREVIEW] Alt+P: simpan lalu pratinjau MD/HTML/JSON
     Triple("FIX", KeyAmber, "\u001bf")     // [NANO-FIX] Alt+F: simpan, molina-run --fix (shebang + chmod +x), lalu nano dibuka lagi
 )
 

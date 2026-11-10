@@ -341,7 +341,7 @@ private fun ScriptAccordion(
             )
             if (hint != null) { // [SCRIPT-HINT]
                 Text(
-                    "\u25CF", color = MolinaTheme.Brand, fontSize = 12.sp,
+                    "\u25CF", color = MolinaTheme.Warn, fontSize = 12.sp, // [SCRIPT-HINT-WARN]
                     modifier = Modifier.clickable(onClick = onToggle).padding(horizontal = 8.dp, vertical = 14.dp)
                 )
             }
@@ -378,7 +378,7 @@ private fun ScriptAccordion(
                 Text("Dari: $from", color = W7D.TextDim, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(bottom = 8.dp))
             }
             if (hint != null) { // [SCRIPT-HINT]
-                Text(hint.message, color = MolinaTheme.Brand, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
+                Text(hint.message, color = MolinaTheme.Warn, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
             }
             val code = remember(item.body) { codePreview(item.body) }
             CommandBlock(code)
@@ -392,7 +392,7 @@ private fun ScriptAccordion(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (hint?.kind == ScriptHintParser.Kind.Fix) ActionText("FIX", MolinaTheme.Brand, onClick = onFix) // [SCRIPT-HINT]
+                        if (hint?.kind == ScriptHintParser.Kind.Fix) ActionText("FIX", MolinaTheme.Warn, onClick = onFix) // [SCRIPT-HINT]
                         ActionText("EDIT", Blue, onClick = onEdit)
                         ActionText("NANO", Blue, onClick = onNano) // [NANO-SCRIPT]
                         ActionText("CATATAN", W7D.Ink, onClick = onNote)
