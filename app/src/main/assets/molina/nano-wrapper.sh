@@ -72,6 +72,62 @@ snap() {
   return 0
 }
 [ "$tpl_made" -eq 1 ] || snap n
+# [NANO-RUNSNAP] Sebelum skrip dijalankan lewat Alt+R: salin isi folder skrip (hanya tingkat itu) ke
+# <inbox>/<ms>_r_<pid>_<n>.runsnap/ supaya Code bisa membuat kartu "Perubahan skrip" + Urungkan. Isi: root (jalur folder),
+# files/ (salinan cp -p, mtime asli ikut), big/ + big.tsv (berkas besar/biner: hanya ukuran + mtime), done (penanda selesai,
+# ditulis sesudah skrip). Hanya /sdcard, maks 200 berkas, berkas <= 512 KB, total <= 16 MB. Matikan: MOLINA_NANO_HISTORY=off.
+runsnap_dir=""
+runsnap_begin() {
+  runsnap_dir=""
+  [ "${MOLINA_NANO_HISTORY:-on}" != "off" ] || return 0
+  rs_file="$1"; [ -f "$rs_file" ] || return 0
+  rs_d=$(dirname "$rs_file")
+  rs_ok=0
+  case "$rs_d/" in /sdcard/*|/storage/emulated/0/*) rs_ok=1 ;; esac
+  if [ "$rs_ok" -eq 0 ] && [ -n "${MOLINA_HISTORY_PREFIX:-}" ]; then case "$rs_d/" in "$MOLINA_HISTORY_PREFIX"/*) rs_ok=1 ;; esac; fi
+  [ "$rs_ok" -eq 1 ] || return 0
+  [ -d "$(dirname "$inbox")" ] || return 0
+  mkdir -p "$inbox" 2>/dev/null || return 0
+  rs_cnt=$(ls -1 "$inbox" 2>/dev/null | wc -l)
+  [ "${rs_cnt:-0}" -lt 200 ] || return 0
+  rs_ts=$(date +%s%3N 2>/dev/null)
+  case "$rs_ts" in ""|*[!0-9]*) rs_ts="$(date +%s)000" ;; esac
+  snap_n=$((snap_n + 1))
+  rs_t="$inbox/${rs_ts}_r_$$_$snap_n.runsnap"
+  mkdir -p "$rs_t/files" "$rs_t/big" 2>/dev/null || return 0
+  : > "$rs_t/big.tsv"
+  printf '%s\n' "$rs_d" > "$rs_t/root" 2>/dev/null || { rm -rf "$rs_t"; return 0; }
+  rs_n=0; rs_tot=0
+  for rs_f in "$rs_d"/* "$rs_d"/.[!.]*; do
+    [ -f "$rs_f" ] && [ ! -L "$rs_f" ] || continue
+    rs_b="${rs_f##*/}"
+    case "$rs_b" in *.pyc) continue ;; esac
+    [ "$(printf %s "$rs_b" | tr -d '\000-\037\177')" = "$rs_b" ] || continue
+    rs_n=$((rs_n + 1))
+    if [ "$rs_n" -gt 200 ]; then rm -rf "$rs_t"; return 0; fi
+    rs_sz=$(wc -c < "$rs_f" 2>/dev/null) || continue
+    rs_sz=${rs_sz:-0}
+    rs_bin=0
+    case "$(printf %s "${rs_b##*.}" | tr 'A-Z' 'a-z')" in
+      png|jpg|jpeg|webp|gif|ico|so|apk|aab|jar|class|dex|zip|gz|xz|bz2|7z|mp3|mp4|mkv|ogg|wav|flac|ttf|otf|woff|woff2|pdf|bin|db|sqlite|keystore|jks) rs_bin=1 ;;
+    esac
+    if [ "$rs_bin" -eq 0 ] && [ "$rs_sz" -le 524288 ] && [ "$((rs_tot + rs_sz))" -le 16777216 ]; then
+      cp -p "$rs_f" "$rs_t/files/$rs_b" 2>/dev/null || continue
+      rs_tot=$((rs_tot + rs_sz))
+    else
+      touch -r "$rs_f" "$rs_t/big/$rs_b" 2>/dev/null || continue
+      printf '%s\t%s\n' "$rs_b" "$rs_sz" >> "$rs_t/big.tsv"
+    fi
+  done
+  runsnap_dir="$rs_t"
+  return 0
+}
+runsnap_end() {
+  [ -n "$runsnap_dir" ] || return 0
+  if : > "$runsnap_dir/done.tmp" 2>/dev/null; then mv "$runsnap_dir/done.tmp" "$runsnap_dir/done" 2>/dev/null; fi
+  runsnap_dir=""
+  return 0
+}
 # [NANO-RUN] Alt+R di nano: simpan + buat berkas penanda + keluar. Setelah nano selesai, skrip dijalankan dari berkasnya.
 flag="${TMPDIR:-/tmp}/molina-run.$$"
 rm -f "$flag"
@@ -116,8 +172,10 @@ if [ -e "$flag" ]; then
   if [ "$st" -eq 0 ] && [ -n "${MOLINA_NANO_FILE:-}" ] && [ -f "$MOLINA_NANO_FILE" ]; then
     if [ -t 1 ]; then printf '\033]0;\007'; fi
     trap : INT
+    runsnap_begin "$MOLINA_NANO_FILE" # [NANO-RUNSNAP]
     "${MOLINA_RUN_BIN:-/usr/local/bin/molina-run}" "$MOLINA_NANO_FILE"
     st=$?
+    runsnap_end
   fi
 fi
 snap o

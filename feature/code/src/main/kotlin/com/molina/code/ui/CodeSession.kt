@@ -15,6 +15,7 @@ import com.molina.code.guard.ProjectLog
 import com.molina.code.guard.ProjectRestore
 import com.molina.code.guard.ProjectStore
 import com.molina.code.guard.RunReport
+import com.molina.code.guard.NanoRunSnap // [NANO-RUNSNAP]
 import com.molina.code.guard.ScriptPrecheck
 import com.molina.code.history.HistoryKind
 import com.molina.code.history.HistoryStore
@@ -403,7 +404,10 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         val dir = nanoInboxDir ?: return 0
         val root = nanoStorageRoot ?: return 0
         if (!dir.isDirectory) return 0
-        return synchronized(nanoLock) { try { NanoInbox.import(dir, h, root) } catch (e: Exception) { 0 } }
+        return synchronized(nanoLock) {
+            val n = try { NanoInbox.import(dir, h, root) } catch (e: Exception) { 0 }
+            n + importNanoRunSnaps(dir, root) // [NANO-RUNSNAP]
+        }
     }
 
     var historyOpen by mutableStateOf(false)
@@ -1461,6 +1465,23 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         val msg = "Urungkan skrip: ${res.restored} dikembalikan, ${res.removed} dihapus" +
             (if (res.skipped.isNotEmpty()) ", ${res.skipped.size} dilewati" else "")
         ProjectLog.append(snap.root, ProjectLog.note(System.currentTimeMillis(), ProjectLog.SRC_UNDO, msg))
+    }
+
+    /** [NANO-RUNSNAP] Di thread IO: snapshot folder skrip dari nano (Alt+R) -> Riwayat (Sebelum/Sesudah skrip) + kartu Perubahan skrip. */
+    private fun importNanoRunSnaps(dir: File, root: File): Int {
+        val results = try { NanoRunSnap.collect(dir, root) } catch (e: Exception) { return 0 }
+        if (results.isEmpty()) return 0
+        for (r in results) recordScriptHistory(r.snap, r.report)
+        val last = results.last()
+        mainHandler.post {
+            if (!run.running) {
+                runChanges = RunChanges(last.snap, last.report)
+                preview.mode = PaneMode.Output
+                preview.open = true
+                toast("Perubahan skrip nano: ${last.report.changes.size} berkas")
+            }
+        }
+        return results.size
     }
 
     internal fun dismissRunChanges() {

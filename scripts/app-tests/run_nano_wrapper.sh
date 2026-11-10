@@ -184,4 +184,41 @@ rm -rf "$IB"; mkdir -p "$IB"; i=0; while [ $i -lt 200 ]; do : > "$IB/pad$i"; i=$
 check "inbox: penuh (200 berkas) -> tidak menambah" '[ "$(ls "$IB" | grep -c "\.snap$")" = "0" ]'
 rm -rf "$IB"
 
+# [NANO-RUNSNAP] snapshot folder sebelum skrip (Alt+R) untuk kartu "Perubahan skrip"
+cat > "$T/runnano" << 'EOS'
+#!/bin/sh
+: > "$MOLINA_RUN_FLAG"
+exit 0
+EOS
+cat > "$T/fakerun" << 'EOS'
+#!/bin/sh
+d=$(dirname "$1")
+printf 'diubah\n' >> "$d/a.sh"; printf 'baru\n' > "$d/baru.sh"; rm -f "$d/hapus.sh"
+exit 0
+EOS
+chmod +x "$T/runnano" "$T/fakerun"
+rs() { (cd "$T/sd/work" && HOME="$T/home" XDG_CONFIG_HOME="$T/home/.config" MOLINA_NANO_TEMPLATE=off MOLINA_HISTORY_INBOX="$IB" MOLINA_HISTORY_PREFIX="$T/sd" MOLINA_NANO_BIN="$T/runnano" MOLINA_RUN_BIN="$T/fakerun" MOLINA_NANORC="$T/rc" sh "$W" "$@" 2>&1); }
+rm -rf "$IB" "$T/sd/work"; mkdir -p "$T/sd/work/sub"
+printf 'satu\n' > "$T/sd/work/a.sh"; printf 'hapus\n' > "$T/sd/work/hapus.sh"; printf 'dalam\n' > "$T/sd/work/sub/x.sh"
+head -c 600000 /dev/zero > "$T/sd/work/besar.dat"; printf 'png' > "$T/sd/work/g.PNG"; printf 'x' > "$T/sd/work/m.pyc"; printf 'sembunyi\n' > "$T/sd/work/.env"
+touch -d '2024-01-02 03:04:05' "$T/sd/work/a.sh"
+rs a.sh >/dev/null
+RD=$(ls -d "$IB"/*_r_*.runsnap 2>/dev/null | head -n 1)
+check "runsnap: folder dibuat dengan penanda done" '[ -n "$RD" ] && [ -f "$RD/done" ] && [ ! -e "$RD/done.tmp" ]'
+check "runsnap: root berisi jalur folder skrip" '[ "$(cat "$RD/root" 2>/dev/null)" = "$T/sd/work" ]'
+check "runsnap: isi SEBELUM skrip yang disalin (bukan sesudah)" '[ "$(cat "$RD/files/a.sh")" = "satu" ] && [ -f "$RD/files/hapus.sh" ] && [ ! -e "$RD/files/baru.sh" ]'
+check "runsnap: mtime asli dipertahankan (cp -p)" '[ "$(stat -c %Y "$RD/files/a.sh")" = "$(date -d "2024-01-02 03:04:05" +%s)" ]'
+check "runsnap: dotfile ikut, subfolder dan .pyc tidak" '[ -f "$RD/files/.env" ] && [ ! -e "$RD/files/sub" ] && [ ! -e "$RD/files/x.sh" ] && [ ! -e "$RD/files/m.pyc" ]'
+check "runsnap: besar/biner hanya ukuran (big.tsv) + placeholder mtime" '[ ! -e "$RD/files/besar.dat" ] && [ ! -e "$RD/files/g.PNG" ] && grep -q "^besar.dat	600000$" "$RD/big.tsv" && grep -q "^g.PNG	3$" "$RD/big.tsv" && [ -e "$RD/big/besar.dat" ]'
+check "runsnap: skrip benar-benar jalan sesudah snapshot" '[ -f "$T/sd/work/baru.sh" ] && [ ! -e "$T/sd/work/hapus.sh" ]'
+rm -rf "$IB" "$T/sd/work"; mkdir -p "$T/sd/work"; printf 'a\n' > "$T/sd/work/a.sh"; MOLINA_NANO_HISTORY=off rs a.sh >/dev/null
+check "runsnap: MOLINA_NANO_HISTORY=off -> tidak ada runsnap" '[ ! -e "$IB" ]'
+rm -rf "$IB"; mkdir -p "$T/luar2"; printf 'a\n' > "$T/luar2/a.sh"; (cd "$T/luar2" && HOME="$T/home" MOLINA_NANO_TEMPLATE=off MOLINA_HISTORY_INBOX="$IB" MOLINA_HISTORY_PREFIX="$T/sd" MOLINA_NANO_BIN="$T/runnano" MOLINA_RUN_BIN="$T/fakerun" MOLINA_NANORC="$T/rc" sh "$W" a.sh >/dev/null 2>&1)
+check "runsnap: folder di luar /sdcard tidak disalin" '[ ! -e "$IB" ]'
+rm -rf "$IB" "$T/sd/work"; mkdir -p "$T/sd/work"; i=0; while [ $i -lt 201 ]; do : > "$T/sd/work/f$i.txt"; i=$((i+1)); done; printf 'a\n' > "$T/sd/work/a.sh"; rs a.sh >/dev/null
+check "runsnap: folder > 200 berkas -> dilewati" '[ -z "$(ls -d "$IB"/*.runsnap 2>/dev/null)" ]'
+rm -rf "$IB" "$T/sd/work"; mkdir -p "$T/sd/work" "$IB"; printf 'a\n' > "$T/sd/work/a.sh"; i=0; while [ $i -lt 200 ]; do : > "$IB/pad$i"; i=$((i+1)); done; rs a.sh >/dev/null
+check "runsnap: inbox penuh (200) -> tidak menambah" '[ -z "$(ls -d "$IB"/*.runsnap 2>/dev/null)" ]'
+rm -rf "$IB" "$T/sd/work"
+
 echo "Selesai: $runs kasus, $fails gagal"; [ "$fails" -eq 0 ]
