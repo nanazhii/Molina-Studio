@@ -57,11 +57,13 @@ object MolinaTheme {
         val Hairline = Color(0xFF262626)
         val SelFill = Color(0xFF12263A)
         val SelLine = Color(0xFF3C7FB1)
-        // [PICK-RED] Mode Pilih Penjelajah: baris terpilih, kotak centang, dan label berwarna merah (bukan biru Aero)
-        val PickFillTop = Color(0xFF4A1A1A)
-        val PickFillBottom = Color(0xFF2E1010)
-        val PickLine = Color(0xFFE04848)
-        val PickInk = Color(0xFFFF6E6E)
+        // [PICK-BLUE] Mode Pilih Penjelajah: baris terpilih, bingkai, kotak kosong, label, dan panah folder berwarna biru.
+        // Hanya tanda [x] berkas terpilih (PickMark) yang tetap merah.
+        val PickFillTop = Color(0xFF16324D)
+        val PickFillBottom = Color(0xFF0F2438)
+        val PickLine = Color(0xFF4FA3E0)
+        val PickInk = Color(0xFF6EB8FF)
+        val PickMark = Color(0xFFFF6E6E)
         val Folder = Color(0xFFF3CF6E)
         val FolderDark = Color(0xFFD9A93B)
         val CloseTop = Color(0xFFE8A598)

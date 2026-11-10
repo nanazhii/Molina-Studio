@@ -1190,7 +1190,7 @@ private fun W7EntryRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (checked != null) {
-            Text(if (checked) "[x]" else "[  ]", color = MolinaTheme.Explorer.PickInk.copy(alpha = if (checked) 1f else 0.6f), fontSize = 12.sp) // [PICK-RED]
+            Text(if (checked) "[x]" else "[  ]", color = if (checked) MolinaTheme.Explorer.PickMark else MolinaTheme.Explorer.PickInk.copy(alpha = 0.6f), fontSize = 12.sp) // [PICK-BLUE] [x] merah, kotak kosong biru
             Spacer(Modifier.width(6.dp))
         }
         if (e.isDir) Win7Folder(20.dp) else W7FileIcon(e.file.extension, 22.dp)
