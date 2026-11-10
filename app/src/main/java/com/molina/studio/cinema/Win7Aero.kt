@@ -81,14 +81,14 @@ internal fun Win7Button(
 }
 
 @Composable
-internal fun Win7BackOrb(enabled: Boolean, onClick: () -> Unit) {
+internal fun Win7BackOrb(enabled: Boolean, onClick: (() -> Unit)? = null) { // [ORB-UNIFY] onClick null = hanya gambar
     val top = if (enabled) Color(0xFF8FC4EE) else Color(0xFFD7DDE4)
     val bottom = if (enabled) Color(0xFF2D6DB5) else Color(0xFFB5BDC7)
     Box(
         Modifier.size(26.dp).clip(CircleShape)
             .background(Brush.verticalGradient(listOf(top, bottom)), CircleShape)
             .border(1.dp, if (enabled) Color(0xFF1F4E85) else Color(0xFF9AA3AD), CircleShape)
-            .clickable(enabled = enabled, onClick = onClick),
+            .then(if (onClick != null) Modifier.clickable(enabled = enabled, onClick = onClick) else Modifier),
         Alignment.Center
     ) {
         Canvas(Modifier.size(14.dp)) {

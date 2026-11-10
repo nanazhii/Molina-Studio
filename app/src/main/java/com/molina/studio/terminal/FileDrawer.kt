@@ -58,6 +58,7 @@ import com.molina.studio.cinema.W7ConfirmDialog
 import com.molina.studio.cinema.W7FileIcon
 import com.molina.studio.cinema.W7InfoDialog
 import com.molina.studio.cinema.W7NameDialog
+import com.molina.studio.cinema.Win7BackOrb
 import com.molina.studio.cinema.Win7Folder
 import com.molina.studio.settings.MolinaExplorer
 import com.molina.studio.ui.MolinaTheme
@@ -195,11 +196,11 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
         ) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    Modifier.size(44.dp).alpha(if (canUp) 1f else 0.4f).clickable(enabled = canUp) {
+                    Modifier.size(44.dp).clickable(enabled = canUp) { // [ORB-UNIFY] bulatan kembali sama dengan Pengaturan
                         root.parentFile?.let { setRoot(it) }
                     },
                     contentAlignment = Alignment.Center
-                ) { Text("\u2191", color = Brand, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
+                ) { Win7BackOrb(canUp) }
                 Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
                     Text(
                         root.name.ifEmpty { "/" }, color = MaterialTheme.colorScheme.onSurface,

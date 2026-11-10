@@ -212,7 +212,7 @@ private fun PathHeader(session: CodeSession, onExit: (() -> Unit)? = null) {
         Modifier
             .fillMaxWidth()
             .height(CodeDimens.HeaderHeight)
-            .win7Aero(),
+            .codeHeaderFrame(), // [CODE-HEADER-FRAME] hitam pekat + bingkai hijau
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (onExit != null) Box( // keluar ke Berkas (editor dibuka layar penuh dari Penjelajah)

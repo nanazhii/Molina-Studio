@@ -237,13 +237,16 @@ internal fun TvBrowser(
         val root = channels.getOrNull(idx)?.dir
         val cur = dir
         if (!recentMode && cur != null && root != null && cur.path != root.path) {
-            Text(
-                "\u2039  " + cur.name,
-                color = MolinaTheme.Brand, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth()
+            Row( // [ORB-UNIFY] bulatan kembali sama dengan Pengaturan; satu titik fokus (baris)
+                Modifier.fillMaxWidth()
                     .clickable { cur.parentFile?.let { dir = it; focus = null } }
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
-            )
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Win7BackOrb(true)
+                Spacer(Modifier.width(10.dp))
+                Text(cur.name, color = MolinaTheme.Brand, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         } else {
             Spacer(Modifier.height(6.dp))
         }
