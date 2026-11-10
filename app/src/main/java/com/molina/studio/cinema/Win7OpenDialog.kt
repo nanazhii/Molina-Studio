@@ -1190,7 +1190,18 @@ private fun W7EntryRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (checked != null) {
-            Text(if (checked) "[x]" else "[  ]", color = if (checked) MolinaTheme.Explorer.PickMark else MolinaTheme.Explorer.PickInk.copy(alpha = 0.6f), fontSize = 12.sp) // [PICK-BLUE] [x] merah, kotak kosong biru
+            Text( // [PICK-X-ONLY] kurung biru, hanya huruf x terpilih yang merah
+                androidx.compose.ui.text.buildAnnotatedString {
+                    if (checked) {
+                        append("[")
+                        pushStyle(androidx.compose.ui.text.SpanStyle(color = MolinaTheme.Explorer.PickMark, fontWeight = FontWeight.Bold)) // [PICK-X-BOLD]
+                        append("x")
+                        pop()
+                        append("]")
+                    } else append("[  ]")
+                },
+                color = MolinaTheme.Explorer.PickInk.copy(alpha = if (checked) 1f else 0.6f), fontSize = 12.sp
+            )
             Spacer(Modifier.width(6.dp))
         }
         if (e.isDir) Win7Folder(20.dp) else W7FileIcon(e.file.extension, 22.dp)
