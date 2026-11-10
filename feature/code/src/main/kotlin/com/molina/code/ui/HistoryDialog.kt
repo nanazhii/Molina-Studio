@@ -582,6 +582,9 @@ private fun kindColor(k: HistoryKind): Color = when (k) {
     HistoryKind.BEFORE, HistoryKind.RELOAD -> CodeColors.SecondaryNeutral
     HistoryKind.NANO_BEFORE -> CodeColors.SecondaryNeutral // [NANO-INBOX]
     HistoryKind.NANO_SAVED -> CodeColors.Brand.copy(alpha = 0.85f)
+    HistoryKind.EXTERNAL_BEFORE, HistoryKind.EXTERNAL_AFTER, HistoryKind.RESTORE_BEFORE -> CodeColors.Warning // [EXT-DIFF3-FIX]
+    HistoryKind.SHADOW -> CodeColors.SecondaryNeutral
+    HistoryKind.RESTORED -> CodeColors.Brand.copy(alpha = 0.85f)
 }
 
 /** [CODE-HISTORY7] Pasang hasil pengembalian satu blok ke editor sebagai SATU langkah undo (tanpa menyimpan ke disk). */
