@@ -149,4 +149,54 @@ if [ $have_py -eq 1 ]; then
   fi
 fi
 
+# [NANO-DETECT]
+# [NANO-DETECT] --init dan --hint
+mkdir -p "$T/d"
+out="$(mx sh "$R" --init d/n.py)"; rc=$?
+check "init: berkas baru .py -> dibuat (keluar 0)" '[ $rc -eq 0 ] && [ "$(head -n 1 "$T/d/n.py")" = "#!/usr/bin/env python3" ] && [ "$(wc -l < "$T/d/n.py")" -eq 2 ]'
+mx sh "$R" --init d/n.sh >/dev/null; check "init: .sh -> #!/bin/sh" '[ "$(head -n 1 "$T/d/n.sh")" = "#!/bin/sh" ]'
+mx sh "$R" --init d/n.bash >/dev/null; check "init: .bash -> env bash" '[ "$(head -n 1 "$T/d/n.bash")" = "#!/usr/bin/env bash" ]'
+mx sh "$R" --init d/n.js >/dev/null; check "init: .js -> env node" '[ "$(head -n 1 "$T/d/n.js")" = "#!/usr/bin/env node" ]'
+mx sh "$R" --init d/n.txt >/dev/null; rc=$?
+check "init: ekstensi tak dikenal -> dilewati (3), berkas tidak dibuat" '[ $rc -eq 3 ] && [ ! -e "$T/d/n.txt" ]'
+mx sh "$R" --init d/n.awk >/dev/null; rc=$?
+check "init: .awk tanpa shebang saran -> dilewati" '[ $rc -eq 3 ] && [ ! -e "$T/d/n.awk" ]'
+printf "print(1)\n" > "$T/d/e.py"
+mx sh "$R" --init d/e.py >/dev/null; rc=$?
+check "init: berkas berisi tidak disentuh" '[ $rc -eq 3 ] && [ "$(cat "$T/d/e.py")" = "print(1)" ]'
+: > "$T/d/z.py"; mx sh "$R" --init d/z.py >/dev/null; rc=$?
+check "init: berkas kosong yang ada -> diisi" '[ $rc -eq 0 ] && [ "$(head -n 1 "$T/d/z.py")" = "#!/usr/bin/env python3" ]'
+mx sh "$R" --init nodir/x.py >/dev/null; rc=$?
+check "init: folder tidak ada -> dilewati" '[ $rc -eq 3 ]'
+
+printf "print('hai')\n" > "$T/h1.py"
+out="$(mx sh "$R" --hint h1.py)"; rc=$?
+check "hint: .py tanpa shebang -> saran + keluar 10" '[ $rc -eq 10 ] && [[ "$out" == *"belum ada shebang"*"#!/usr/bin/env python3"* ]]'
+out="$(mx env MOLINA_RUN_NOTES=off sh "$R" --hint h1.py)"; rc=$?
+check "hint: tips dimatikan (env) -> diam" '[ $rc -eq 0 ] && [ -z "$out" ]'
+mkdir -p "$T/cfg/molina"; printf 'off\n' > "$T/cfg/molina/run-notes"
+out="$(mx sh "$R" --hint h1.py)"; rc=$?
+check "hint: tips dimatikan (berkas run-notes) -> diam" '[ $rc -eq 0 ] && [ -z "$out" ]'
+rm -f "$T/cfg/molina/run-notes"
+printf '#!/bin/sh\necho ok\n' > "$T/h2.sh"
+out="$(mx sh "$R" --hint h2.sh)"; rc=$?
+check "hint: sudah ada shebang -> diam" '[ $rc -eq 0 ] && [ -z "$out" ]'
+printf "catatan biasa\n" > "$T/h3.txt"
+out="$(mx sh "$R" --hint h3.txt)"; rc=$?
+check "hint: bukan skrip (.txt) -> diam" '[ $rc -eq 0 ] && [ -z "$out" ]'
+: > "$T/h4.py"
+out="$(mx sh "$R" --hint h4.py)"; rc=$?
+check "hint: berkas kosong -> diam" '[ $rc -eq 0 ] && [ -z "$out" ]'
+printf "python3 << 'EOF'\nprint(1)\n" > "$T/h5.py"
+out="$(mx sh "$R" --hint h5.py)"; rc=$?
+check "hint: heredoc terpotong -> saran (bukan keluar 10)" '[ $rc -eq 0 ] && [[ "$out" == *"saran untuk h5.py"*"Alt+R"* ]]'
+printf '#!/bin/sh\r\necho ok\r\n' > "$T/h6.sh"
+out="$(mx sh "$R" --hint h6.sh)"; rc=$?
+check "hint: CRLF di skrip shell -> saran" '[ $rc -eq 0 ] && [[ "$out" == *"CRLF"* ]]'
+printf 'echo hai\n' > "$T/h7.sh"
+out="$(mx sh "$R" --hint h7.sh)"; rc=$?
+check "hint: .sh tanpa shebang -> keluar 10 dan --fix memperbaiki" '[ $rc -eq 10 ]'
+mx sh "$R" --fix h7.sh >/dev/null; check "hint lalu fix: shebang ada" '[ "$(head -n 1 "$T/h7.sh")" = "#!/bin/sh" ]'
+out="$(mx sh "$R" --hint h7.sh)"; check "hint: sesudah fix -> diam" '[ -z "$out" ]'
+
 echo "Selesai: $runs kasus, $fails gagal"; [ "$fails" -eq 0 ]

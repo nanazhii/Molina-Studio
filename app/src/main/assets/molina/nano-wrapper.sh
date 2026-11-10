@@ -26,6 +26,19 @@ if [ -t 1 ]; then
   trap 'printf "\033]0;\007"' EXIT
   trap 'exit 143' TERM HUP
 fi
+# [NANO-DETECT] Berkas skrip baru/kosong (ekstensi dikenal): isi shebang dulu, kursor di baris 2. Tak diubah = dikembalikan
+# (berkas baru dihapus lagi, berkas kosong dikosongkan lagi). Matikan: MOLINA_NANO_TEMPLATE=off.
+runbin="${MOLINA_RUN_BIN:-/usr/local/bin/molina-run}"
+tpl_made=0; tpl_existed=0; tpl_sum=""
+if [ -n "$file" ] && [ "${MOLINA_NANO_TEMPLATE:-on}" != "off" ] && [ -x "$runbin" ] && [ ! -d "$file" ] && [ ! -s "$file" ]; then
+  if [ -e "$file" ]; then tpl_existed=1; fi
+  if "$runbin" --init "$file" >/dev/null 2>&1; then
+    tpl_made=1; tpl_sum=$(cksum < "$file")
+    has_line=0
+    for a in "$@"; do case "$a" in +*) has_line=1 ;; esac; done
+    if [ "$has_line" -eq 0 ]; then set -- +2 "$@"; fi
+  fi
+fi
 # [NANO-RUN] Alt+R di nano: simpan + buat berkas penanda + keluar. Setelah nano selesai, skrip dijalankan dari berkasnya.
 flag="${TMPDIR:-/tmp}/molina-run.$$"
 rm -f "$flag"
@@ -51,6 +64,19 @@ while :; do
   break
 done
 rm -f "$fixflag"
+# [NANO-DETECT] template tak disentuh -> kembalikan; berkas skrip yang sudah diisi -> saran + tawaran perbaiki (hanya di terminal)
+if [ "$tpl_made" -eq 1 ] && [ -f "$file" ] && [ "$(cksum < "$file")" = "$tpl_sum" ]; then
+  if [ "$tpl_existed" -eq 1 ]; then : > "$file"; else rm -f "$file"; fi
+fi
+if [ ! -e "$flag" ] && [ "$st" -eq 0 ] && [ -x "$runbin" ] && [ -n "${MOLINA_NANO_FILE:-}" ] && [ -f "$MOLINA_NANO_FILE" ] \
+   && [ -t 1 ] && ( : < /dev/tty ) 2>/dev/null; then
+  "$runbin" --hint "$MOLINA_NANO_FILE"
+  if [ "$?" -eq 10 ]; then
+    printf 'Perbaiki sekarang (molina-run --fix)? [Y/n] '
+    IFS= read -r ans < /dev/tty
+    case "$ans" in n|N|t|T) ;; *) "$runbin" --fix "$MOLINA_NANO_FILE" ;; esac
+  fi
+fi
 if [ -e "$flag" ]; then
   rm -f "$flag"
   if [ "$st" -eq 0 ] && [ -n "${MOLINA_NANO_FILE:-}" ] && [ -f "$MOLINA_NANO_FILE" ]; then

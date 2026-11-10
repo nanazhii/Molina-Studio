@@ -71,7 +71,8 @@ internal fun CodeSettingsPage() {
         PackageSwitchRow(
             "Tips shebang dan izin eksekusi",
             "Tampilkan catatan singkat sebelum skrip jalan bila shebang belum ada atau izin eksekusi (chmod +x) belum diberikan. " +
-                "Tidak menghentikan skrip. Perbaiki sekali ketuk dengan tombol FIX di nano (atau molina-run --fix berkas).",
+                "Tidak menghentikan skrip. Perbaiki sekali ketuk dengan tombol FIX di nano (atau molina-run --fix berkas). " +
+                "Sakelar ini juga mengatur saran yang muncul sesudah nano ditutup di berkas skrip.",
             notes
         ) { if (RunCheckPrefs.setNotes(ctx, it)) notes = it }
         PackageDivider()

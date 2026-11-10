@@ -6,22 +6,26 @@
 # isi shell di berkas bukan-shell, tempelan terpotong (penutup EOF hilang), CRLF, dan BOM. Bila ada, tampil dialog.
 #   molina-run --check <berkas>   hanya cetak hasil pemeriksaan (untuk tes dan alat lain)
 #   molina-run --fix <berkas>     [RUN-HINT] tambah shebang yang hilang (cadangan .bak) dan chmod +x bila berlaku
+#   molina-run --init <berkas>    [NANO-DETECT] berkas belum ada/kosong + ekstensi dikenal: tulis baris shebang (keluar 0 = dibuat, 3 = dilewati)
+#   molina-run --hint <berkas>    [NANO-DETECT] saran singkat sesudah nano ditutup (keluar 10 = shebang belum ada, bisa --fix); diam bila tips dimatikan
 # [RUN-HINT] Selain pemeriksaan di atas, ada "tips" satu-dua baris (tidak menghentikan skrip): tanpa shebang, belum +x,
 # dan penyimpanan bersama Android (chmod +x tidak berlaku di sana). Shebang yang tak cocok dengan ekstensi masuk dialog.
 # Matikan tips: MOLINA_RUN_NOTES=off atau isi ~/.config/molina/run-notes dengan 'off' (on = tampil juga bukan-terminal).
 # Atur lewat MOLINA_RUN_ASK = ask (bawaan) | fix (perbaiki sementara tanpa tanya) | no (jalankan apa adanya).
 # MOLINA_RUN_ANSWER = 1|2|3|a|e|x menjawab dialog tanpa interaksi (otomasi dan tes).
 # Direktori kerja tidak diubah (sama seperti `sh berkas`). Dipakai nano lewat Alt+R.
-check_only=0; fix_only=0 # [RUN-HINT]
+check_only=0; fix_only=0; init_only=0; hint_only=0 # [RUN-HINT] [NANO-DETECT]
 if [ "$1" = "--check" ]; then check_only=1; shift
-elif [ "$1" = "--fix" ]; then fix_only=1; shift; fi
+elif [ "$1" = "--fix" ]; then fix_only=1; shift
+elif [ "$1" = "--init" ]; then init_only=1; shift
+elif [ "$1" = "--hint" ]; then hint_only=1; shift; fi
 f="$1"
 if [ -z "$f" ]; then
-  echo "Pemakaian: molina-run [--check|--fix] <berkas> [argumen...]" >&2
+  echo "Pemakaian: molina-run [--check|--fix|--init|--hint] <berkas> [argumen...]" >&2
   exit 2
 fi
 shift
-if [ ! -f "$f" ]; then
+if [ ! -f "$f" ] && [ "$init_only" -eq 0 ]; then
   echo "molina-run: berkas tidak ditemukan: $f" >&2
   exit 2
 fi
@@ -82,6 +86,16 @@ sheb_for() { # bahasa -> baris shebang yang disarankan
 }
 # Penyimpanan bersama Android (/sdcard dll.) tidak menyimpan bit eksekusi; skrip di sana dijalankan lewat penerjemah.
 shared_storage() { case "$1" in /sdcard|/sdcard/*|/storage/emulated/*|/storage/*-*/*|/mnt/sdcard*|/mnt/shared*) return 0 ;; esac; return 1; }
+
+# [NANO-DETECT] --init: berkas belum ada atau kosong, ekstensi dikenal -> isi baris shebang + satu baris kosong.
+if [ "$init_only" -eq 1 ]; then
+  if [ -d "$src" ] || [ -s "$src" ]; then exit 3; fi
+  il=$(lang_of "$src"); isl=$(sheb_for "$il")
+  [ -n "$isl" ] || exit 3
+  [ -d "${src%/*}" ] || exit 3
+  printf '%s\n\n' "$isl" > "$src" 2>/dev/null || exit 1
+  exit 0
+fi
 
 # ---- pemeriksaan
 bom=0
@@ -193,6 +207,27 @@ fi
 
 g=""; r=""; y=""; z=""
 if [ -t 1 ]; then g=$(printf '\033[1;32m'); r=$(printf '\033[1;31m'); y=$(printf '\033[1;33m'); z=$(printf '\033[0m'); fi
+
+# [NANO-DETECT] --hint: dipanggil pembungkus nano sesudah nano ditutup. Diam bila bukan skrip, tips dimatikan, atau tak ada saran.
+if [ "$hint_only" -eq 1 ]; then
+  hconf="${XDG_CONFIG_HOME:-${HOME:-/root}/.config}/molina/run-notes"
+  hmode="${MOLINA_RUN_NOTES:-}"
+  if [ -z "$hmode" ] && [ -f "$hconf" ]; then hmode=$(head -n 1 "$hconf" 2>/dev/null); fi
+  [ "$hmode" = "off" ] && exit 0
+  [ -s "$src" ] || exit 0
+  if [ -z "$extlang" ] && [ "$hasheb" -eq 0 ] && [ "$wrap" = "none" ]; then exit 0; fi
+  need_sheb=0
+  if [ "$wrap" = "none" ] && [ "$hasheb" -eq 0 ] && [ -n "$(sheb_for "$extlang")" ]; then need_sheb=1; fi
+  if [ -z "$issues" ] && [ "$need_sheb" -eq 0 ]; then exit 0; fi
+  printf '%sMolina · saran untuk %s:%s\n' "$y" "$name" "$z"
+  printf '%s' "$issues"
+  if [ "$need_sheb" -eq 1 ]; then
+    printf '  • belum ada shebang (baris 1, contoh: %s)\n' "$(sheb_for "$extlang")"
+    exit 10
+  fi
+  printf '  Periksa lewat Alt+R di nano, atau: molina-run %s\n' "$name"
+  exit 0
+fi
 
 # ---- dialog dan perbaikan
 td=""
