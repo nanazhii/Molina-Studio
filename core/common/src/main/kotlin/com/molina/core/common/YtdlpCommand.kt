@@ -57,7 +57,7 @@ object YtdlpCommand {
      * Argv penuh untuk libproot.so (tanpa argv[0]). [binary] adalah jalur guest yt-dlp,
      * [args] argumen yt-dlp.
      */
-    fun prootArgs(rootfs: String, binary: String, args: List<String>): List<String> = buildList {
+    fun prootArgs(rootfs: String, binary: String, args: List<String>, proxy: String? = null): List<String> = buildList {
         add("--link2symlink"); add("--kill-on-exit"); add("-0")
         add("--rootfs=$rootfs"); add("--cwd=/root")
         add("--bind=/dev"); add("--bind=/proc"); add("--bind=/sys")
@@ -65,6 +65,8 @@ object YtdlpCommand {
         add("HOME=/root"); add("LANG=C.UTF-8"); add("MALLOC_ARENA_MAX=2")
         add("PYTHONDONTWRITEBYTECODE=1"); add("PYTHONIOENCODING=utf-8")
         add("PATH=$GUEST_PATH")
+        // [SHIELD-YTDLP] urllib/yt-dlp membaca proxy dari lingkungan; PRoot berbagi jaringan, jadi 127.0.0.1 terjangkau.
+        if (!proxy.isNullOrEmpty()) { add("http_proxy=$proxy"); add("https_proxy=$proxy") }
         add(GUEST_PYTHON); add(binary)
         addAll(args)
     }

@@ -60,6 +60,9 @@ object ShieldProxy {
 
     fun isRunning(): Boolean = server?.isClosed == false
 
+    /** [SHIELD-FAILCLOSED] True bila pengguna menyalakan Shield tetapi proxy tidak berjalan: lalu lintas jarak jauh harus ditolak. */
+    fun failClosed(): Boolean = enabled && !isRunning()
+
     /** URL proxy untuk opsi `http_proxy` FFmpeg, atau null bila Shield tidak berjalan. */
     fun proxyUrl(): String? {
         if (!enabled) return null
@@ -297,8 +300,10 @@ object ShieldProxy {
     private fun readHead(input: InputStream): String? {
         val buf = ByteArray(MAX_HEAD_BYTES)
         var n = 0
+        val deadline = System.nanoTime() + HEAD_TIMEOUT_MS * 1_000_000L // HEAD_DEADLINE: batas total, bukan per byte
         try {
             while (n < buf.size) {
+                if (System.nanoTime() > deadline) return null
                 val b = input.read()
                 if (b < 0) return null
                 buf[n++] = b.toByte()

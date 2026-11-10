@@ -3,6 +3,7 @@ package com.molina.core.common
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
+import java.net.InetAddress
 import java.net.URL
 import javax.net.ssl.SSLException
 
@@ -34,8 +35,22 @@ object IptvFetch {
         }
     }
 
+    /** [SHIELD-IPTV] [problem] + cek alamat hasil DNS (DNS rebinding ke alamat privat/loopback). Memblokir: thread IO. */
+    fun problemWithDns(url: String): String? {
+        problem(url)?.let { return it }
+        val host = runCatching { URL(url.trim()).host }.getOrNull()?.trim('[', ']')
+        if (host.isNullOrEmpty()) return "Tautan tidak valid."
+        val addrs = runCatching { InetAddress.getAllByName(host) }.getOrNull() ?: return null
+        for (a in addrs) {
+            if (ShieldPolicy.checkAddress(a, NetworkPolicy.allowLan) is UrlPolicy.Verdict.Blocked) {
+                return "Tautan ditolak: DNS mengarah ke alamat terlarang."
+            }
+        }
+        return null
+    }
+
     /** Memblokir: panggil dari thread IO. [check] hanya diganti oleh uji. */
-    fun load(url: String, check: (String) -> String? = ::problem): IptvLoad {
+    fun load(url: String, check: (String) -> String? = ::problemWithDns): IptvLoad {
         var current = url.trim()
         for (hop in 0..MAX_REDIRECTS) {
             check(current)?.let { return IptvLoad.Fail(it) }

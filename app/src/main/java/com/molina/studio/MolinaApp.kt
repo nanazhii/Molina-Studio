@@ -24,6 +24,8 @@ class MolinaApp : Application() {
         // Molina Shield harus hidup sebelum mpv diinisialisasi (opsi http_proxy dibaca saat init).
         ShieldPrefs.init(this)
         ShieldProxy.start()
+        // [SHIELD-NOPROXY] FFmpeg membaca no_proxy dari lingkungan proses; hapus agar tak ada host yang melewati Shield.
+        runCatching { android.system.Os.unsetenv("no_proxy"); android.system.Os.unsetenv("NO_PROXY") }
         MpvLifecycle.installExitHook()
         StreamEnginePrefs.init(this)
         PrivacyPrefs.init(this)

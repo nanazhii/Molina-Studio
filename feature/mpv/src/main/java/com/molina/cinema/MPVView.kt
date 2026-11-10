@@ -100,6 +100,7 @@ internal class MPVView(context: Context, attrs: AttributeSet) : BaseMPVView(cont
         // http/https dipasang per entri di MpvLoad.remoteProtocolOptions.
         MPVLib.setOptionString("stream-lavf-o", MpvLoad.globalProtocolOption())
         MPVLib.setOptionString("demuxer-lavf-o", MpvLoad.globalProtocolOption())
+        MpvLoad.markGlobalOptionsApplied() // [SHIELD-FAILCLOSED]
         MPVLib.setOptionString(
             "user-agent", "MolinaCinema/$appVersion")
         // Limit demuxer cache since the defaults are too high for mobile devices

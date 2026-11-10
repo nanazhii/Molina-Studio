@@ -44,9 +44,45 @@ object MpvLoad {
             AppLog.log("net", LogLevel.Warn, "policy", "ditolak: ${verdict.reason.name}")
             return arrayOf("show-text", "Diblokir: ${verdict.reason.message}", "5000")
         }
+        shieldGate(url)?.let { // [SHIELD-FAILCLOSED]
+            AppLog.log("net", LogLevel.Warn, "policy", "ditolak: shield")
+            return arrayOf("show-text", "Diblokir: $it", "5000")
+        }
         val opts = listOfNotNull(headerOption(headers), titleOption(title)) + remoteProtocolOptions(url) + directStreamOptions(url)
         if (opts.isEmpty()) return arrayOf("loadfile", url, flag)
         return arrayOf("loadfile", url, flag, "-1", opts.joinToString(","))
+    }
+
+    @Volatile private var initProxy: String? = null
+    @Volatile private var initDone = false
+
+    /** Panggil tepat setelah opsi global `*-lavf-o` dipasang saat init mpv (mencatat proxy yang dipakai opsi global). */
+    fun markGlobalOptionsApplied() {
+        initProxy = ShieldProxy.proxyUrl()
+        initDone = true
+    }
+
+    /**
+     * [SHIELD-FAILCLOSED] Pesan bila sumber jarak jauh tidak boleh dimuat: Shield menyala tetapi tidak berjalan,
+     * atau proxy berubah sejak opsi global mpv dipasang (mpv masih memakai proxy lama/tanpa proxy). null = boleh.
+     */
+    fun shieldGate(url: String): String? {
+        val s = UrlPolicy.scheme(url)
+        if (s != "http" && s != "https" && !isMemoryPlaylist(url)) return null
+        if (ShieldProxy.failClosed()) return "Molina Shield tidak berjalan. Buka ulang aplikasi."
+        if (initDone && ShieldProxy.proxyUrl() != initProxy) return "Pengaturan Shield berubah. Jalankan Refresh Pemutar."
+        return null
+    }
+
+    /** Host dari URL tanpa java.net.URI (URI melempar pada karakter yang masih diterima mpv). null bila tidak terbaca. */
+    fun hostOf(url: String): String? {
+        val i = url.indexOf("://")
+        if (i <= 0) return null
+        val rest = url.substring(i + 3)
+        val authority = rest.takeWhile { it != '/' && it != '?' && it != '#' }.substringAfterLast('@')
+        val host = if (authority.startsWith("[")) authority.substringAfter('[').substringBefore(']')
+        else authority.substringBefore(':')
+        return host.ifEmpty { null }
     }
 
     private val STREAM_SCHEMES = setOf("rtmp", "rtmps", "rtsp")
@@ -54,11 +90,11 @@ object MpvLoad {
     /** [DNS-CHECK] rtmp/rtsp tidak lewat Molina Shield, jadi namanya di-resolve dan tiap IP diperiksa sebelum diputar. */
     fun needsResolveCheck(url: String): Boolean = UrlPolicy.scheme(url) in STREAM_SCHEMES
 
-    /** Memblokir (DNS): panggil dari thread latar. Gagal resolve = Allowed; mpv melaporkan galatnya sendiri. */
+    /** [SHIELD-DNS-CLOSED] Memblokir (DNS): panggil dari thread latar. Host tak terbaca atau gagal resolve = ditolak. */
     fun resolveVerdict(url: String, allowLan: Boolean = NetworkPolicy.allowLan): UrlPolicy.Verdict {
-        val host = runCatching { URI(url.trim()).host }.getOrNull()?.trim('[', ']')
-        if (host.isNullOrEmpty()) return UrlPolicy.Verdict.Allowed
-        val addrs = runCatching { InetAddress.getAllByName(host) }.getOrNull() ?: return UrlPolicy.Verdict.Allowed
+        val host = hostOf(url.trim()) ?: return UrlPolicy.Verdict.Blocked(UrlPolicy.Reason.NO_HOST)
+        val addrs = runCatching { InetAddress.getAllByName(host) }.getOrNull()
+            ?: return UrlPolicy.Verdict.Blocked(UrlPolicy.Reason.MALFORMED)
         for (a in addrs) {
             val v = ShieldPolicy.checkAddress(a, allowLan)
             if (v is UrlPolicy.Verdict.Blocked) return v
@@ -130,7 +166,12 @@ object MpvLoad {
     fun remoteProtocolOptions(url: String): List<String> {
         val scheme = UrlPolicy.scheme(url)
         if (scheme != "http" && scheme != "https") return emptyList()
-        if (isPlaylistUrl(url)) return emptyList()
+        if (isPlaylistUrl(url)) {
+            // [SHIELD-FRESH] tetap blacklist global, tetapi proxy dipasang segar untuk entri ini.
+            if (proxyPair() == null) return emptyList()
+            val g = fixed(globalProtocolOption())
+            return listOf("stream-lavf-o=$g", "demuxer-lavf-o=$g")
+        }
         val v = fixed(lavfOptions(listOfNotNull("protocol_whitelist" to REMOTE_PROTOCOLS, proxyPair())))
         return listOf("stream-lavf-o=$v", "demuxer-lavf-o=$v")
     }

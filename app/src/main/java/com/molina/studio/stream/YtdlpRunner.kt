@@ -72,7 +72,7 @@ internal object YtdlpRunner {
         try { MolinaDns.writeResolvConf(ctx, rootfsDir) } catch (e: Exception) { }
 
         val cmd = YtdlpCommand.SH_WRAPPER + "$nativeDir/libproot.so" +
-            YtdlpCommand.prootArgs(rootfs, guestBinary, args)
+            YtdlpCommand.prootArgs(rootfs, guestBinary, args, com.molina.core.common.ShieldProxy.proxyUrl())
         val pb = ProcessBuilder(cmd).directory(ctx.filesDir)
         pb.environment().apply {
             clear()
