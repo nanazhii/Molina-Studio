@@ -11,6 +11,7 @@ object ChangeFeed {
     private const val PRUNE_SLACK = 20
     private const val TAG = "FEED1"
     const val SRC_NANO = "nano"
+    const val SRC_EXTERNAL = "external" // [CODE-FEED3] berkas terbuka di tab diubah dari luar editor
 
     class Item(val folder: String, val unread: Boolean, val entry: ProjectLog.Entry)
 
@@ -64,8 +65,23 @@ object ChangeFeed {
     fun sourceLabel(src: String): String = when (src) {
         SRC_NANO -> "via nano"
         ProjectLog.SRC_SCRIPT -> "dari Code"
+        SRC_EXTERNAL -> "dari luar"
         else -> ""
     }
+
+    /** [CODE-FEED3] Butir untuk satu berkas yang diubah dari luar editor. */
+    fun externalEntry(name: String, time: Long): ProjectLog.Entry =
+        ProjectLog.Entry(time, SRC_EXTERNAL, "Diubah dari luar editor", listOf(ProjectLog.FileChange(name, 'M', 0, 0)))
+
+    /**
+     * [CODE-FEED3] Sudah tercakup butir yang ada? Benar bila ada butir (skrip/nano) yang memuat [target] dan dicatat tidak lebih
+     * awal dari [modified] (dikurangi [COVER_SLACK_MS]). Mencegah notifikasi ganda untuk berkas yang diubah skrip lalu dimuat ulang.
+     */
+    @Synchronized
+    fun covered(file: File, target: File, modified: Long): Boolean = parseAll(file).any { it.entry.time + COVER_SLACK_MS >= modified &&
+        it.entry.files.any { c -> File(File(it.folder), c.path).path == target.path } }
+
+    private const val COVER_SLACK_MS = 2_000L
 
     private fun line(unread: Boolean, folder: String, e: ProjectLog.Entry) = TAG + "\t" + (if (unread) "1" else "0") + "\t" + folder + "\t" + ProjectLog.encode(e)
 

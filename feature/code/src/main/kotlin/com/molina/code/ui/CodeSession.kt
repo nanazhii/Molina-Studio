@@ -1042,6 +1042,25 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         }
     }
 
+    /** [CODE-FEED3] Di thread IO: catat berkas tab yang diubah dari luar editor (Terminal, git, aplikasi lain), kecuali sudah tercatat oleh skrip/nano. */
+    private fun recordExternal(f: File) {
+        val ff = feedFile ?: return
+        val dir = f.parentFile ?: return
+        try {
+            if (ChangeFeed.covered(ff, f, f.lastModified())) return
+            if (!ChangeFeed.append(ff, dir, ChangeFeed.externalEntry(f.name, System.currentTimeMillis()))) return
+        } catch (e: Exception) { return }
+        refreshFeedBadge()
+    }
+
+    /** [CODE-FEED2] Ketuk berkas berstatus M di notifikasi: buka berkasnya, lalu Riwayat pada versi "Sesudah skrip". */
+    internal fun openFeedFileDiff(f: File) {
+        openFile(f)
+        if (history == null) return
+        historyFocus = HistoryKind.AFTER_SCRIPT
+        historyOpen = true
+    }
+
     /** [CODE-FEED] Tombol "Hapus semua" di dialog notifikasi. */
     internal fun clearChangeFeed() {
         val f = feedFile ?: return
@@ -1634,11 +1653,13 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
                     if (tabs.none { it === t } || t.loading || t.file != p.file || t.baseFp != p.base) continue
                     if (DiskGuard.autoReload(v, t.dirty)) {
                         toast("Diubah dari luar, dimuat ulang: ${t.title}")
+                        runIo { recordExternal(p.file) } // [CODE-FEED3]
                         doReload(t)
                     } else if (DiskGuard.flagStale(v, t.dirty)) {
                         if (!t.staleDisk) {
                             t.staleDisk = true
                             toast("${t.title} diubah dari luar. Saat simpan Anda diberi pilihan.")
+                            runIo { recordExternal(p.file) } // [CODE-FEED3]
                         }
                     } else if (v == DiskVerdict.SAME) {
                         t.staleDisk = false

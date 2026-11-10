@@ -247,6 +247,15 @@ private fun PathHeader(session: CodeSession, onExit: (() -> Unit)? = null) {
             Canvas(Modifier.size(CodeDimens.ToolbarIconSize)) {
                 drawToolbarIcon(ToolbarIcon.More, CodeColors.IconDefault, false)
             }
+            if (session.feedUnread > 0) { // [CODE-FEED2] titik hijau: ada notifikasi perubahan belum dibaca
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 10.dp, end = 10.dp)
+                        .size(8.dp)
+                        .background(CodeColors.Brand, CircleShape)
+                )
+            }
             if (menuOpen) OverflowMenu(session) { menuOpen = false }
         }
     }

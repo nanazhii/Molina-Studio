@@ -63,6 +63,24 @@ fun main() {
         check("headline: folder akar memakai jalur penuh", ChangeFeed.headline(it("/", entry(1, "nano", "a.sh" to 'M'))) == "a.sh di folder / diubah")
         check("sourceLabel", ChangeFeed.sourceLabel("nano") == "via nano" && ChangeFeed.sourceLabel("script") == "dari Code" && ChangeFeed.sourceLabel("?") == "")
 
+        // [CODE-FEED3] perubahan dari luar editor
+        val x = File(tmp, "priv/ext.jsonl")
+        val tgt = File("/sdcard/proj/src/a.kt")
+        check("covered: feed kosong -> belum tercakup", !ChangeFeed.covered(x, tgt, 1000L))
+        ChangeFeed.append(x, File("/sdcard/proj"), entry(5000, ProjectLog.SRC_SCRIPT, "src/a.kt" to 'M'))
+        check("covered: berkas dari butir skrip (jalur relatif folder) tercakup", ChangeFeed.covered(x, tgt, 4500L))
+        check("covered: toleransi selisih kecil", ChangeFeed.covered(x, tgt, 6500L))
+        check("covered: diubah lagi sesudah butir -> tidak tercakup", !ChangeFeed.covered(x, tgt, 9000L))
+        check("covered: berkas lain tidak tercakup", !ChangeFeed.covered(x, File("/sdcard/proj/src/b.kt"), 4500L))
+        val ee = ChangeFeed.externalEntry("a.kt", 7000)
+        check("externalEntry: sumber, jenis M, satu berkas", ee.source == ChangeFeed.SRC_EXTERNAL && ee.files.size == 1 && ee.files[0].kind == 'M' && ee.files[0].path == "a.kt")
+        check("sourceLabel: dari luar", ChangeFeed.sourceLabel(ChangeFeed.SRC_EXTERNAL) == "dari luar")
+        check("headline: butir dari luar", ChangeFeed.headline(ChangeFeed.Item("/sdcard/proj/src", true, ee)) == "a.kt di folder src diubah")
+        ChangeFeed.append(x, File("/sdcard/proj/src"), ee)
+        val xr = ChangeFeed.read(x)
+        check("append dari luar: terbaca, terbaru dulu, sumber bertahan", xr.size == 2 && xr[0].entry.source == ChangeFeed.SRC_EXTERNAL && xr[0].folder == "/sdcard/proj/src")
+        check("covered: butir dari luar menutup perubahan yang sama", ChangeFeed.covered(x, tgt, 6900L))
+
         ChangeFeed.clear(f)
         check("clear: berkas hilang, read kosong", !f.exists() && ChangeFeed.read(f).isEmpty())
     } finally {

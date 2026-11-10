@@ -106,7 +106,7 @@ internal fun ChangeFeedDialog(session: CodeSession, view: ChangeFeedView, onDism
                                     val f = File(File(item.folder), c.path)
                                     if (c.kind != 'D' && f.isFile) {
                                         onDismiss()
-                                        session.openFile(f)
+                                        if (c.kind == 'M' && e.source != ChangeFeed.SRC_EXTERNAL) session.openFeedFileDiff(f) else session.openFile(f) // [CODE-FEED2]
                                     } else {
                                         session.toast("Berkas tidak ada lagi: ${c.path}")
                                     }
