@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip // [CODE-TITLE-FRAME2]
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -37,7 +38,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.text.SpanStyle // [CODE-PATHBAR]
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString // [CODE-PATHBAR]
+import androidx.compose.ui.text.withStyle // [CODE-PATHBAR]
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -231,17 +235,27 @@ private fun PathHeader(session: CodeSession, onExit: (() -> Unit)? = null) {
         ) {
             Canvas(Modifier.size(CodeDimens.DrawerHeaderIcon)) { drawDirIcon(DirIcon.Folder, CodeColors.FolderYellow) }
         }
-        Box( // [CODE-TITLE-FRAME] judul/path berkas berbingkai putih keabuan 1dp, sudut 6dp
+        Box( // [CODE-PATHBAR] kotak path bergaya bilah alamat Penjelajah: isi #101010, garis 1dp #3A3A3A, sudut siku, tinggi 28dp
             Modifier
                 .weight(1f)
-                .padding(horizontal = 2.dp, vertical = 5.dp)
-                .border(1.dp, CodeColors.TitleFrame, RoundedCornerShape(6.dp))
+                .padding(horizontal = 2.dp)
+                .height(28.dp)
+                .background(CodeColors.PathField)
+                .border(1.dp, CodeColors.PathFieldBorder)
                 .clickable { session.dir.openPanel() }
                 .padding(horizontal = 8.dp),
             contentAlignment = Alignment.CenterStart
         ) {
+            val crumbs = remember(path) { PathCrumbs.tail(path) }
             BasicText(
-                text = path,
+                text = buildAnnotatedString {
+                    val dim = SpanStyle(color = Win7Code.InkDim)
+                    if (crumbs.truncated) withStyle(dim) { append("\u2026" + PathCrumbs.SEP) }
+                    crumbs.parts.forEachIndexed { i, part ->
+                        if (i > 0) withStyle(dim) { append(PathCrumbs.SEP) }
+                        withStyle(if (i == crumbs.parts.lastIndex) SpanStyle(color = Win7Code.Ink) else dim) { append(part) }
+                    }
+                },
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = TextStyle(color = Win7Code.Ink, fontSize = CodeDimens.PathTextSize)

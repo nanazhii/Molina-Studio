@@ -21,6 +21,8 @@ object CodeColors {
     val TabFrame = Color(0xFFD0D4DB)      // [CODE-TAB-FRAME] bingkai tab nama berkas aktif: putih keabuan
     val TabFrameIdle = TabFrame.copy(alpha = 0.45f) // [CODE-TAB-FRAME] tab tidak aktif: redup
     val TitleFrame = Color(0xFFD0D4DB)    // [CODE-TITLE-FRAME] bingkai judul/path berkas di header: putih keabuan
+    val PathField = Color(0xFF101010)        // [CODE-PATHBAR] isi kotak path header, sama dengan bilah alamat Penjelajah
+    val PathFieldBorder = Color(0xFF3A3A3A)  // [CODE-PATHBAR] garis kotak path header, sama dengan bilah alamat Penjelajah
 
     // Ikon
     val IconDefault = Color(0xFFC4CBD3)   // netral dingin
