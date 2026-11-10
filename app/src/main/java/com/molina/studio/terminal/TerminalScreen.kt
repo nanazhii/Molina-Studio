@@ -36,6 +36,10 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.Icons
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
@@ -222,6 +226,29 @@ private val NanoKeyList = listOf(
     Triple("FIX", KeyAmber, "\u001bf")     // [NANO-FIX] Alt+F: simpan, molina-run --fix (shebang + chmod +x), lalu nano dibuka lagi
 )
 
+/** [NANO-FRAMEKEYS] Glyph RUN di NanoKeyList; dirender sebagai ikon oleh FramedNanoKey. */
+private const val NanoRunGlyph = "\u25B8"
+
+/** [NANO-FRAMEKEYS] Tombol nano berbingkai tipis 1dp (warna tombol): dipakai RUN (ikon 26dp) dan QUIT (aksi utama). */
+@Composable
+private fun FramedNanoKey(tint: Color, onClick: () -> Unit, content: @Composable () -> Unit) {
+    val haptic = LocalHapticFeedback.current
+    val shape = RoundedCornerShape(8.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 34.dp)
+            .clip(shape)
+            .background(tint.copy(alpha = 0.12f), shape)
+            .border(1.dp, tint, shape)
+            .combinedClickable(onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }),
+        contentAlignment = Alignment.Center
+    ) { content() }
+}
+
 private enum class NanoPrompt { NONE, SAVE, NAME, RUNFIX } // [NANO-PROMPT] [NANO-RUNFIX]
 private val NanoPromptKeyWidth = 96.dp
 // [NANO-PROMPT-84] nano 7.x: "File Name to Write"; nano 8.x: "Write to File" / "Write Selection to File"
@@ -316,7 +343,11 @@ private fun NanoKeys() {
         ) {
             keys.forEach { (label, tint, seq) ->
                 Box(Modifier.width(keyWidth).padding(1.dp)) {
-                    KeyButton(label, prompt == NanoPrompt.RUNFIX && label == runDefault, false, tint, null) { TerminalActions.send(seq) }
+                    if (prompt == NanoPrompt.NONE && label == NanoRunGlyph) FramedNanoKey(tint, { TerminalActions.send(seq) }) { // [NANO-FRAMEKEYS]
+                        Icon(Icons.Filled.PlayArrow, contentDescription = "Jalankan skrip (Alt+R)", tint = tint, modifier = Modifier.size(26.dp))
+                    } else if (prompt == NanoPrompt.NONE && label == "QUIT") FramedNanoKey(tint, { TerminalActions.send(seq) }) {
+                        Text(label, fontSize = 14.sp, maxLines = 1, fontWeight = FontWeight.Bold, color = tint)
+                    } else KeyButton(label, prompt == NanoPrompt.RUNFIX && label == runDefault, false, tint, null) { TerminalActions.send(seq) }
                 }
             }
         }
