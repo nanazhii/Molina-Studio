@@ -78,9 +78,10 @@ import java.io.File
 
 private val Brand = MolinaTheme.Brand
 // [DRAWER-HAMBURGER] lebar drawer: porsi layar, dijepit ke rentang ini (header butuh sekitar 200dp)
-private val DrawerMinWidth = 224.dp // [DRAWER-FRAME] 200 -> 224
-private val DrawerMaxWidth = 264.dp // 240 -> 264
-private const val DrawerFraction = 0.36f
+private val DrawerMinWidth = 248.dp // [DRAWER-FRAME] 200 -> 224 -> 248 [DRAWER-GREEN]
+private val DrawerMaxWidth = 288.dp // 240 -> 264 -> 288
+private const val DrawerFraction = 0.40f
+private val DrawerFrameColor = Color(0xFF00E676).copy(alpha = 0.6f) // [DRAWER-GREEN] hijau transparan (60%)
 
 /** [FILE-DRAWER2] Keadaan tree dipegang di sini (bukan remember) agar folder utama dan folder terbuka bertahan lintas pembukaan drawer. */
 private object FileTreeStore {
@@ -203,10 +204,10 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
         Column(
             Modifier.fillMaxHeight().width(drawerWidth)
                 .background(MaterialTheme.colorScheme.surface)
-                .drawWithContent { // [DRAWER-FRAME] bingkai putih redup (70%) di atas, bawah, dan kanan; tepi kiri tanpa garis
+                .drawWithContent { // [DRAWER-FRAME] bingkai hijau transparan di atas, bawah, dan kanan; tepi kiri tanpa garis
                     drawContent()
                     val w = 1.dp.toPx()
-                    val c = Color.White.copy(alpha = 0.7f)
+                    val c = DrawerFrameColor
                     drawRect(c, Offset.Zero, Size(size.width, w))
                     drawRect(c, Offset(0f, size.height - w), Size(size.width, w))
                     drawRect(c, Offset(size.width - w, 0f), Size(w, size.height))
