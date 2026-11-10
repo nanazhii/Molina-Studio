@@ -1,5 +1,9 @@
 package com.molina.code.ui
 
+import android.content.ClipData // [EXT-FEED7]
+import android.content.ClipboardManager // [EXT-FEED7]
+import android.content.Context // [EXT-FEED7]
+import android.os.Build // [EXT-FEED7]
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures // [EXT-DIFF6]
 import androidx.compose.foundation.clickable
@@ -26,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput // [EXT-DIFF6]
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext // [EXT-FEED7]
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -38,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.molina.code.guard.ChangeFeed
+import com.molina.code.guard.FeedSummary // [EXT-FEED7]
 import com.molina.code.guard.ProjectLog
 import com.molina.code.history.HistoryKind // [EXT-DIFF]
 import com.molina.code.history.RestorePlan // [EXT-DIFF3]
@@ -57,6 +63,7 @@ internal class ChangeFeedView(val items: List<ChangeFeed.Item>)
 internal fun ChangeFeedDialog(session: CodeSession, view: ChangeFeedView, onDismiss: () -> Unit) {
     val shape = RoundedCornerShape(CodeDimens.DialogCorner)
     val maxH = (LocalConfiguration.current.screenHeightDp * 0.6f).dp
+    val ctx = LocalContext.current // [EXT-FEED7]
     val open = remember(view) { mutableStateOf(-1) }
     val acts = remember(view) { mutableStateMapOf<String, Int>() } // [EXT-DIFF3] status tombol per berkas: 0 Pulihkan, 1 Yakin?, 2 Urungkan, 3 sibuk
     val fmt = remember { SimpleDateFormat("dd MMM yyyy HH:mm", Locale("id", "ID")) }
@@ -173,6 +180,14 @@ internal fun ChangeFeedDialog(session: CodeSession, view: ChangeFeedView, onDism
                                         style = TextStyle(color = CodeColors.TextSecondary, fontSize = 11.sp)
                                     )
                                 }
+                                if (e.files.isNotEmpty()) { // [EXT-FEED7] salin/bagikan ringkasan butir ini
+                                    val summary = { FeedSummary.plain(item.folder, fmt.format(Date(e.time)), ChangeFeed.sourceLabel(e.source), e) }
+                                    Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 2.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                        FeedTextButton("Salin ringkasan") { copyFeedText(ctx, session, "Ringkasan perubahan", summary()) }
+                                        FeedTextButton("Bagikan") { runCatching { shareText(ctx, summary()) }.onFailure { session.toast("Tidak bisa membuka menu bagikan") } }
+                                        FeedTextButton("Salin (commit)") { copyFeedText(ctx, session, "Pesan commit", FeedSummary.commit(e)) }
+                                    }
+                                }
                             }
                         }
                         Box(Modifier.fillMaxWidth().height(CodeDimens.Hairline).background(CodeColors.Hairline))
@@ -264,6 +279,28 @@ private fun FeedFileRow(c: ProjectLog.FileChange, action: String?, onAction: () 
                 style = TextStyle(color = CodeColors.Brand, fontSize = CodeDimens.PaneMonoSize, fontWeight = FontWeight.Bold)
             )
         }
+    }
+}
+
+/** [EXT-FEED7] Tombol teks kecil di bawah daftar berkas butir feed. */
+@Composable
+private fun FeedTextButton(label: String, onClick: () -> Unit) {
+    BasicText(
+        text = label,
+        maxLines = 1,
+        modifier = Modifier.clickable(onClick = onClick).padding(vertical = 4.dp),
+        style = TextStyle(color = CodeColors.Brand, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+    )
+}
+
+/** [EXT-FEED7] Salin [text] ke clipboard. Android 13+ menampilkan konfirmasinya sendiri, jadi toast hanya untuk versi lebih lama. */
+private fun copyFeedText(ctx: Context, session: CodeSession, label: String, text: String) {
+    try {
+        val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        cm.setPrimaryClip(ClipData.newPlainText(label, text))
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) session.toast("$label disalin")
+    } catch (e: Exception) {
+        session.toast("Gagal menyalin")
     }
 }
 
