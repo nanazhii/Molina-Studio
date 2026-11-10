@@ -60,6 +60,9 @@ import com.molina.studio.code.ScriptRunDialog
 import com.molina.studio.code.ScriptRunner
 import com.molina.studio.code.runIfTrusted
 import com.molina.studio.code.ScriptStore
+import com.molina.studio.code.RunCheckPrefs // [SCRIPT-HINT]
+import com.molina.studio.code.ScriptHintParser
+import com.molina.studio.code.ScriptHints
 import com.molina.studio.terminal.TerminalSessions
 import com.molina.studio.ui.MolinaTheme
 import java.text.SimpleDateFormat
@@ -84,6 +87,10 @@ internal fun ScriptsPage() {
     val items by ScriptStore.items.collectAsState()
     val folderStatus by ScriptStore.status.collectAsState()
     val skippedFiles by ScriptStore.skipped.collectAsState()
+    // [SCRIPT-HINT] Penanda amber: saran molina-run --scan per skrip; pindai ulang hanya bila folder atau sakelar tips berubah.
+    val hints by ScriptHints.hints.collectAsState()
+    var notesOn by remember { mutableStateOf(RunCheckPrefs.notesOn(ctx)) }
+    LaunchedEffect(items, notesOn) { withContext(Dispatchers.IO) { ScriptHints.refresh(ctx, items) } }
     // [SCRIPT-FOLDER] Daftar mengikuti folder Molina/Scripts: pindai tiap 2 dtk selama halaman terbuka (di luar main thread).
     LaunchedEffect(Unit) {
         while (true) {
@@ -134,6 +141,17 @@ internal fun ScriptsPage() {
             color = W7D.TextDim, fontSize = 12.sp, modifier = Modifier.padding(bottom = 6.dp)
         )
     }
+    Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) { // [SCRIPT-HINT]
+        Column(Modifier.weight(1f)) {
+            Text("Tips shebang dan izin eksekusi", color = W7D.Ink, fontSize = 14.sp)
+            Text(
+                "Titik amber menandai skrip yang punya saran; buka detailnya lalu ketuk FIX bila tersedia. " +
+                    "Sakelar ini juga mengatur tips di nano dan saat skrip dijalankan.",
+                color = W7D.TextDim, fontSize = 11.sp
+            )
+        }
+        Switch(checked = notesOn, onCheckedChange = { if (RunCheckPrefs.setNotes(ctx, it)) notesOn = it })
+    }
     Spacer(Modifier.height(8.dp))
     if (items.isEmpty()) {
         Text(
@@ -171,6 +189,8 @@ internal fun ScriptsPage() {
                 },
                 onNote = { noteOf = item },
                 onPin = { toast(ctx, ScriptShortcuts.pin(ctx, item)) },
+                hint = item.path?.let { hints[File(it).name] }, // [SCRIPT-HINT]
+                onFix = { ScriptHints.fix(ctx, item) { msg -> toast(ctx, msg) } },
                 onDelete = { toDelete = item }
             )
             Spacer(Modifier.height(8.dp))
@@ -297,6 +317,8 @@ private fun ScriptAccordion(
     onPin: () -> Unit,
     onFav: () -> Unit,
     onOpts: () -> Unit,
+    hint: ScriptHintParser.Hint?, // [SCRIPT-HINT]
+    onFix: () -> Unit,
     onDelete: () -> Unit
 ) {
     val shape = RoundedCornerShape(6.dp)
@@ -317,6 +339,12 @@ private fun ScriptAccordion(
                 modifier = Modifier.weight(1f).clickable(onClick = onToggle)
                     .padding(start = 4.dp, top = 14.dp, bottom = 14.dp, end = 8.dp)
             )
+            if (hint != null) { // [SCRIPT-HINT]
+                Text(
+                    "\u25CF", color = MolinaTheme.Brand, fontSize = 12.sp,
+                    modifier = Modifier.clickable(onClick = onToggle).padding(horizontal = 8.dp, vertical = 14.dp)
+                )
+            }
             Box(Modifier.size(48.dp).clickable(onClick = onRun), contentAlignment = Alignment.Center) {
                 Canvas(Modifier.size(18.dp)) {
                     val w = size.width
@@ -349,6 +377,9 @@ private fun ScriptAccordion(
                 }
                 Text("Dari: $from", color = W7D.TextDim, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(bottom = 8.dp))
             }
+            if (hint != null) { // [SCRIPT-HINT]
+                Text(hint.message, color = MolinaTheme.Brand, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
+            }
             val code = remember(item.body) { codePreview(item.body) }
             CommandBlock(code)
             Spacer(Modifier.height(8.dp))
@@ -361,6 +392,7 @@ private fun ScriptAccordion(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        if (hint?.kind == ScriptHintParser.Kind.Fix) ActionText("FIX", MolinaTheme.Brand, onClick = onFix) // [SCRIPT-HINT]
                         ActionText("EDIT", Blue, onClick = onEdit)
                         ActionText("NANO", Blue, onClick = onNano) // [NANO-SCRIPT]
                         ActionText("CATATAN", W7D.Ink, onClick = onNote)

@@ -67,14 +67,11 @@ internal fun CodeSettingsPage() {
             PackageChoiceRow(title, check == key, { if (RunCheckPrefs.set(ctx, key)) check = key }, sub)
         }
         PackageDivider()
-        var notes by remember { mutableStateOf(RunCheckPrefs.notesOn(ctx)) } // [RUN-HINT]
-        PackageSwitchRow(
+        PackageInfoRow( // [SCRIPT-HINT] sakelar dipindah ke halaman Script Execution
             "Tips shebang dan izin eksekusi",
-            "Tampilkan catatan singkat sebelum skrip jalan bila shebang belum ada atau izin eksekusi (chmod +x) belum diberikan. " +
-                "Tidak menghentikan skrip. Perbaiki sekali ketuk dengan tombol FIX di nano (atau molina-run --fix berkas). " +
-                "Sakelar ini juga mengatur saran yang muncul sesudah nano ditutup di berkas skrip.",
-            notes
-        ) { if (RunCheckPrefs.setNotes(ctx, it)) notes = it }
+            "Sakelarnya kini ada di Settings > Script execution, bersama penanda amber per skrip. Berlaku juga untuk tips " +
+                "di nano dan saat skrip dijalankan."
+        )
         PackageDivider()
         val canUndo = session?.terminalRunUndoReady == true
         Box(Modifier.clickable(enabled = canUndo) { session?.undoTerminalRun() }) {
