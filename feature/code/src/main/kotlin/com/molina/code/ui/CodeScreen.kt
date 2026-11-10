@@ -355,7 +355,7 @@ private fun TabItem(
         if (active) {
             Box(
                 Modifier
-                    .align(Alignment.TopStart)
+                    .align(Alignment.BottomStart) // [CODE-TABS-BLACK] garis hijau di BAWAH tab aktif
                     .fillMaxWidth()
                     .height(CodeDimens.TabTopLine)
                     .background(Win7Code.TabLine)

@@ -41,10 +41,10 @@ internal object Win7Code {
     val Ink = Color(0xFFEEEEEE)
     val InkDim = Color(0xFFC8C8C8)
     val RailBlue = Color(0x998FC4EE)
-    val TabLine = Color(0xFF8FC4EE)
+    val TabLine = CodeColors.Brand // [CODE-TABS-BLACK] garis tab aktif: hijau Molina
     val StatusHeight = 22.dp
-    val TabBarBrush = Brush.verticalGradient(listOf(Color(0xFF1B1B1B), Color(0xFF0A0A0A)))
-    val TabActiveBrush = Brush.verticalGradient(listOf(Color(0xFF3A3A3A), Color(0xFF111111), Color.Black))
+    val TabBarBrush = Brush.verticalGradient(listOf(Color.Black, Color.Black)) // [CODE-TABS-BLACK] hitam pekat
+    val TabActiveBrush = Brush.verticalGradient(listOf(Color.Black, Color.Black)) // [CODE-TABS-BLACK]
     val ToolbarBrush = Brush.verticalGradient(listOf(Color(0xFF202020), Color(0xFF111111)))
     val StatusBrush = Brush.verticalGradient(listOf(Color(0xFF1B1B1B), Color(0xFF0A0A0A)))
 }
