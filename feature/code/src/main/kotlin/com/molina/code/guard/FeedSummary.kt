@@ -51,4 +51,37 @@ object FeedSummary {
         }
         return sb.toString()
     }
+
+    /** [EXT-FEED8] Batas butir terbaru dalam satu laporan gabungan, agar teks tidak melewati batas clipboard/Intent. */
+    const val MAX_REPORT_ITEMS = 50
+
+    /**
+     * [EXT-FEED8] Laporan gabungan beberapa butir (masukan terbaru dulu), dikelompokkan per folder; folder dengan butir terbaru di atas.
+     * Kosong bila [items] kosong. [nowText] = waktu pembuatan laporan, [whenFmt] memformat waktu tiap butir (keduanya dari pemanggil agar deterministik).
+     */
+    fun report(items: List<ChangeFeed.Item>, nowText: String, whenFmt: (Long) -> String): String {
+        if (items.isEmpty()) return ""
+        val used = items.take(MAX_REPORT_ITEMS)
+        val files = used.sumOf { it.entry.fileCount }
+        val a = used.sumOf { i -> i.entry.files.sumOf { it.added } }
+        val r = used.sumOf { i -> i.entry.files.sumOf { it.removed } }
+        val groups = used.groupBy { it.folder }
+        val sb = StringBuilder()
+        sb.append("Laporan perubahan \u00B7 ").append(nowText).append('\n')
+        sb.append("${used.size} peristiwa, ${groups.size} folder, $files berkas, +$a -$r")
+        if (items.size > used.size) sb.append("\n(${items.size - used.size} peristiwa lebih lama tidak disertakan)")
+        for ((folder, list) in groups) {
+            sb.append("\n\nFolder: ").append(folder)
+            for (item in list) {
+                val e = item.entry
+                val via = ChangeFeed.sourceLabel(e.source)
+                sb.append('\n').append(whenFmt(e.time))
+                if (via.isNotEmpty()) sb.append(" \u00B7 ").append(via)
+                if (e.files.isEmpty() && e.message.isNotEmpty()) sb.append("\n  ").append(e.message.replace('\n', ' ').replace('\r', ' '))
+                for (c in e.files) sb.append("\n  ").append(fileLine(c, "  "))
+                if (e.omitted > 0) sb.append("\n  (+${e.omitted} berkas lain tidak dimuat)")
+            }
+        }
+        return sb.toString()
+    }
 }

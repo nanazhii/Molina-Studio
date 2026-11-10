@@ -93,6 +93,17 @@ internal fun ChangeFeedDialog(session: CodeSession, view: ChangeFeedView, onDism
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
                 style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 12.sp)
             )
+            if (view.items.isNotEmpty()) { // [EXT-FEED8] laporan gabungan per folder (maks. FeedSummary.MAX_REPORT_ITEMS butir terbaru)
+                val unread = view.items.filter { it.unread }
+                val fmtAll = { t: Long -> fmt.format(Date(t)) }
+                Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    FeedTextButton("Salin semua") { copyFeedText(ctx, session, "Laporan perubahan", FeedSummary.report(view.items, fmt.format(Date()), fmtAll)) }
+                    FeedTextButton("Bagikan semua") {
+                        runCatching { shareText(ctx, FeedSummary.report(view.items, fmt.format(Date()), fmtAll)) }.onFailure { session.toast("Tidak bisa membuka menu bagikan") }
+                    }
+                    if (unread.isNotEmpty()) FeedTextButton("Salin baru (${unread.size})") { copyFeedText(ctx, session, "Laporan perubahan", FeedSummary.report(unread, fmt.format(Date()), fmtAll)) }
+                }
+            }
             Box(Modifier.fillMaxWidth().height(CodeDimens.Hairline).background(CodeColors.Hairline))
             if (view.items.isEmpty()) {
                 BasicText(
