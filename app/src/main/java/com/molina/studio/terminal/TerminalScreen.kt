@@ -230,6 +230,7 @@ private val NanoKeyList = listOf(
 private const val NanoRunGlyph = "\u25B8"
 
 /** [NANO-FRAMEKEYS] Tombol nano berbingkai tipis 1dp (warna tombol): dipakai RUN (ikon 26dp) dan QUIT (aksi utama). */
+@OptIn(ExperimentalFoundationApi::class) // combinedClickable [NANO-FRAMEKEYS-FIX]
 @Composable
 private fun FramedNanoKey(tint: Color, onClick: () -> Unit, content: @Composable () -> Unit) {
     val haptic = LocalHapticFeedback.current
