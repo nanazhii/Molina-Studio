@@ -7,5 +7,5 @@ KC="${KOTLINC:-kotlinc}"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 C=core/common/src/main/kotlin/com/molina/core/common
-"$KC" -nowarn -d "$OUT" $C/IptvLocal.kt $C/IptvFetch.kt $C/M3uParser.kt $C/UrlPolicy.kt scripts/core-tests/IptvLocalTests.kt
+"$KC" -nowarn -d "$OUT" $C/IptvLocal.kt $C/IptvFetch.kt $C/M3uParser.kt $C/UrlPolicy.kt $C/StreamHeaders.kt $C/ShieldPolicy.kt scripts/core-tests/stubs/FlowStub.kt scripts/core-tests/IptvLocalTests.kt
 java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" IptvLocalTestsKt

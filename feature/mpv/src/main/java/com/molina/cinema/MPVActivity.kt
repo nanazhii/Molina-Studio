@@ -4,6 +4,7 @@ import com.molina.core.common.PlaylistExtras
 import com.molina.core.common.PlaylistPlan
 import com.molina.core.common.RollingQueue
 import com.molina.core.common.StreamHeaders
+import com.molina.core.common.StreamPin
 import com.molina.core.common.StreamOutcome
 import com.molina.core.common.StreamResolvers
 import com.molina.core.common.StreamSearchItem
@@ -92,12 +93,13 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                         onLoaded: () -> Unit = {}) {
         if (MpvLoad.needsResolveCheck(raw)) { // [DNS-CHECK]
             streamScope.launch {
-                val v = withContext(Dispatchers.IO) { MpvLoad.resolveVerdict(raw) }
-                if (v is UrlPolicy.Verdict.Blocked) {
-                    showToast("Diblokir: ${v.reason.message}", true)
+                val r = withContext(Dispatchers.IO) { MpvLoad.resolveAndPin(raw) } // [SHIELD-PIN]
+                if (r is StreamPin.Result.Blocked) {
+                    showToast("Diblokir: ${r.verdict.reason.message}", true)
                     return@launch
                 }
-                MPVLib.command(MpvLoad.loadfileArgs(raw, flag, headers))
+                val target = (r as? StreamPin.Result.Pinned)?.url ?: raw // rtmp/rtsp dipin ke IP yang lolos DNS
+                MPVLib.command(MpvLoad.loadfileArgs(target, flag, headers))
                 onLoaded()
             }
             return

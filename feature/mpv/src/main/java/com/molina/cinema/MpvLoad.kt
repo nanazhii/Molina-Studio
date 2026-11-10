@@ -6,6 +6,7 @@ import com.molina.core.common.NetworkPolicy
 import com.molina.core.common.ShieldPolicy
 import com.molina.core.common.ShieldProxy
 import com.molina.core.common.StreamHeaders
+import com.molina.core.common.StreamPin
 import com.molina.core.common.UrlPolicy
 import java.net.InetAddress
 import java.net.URI
@@ -75,15 +76,7 @@ object MpvLoad {
     }
 
     /** Host dari URL tanpa java.net.URI (URI melempar pada karakter yang masih diterima mpv). null bila tidak terbaca. */
-    fun hostOf(url: String): String? {
-        val i = url.indexOf("://")
-        if (i <= 0) return null
-        val rest = url.substring(i + 3)
-        val authority = rest.takeWhile { it != '/' && it != '?' && it != '#' }.substringAfterLast('@')
-        val host = if (authority.startsWith("[")) authority.substringAfter('[').substringBefore(']')
-        else authority.substringBefore(':')
-        return host.ifEmpty { null }
-    }
+    fun hostOf(url: String): String? = StreamPin.hostOf(url)
 
     private val STREAM_SCHEMES = setOf("rtmp", "rtmps", "rtsp")
 
@@ -91,16 +84,12 @@ object MpvLoad {
     fun needsResolveCheck(url: String): Boolean = UrlPolicy.scheme(url) in STREAM_SCHEMES
 
     /** [SHIELD-DNS-CLOSED] Memblokir (DNS): panggil dari thread latar. Host tak terbaca atau gagal resolve = ditolak. */
-    fun resolveVerdict(url: String, allowLan: Boolean = NetworkPolicy.allowLan): UrlPolicy.Verdict {
-        val host = hostOf(url.trim()) ?: return UrlPolicy.Verdict.Blocked(UrlPolicy.Reason.NO_HOST)
-        val addrs = runCatching { InetAddress.getAllByName(host) }.getOrNull()
-            ?: return UrlPolicy.Verdict.Blocked(UrlPolicy.Reason.MALFORMED)
-        for (a in addrs) {
-            val v = ShieldPolicy.checkAddress(a, allowLan)
-            if (v is UrlPolicy.Verdict.Blocked) return v
-        }
-        return UrlPolicy.Verdict.Allowed
-    }
+    fun resolveVerdict(url: String, allowLan: Boolean = NetworkPolicy.allowLan): UrlPolicy.Verdict =
+        (resolveAndPin(url, allowLan) as? StreamPin.Result.Blocked)?.verdict ?: UrlPolicy.Verdict.Allowed
+
+    /** [SHIELD-PIN] Periksa DNS lalu (rtmp/rtsp) kembalikan URL yang sudah dipin ke IP lolos. Panggil dari thread latar. */
+    fun resolveAndPin(url: String, allowLan: Boolean = NetworkPolicy.allowLan): StreamPin.Result =
+        StreamPin.resolve(url, allowLan)
 
     /** Opsi `force-media-title=...` (maks 200 karakter, tanpa karakter kontrol) atau null. */
     fun titleOption(title: String?): String? {
