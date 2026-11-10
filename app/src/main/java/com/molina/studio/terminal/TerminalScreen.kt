@@ -60,12 +60,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.foundation.clickable
 import com.molina.studio.ui.MolinaTheme
-import com.molina.studio.ui.onHorizontalSwipe
 import androidx.compose.ui.viewinterop.AndroidView
 import com.molina.terminal.view.TerminalView
 import kotlin.math.floor
 import androidx.compose.foundation.layout.fillMaxHeight
-import com.molina.studio.ui.SwipeDirection
 
 private fun spToPx(ctx: Context, sp: Int): Int =
     TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, sp.toFloat(), ctx.resources.displayMetrics).toInt()
@@ -162,11 +160,7 @@ private fun TerminalContent(modifier: Modifier, onOpenSettings: () -> Unit, onOp
                     }
                 )
             }
-            // [FILE-DRAWER] geser dari tepi kiri area terminal membuka drawer berkas (seperti editor Code)
-            Box(
-                Modifier.align(Alignment.CenterStart).fillMaxHeight().width(14.dp)
-                    .onHorizontalSwipe(24.dp, SwipeDirection.Right) { drawerOpen = true }
-            )
+            // [DRAWER-HAMBURGER] geser dari tepi dihapus (rawan tersenggol saat memilih teks); drawer dibuka lewat tombol ≡
         }
         NanoKeys() // [NANO-KEYS]
         ExtraKeys(mods) { drawerOpen = true }
@@ -417,7 +411,7 @@ private fun RowScope.Key(
 }
 
 /**
- * Tombol ≡: tap atau geser (swipe) membuka drawer sesi; tekan lama membuka menu simbol.
+ * Tombol ≡ (hamburger): ketuk membuka drawer berkas; tekan lama membuka menu simbol. Tanpa geser.
  */
 @Composable
 private fun RowScope.DrawerKey(
@@ -428,7 +422,7 @@ private fun RowScope.DrawerKey(
 ) {
     var open by remember { mutableStateOf(false) }
     Box(
-        Modifier.weight(1f).padding(1.dp).onHorizontalSwipe(18.dp) { onOpenDrawer() }
+        Modifier.weight(1f).padding(1.dp)
     ) {
         KeyButton(label, false, false, color, { open = true }) { onOpenDrawer() }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {

@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
@@ -44,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -70,7 +72,10 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 private val Brand = MolinaTheme.Brand
-private val DrawerWidth = 280.dp
+// [DRAWER-HAMBURGER] lebar drawer: porsi layar, dijepit ke rentang ini (header butuh sekitar 200dp)
+private val DrawerMinWidth = 200.dp
+private val DrawerMaxWidth = 240.dp
+private const val DrawerFraction = 0.36f
 
 /** [FILE-DRAWER2] Keadaan tree dipegang di sini (bukan remember) agar folder utama dan folder terbuka bertahan lintas pembukaan drawer. */
 private object FileTreeStore {
@@ -131,7 +136,7 @@ private fun cdHere(ctx: Context, dir: File): Boolean {
 /**
  * [FILE-DRAWER] Drawer berkas Terminal (menggantikan drawer sesi): tree folder ala editor Code.
  * Ketuk folder = buka/tutup, ketuk berkas = edit di nano, tekan lama = menu (cd, ganti nama, salin path, properti, hapus).
- * Dibuka lewat tombol ≡ atau geser dari tepi kiri terminal; ditutup dengan geser ke kiri, ketuk latar, atau Back.
+ * Dibuka lewat tombol ≡ (hamburger) di baris tombol ekstra; ditutup dengan geser ke kiri, ketuk latar, atau Back.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -140,6 +145,7 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val swallow = remember { MutableInteractionSource() }
+    val drawerWidth = maxOf(DrawerMinWidth, minOf(DrawerMaxWidth, (LocalConfiguration.current.screenWidthDp * DrawerFraction).dp))
     val storageRoot = remember { Environment.getExternalStorageDirectory() }
     val vols = remember { volumeDirs() } // [FILE-DRAWER3] internal + kartu SD, dibaca setiap drawer dibuka
     val st = FileTreeStore
@@ -189,8 +195,9 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClose)
         )
         Column(
-            Modifier.fillMaxHeight().width(DrawerWidth)
+            Modifier.fillMaxHeight().width(drawerWidth)
                 .background(MaterialTheme.colorScheme.surface)
+                .border(1.dp, Color.White) // [DRAWER-HAMBURGER] bingkai putih: pembeda dari latar terminal yang sama-sama hitam
                 .clickable(interactionSource = swallow, indication = null, onClick = {})
                 .onHorizontalSwipe(22.dp, SwipeDirection.Left) { onClose() }
         ) {
