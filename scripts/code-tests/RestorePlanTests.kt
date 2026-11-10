@@ -46,6 +46,7 @@ fun main() {
     } finally {
         tmp.deleteRecursively()
     }
+    check("previewCaption: M dan D berbeda, jenis lain kosong", RestorePlan.previewCaption('M').contains("Merah") && RestorePlan.previewCaption('D').contains("dibuat ulang") && RestorePlan.previewCaption('A') == "") // [EXT-DIFF6]
     println(if (fails == 0) "SEMUA LULUS" else "$fails GAGAL")
     if (fails != 0) kotlin.system.exitProcess(1)
 }

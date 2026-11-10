@@ -57,7 +57,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** [CODE-HISTORY] Hasil membaca versi dan membandingkannya (dengan isi editor, atau dua versi: [new] terisi). */
-private class HistDiffState(val old: String?, val result: LineDiff.Result?, val rows: List<DiffRow>, val new: String? = null,
+// [EXT-DIFF6] internal agar dipakai RestorePreviewDialog
+internal class HistDiffState(val old: String?, val result: LineDiff.Result?, val rows: List<DiffRow>, val new: String? = null,
     /** [CODE-HISTORY3] Rentang kata berubah per baris diff (kunci = objek baris). */
     val marks: Map<DiffLine, List<IntRange>> = emptyMap()
 )
@@ -309,7 +310,7 @@ private fun HunkBar(done: Boolean, onClick: () -> Unit) {
 
 /** [CODE-HISTORY2] Isi daftar perbedaan. [contrast] = diff kontras tinggi (Tema kode): latar lebih pekat, tanda berwarna tebal. */
 @Composable
-private fun DiffBody(
+internal fun DiffBody(
     st: HistDiffState?, maxH: Dp, contrast: Boolean,
     onRevert: ((Int) -> Unit)? = null, reverted: Set<Int> = emptySet() // [CODE-HISTORY7]
 ) {

@@ -267,6 +267,8 @@ fun main() {
         check("shadow: trimKind membuang titik pantau, versi lain tetap", ss.bytesOfKind(HistoryKind.SHADOW) == 0L && ss.list(sf1).size == 1 && ss.list(sf1)[0].kind == HistoryKind.SAVED && ss.list(sf2).isEmpty())
         check("shadow: kode t dikenali", HistoryKind.of('t') == HistoryKind.SHADOW)
         check("restore: kode v dikenali", HistoryKind.of('v') == HistoryKind.RESTORED) // [EXT-DIFF3]
+        val pvNew = LineDiff.diff("", "a\nb\n") // [EXT-DIFF6] pratinjau berkas D: lama kosong = semua baris tambah
+        check("pratinjau D: lama kosong -> +2 -0", pvNew.added == 2 && pvNew.removed == 0 && pvNew.lines.all { it.op == DiffOp.ADD }) 
     } finally {
         tmp.deleteRecursively()
     }

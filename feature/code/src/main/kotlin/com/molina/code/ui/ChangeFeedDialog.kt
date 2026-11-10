@@ -1,6 +1,7 @@
 package com.molina.code.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures // [EXT-DIFF6]
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +24,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput // [EXT-DIFF6]
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -60,10 +62,18 @@ internal fun ChangeFeedDialog(session: CodeSession, view: ChangeFeedView, onDism
     val fmt = remember { SimpleDateFormat("dd MMM yyyy HH:mm", Locale("id", "ID")) }
     val confirmClear = remember { mutableStateOf(false) } // [EXT-DIFF4]
     LaunchedEffect(Unit) { session.refreshShadowUsage() }
+    val preview = remember(view) { mutableStateOf<FeedPreview?>(null) } // [EXT-DIFF6] pratinjau pemulihan yang sedang dibuka
     val bulkConfirm = remember(view) { mutableStateOf(-1) } // [EXT-DIFF5] butir yang menunggu konfirmasi "Pulihkan semua"
     LaunchedEffect(view) { session.findUndoable(view.items) { keys -> for (k in keys) acts[k] = 2 } } // tombol Urungkan tahan restart
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp).win7DialogFrame(shape)) {
+            preview.value?.let { p -> // [EXT-DIFF6]
+                RestorePreviewDialog(session, p.pv, onRestore = {
+                    preview.value = null
+                    acts[p.key] = 3
+                    session.restoreFeedFile(p.dir, p.c, p.time) { ok -> acts[p.key] = if (ok) 2 else 0 }
+                }, onDismiss = { preview.value = null })
+            }
             BasicText(
                 text = "Notifikasi perubahan",
                 maxLines = 1,
@@ -116,7 +126,8 @@ internal fun ChangeFeedDialog(session: CodeSession, view: ChangeFeedView, onDism
                             )
                             if (expanded) {
                                 Spacer(Modifier.height(4.dp))
-                                for (c in e.files) FeedFileRow(c, feedAction(acts, idx, c, e.source), { feedActionClick(session, acts, idx, item.folder, c, e.time) }) {
+                                for (c in e.files) FeedFileRow(c, feedAction(acts, idx, c, e.source), { feedActionClick(session, acts, idx, item.folder, c, e.time) },
+                                    feedLongClick(session, acts, idx, item.folder, c, e.time, e.source) { preview.value = it }) {
                                     val f = File(File(item.folder), c.path)
                                     if (c.kind != 'D' && f.isFile) {
                                         onDismiss()
@@ -132,6 +143,13 @@ internal fun ChangeFeedDialog(session: CodeSession, view: ChangeFeedView, onDism
                                 }
                                 if (e.source == ChangeFeed.SRC_EXTERNAL) { // [EXT-DIFF5]
                                     val todo = e.files.filter { RestorePlan.canOffer(true, it.kind, it.added, it.removed) && (acts["$idx|${it.path}"] ?: 0) == 0 }
+                                    if (todo.isNotEmpty()) {
+                                        BasicText(
+                                            text = "Ketuk lama pada nama berkas untuk pratinjau pemulihan",
+                                            modifier = Modifier.padding(top = 2.dp),
+                                            style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 11.sp)
+                                        )
+                                    }
                                     if (todo.size >= 2) {
                                         BasicText(
                                             text = if (bulkConfirm.value == idx) "Yakin pulihkan ${todo.size} berkas?" else "Pulihkan semua (${todo.size})",
@@ -205,13 +223,18 @@ internal fun ChangeFeedDialog(session: CodeSession, view: ChangeFeedView, onDism
 }
 
 @Composable
-private fun FeedFileRow(c: ProjectLog.FileChange, action: String?, onAction: () -> Unit, onClick: () -> Unit) {
+private fun FeedFileRow(c: ProjectLog.FileChange, action: String?, onAction: () -> Unit, onLongClick: (() -> Unit)?, onClick: () -> Unit) {
     val (letter, color) = when (c.kind) {
         'A' -> "A" to CodeColors.OutputOk
         'D' -> "D" to CodeColors.Danger
         else -> "M" to CodeColors.Warning
     }
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 4.dp), verticalAlignment = Alignment.Top) {
+    Row(
+        Modifier.fillMaxWidth()
+            .pointerInput(onClick, onLongClick) { detectTapGestures(onLongPress = { onLongClick?.invoke() }, onTap = { onClick() }) } // [EXT-DIFF6] ketuk lama = pratinjau
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.Top
+    ) {
         BasicText(
             text = letter,
             modifier = Modifier.width(18.dp),
@@ -242,6 +265,18 @@ private fun FeedFileRow(c: ProjectLog.FileChange, action: String?, onAction: () 
             )
         }
     }
+}
+
+/** [EXT-DIFF6] Aksi ketuk lama pada baris berkas: pratinjau pemulihan, hanya bila berkas sedang bisa dipulihkan (belum dipulihkan/diproses). */
+private fun feedLongClick(
+    session: CodeSession, acts: Map<String, Int>, idx: Int, folder: String, c: ProjectLog.FileChange, time: Long, source: String,
+    onReady: (FeedPreview) -> Unit
+): (() -> Unit)? {
+    if (feedAction(acts, idx, c, source) == null) return null
+    val key = "$idx|${c.path}"
+    if ((acts[key] ?: 0) !in 0..1) return null
+    val dir = File(folder)
+    return { session.loadRestorePreview(dir, c, time) { pv -> if (pv != null) onReady(FeedPreview(dir, c, time, key, pv)) } }
 }
 
 /** [EXT-DIFF5] Warna label sumber butir: dari luar = amber (peringatan), pemulihan = hijau merek, lainnya netral. */

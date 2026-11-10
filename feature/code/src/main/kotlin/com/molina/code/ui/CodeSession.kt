@@ -1258,6 +1258,29 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         }
     }
 
+    /** [EXT-DIFF6] Siapkan pratinjau pemulihan (isi disk sekarang vs versi yang akan dipasang) tanpa menulis apa pun. [done] di thread utama; null bila tak bisa. */
+    internal fun loadRestorePreview(folder: File, c: ProjectLog.FileChange, entryTime: Long, done: (RestorePreview?) -> Unit) {
+        val h = history
+        val f = File(folder, c.path)
+        if (h == null) { toast("Riwayat tidak tersedia"); done(null); return }
+        runIo {
+            var pv: RestorePreview? = null
+            var msg = "Pratinjau tidak tersedia"
+            try {
+                val disk = if (f.isFile) FileStore.readForOpen(f) else null
+                val plan = RestorePlan.forChange(h.list(f), c.kind, entryTime, disk?.text) { v -> h.read(f, v) }
+                val target = plan.target
+                val text = if (target != null) h.read(f, target) else null
+                if (text == null) msg = plan.error ?: "Versi lama tidak terbaca" else pv = RestorePreview(f, c.kind, disk?.text, text)
+            } catch (e: Exception) {
+                pv = null
+            }
+            val out = pv
+            val m = msg
+            mainHandler.post { if (out == null) toast(m); done(out) }
+        }
+    }
+
     /** [EXT-DIFF5] Bahan Urungkan dari buku catatan: isi lama dicari di Riwayat lewat sidik jari. Null bila disk tak cocok atau versi lama sudah dipangkas. */
     private fun ledgerUndo(h: HistoryStore, f: File, l: UndoLedger.Entry, diskText: String?): RestoreUndo? {
         if (diskText == null || HistoryStore.fingerprint(diskText) != l.writtenFp) return null

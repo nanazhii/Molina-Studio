@@ -8,6 +8,13 @@ object RestorePlan {
 
     class Plan(val target: HistoryVersion?, val error: String?)
 
+    /** [EXT-DIFF6] Keterangan pratinjau pemulihan menurut jenis perubahan (M = kembali ke versi sebelumnya, D = dibuat ulang). */
+    fun previewCaption(kind: Char): String = when (kind) {
+        'M' -> "Merah dihapus, hijau ditambah: isi sekarang menjadi versi sebelum perubahan luar."
+        'D' -> "Berkas dibuat ulang dari versi terakhir yang diketahui; semua baris ditambah."
+        else -> ""
+    }
+
     /** Tombol Pulihkan hanya untuk butir "dari luar": M yang punya hitungan +/- dan D yang punya isi lama. */
     fun canOffer(external: Boolean, kind: Char, added: Int, removed: Int): Boolean =
         external && ((kind == 'M' && added + removed > 0) || (kind == 'D' && removed > 0))
