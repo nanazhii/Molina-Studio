@@ -1,6 +1,7 @@
 package com.molina.engine.newpipe
 
 import com.molina.core.common.AudioChoice
+import com.molina.core.common.NetSnapshot
 import com.molina.core.common.StreamAudioLang
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.DeliveryMethod
@@ -25,6 +26,7 @@ internal object StreamPicker {
         info: StreamInfo,
         quality: com.molina.core.common.VideoQuality = com.molina.core.common.VideoQuality.AUTO,
         audioLang: String = "", // [AUDIO-LANG]
+        net: NetSnapshot = NetSnapshot.UNKNOWN, // [AUTO-NET]
     ): Pick? {
         val hls = info.hlsUrl
         val live = info.streamType == StreamType.LIVE_STREAM ||
@@ -34,24 +36,24 @@ internal object StreamPicker {
         val lang = StreamAudioLang.normalize(audioLang)
         val audios = info.audioStreams.orEmpty()
 
+        val audioCap = audioCapKbps(net) // [AUTO-NET]
         // [AUDIO-ONLY] hanya audio: URL audio terbaik, video tidak diunduh sama sekali
         if (quality == com.molina.core.common.VideoQuality.AUDIO) {
-            bestAudio(audios, lang)?.let { a -> return Pick(a.content, "audio", audioLang = langKey(a)) }
+            bestAudio(audios, lang, audioCap)?.let { a -> return Pick(a.content, "audio", audioLang = langKey(a)) }
         }
-        // [AUDIO-LANG] bahasa non-asli hanya ada di audio terpisah: AUTO dibatasi 720p (aman untuk Android 8)
-        val needSeparate = lang.isNotEmpty() && needsSeparateAudio(audios, lang)
-        // [AUDIO-LANG-AUTO] tanpa batas 720p: AUTO + audio non-asli -> adaptif resolusi tertinggi tersedia (H.264 diutamakan)
-        val q = quality
-        if (q != com.molina.core.common.VideoQuality.AUDIO &&
-            (q != com.molina.core.common.VideoQuality.AUTO || needSeparate)) {
-            pickAdaptive(info, q, lang)?.let { return it } // [QUALITY]
+        // [AUTO-NET] AUTO = adaptif (video-only + trek audio terpilih, bahasa terjamin): maks 720p, kecuali Wi-Fi (tertinggi).
+        // Bila adaptif kosong, jatuh ke stream gabungan di bawah.
+        val q = if (quality == com.molina.core.common.VideoQuality.AUTO && !net.wifi)
+            com.molina.core.common.VideoQuality.P720 else quality
+        if (q != com.molina.core.common.VideoQuality.AUDIO) {
+            pickAdaptive(info, q, lang, audioCap)?.let { return it } // [QUALITY]
         }
 
         bestMuxed(info.videoStreams.orEmpty())?.let { v ->
             val miss = quality != com.molina.core.common.VideoQuality.AUTO && quality != com.molina.core.common.VideoQuality.AUDIO // [QUALITY-LOCK]
             return Pick(v.content, if (miss) "progresif-fallback" else "progresif", v.height)
         }
-        bestAudio(audios, lang)?.let { a ->
+        bestAudio(audios, lang, audioCap)?.let { a ->
             return Pick(a.content, "audio", audioLang = langKey(a))
         }
         if (!hls.isNullOrBlank()) return Pick(hls, "hls")
@@ -69,7 +71,7 @@ internal object StreamPicker {
             pick.kind == "progresif-fallback"
 
     /** [QUALITY] Video-only (H.264 diutamakan, tanpa AV1) <= batas + audio terbaik (bahasa [lang]); audio digabung mpv lewat audio-add. */
-    private fun pickAdaptive(info: StreamInfo, quality: com.molina.core.common.VideoQuality, lang: String): Pick? {
+    private fun pickAdaptive(info: StreamInfo, quality: com.molina.core.common.VideoQuality, lang: String, audioCap: Int = 0): Pick? {
         val cands = info.videoOnlyStreams.orEmpty().filter {
             it.isUrl() && it.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP &&
                 it.codec?.startsWith("av01", ignoreCase = true) != true
@@ -78,7 +80,7 @@ internal object StreamPicker {
         val pool = if (avc.isNotEmpty()) avc else cands
         val h = quality.chooseHeight(pool.map { it.height }) ?: return null
         val v = pool.filter { it.height == h }.maxByOrNull { it.bitrate } ?: return null
-        val a = bestAudio(info.audioStreams.orEmpty(), lang) ?: return null
+        val a = bestAudio(info.audioStreams.orEmpty(), lang, audioCap) ?: return null
         return Pick(v.content, "adaptif", v.height, a.content, langKey(a))
     }
 
@@ -119,11 +121,26 @@ internal object StreamPicker {
      * Audio terbaik. [lang] kosong atau tidak tersedia -> trek ASLI (bitrate tertinggi di dalamnya),
      * bukan sekadar bitrate tertinggi di seluruh trek (yang bisa jatuh ke trek dubbing acak).
      */
-    private fun bestAudio(list: List<AudioStream>, lang: String): AudioStream? {
+    private fun bestAudio(list: List<AudioStream>, lang: String, capKbps: Int = 0): AudioStream? {
         val u = usable(list)
         if (u.isEmpty()) return null
         val pool = if (lang.isNotEmpty()) u.filter { langKey(it) == lang }.ifEmpty { originals(u) } else originals(u)
+        // [AUTO-NET] batas bitrate audio menurut jaringan (kbps): tertinggi <= batas; bila semuanya di atas, yang terendah
+        if (capKbps > 0) {
+            val known = pool.filter { it.averageBitrate > 0 }
+            if (known.isNotEmpty()) {
+                return known.filter { it.averageBitrate <= capKbps }.maxByOrNull { it.averageBitrate }
+                    ?: known.minByOrNull { it.averageBitrate }
+            }
+        }
         return pool.maxByOrNull { it.averageBitrate }
+    }
+
+    /** [AUTO-NET] Batas bitrate audio (kbps): Wi-Fi tanpa batas (0); jaringan lemah 64; selain itu 128. */
+    internal fun audioCapKbps(net: NetSnapshot): Int = when {
+        net.wifi -> 0
+        net.downKbps in 1..1999 -> 64
+        else -> 128
     }
 
     /** Daftar bahasa yang tersedia untuk UI. Kosong bila video hanya punya satu trek. */

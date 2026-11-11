@@ -130,7 +130,7 @@ internal fun PlayerSettingsPage(onOpenCinema: () -> Unit) {
             )
         }
     }
-    PackageNote("Berlaku bila video punya beberapa trek bahasa. Awalnya Indonesia. Bila bahasa pilihan tidak ada, dipakai trek asli. Bahasa selain asli diputar sebagai audio terpisah; resolusi Otomatis tetap Otomatis (tidak dibatasi).")
+    PackageNote("Berlaku bila video punya beberapa trek bahasa. Awalnya Indonesia. Bila bahasa pilihan tidak ada, dipakai trek asli. Bahasa selain asli diputar sebagai audio terpisah; resolusi Otomatis maks 720p, tanpa batas di Wi-Fi.")
 
     Spacer(Modifier.height(16.dp))
     PackageSectionHeader("Pencarian YouTube")

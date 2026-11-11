@@ -28,6 +28,7 @@ class MolinaApp : Application() {
         runCatching { android.system.Os.unsetenv("no_proxy"); android.system.Os.unsetenv("NO_PROXY") }
         MpvLifecycle.installExitHook()
         StreamEnginePrefs.init(this)
+        com.molina.core.common.NetworkHint.provider = { com.molina.studio.stream.NetHint.snapshot(this) } // [AUTO-NET]
         PrivacyPrefs.init(this)
         // [EXT-CONFIRM] token intent internal untuk pemutar; intent luar tanpa token dikonfirmasi bila meminta jaringan
         com.molina.core.common.ExternalIntentGate.tokenProvider = { com.molina.studio.security.ShortcutToken.get(this) }

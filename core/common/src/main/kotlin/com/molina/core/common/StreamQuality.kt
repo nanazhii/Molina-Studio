@@ -4,7 +4,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 /** [QUALITY] Batas resolusi video YouTube. AUTO = perilaku lama (stream gabungan terbaik, tanpa audio terpisah). */
 enum class VideoQuality(val label: String, val maxHeight: Int, val hint: String) {
-    AUTO("Otomatis", 0, "Putar cepat memakai stream gabungan; resolusi mengikuti yang tersedia (umumnya rendah)."),
+    AUTO("Otomatis", 0, "Maks 720p; tanpa batas di Wi-Fi. Audio ikut menyesuaikan jaringan."),
     P480("480p", 480, "Hemat data. Video dan audio digabung oleh pemutar."),
     P576("576p", 576, "Menengah. Video dan audio digabung oleh pemutar."),
     P720("720p HD", 720, "Tajam, cukup ringan untuk Android 8."),

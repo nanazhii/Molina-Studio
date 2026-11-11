@@ -3,6 +3,7 @@ package com.molina.engine.newpipe
 import com.molina.core.common.AppLog
 import com.molina.core.common.LogLevel
 import com.molina.core.common.LogRedact
+import com.molina.core.common.NetworkHint
 import com.molina.core.common.OriginalTitles
 import com.molina.core.common.ResolvedStream
 import com.molina.core.common.SearchLang
@@ -67,7 +68,7 @@ class NewPipeStreamResolver(
         val started = System.nanoTime()
         return try {
             var info = runInterruptible(Dispatchers.IO) { StreamInfo.getInfo(service, pageUrl) }
-            var pick = StreamPicker.pick(info, StreamQuality.current, StreamAudioLang.preferred) // [QUALITY] [AUDIO-LANG]
+            var pick = StreamPicker.pick(info, StreamQuality.current, StreamAudioLang.preferred, NetworkHint.snapshot()) // [QUALITY] [AUDIO-LANG]
                 ?: return fail(StreamError.NOT_FOUND, "tidak ada stream yang bisa diputar")
             // [QUALITY-RETRY] kunci eksplisit tidak tercapai karena stream adaptif kosong: ulang getInfo (anggaran waktu terbatas)
             var attempt = 0
@@ -89,7 +90,7 @@ class NewPipeStreamResolver(
                         null
                     }
                     if (again == null) continue
-                    val p2 = StreamPicker.pick(again, StreamQuality.current, StreamAudioLang.preferred) ?: continue
+                    val p2 = StreamPicker.pick(again, StreamQuality.current, StreamAudioLang.preferred, NetworkHint.snapshot()) ?: continue
                     if (p2.kind != "progresif-fallback") {
                         info = again; pick = p2
                         break
