@@ -186,7 +186,8 @@ class NewPipeStreamResolver(
     /** URL googlevideo terikat ke klien asalnya: UA harus cocok, jika tidak 403. Pola molina_suite. */
     private fun userAgentFor(url: String): String = try {
         when {
-            // [NEWPIPE-0.27] klien iOS/Android dihapus di Extractor v0.27.0 (poToken tak bisa dibuat lagi)
+            YoutubeParsingHelper.isIosStreamingUrl(url) -> YoutubeParsingHelper.getIosUserAgent(null)
+            YoutubeParsingHelper.isAndroidStreamingUrl(url) -> YoutubeParsingHelper.getAndroidUserAgent(null)
             YoutubeParsingHelper.isVisionOsStreamingUrl(url) -> YoutubeParsingHelper.getVisionOsUserAgent(null)
             else -> WEB_USER_AGENT
         }
