@@ -92,9 +92,9 @@ object StreamEnginePrefs {
         _quality.value = q
         StreamQuality.current = q
         StreamQuality.onChange = { setQuality(it) } // [QUALITY-LOCK]
-        // [AUDIO-LANG] belum pernah dipilih -> ikuti bahasa sistem (tidak disimpan); pilihan eksplisit (termasuk Asli = kosong) menang
+        // [AUDIO-LANG-ID] belum pernah dipilih -> Indonesia (tidak lagi ikut bahasa sistem); pilihan eksplisit (termasuk Asli = kosong) menang
         val al = if (p.contains(KEY_AUDIO_LANG)) StreamAudioLang.normalize(p.getString(KEY_AUDIO_LANG, ""))
-            else StreamAudioLang.normalize(java.util.Locale.getDefault().language)
+            else "id"
         _audioLang.value = al
         StreamAudioLang.preferred = al
         StreamAudioLang.onChange = { setAudioLang(it) }

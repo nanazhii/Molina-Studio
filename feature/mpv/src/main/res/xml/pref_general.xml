@@ -10,7 +10,7 @@
         android:title="@string/pref_default_file_manager_path_title" />
 
     <EditTextPreference
-        android:defaultValue="eng"
+        android:defaultValue="ind,id,eng"
         android:key="default_audio_language"
         app:iconSpaceReserved="false"
         app:useSimpleSummaryProvider="true"
@@ -18,7 +18,7 @@
         android:title="@string/pref_default_audio_language_title" />
 
     <EditTextPreference
-        android:defaultValue="eng"
+        android:defaultValue="ind,id,eng"
         app:iconSpaceReserved="false"
         android:key="default_subtitle_language"
         app:useSimpleSummaryProvider="true"

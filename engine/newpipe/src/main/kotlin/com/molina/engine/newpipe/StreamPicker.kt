@@ -40,9 +40,10 @@ internal object StreamPicker {
         }
         // [AUDIO-LANG] bahasa non-asli hanya ada di audio terpisah: AUTO dibatasi 720p (aman untuk Android 8)
         val needSeparate = lang.isNotEmpty() && needsSeparateAudio(audios, lang)
-        val q = if (needSeparate && quality == com.molina.core.common.VideoQuality.AUTO)
-            com.molina.core.common.VideoQuality.P720 else quality
-        if (q != com.molina.core.common.VideoQuality.AUTO && q != com.molina.core.common.VideoQuality.AUDIO) {
+        // [AUDIO-LANG-AUTO] tanpa batas 720p: AUTO + audio non-asli -> adaptif resolusi tertinggi tersedia (H.264 diutamakan)
+        val q = quality
+        if (q != com.molina.core.common.VideoQuality.AUDIO &&
+            (q != com.molina.core.common.VideoQuality.AUTO || needSeparate)) {
             pickAdaptive(info, q, lang)?.let { return it } // [QUALITY]
         }
 
