@@ -601,6 +601,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     }
 
     override fun onDestroy() {
+        bufferingHandler.removeCallbacks(bufferingHint) // [QUALITY-SUGGEST]
         thumbnailer.release()
         MpvLog.v(TAG, "Exiting.")
         audioReloadPrev?.let { com.molina.core.common.StreamQuality.current = it } // [AUDIO-ONLY-BTN]
@@ -2237,7 +2238,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             v.findViewById<android.widget.ImageButton>(R.id.qualityIconBtn)?.apply { // [QUALITY-SHEET] tint = kunci aktif
                 val q = com.molina.core.common.StreamQuality.current
                 imageTintList = ColorStateList.valueOf(ContextCompat.getColor(context,
-                    if (q != CoreQuality.AUTO) R.color.player_playlist_active else R.color.player_dialog_text))
+                    if (q != CoreQuality.AUTO) R.color.molina_brand else R.color.player_dialog_text))
                 contentDescription = getString(R.string.quality_sheet_title) + ": " + q.label
             }
             v.findViewById<android.widget.ImageButton>(R.id.audioOnlyBtn).apply {
@@ -2626,6 +2627,24 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         MpvLog.i(TAG, "Audio only: $forcedAudioOnly")
         updateMetadataDisplay() // [AUDIO-TAG-4]
         showToast(getString(if (forcedAudioOnly) R.string.audio_only_on else R.string.audio_only_off), true)
+    }
+
+    // [QUALITY-SUGGEST] Buffering terus-menerus >= 6 dtk pada item web -> sarankan 480p/audio (sekali per item; tidak mengubah kualitas sendiri).
+    private val bufferingHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var qualityHintPath: String? = null
+    private val bufferingHint = Runnable {
+        val q = com.molina.core.common.StreamQuality.current
+        if (isFinishing || isDestroyed || q == CoreQuality.P480 || q == CoreQuality.AUDIO) return@Runnable
+        val path = MPVLib.getPropertyString("path") ?: return@Runnable
+        val page = streamSources[path]
+        if (page == null || !StreamLoader.isWebUrl(page) || qualityHintPath == path) return@Runnable
+        qualityHintPath = path
+        showToast(getString(R.string.quality_slow_toast), true)
+    }
+
+    private fun onBufferingChanged(on: Boolean) {
+        bufferingHandler.removeCallbacks(bufferingHint)
+        if (on) bufferingHandler.postDelayed(bufferingHint, 6000L)
     }
 
     // [QUALITY-SHEET] Gaya YouTube: satu daftar; memilih = mengunci (tersimpan, berlaku juga untuk video berikutnya).
@@ -3572,6 +3591,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     override fun eventProperty(property: String, value: Boolean) {
         if (property == "pause") WatchStats.onPause(value)
+        if (property == "paused-for-cache") onBufferingChanged(value) // [QUALITY-SUGGEST]
         val metaUpdated = psc.update(property, value)
         if (metaUpdated)
             updateMediaSession()
