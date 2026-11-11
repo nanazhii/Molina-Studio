@@ -313,20 +313,9 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
                     }
                 }
             }
-            // [DRAWER-ICONS] Bar aksi hemat ruang: hanya ikon (Berkas baru | Folder baru), tinggi 40dp; label lewat aksesibilitas.
+            // [DRAWER-ICONS] Bar aksi hemat ruang: hanya ikon (Folder baru | Berkas baru), tinggi 40dp; label lewat aksesibilitas.
             Box(Modifier.fillMaxWidth().height(1.dp).background(dim.copy(alpha = 0.3f)))
             Row(Modifier.fillMaxWidth().navigationBarsPadding().height(40.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier.weight(1f).fillMaxHeight().clickable { newFile = true } // [NANO-NEW]
-                        .semantics(mergeDescendants = true) { contentDescription = "Berkas baru"; role = Role.Button },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        W7FileIcon("", 22.dp)
-                        Text("+", color = Brand, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.BottomEnd))
-                    }
-                }
-                Box(Modifier.width(1.dp).height(20.dp).background(dim.copy(alpha = 0.3f)))
                 Box(
                     Modifier.weight(1f).fillMaxHeight().clickable { sheet = Sheet.NewDir(root) } // [FILE-DRAWER3] folder baru di akar drawer
                         .semantics(mergeDescendants = true) { contentDescription = "Folder baru"; role = Role.Button },
@@ -337,6 +326,17 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
                         Text("+", color = Brand, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.BottomEnd))
                     }
                 }
+                Box(Modifier.width(1.dp).height(20.dp).background(dim.copy(alpha = 0.3f)))
+                Box(
+                    Modifier.weight(1f).fillMaxHeight().clickable { newFile = true } // [NANO-NEW]
+                        .semantics(mergeDescendants = true) { contentDescription = "Berkas baru"; role = Role.Button },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        W7FileIcon("", 22.dp)
+                        Text("+", color = Brand, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.BottomEnd))
+                    }
+                } // [DRAWER-SWAP] Berkas baru kini di kanan
             }
         }
     }
