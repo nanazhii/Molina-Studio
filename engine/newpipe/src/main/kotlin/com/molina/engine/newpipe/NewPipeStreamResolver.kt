@@ -5,6 +5,7 @@ import com.molina.core.common.LogLevel
 import com.molina.core.common.OriginalTitles
 import com.molina.core.common.ResolvedStream
 import com.molina.core.common.SearchLang
+import com.molina.core.common.StreamAudioLang
 import com.molina.core.common.StreamError
 import com.molina.core.common.StreamOutcome
 import com.molina.core.common.StreamQuality
@@ -64,10 +65,14 @@ class NewPipeStreamResolver(
         val started = System.nanoTime()
         return try {
             val info = runInterruptible(Dispatchers.IO) { StreamInfo.getInfo(service, pageUrl) }
-            val pick = StreamPicker.pick(info, StreamQuality.current) // [QUALITY]
+            val pick = StreamPicker.pick(info, StreamQuality.current, StreamAudioLang.preferred) // [QUALITY] [AUDIO-LANG]
                 ?: return fail(StreamError.NOT_FOUND, "tidak ada stream yang bisa diputar")
             pick.audioUrl?.let { StreamQuality.rememberAudio(pick.url, it) } // [QUALITY]
             StreamQuality.lastHeight = pick.height // [QUALITY-LOCK]
+            StreamAudioLang.lastTracks = StreamPicker.audioChoices(info) // [AUDIO-LANG]
+            StreamAudioLang.lastActive = pick.audioLang
+            if (StreamAudioLang.lastTracks.isNotEmpty())
+                AppLog.log(SOURCE, LogLevel.Info, "audio", "trek=${StreamAudioLang.lastTracks.size} pilihan='${StreamAudioLang.preferred}' aktif='${pick.audioLang}'")
             StreamQuality.lastFallback = pick.kind.endsWith("-fallback")
             val ms = (System.nanoTime() - started) / 1_000_000
             AppLog.log(

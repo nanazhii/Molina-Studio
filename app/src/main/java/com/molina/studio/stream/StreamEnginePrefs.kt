@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.molina.core.common.NetworkPolicy
 import com.molina.core.common.SearchLang
+import com.molina.core.common.StreamAudioLang
 import com.molina.core.common.StreamQuality
 import com.molina.core.common.VideoQuality
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +26,7 @@ object StreamEnginePrefs {
     private const val KEY_LOCK_ID = "lock_id"
     private const val KEY_ORIG_TITLE = "orig_title"
     private const val KEY_QUALITY = "video_quality" // [QUALITY]
+    private const val KEY_AUDIO_LANG = "audio_lang" // [AUDIO-LANG]
 
     private var sp: SharedPreferences? = null
     private val _ytdlpEnabled = MutableStateFlow(false)
@@ -62,6 +64,18 @@ object StreamEnginePrefs {
         sp?.edit()?.putString(KEY_QUALITY, v.name)?.apply()
     }
 
+    private val _audioLang = MutableStateFlow("") // [AUDIO-LANG]
+
+    /** Bahasa audio YouTube pilihan ("" = ikuti trek asli). Dicerminkan ke [StreamAudioLang.preferred]; berlaku pada video berikutnya. */
+    val audioLang: StateFlow<String> = _audioLang.asStateFlow()
+
+    fun setAudioLang(code: String) {
+        val v = StreamAudioLang.normalize(code)
+        _audioLang.value = v
+        StreamAudioLang.preferred = v
+        sp?.edit()?.putString(KEY_AUDIO_LANG, v)?.apply()
+    }
+
     fun init(ctx: Context) {
         val p = ctx.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE)
         sp = p
@@ -78,6 +92,12 @@ object StreamEnginePrefs {
         _quality.value = q
         StreamQuality.current = q
         StreamQuality.onChange = { setQuality(it) } // [QUALITY-LOCK]
+        // [AUDIO-LANG] belum pernah dipilih -> ikuti bahasa sistem (tidak disimpan); pilihan eksplisit (termasuk Asli = kosong) menang
+        val al = if (p.contains(KEY_AUDIO_LANG)) StreamAudioLang.normalize(p.getString(KEY_AUDIO_LANG, ""))
+            else StreamAudioLang.normalize(java.util.Locale.getDefault().language)
+        _audioLang.value = al
+        StreamAudioLang.preferred = al
+        StreamAudioLang.onChange = { setAudioLang(it) }
     }
 
     fun enableLan(v: Boolean) {

@@ -76,6 +76,17 @@
             android:tooltipText="@string/quality_sheet_title"
             android:src="@drawable/ic_menu_quality" />
 
+        <ImageButton
+            android:id="@+id/audioLangBtn"
+            style="@style/Widget.Molina.MenuIcon"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:minWidth="0dp"
+            android:minHeight="48dp"
+            android:contentDescription="@string/audio_lang_btn"
+            android:tooltipText="@string/audio_lang_btn"
+            android:src="@drawable/ic_menu_audio_lang" /> <!-- [AUDIO-LANG] -->
+
     </LinearLayout>
 
         <LinearLayout

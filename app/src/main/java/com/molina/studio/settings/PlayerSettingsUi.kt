@@ -112,6 +112,27 @@ internal fun PlayerSettingsPage(onOpenCinema: () -> Unit) {
     PackageNote("Berlaku pada video berikutnya. Bila resolusi pilihan tidak tersedia, dipakai yang terdekat.")
 
     Spacer(Modifier.height(16.dp))
+    PackageSectionHeader("Bahasa audio YouTube") // [AUDIO-LANG]
+    val audioLang by StreamEnginePrefs.audioLang.collectAsState()
+    PackageGroupCard {
+        val base = listOf(
+            "" to "Asli (bawaan video)", "id" to "Indonesia", "en" to "Inggris",
+            "ja" to "Jepang", "ko" to "Korea", "ar" to "Arab", "es" to "Spanyol", "hi" to "Hindi",
+        )
+        val rows = if (audioLang.isEmpty() || base.any { it.first == audioLang }) base else base + (audioLang to
+            (java.util.Locale.forLanguageTag(audioLang).getDisplayLanguage(java.util.Locale.forLanguageTag("id"))
+                .ifBlank { audioLang }.replaceFirstChar { it.uppercase() } + " (bahasa sistem)"))
+        rows.forEachIndexed { i, (code, label) ->
+            if (i > 0) PackageDivider()
+            PackageChoiceRow(
+                label, audioLang == code, { StreamEnginePrefs.setAudioLang(code) },
+                if (code.isEmpty()) "Ikuti trek audio asli video (sering berbahasa Inggris). Mati = perilaku lama." else null
+            )
+        }
+    }
+    PackageNote("Berlaku bila video punya beberapa trek bahasa. Awalnya mengikuti bahasa sistem perangkat. Bila bahasa pilihan tidak ada, dipakai trek asli. Bahasa selain asli diputar sebagai audio terpisah (resolusi Otomatis dibatasi 720p).")
+
+    Spacer(Modifier.height(16.dp))
     PackageSectionHeader("Pencarian YouTube")
     PackageGroupCard {
         PackageSwitchRow(

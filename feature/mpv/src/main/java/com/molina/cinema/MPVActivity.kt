@@ -2186,6 +2186,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                 },
                 MenuItem(R.id.audioOnlyBtn) { toggleAudioOnly(); true },
                 MenuItem(R.id.qualityIconBtn) { restoreState(); showQualitySheet(); false }, // [QUALITY-SHEET]
+                MenuItem(R.id.audioLangBtn) { restoreState(); showAudioLangSheet(); false }, // [AUDIO-LANG]
                 MenuItem(R.id.chapterBtn) {
                     val chapters = player.loadChapters()
                     if (chapters.isEmpty())
@@ -2231,6 +2232,11 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             val web = pg != null && StreamLoader.isWebUrl(pg)
             if (!web && !forcedAudioOnly && readVideoVariants().size <= 1) hiddenButtons.add(R.id.qualityIconBtn)
         }
+        run { // [AUDIO-LANG] tampil hanya untuk stream web dengan >= 2 trek bahasa
+            val pg = MPVLib.getPropertyString("path")?.let { streamSources[it] }
+            if (pg == null || !StreamLoader.isWebUrl(pg) || com.molina.core.common.StreamAudioLang.lastTracks.size < 2)
+                hiddenButtons.add(R.id.audioLangBtn)
+        }
         if ((MPVLib.getPropertyInt("chapter-list/count") ?: 0) == 0)
             hiddenButtons.add(R.id.rowChapter)
         /******/
@@ -2241,6 +2247,10 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                 imageTintList = ColorStateList.valueOf(ContextCompat.getColor(context,
                     if (q != CoreQuality.AUTO) R.color.molina_brand else R.color.player_dialog_text))
                 contentDescription = getString(R.string.quality_sheet_title) + ": " + q.label
+            }
+            v.findViewById<android.widget.ImageButton>(R.id.audioLangBtn)?.apply { // [AUDIO-LANG] tint merek = bahasa dipilih
+                imageTintList = ColorStateList.valueOf(ContextCompat.getColor(context,
+                    if (com.molina.core.common.StreamAudioLang.preferred.isNotEmpty()) R.color.molina_brand else R.color.player_dialog_text))
             }
             v.findViewById<android.widget.ImageButton>(R.id.audioOnlyBtn).apply {
                 val label = getString(if (forcedAudioOnly) R.string.audio_only_off else R.string.audio_only_on)
@@ -2794,6 +2804,57 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                     sq.set(before)
                     forcedAudioOnly = wasAudio
                     updateMetadataDisplay()
+                    showToast(getString(StreamLoader.messageRes(p.error)), true)
+                }
+            }
+        }
+    }
+
+    // [AUDIO-LANG] Pilih bahasa audio trek YouTube (video dengan >= 2 trek bahasa); disimpan permanen.
+    private fun showAudioLangSheet() {
+        val sl = com.molina.core.common.StreamAudioLang
+        val tracks = sl.lastTracks
+        if (tracks.size < 2) { showToast(getString(R.string.audio_lang_single), true); return }
+        val keys = listOf("") + tracks.map { it.key }
+        val labels = (listOf(getString(R.string.audio_lang_original)) + tracks.map { it.label }).toTypedArray()
+        val cur = if (sl.preferred.isEmpty()) 0 else keys.indexOf(sl.preferred).coerceAtLeast(0)
+        AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog)
+            .setTitle(R.string.audio_lang_title)
+            .setSingleChoiceItems(labels, cur) { d, i -> d.dismiss(); applyAudioLang(keys[i]) }
+            .setNegativeButton(R.string.dialog_cancel, null)
+            .show()
+    }
+
+    /** [AUDIO-LANG] Simpan pilihan, lalu resolve ulang item aktif dan lanjut dari posisi terakhir. */
+    private fun applyAudioLang(key: String) {
+        val sl = com.molina.core.common.StreamAudioLang
+        val before = sl.preferred
+        if (key == before) return
+        sl.set(key)
+        val page = MPVLib.getPropertyString("path")?.let { streamSources[it] }
+        if (page == null || !StreamLoader.isWebUrl(page)) {
+            showToast(getString(R.string.audio_lang_next_video), true)
+            return
+        }
+        val pos = MPVLib.getPropertyDouble("time-pos") ?: 0.0
+        val idx = MPVLib.getPropertyInt("playlist-pos") ?: 0
+        showToast(getString(R.string.audio_lang_switched), true)
+        streamScope.launch {
+            when (val p = StreamLoader.prepare(page) { showToast(getString(R.string.stream_resolving), true) }) {
+                is Prepared.Ready -> {
+                    p.title?.let { streamTitles[p.url] = it }
+                    streamSources[p.url] = page
+                    pendingSeekSec = pos.takeIf { it > 1.0 }
+                    val a = MpvLoad.loadfileArgs(p.url, "insert-at-play", p.headers, p.title)
+                    if (a.isNotEmpty() && a[0] == "loadfile") {
+                        val cmd = if (a.size >= 5) a.copyOf().also { it[3] = idx.toString() }
+                                  else arrayOf("loadfile", a[1], "insert-at-play", idx.toString())
+                        MPVLib.command(cmd)
+                        MPVLib.command(arrayOf("playlist-remove", (idx + 1).toString()))
+                    } else MPVLib.command(a)
+                }
+                is Prepared.Failed -> {
+                    sl.set(before)
                     showToast(getString(StreamLoader.messageRes(p.error)), true)
                 }
             }

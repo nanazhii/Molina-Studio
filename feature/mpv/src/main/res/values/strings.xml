@@ -354,4 +354,11 @@
     <string name="quality_next_video">Quality locked to %1$s for the next videos</string>
     <string name="quality_slow_toast">Slow network? Tap the HD icon and pick 480p or Audio only.</string>
     <string name="quality_slow_snack">Slow network. Lock to 480p?</string>
+    <!-- [AUDIO-LANG] -->
+    <string name="audio_lang_btn">Audio language</string>
+    <string name="audio_lang_title">Audio language</string>
+    <string name="audio_lang_original">Original (video default)</string>
+    <string name="audio_lang_single">This video has only one audio language.</string>
+    <string name="audio_lang_switched">Switching audio language\u2026</string>
+    <string name="audio_lang_next_video">Audio language saved for the next videos</string>
 </resources>
