@@ -156,6 +156,8 @@ fun LogScreen(modifier: Modifier = Modifier) {
     var confirmClear by remember { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     var searchOpen by rememberSaveable { mutableStateOf(false) }
+    var raw by rememberSaveable { mutableStateOf(false) } // [LOGCAT-RAW]
+    var fmt by remember { mutableStateOf(LogFormat.current) } // [LOGCAT-FORMAT]
     val searchFocus = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     val level = LevelFilter.entries[levelIdx.coerceIn(0, LevelFilter.entries.lastIndex)]
@@ -163,12 +165,11 @@ fun LogScreen(modifier: Modifier = Modifier) {
     val filterDesc = "sumber=" + (SOURCES.firstOrNull { it.first == source }?.second ?: source) +
         ", level=" + level.label + if (q.isEmpty()) "" else ", kata kunci=\"" + q + "\""
 
-    val shown = remember(entries, source, level, q) {
+    val lf = remember(q) { LogFilter.parse(q) } // [LOGCAT-FILTER] kata, tag:, pid:, tid:, level:, /regex/, Tag:W *:S
+    val shown = remember(entries, source, level, lf) {
         entries.filter {
             (source.isEmpty() || matchesFilter(it.source, source)) &&
-                it.level.ordinal >= level.min.ordinal &&
-                (q.isEmpty() || it.message.contains(q, ignoreCase = true) ||
-                    it.tag.contains(q, ignoreCase = true) || it.source.contains(q, ignoreCase = true))
+                it.level.ordinal >= level.min.ordinal && lf.matches(it)
         }
     }
     val counts = remember(entries) {
@@ -176,8 +177,8 @@ fun LogScreen(modifier: Modifier = Modifier) {
             key to if (key.isEmpty()) entries.size else entries.count { matchesFilter(it.source, key) }
         }
     }
-    val rows = remember(shown, source, openKeys, q) {
-        buildRows(shown, source != "cinema" && q.isEmpty(), openKeys)
+    val rows = remember(shown, source, openKeys, q, raw) {
+        buildRows(shown, source != "cinema" && q.isEmpty() && !raw, openKeys)
     }
 
     val listState = rememberLazyListState()
@@ -237,7 +238,10 @@ fun LogScreen(modifier: Modifier = Modifier) {
             Spacer(Modifier.width(8.dp))
             LevelButton("Cari", caret = false, active = searchOpen || q.isNotEmpty()) { searchOpen = !searchOpen }
             Spacer(Modifier.weight(1f))
-            Text("${shown.size} baris", fontSize = 11.sp, color = MolinaTheme.Muted)
+            Text(
+                if (lf.error != null) "\u26A0 ${lf.error}" else "${shown.size} baris",
+                fontSize = 11.sp, color = if (lf.error != null) MolinaTheme.Warn else MolinaTheme.Muted
+            )
             Box {
                 Box(
                     Modifier.size(44.dp).clip(RoundedCornerShape(22.dp)).clickable { actionMenu = true },
@@ -257,6 +261,14 @@ fun LogScreen(modifier: Modifier = Modifier) {
                     DropdownMenuItem(
                         text = { Text("Simpan ke berkas (.txt)", fontSize = 13.sp) },
                         onClick = { actionMenu = false; exportLogs(ctx, shown, filterDesc) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(if (raw) "Tampilan: mentah (adb)" else "Tampilan: ringkas", fontSize = 13.sp) },
+                        onClick = { actionMenu = false; raw = !raw }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Format salin/ekspor: ${fmt.label}", fontSize = 13.sp) },
+                        onClick = { fmt = fmt.next(); LogFormat.current = fmt }
                     )
                     DropdownMenuItem(
                         text = { Text("Kirim pesan uji", fontSize = 13.sp) },
@@ -290,7 +302,7 @@ fun LogScreen(modifier: Modifier = Modifier) {
                     decorationBox = { inner ->
                         Box(contentAlignment = Alignment.CenterStart) {
                             if (query.isEmpty()) {
-                                Text("Cari pesan, tag, atau sumber\u2026", fontSize = 13.sp, color = MolinaTheme.Muted)
+                                Text("Cari: kata tag:X pid:N level:W /re/\u2026", fontSize = 13.sp, color = MolinaTheme.Muted)
                             }
                             inner()
                         }
@@ -325,7 +337,9 @@ fun LogScreen(modifier: Modifier = Modifier) {
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                     items(rows, key = { it.key }) { row ->
                         when (row) {
-                            is LogLine -> EntryRow(row.e, row.child, q) { copyText(ctx, format(row.e), "1 baris") }
+                            is LogLine ->
+                                if (raw) RawRow(row.e, lf.highlight) { copyText(ctx, format(row.e), "1 baris") }
+                                else EntryRow(row.e, row.child, lf.highlight) { copyText(ctx, format(row.e), "1 baris") }
                             is GroupRow -> GroupHeader(row) {
                                 openKeys = if (row.key in openKeys) openKeys - row.key else openKeys + row.key
                             }
@@ -467,6 +481,27 @@ private fun EntryRow(e: LogEntry, child: Boolean, query: String, onCopy: () -> U
     }
 }
 
+/** [LOGCAT-RAW] Baris persis seperti keluaran `adb logcat` (format aktif), diwarnai menurut huruf prioritas. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun RawRow(e: LogEntry, query: String, onCopy: () -> Unit) {
+    val color = when (LogFilter.rankOf(e.prio, e.level)) {
+        0 -> MolinaTheme.Muted
+        1 -> Color(0xFF6CB6FF)
+        2 -> Color(0xFF7BD88F)
+        3 -> MolinaTheme.Warn
+        4 -> MolinaTheme.Bad
+        else -> Color(0xFFE06CFF)
+    }
+    Text(
+        buildAnnotatedString { appendHighlighted(format(e), query, color) },
+        modifier = Modifier.fillMaxWidth()
+            .combinedClickable(onClick = {}, onLongClick = onCopy)
+            .padding(horizontal = 10.dp, vertical = 1.dp),
+        fontFamily = FontFamily.Monospace, fontSize = 11.sp, lineHeight = 15.sp
+    )
+}
+
 @Composable
 private fun GroupHeader(g: GroupRow, onToggle: () -> Unit) {
     val shape = RoundedCornerShape(10.dp)
@@ -505,15 +540,9 @@ private fun CountPill(text: String, color: Color) {
     )
 }
 
-private val ADB_FMT: DateTimeFormatter =
-    DateTimeFormatter.ofPattern("MM-dd HH:mm:ss.SSS").withZone(ZoneId.systemDefault())
-
 private fun format(e: LogEntry): String {
-    // [LOGCAT-ADB] baris logcat mentah: persis format `logcat -v threadtime` (tanpa awalan sumber)
-    if (e.prio != '\u0000') {
-        return "${ADB_FMT.format(Instant.ofEpochMilli(e.time))} ${e.pid.toString().padStart(5)} " +
-            "${e.tid.toString().padStart(5)} ${e.prio} ${e.tag.padEnd(8)}: ${e.message}"
-    }
+    // [LOGCAT-ADB] baris logcat mentah: persis `logcat -v <format>` (default threadtime), tanpa awalan sumber
+    if (e.prio != '\u0000') return LogFormat.current.render(e.time, e.pid, e.tid, e.prio, e.tag, e.message)
     val n = if (e.count > 1) "  \u00D7${e.count}" else ""
     return "${TIME_FMT.format(Instant.ofEpochMilli(e.time))} ${e.level.code} " +
         "${e.source}/${e.tag}: ${e.message}$n"
