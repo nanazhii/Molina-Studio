@@ -2594,6 +2594,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         val path = MPVLib.getPropertyString("path") ?: return false
         val page = streamSources[path] ?: return false
         if (!StreamLoader.isWebUrl(page)) return false
+        if (readVideoVariants().size > 1) return false // [LIVE-SWITCH] pakai jalur vid, tanpa memuat ulang
         val sq = com.molina.core.common.StreamQuality
         val audioQ = com.molina.core.common.VideoQuality.AUDIO
         val before = sq.current
@@ -2783,6 +2784,26 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         handler.postDelayed(tick, 1000L)
     }
 
+    /**
+     * [LIVE-SWITCH] Siaran live (HLS) selalu memakai URL yang sama untuk semua kualitas, jadi resolve ulang hanya
+     * memulai ulang siaran tanpa mengubah apa pun. Bila stream sudah memuat beberapa varian video, cukup pindah
+     * trek `vid` (atau matikan untuk audio saja): tanpa memuat ulang, posisi tetap. Kunci sudah disimpan oleh pemanggil.
+     */
+    private fun switchVariantNoReload(q: CoreQuality) {
+        if (q == CoreQuality.AUDIO) {
+            forcedAudioOnly = true
+            player.vid = -1
+        } else {
+            forcedAudioOnly = false
+            val vs = readVideoVariants()
+            val pick = if (q == CoreQuality.AUTO) null
+                else vs.filter { it.height <= q.maxHeight }.maxByOrNull { it.height } ?: vs.minByOrNull { it.height }
+            if (pick != null) player.vid = pick.mpvId else MPVLib.setPropertyString("vid", "auto")
+        }
+        updateMetadataDisplay()
+        showToast(getString(R.string.quality_switched, q.label), true)
+    }
+
     /** [QUALITY-SHEET] Simpan kunci, lalu resolve ulang item aktif pada kualitas baru dan lanjut dari posisi terakhir. */
     private fun applyQualityLock(q: CoreQuality) {
         val sq = com.molina.core.common.StreamQuality
@@ -2791,6 +2812,10 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         sq.set(q)
         audioReloadPrev = null
         val page = MPVLib.getPropertyString("path")?.let { streamSources[it] }
+        if (page != null && StreamLoader.isWebUrl(page) && readVideoVariants().size > 1) { // [LIVE-SWITCH]
+            switchVariantNoReload(q)
+            return
+        }
         if (page == null || !StreamLoader.isWebUrl(page)) {
             // bukan hasil resolver web: audio-only lewat track vid; resolusi lewat varian HLS bila ada
             if ((q == CoreQuality.AUDIO) != forcedAudioOnly) toggleAudioOnly()
