@@ -600,6 +600,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     override fun onDestroy() {
         bufferingHandler.removeCallbacks(bufferingHint) // [QUALITY-SUGGEST]
+        bufferingHandler.removeCallbacks(tierLongStall) // [AUTO-NET-2]
         dismissQualitySnack() // [QUALITY-SNACK]
         thumbnailer.release()
         MpvLog.v(TAG, "Exiting.")
@@ -2665,10 +2666,57 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         showQualitySnack() // [QUALITY-SNACK]
     }
 
+    // [AUTO-NET-2] Turun satu tier otomatis saat macet berulang (3x/60 dtk atau sekali >= 8 dtk). Hanya mode AUTO:
+    // kunci eksplisit tidak pernah ditimpa. Naik lagi hanya pada video berikutnya (memuat ulang memutus buffer).
+    private val stallTimes = kotlin.collections.ArrayDeque<Long>()
+    private var lastTierShiftAt = 0L
+    private val tierLongStall = Runnable { autoDownshift() }
+
+    private fun noteStall() {
+        if (isFinishing || isDestroyed || effectiveQuality() != CoreQuality.AUTO) return
+        if (MPVLib.getPropertyBoolean("seeking") == true) return
+        if ((MPVLib.getPropertyDouble("time-pos") ?: 0.0) < 5.0) return // buffering awal bukan tanda jaringan buruk
+        val now = android.os.SystemClock.elapsedRealtime()
+        stallTimes.addLast(now)
+        while (stallTimes.isNotEmpty() && now - stallTimes.first() > 60_000L) stallTimes.removeFirst()
+        if (stallTimes.size >= 3) autoDownshift()
+    }
+
+    private fun autoDownshift() {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (isFinishing || isDestroyed || now - lastTierShiftAt < 30_000L) return
+        if (effectiveQuality() != CoreQuality.AUTO || MPVLib.getPropertyBoolean("seeking") == true) return
+        val path = MPVLib.getPropertyString("path") ?: return
+        val page = streamSources[path] ?: return
+        if (!StreamLoader.isWebUrl(page) || readVideoVariants().size > 1) return
+        if (!com.molina.core.common.AdaptiveTier.downshift(page)) return
+        lastTierShiftAt = now
+        stallTimes.clear()
+        showToast(getString(R.string.tier_down), true)
+        val pos = MPVLib.getPropertyDouble("time-pos") ?: 0.0
+        val idx = MPVLib.getPropertyInt("playlist-pos") ?: 0
+        streamScope.launch {
+            when (val p = StreamLoader.prepare(page)) {
+                is Prepared.Ready -> {
+                    p.title?.let { streamTitles[p.url] = it }
+                    streamSources[p.url] = page
+                    pendingSeekSec = pos.takeIf { it > 1.0 }
+                    val a = MpvLoad.loadfileArgs(p.url, "insert-at-play", p.headers, p.title)
+                    if (a.isNotEmpty() && a[0] == "loadfile") swapCurrentEntry(a, idx) else MPVLib.command(a)
+                }
+                is Prepared.Failed -> showToast(getString(StreamLoader.messageRes(p.error)), true)
+            }
+        }
+    }
+
     private fun onBufferingChanged(on: Boolean) {
         bufferingHandler.removeCallbacks(bufferingHint)
-        if (on) bufferingHandler.postDelayed(bufferingHint, 6000L)
-        else bufferingHandler.post { dismissQualitySnack() } // [QUALITY-SNACK] saran basi bila buffering selesai
+        bufferingHandler.removeCallbacks(tierLongStall) // [AUTO-NET-2]
+        if (on) {
+            bufferingHandler.postDelayed(bufferingHint, 6000L)
+            bufferingHandler.postDelayed(tierLongStall, 8000L) // [AUTO-NET-2]
+            bufferingHandler.post { noteStall() }
+        } else bufferingHandler.post { dismissQualitySnack() } // [QUALITY-SNACK] saran basi bila buffering selesai
     }
 
     // [QUALITY-SNACK] Bar ala Snackbar buatan sendiri: tombol aksi langsung mengunci 480p; hilang sendiri setelah 8 dtk.

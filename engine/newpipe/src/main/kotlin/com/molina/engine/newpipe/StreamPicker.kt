@@ -27,6 +27,7 @@ internal object StreamPicker {
         quality: com.molina.core.common.VideoQuality = com.molina.core.common.VideoQuality.AUTO,
         audioLang: String = "", // [AUDIO-LANG]
         net: NetSnapshot = NetSnapshot.UNKNOWN, // [AUTO-NET]
+        tier: Int = 0, // [AUTO-NET-2] penurunan akibat macet; hanya berlaku di AUTO
     ): Pick? {
         val hls = info.hlsUrl
         val live = info.streamType == StreamType.LIVE_STREAM ||
@@ -36,7 +37,8 @@ internal object StreamPicker {
         val lang = StreamAudioLang.normalize(audioLang)
         val audios = info.audioStreams.orEmpty()
 
-        val audioCap = audioCapKbps(net) // [AUTO-NET]
+        val steps = if (quality == com.molina.core.common.VideoQuality.AUTO) tier.coerceAtLeast(0) else 0 // [AUTO-NET-2]
+        val audioCap = if (steps >= 1) 64 else audioCapKbps(net) // [AUTO-NET]
         // [AUDIO-ONLY] hanya audio: URL audio terbaik, video tidak diunduh sama sekali
         if (quality == com.molina.core.common.VideoQuality.AUDIO) {
             bestAudio(audios, lang, audioCap)?.let { a -> return Pick(a.content, "audio", audioLang = langKey(a)) }
@@ -46,7 +48,7 @@ internal object StreamPicker {
         val q = if (quality == com.molina.core.common.VideoQuality.AUTO && !net.wifi)
             com.molina.core.common.VideoQuality.P720 else quality
         if (q != com.molina.core.common.VideoQuality.AUDIO) {
-            pickAdaptive(info, q, lang, audioCap)?.let { return it } // [QUALITY]
+            pickAdaptive(info, q, lang, audioCap, steps, net)?.let { return it } // [QUALITY]
         }
 
         bestMuxed(info.videoStreams.orEmpty())?.let { v ->
@@ -71,17 +73,58 @@ internal object StreamPicker {
             pick.kind == "progresif-fallback"
 
     /** [QUALITY] Video-only (H.264 diutamakan, tanpa AV1) <= batas + audio terbaik (bahasa [lang]); audio digabung mpv lewat audio-add. */
-    private fun pickAdaptive(info: StreamInfo, quality: com.molina.core.common.VideoQuality, lang: String, audioCap: Int = 0): Pick? {
+    private fun pickAdaptive(
+        info: StreamInfo, quality: com.molina.core.common.VideoQuality, lang: String, audioCap: Int = 0,
+        steps: Int = 0, net: NetSnapshot = NetSnapshot.UNKNOWN,
+    ): Pick? {
+        // [AUTO-WIFI] AUTO sampai sini hanya di Wi-Fi: tertinggi dari sumber
+        if (quality == com.molina.core.common.VideoQuality.AUTO) pickTop(info, net, lang, audioCap, steps)?.let { return it }
         val cands = info.videoOnlyStreams.orEmpty().filter {
             it.isUrl() && it.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP &&
                 it.codec?.startsWith("av01", ignoreCase = true) != true
         }
         val avc = cands.filter { it.codec?.startsWith("avc", ignoreCase = true) == true }
         val pool = if (avc.isNotEmpty()) avc else cands
-        val h = quality.chooseHeight(pool.map { it.height }) ?: return null
+        val h0 = quality.chooseHeight(pool.map { it.height }) ?: return null
+        val h = stepDown(pool.map { it.height }, h0, steps) // [AUTO-NET-2]
         val v = pool.filter { it.height == h }.maxByOrNull { it.bitrate } ?: return null
         val a = bestAudio(info.audioStreams.orEmpty(), lang, audioCap) ?: return null
         return Pick(v.content, "adaptif", v.height, a.content, langKey(a))
+    }
+
+    /** [AUTO-WIFI] Wi-Fi: resolusi tertinggi yang ada di sumber. VP9/AV1 hanya bila dekoder HARDWARE perangkat sanggup; pada tinggi sama H.264 diutamakan. */
+    private fun pickTop(info: StreamInfo, net: NetSnapshot, lang: String, audioCap: Int, steps: Int): Pick? {
+        val cands = info.videoOnlyStreams.orEmpty().filter {
+            val fam = codecFamily(it)
+            it.isUrl() && it.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP && it.height > 0 &&
+                (fam == "avc" || (fam.isNotEmpty() && (net.hwMaxHeight[fam] ?: 0) >= it.height))
+        }
+        val top = cands.maxOfOrNull { it.height } ?: return null
+        val h = stepDown(cands.map { it.height }, top, steps)
+        val v = cands.filter { it.height == h }
+            .minWithOrNull(compareBy<VideoStream> { codecRank(it) }.thenByDescending { it.bitrate }) ?: return null
+        val a = bestAudio(info.audioStreams.orEmpty(), lang, audioCap) ?: return null
+        return Pick(v.content, "adaptif", v.height, a.content, langKey(a))
+    }
+
+    private fun codecFamily(v: VideoStream): String {
+        val c = v.codec?.lowercase().orEmpty()
+        return when {
+            c.startsWith("avc") -> "avc"
+            c.startsWith("vp09") || c.startsWith("vp9") -> "vp9"
+            c.startsWith("av01") -> "av1"
+            else -> ""
+        }
+    }
+
+    private fun codecRank(v: VideoStream): Int = when (codecFamily(v)) { "avc" -> 0; "vp9" -> 1; "av1" -> 2; else -> 3 }
+
+    /** [AUTO-NET-2] Turun [steps] tinggi dari [h] pada daftar tinggi yang tersedia (terendah bila habis). */
+    private fun stepDown(heights: Collection<Int>, h: Int, steps: Int): Int {
+        if (steps <= 0) return h
+        val d = heights.filter { it > 0 }.distinct().sortedDescending()
+        val i = d.indexOf(h)
+        return if (i < 0) h else d[(i + steps).coerceAtMost(d.lastIndex)]
     }
 
     private fun bestMuxed(list: List<VideoStream>): VideoStream? =

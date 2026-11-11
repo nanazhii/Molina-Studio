@@ -366,4 +366,5 @@
     <string name="menu_lock_screen">Lock screen</string> <!-- [MENU-SCROLL] -->
     <string name="menu_pip">Floating window (PiP)</string>
     <string name="ab_loop_btn">A-B loop</string> <!-- [CTRL-LAYOUT] -->
+    <string name="tier_down">Slow network: quality lowered</string> <!-- [AUTO-NET-2] -->
 </resources>
