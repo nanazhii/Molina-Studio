@@ -2257,9 +2257,11 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         genericMenu(R.layout.dialog_top_menu, buttons, hiddenButtons, restoreState, docked = true, maxHeightDp = 264) { v ->
             v.findViewById<android.widget.ImageButton>(R.id.qualityIconBtn)?.apply { // [QUALITY-SHEET] tint = kunci aktif
                 val q = effectiveQuality() // [QUALITY-SYNC]
-                imageTintList = ColorStateList.valueOf(ContextCompat.getColor(context,
-                    if (q != CoreQuality.AUTO) R.color.molina_brand else R.color.player_dialog_text))
-                contentDescription = getString(R.string.quality_sheet_title) + ": " + q.label
+                val gap = qualityMismatch() // [QUALITY-ACTUAL] ikon kuning = kunci tidak tercapai
+                imageTintList = if (gap > 0) ColorStateList.valueOf(android.graphics.Color.parseColor("#FFB020"))
+                    else ColorStateList.valueOf(ContextCompat.getColor(context,
+                        if (q != CoreQuality.AUTO) R.color.molina_brand else R.color.player_dialog_text))
+                contentDescription = getString(R.string.quality_sheet_title) + ": " + q.label + (if (gap > 0) " (${gap}p)" else "")
             }
             v.findViewById<android.widget.ImageButton>(R.id.audioLangBtn)?.apply { // [AUDIO-LANG] tint merek = bahasa dipilih
                 imageTintList = ColorStateList.valueOf(ContextCompat.getColor(context,
@@ -2776,7 +2778,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         refresh()
         builder.setCustomTitle(header)
         val labels = order.map { q ->
-            q.label + if (q == cur && q != CoreQuality.AUTO) " " + getString(R.string.quality_locked_suffix) else ""
+            q.label + (if (q == cur && q != CoreQuality.AUTO) " " + getString(R.string.quality_locked_suffix) else "") +
+                (if (q == cur && qualityMismatch() > 0) " " + getString(R.string.quality_actual_suffix, qualityMismatch()) else "") // [QUALITY-ACTUAL]
         }.toTypedArray()
         builder.setSingleChoiceItems(labels, order.indexOf(cur).coerceAtLeast(0)) { dialog, item ->
             dialog.dismiss()
@@ -2860,8 +2863,10 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                     if (a.isNotEmpty() && a[0] == "loadfile") {
                         swapCurrentEntry(a, idx) // [RELOAD-FIX]
                     } else MPVLib.command(a)
-                    if (sq.lastFallback && !toAudio)
+                    if (sq.lastFallback && !toAudio) {
+                        lastQualityToastMs = System.currentTimeMillis() // [QUALITY-ACTUAL] cegah toast ganda
                         showToast(getString(R.string.quality_fallback, q.label, sq.lastHeight), true)
+                    }
                 }
                 is Prepared.Failed -> {
                     sq.set(before)
@@ -3011,6 +3016,34 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         val t = title?.toString().orEmpty()
         if (!forcedAudioOnly && com.molina.core.common.StreamQuality.current != com.molina.core.common.VideoQuality.AUDIO) return t
         return if (t.isEmpty()) "\u266A Audio" else "\u266A Audio \u00B7 $t"
+    }
+
+    // [QUALITY-ACTUAL] Kunci resolusi vs resolusi yang benar-benar diputar (video-params/h): beri tahu bila lebih rendah.
+    private var lastQualityToastMs = 0L
+    private var qualityNotedPath: String? = null
+
+    /** Tinggi aktual (>0) bila item web diputar lebih rendah dari kunci eksplisit; selain itu 0. */
+    private fun qualityMismatch(): Int {
+        val lock = com.molina.core.common.StreamQuality.current
+        if (forcedAudioOnly || lock == CoreQuality.AUTO || lock == CoreQuality.AUDIO) return 0
+        val page = MPVLib.getPropertyString("path")?.let { streamSources[it] } ?: return 0
+        if (!StreamLoader.isWebUrl(page)) return 0
+        val h = MPVLib.getPropertyInt("video-params/h") ?: 0
+        return if (h in 1 until lock.maxHeight) h else 0
+    }
+
+    private fun checkQualityMatch() {
+        val h = qualityMismatch()
+        if (h == 0) return
+        val path = MPVLib.getPropertyString("path")
+        if (path == qualityNotedPath) return
+        qualityNotedPath = path
+        val lock = com.molina.core.common.StreamQuality.current
+        MpvLog.i(TAG, "[QUALITY-ACTUAL] kunci=${lock.label} aktual=${h}p")
+        if (System.currentTimeMillis() - lastQualityToastMs > 3000L) {
+            lastQualityToastMs = System.currentTimeMillis()
+            showToast(getString(R.string.quality_fallback, lock.label, h), true)
+        }
     }
 
     private fun updateMetadataDisplay() {
@@ -3729,6 +3762,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             "video-params/aspect", "video-params/rotate" -> {
                 updateOrientation()
                 updatePiPParams()
+                if (property == "video-params/aspect") checkQualityMatch() // [QUALITY-ACTUAL]
             }
         }
     }

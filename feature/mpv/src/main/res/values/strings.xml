@@ -351,6 +351,7 @@
     <string name="quality_locked_suffix">\u00B7 locked</string>
     <string name="quality_slow_hint">Slow network? Lock to 480p or Audio only.</string>
     <string name="quality_fallback">%1$s is not available for this video; using %2$dp</string>
+    <string name="quality_actual_suffix">\u00B7 actual %1$dp</string>
     <string name="quality_next_video">Quality locked to %1$s for the next videos</string>
     <string name="quality_slow_toast">Slow network? Tap the HD icon and pick 480p or Audio only.</string>
     <string name="quality_slow_snack">Slow network. Lock to 480p?</string>
