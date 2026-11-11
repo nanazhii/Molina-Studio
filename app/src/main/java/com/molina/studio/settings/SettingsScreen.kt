@@ -683,7 +683,9 @@ private fun TerminalViewPage() {
     PackageGroupCard {
         PackageSwitchRow(
             "Monitor ringkas",
-            if (TerminalPrefs.compactMonitor) "Grafik di belakang chip dimatikan dan chip dipersempit. Cocok untuk layar kecil."
+            if (androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp < 340) // [MC-AUTO-HINT]
+                "Lebar layar ${androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp} dp (< 340): mode ringkas selalu aktif otomatis, saklar ini tidak mengubah tampilan."
+            else if (TerminalPrefs.compactMonitor) "Grafik di belakang chip dimatikan dan chip dipersempit. Cocok untuk layar kecil."
             else "Chip CPU/RAM menampilkan grafik 24 detik. Otomatis ringkas di layar lebih sempit dari 340 dp. (Default)",
             TerminalPrefs.compactMonitor
         ) { TerminalPrefs.setCompactMonitor(it) }

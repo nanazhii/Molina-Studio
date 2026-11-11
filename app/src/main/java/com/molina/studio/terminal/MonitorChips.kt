@@ -257,7 +257,7 @@ private fun Modifier.sparkBehind(values: List<Int>, color: Color): Modifier = dr
     }
     path.lineTo(x0 + step * (n - 1), size.height)
     path.close()
-    drawPath(path, color.copy(alpha = 0.22f))
+    drawPath(path, color.copy(alpha = 0.40f)) // [MC-AUTO-HINT] lebih kontras
 }
 
 private fun chipColor(l: Level): Color = when (l) {
