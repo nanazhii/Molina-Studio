@@ -193,4 +193,16 @@
     <string name="menu_lock_screen">Kunci layar</string> <!-- [MENU-SCROLL] -->
     <string name="menu_pip">Jendela mengambang (PiP)</string>
     <string name="ab_loop_btn">Loop A-B</string> <!-- [CTRL-LAYOUT] -->
+    <string name="tier_down">Jaringan lambat: kualitas diturunkan</string> <!-- [AUTO-NET-2] -->
+    <string name="audio_only_on">Hanya audio</string>
+    <string name="audio_only_off">Kembali ke video</string>
+    <string name="stream_resolving">Memuat stream\u2026</string>
+    <string name="stream_err_unsupported">Tautan ini tidak didukung</string>
+    <string name="stream_err_not_found">Video tidak ditemukan atau tidak tersedia</string>
+    <string name="stream_err_private">Video ini bersifat pribadi</string>
+    <string name="stream_err_age">Video ini dibatasi usia</string>
+    <string name="stream_err_geo">Video ini diblokir di wilayah Anda</string>
+    <string name="stream_err_network">Masalah jaringan atau diblokir situs, coba lagi</string>
+    <string name="stream_err_parse">Halaman ini tidak dapat dibaca (ekstraktor mungkin perlu diperbarui)</string>
+    <string name="stream_err_unknown">Stream tidak dapat dimuat</string>
 </resources>

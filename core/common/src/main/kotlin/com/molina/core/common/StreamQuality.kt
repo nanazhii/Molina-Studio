@@ -28,7 +28,12 @@ enum class VideoQuality(val label: String, val maxHeight: Int, val hint: String)
 object StreamQuality {
     @Volatile var current: VideoQuality = VideoQuality.AUTO
     /** [QUALITY-LOCK] Tinggi & status fallback hasil resolve terakhir (diisi resolver) agar UI bisa memberi tahu pengguna. */
-    @Volatile var lastHeight: Int = 0
+    private val _lastHeight = kotlinx.coroutines.flow.MutableStateFlow(0)
+    /** [QUALITY-BADGE-ACTUAL] Aliran tinggi hasil resolve terakhir (0 = audio/tidak diketahui). */
+    val lastHeightFlow: kotlinx.coroutines.flow.StateFlow<Int> = _lastHeight
+    var lastHeight: Int
+        get() = _lastHeight.value
+        set(v) { _lastHeight.value = v }
     @Volatile var lastFallback: Boolean = false
     /** [QUALITY-LOCK] Dipasang aplikasi untuk menyimpan pilihan secara permanen. */
     @Volatile var onChange: ((VideoQuality) -> Unit)? = null

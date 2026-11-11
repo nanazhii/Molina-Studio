@@ -45,8 +45,8 @@ internal fun CinemaAction(glyph: String, label: String, onClick: () -> Unit) {
 }
 /** [QUALITY-BADGE] Lencana batas resolusi YouTube aktif (AUTO/480p/576p/720p/1080p); warna Brand, beda dari LIVE ungu. */
 @Composable
-internal fun QualityBadge(q: com.molina.core.common.VideoQuality, onClick: (() -> Unit)? = null) { // [QUALITY-TAP]
-    val text = when (q) {
+internal fun QualityBadge(q: com.molina.core.common.VideoQuality, actual: Int = 0, onClick: (() -> Unit)? = null) { // [QUALITY-TAP]
+    val base = when (q) {
         com.molina.core.common.VideoQuality.AUTO -> "AUTO"
         com.molina.core.common.VideoQuality.P480 -> "480p"
         com.molina.core.common.VideoQuality.P576 -> "576p"
@@ -54,6 +54,9 @@ internal fun QualityBadge(q: com.molina.core.common.VideoQuality, onClick: (() -
         com.molina.core.common.VideoQuality.P1080 -> "1080p"
         com.molina.core.common.VideoQuality.AUDIO -> "AUDIO" // [AUDIO-ONLY]
     }
+    // [QUALITY-BADGE-ACTUAL] AUTO selalu menampilkan resolusi aktual; kunci hanya bila aktual lebih rendah dari kunci
+    val text = if (actual > 0 && q != com.molina.core.common.VideoQuality.AUDIO &&
+        (q == com.molina.core.common.VideoQuality.AUTO || actual < q.maxHeight)) "$base \u00B7 ${actual}p" else base
     Row(
         Modifier.clip(CircleShape).clickable(enabled = onClick != null) { onClick?.invoke() }
             .background(MolinaTheme.Brand.copy(alpha = 0.14f))

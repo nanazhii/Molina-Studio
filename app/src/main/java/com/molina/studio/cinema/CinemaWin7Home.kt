@@ -126,6 +126,7 @@ private fun TitleOrb() {
 @Composable
 private fun BrandRow(live: Boolean) {
     val quality by StreamEnginePrefs.quality.collectAsState() // [QUALITY-BADGE]
+    val actualH by com.molina.core.common.StreamQuality.lastHeightFlow.collectAsState() // [QUALITY-BADGE-ACTUAL]
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Image(painterResource(R.drawable.ic_cinema_orb), contentDescription = null, modifier = Modifier.size(56.dp))
         Spacer(Modifier.width(12.dp))
@@ -134,7 +135,7 @@ private fun BrandRow(live: Boolean) {
             Text("CINEMA \u00B7 HOME THEATER", color = Win7.NavHeader, fontSize = 11.sp, letterSpacing = 2.sp)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) { // [QUALITY-BADGE]
-            QualityBadge(quality) { // [QUALITY-TAP] ketuk = resolusi berikutnya (AUTO -> 480 -> 576 -> 720 -> 1080 -> AUTO)
+            QualityBadge(quality, actual = if (live) actualH else 0) { // [QUALITY-TAP] ketuk = resolusi berikutnya (AUTO -> 480 -> 576 -> 720 -> 1080 -> AUTO)
                 val all = com.molina.core.common.VideoQuality.values()
                 StreamEnginePrefs.setQuality(all[(quality.ordinal + 1) % all.size])
             }

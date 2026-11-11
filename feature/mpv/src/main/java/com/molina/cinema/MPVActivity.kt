@@ -2259,10 +2259,11 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             v.findViewById<android.widget.ImageButton>(R.id.qualityIconBtn)?.apply { // [QUALITY-SHEET] tint = kunci aktif
                 val q = effectiveQuality() // [QUALITY-SYNC]
                 val gap = qualityMismatch() // [QUALITY-ACTUAL] ikon kuning = kunci tidak tercapai
-                imageTintList = if (gap > 0) ColorStateList.valueOf(android.graphics.Color.parseColor("#FFB020"))
+                val lowered = tierLowered() // [AUTO-NET-2] ikon kuning juga bila AUTO diturunkan karena macet
+                imageTintList = if (gap > 0 || lowered) ColorStateList.valueOf(android.graphics.Color.parseColor("#FFB020"))
                     else ColorStateList.valueOf(ContextCompat.getColor(context,
                         if (q != CoreQuality.AUTO) R.color.molina_brand else R.color.player_dialog_text))
-                contentDescription = getString(R.string.quality_sheet_title) + ": " + q.label + (if (gap > 0) " (${gap}p)" else "")
+                contentDescription = getString(R.string.quality_sheet_title) + ": " + q.label + (if (gap > 0) " (${gap}p)" else if (q == CoreQuality.AUTO && actualHeight() > 0) " (${actualHeight()}p)" else "")
             }
             v.findViewById<android.widget.ImageButton>(R.id.audioLangBtn)?.apply { // [AUDIO-LANG] tint merek = bahasa dipilih
                 imageTintList = ColorStateList.valueOf(ContextCompat.getColor(context,
@@ -2827,7 +2828,9 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         builder.setCustomTitle(header)
         val labels = order.map { q ->
             q.label + (if (q == cur && q != CoreQuality.AUTO) " " + getString(R.string.quality_locked_suffix) else "") +
-                (if (q == cur && qualityMismatch() > 0) " " + getString(R.string.quality_actual_suffix, qualityMismatch()) else "") // [QUALITY-ACTUAL]
+                (if (q == cur && qualityMismatch() > 0) " " + getString(R.string.quality_actual_suffix, qualityMismatch())
+                    else if (q == cur && q == CoreQuality.AUTO && actualHeight() > 0) " " + getString(R.string.quality_actual_suffix, actualHeight())
+                    else "") // [QUALITY-ACTUAL]
         }.toTypedArray()
         builder.setSingleChoiceItems(labels, order.indexOf(cur).coerceAtLeast(0)) { dialog, item ->
             dialog.dismiss()
@@ -3078,6 +3081,21 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         if (!StreamLoader.isWebUrl(page)) return 0
         val h = MPVLib.getPropertyInt("video-params/h") ?: 0
         return if (h in 1 until lock.maxHeight) h else 0
+    }
+
+    /** [QUALITY-BADGE-ACTUAL] Tinggi aktual (>0) item web yang sedang diputar; 0 bila audio-only/bukan web/belum diketahui. */
+    private fun actualHeight(): Int {
+        if (forcedAudioOnly) return 0
+        val page = MPVLib.getPropertyString("path")?.let { streamSources[it] } ?: return 0
+        if (!StreamLoader.isWebUrl(page)) return 0
+        return MPVLib.getPropertyInt("video-params/h") ?: 0
+    }
+
+    /** [AUTO-NET-2] True bila tier AUTO sedang diturunkan karena macet (ikon HD kuning). */
+    private fun tierLowered(): Boolean {
+        if (effectiveQuality() != CoreQuality.AUTO) return false
+        val page = MPVLib.getPropertyString("path")?.let { streamSources[it] } ?: return false
+        return com.molina.core.common.AdaptiveTier.offsetFor(page) > 0
     }
 
     private fun checkQualityMatch() {
