@@ -481,6 +481,13 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         // set up initial UI state
         readSettings()
         forcedAudioOnly = MpvPrefs.current(applicationContext).audioOnlyVideo // [AUDIO-ONLY] status awal
+        // [PREF-AUDIO] vid=no sudah dipasang mpv dari pengaturan ini. Tanpa penyelarasan, kunci 480/720 memilih video-only
+        // (adaptif) yang gagal dibuka ("No video or audio streams selected") atau stream gabungan yang tampil tanpa gambar.
+        // Penimpaan sementara (bukan set()): kunci tersimpan tidak berubah dan dipulihkan saat keluar lewat audioReloadPrev.
+        if (forcedAudioOnly && com.molina.core.common.StreamQuality.current != com.molina.core.common.VideoQuality.AUDIO) {
+            audioReloadPrev = com.molina.core.common.StreamQuality.current
+            com.molina.core.common.StreamQuality.current = com.molina.core.common.VideoQuality.AUDIO
+        }
         val onArtRelayout = View.OnLayoutChangeListener { _, l, t, r, b, ol, ot, orr, ob -> // [BANNER-FIT]
             if (b - t != ob - ot || r - l != orr - ol) binding.root.post { relayoutArt() }
         }
@@ -2737,6 +2744,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         val cur = com.molina.core.common.StreamQuality.current
         if (forcedAudioOnly && cur != com.molina.core.common.VideoQuality.AUDIO) {
             forcedAudioOnly = false
+            MPVLib.setPropertyString("vid", "auto") // [PREF-AUDIO] item berikutnya tidak boleh lagi tanpa trek video
             audioReloadPrev = null
             updateMetadataDisplay()
         }
