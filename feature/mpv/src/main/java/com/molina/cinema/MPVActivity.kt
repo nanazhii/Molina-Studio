@@ -2836,6 +2836,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         val wasAudio = forcedAudioOnly
         val toAudio = q == CoreQuality.AUDIO
         forcedAudioOnly = toAudio
+        if (!toAudio) MPVLib.setPropertyString("vid", "auto") // [VID-AUTO] tanpa ini vid=no (pengaturan Audio saja) tetap berlaku pada stream YouTube
         updateMetadataDisplay()
         sq.lastFallback = false
         val pos = MPVLib.getPropertyDouble("time-pos") ?: 0.0
@@ -2857,6 +2858,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                 is Prepared.Failed -> {
                     sq.set(before)
                     forcedAudioOnly = wasAudio
+                    if (wasAudio) player.vid = -1 // [VID-AUTO] selaraskan trek video dengan status yang dipulihkan
                     updateMetadataDisplay()
                     showToast(getString(StreamLoader.messageRes(p.error)), true)
                 }
