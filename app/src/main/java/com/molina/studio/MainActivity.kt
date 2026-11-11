@@ -246,6 +246,7 @@ class MainActivity : ComponentActivity() {
         com.molina.studio.terminal.TerminalPrefs.init(applicationContext)
         com.molina.studio.terminal.CrashReporter.install(applicationContext)
         com.molina.studio.terminal.CrashReporter.notifyPending(applicationContext)
+        com.molina.studio.log.LogFileWriter.attach(applicationContext) // [LOGCAT-FILE]
         com.molina.studio.terminal.LogcatReporter.setEnabled(
             com.molina.studio.terminal.TerminalPrefs.logcatReporter
         )

@@ -1,6 +1,7 @@
 package com.molina.studio.terminal
 
 import com.molina.studio.log.LogBus
+import com.molina.studio.log.LogFileWriter
 import com.molina.core.common.LogLevel
 
 /**
@@ -72,6 +73,8 @@ object LogcatReporter {
         val t = epochOf(g[1], g[2], g[3], g[4], g[5], g[6])
         // [LOGCAT-ADB] simpan waktu/pid/tid/prioritas asli agar tampilan dan ekspor 1:1 dengan `logcat -v threadtime`
         LogBus.logRaw("logcat", level, g[10], g[11], t, pid, tid, prio)
+        // [LOGCAT-FILE] salin mentah ke berkas bergulir; E/F langsung di-flush agar selamat dari crash
+        LogFileWriter.append(line, prio == 'E' || prio == 'F' || prio == 'A')
     }
 
     /** Waktu logcat (tanpa tahun) -> epoch ms; bila hasilnya di masa depan (lintas tahun baru) pakai tahun lalu. */
