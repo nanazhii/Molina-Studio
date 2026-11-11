@@ -3118,6 +3118,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         (streamTitles[url] ?: try { MPVLib.getPropertyString("media-title") } catch (e: Exception) { null }).orEmpty()
 
     private var marqueePulse: android.animation.ObjectAnimator? = null // [MARQUEE-PULSE]
+    private var brandHue: android.animation.ValueAnimator? = null // [BRAND-TEXT] warna RGB berputar (posisi statis)
+    private var brandPulse: android.animation.ObjectAnimator? = null // [BRAND-TEXT] denyut alpha
 
     /** Label NOW PLAYING berdenyut halus (alpha 0,6 ke 1) hanya saat marquee tampil, audio memutar, dan di latar depan. */
     private fun updateMarqueePulse(paused: Boolean? = null) {
@@ -3133,10 +3135,34 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                     start()
                 }
             }
+            // [BRAND-TEXT] wordmark MOLINA: teks saja, warna RGB berputar halus + denyut alpha; posisi tidak bergerak
+            val brand = binding.stationInitials
+            if (brandHue == null) {
+                brandHue = android.animation.ValueAnimator.ofFloat(0f, 360f).apply {
+                    duration = 6000
+                    repeatCount = android.animation.ValueAnimator.INFINITE
+                    interpolator = android.view.animation.LinearInterpolator()
+                    addUpdateListener { brand.setTextColor(android.graphics.Color.HSVToColor(floatArrayOf(it.animatedValue as Float, 0.85f, 1f))) }
+                    start()
+                }
+            }
+            if (brandPulse == null) {
+                brandPulse = android.animation.ObjectAnimator.ofFloat(brand, View.ALPHA, 0.65f, 1f).apply {
+                    duration = 1100
+                    repeatMode = android.animation.ValueAnimator.REVERSE
+                    repeatCount = android.animation.ValueAnimator.INFINITE
+                    interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+                    start()
+                }
+            }
         } else {
             marqueePulse?.cancel()
             marqueePulse = null
             tv.alpha = 1f
+            brandHue?.cancel(); brandHue = null // [BRAND-TEXT]
+            brandPulse?.cancel(); brandPulse = null
+            binding.stationInitials.alpha = 1f
+            binding.stationInitials.setTextColor(ContextCompat.getColor(this, R.color.cinema_gold))
         }
     }
 

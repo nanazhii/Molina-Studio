@@ -63,8 +63,7 @@
                 android:id="@+id/stationFrame"
                 android:layout_width="224dp"
                 android:layout_height="126dp"
-                android:layout_marginTop="14dp"
-                android:background="@drawable/bg_station_frame">
+                android:layout_marginTop="14dp"> <!-- [BRAND-TEXT] tanpa bingkai -->
 
                 <TextView
                     android:id="@+id/stationInitials"
