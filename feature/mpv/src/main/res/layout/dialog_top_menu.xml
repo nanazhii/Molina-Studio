@@ -70,17 +70,6 @@
             android:src="@drawable/ic_menu_headset" />
 
         <ImageButton
-            android:id="@+id/audioOnlyBtn"
-            style="@style/Widget.Molina.MenuIcon"
-            android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:minWidth="0dp"
-            android:minHeight="40dp"
-            android:contentDescription="@string/audio_only_on"
-            android:tooltipText="@string/audio_only_on"
-            android:src="@drawable/ic_menu_audiotrack" />
-
-        <ImageButton
             android:id="@+id/qualityIconBtn"
             style="@style/Widget.Molina.MenuIcon"
             android:layout_width="match_parent"

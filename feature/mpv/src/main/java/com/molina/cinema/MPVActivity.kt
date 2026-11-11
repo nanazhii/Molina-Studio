@@ -2186,7 +2186,6 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                     openCinemaHome()
                     false
                 },
-                MenuItem(R.id.audioOnlyBtn) { toggleAudioOnly(); true },
                 MenuItem(R.id.qualityIconBtn) { restoreState(); showQualitySheet(); false }, // [QUALITY-SHEET]
                 MenuItem(R.id.audioLangBtn) { restoreState(); showAudioLangSheet(); false }, // [AUDIO-LANG]
                 MenuItem(R.id.chapterBtn) {
@@ -2230,13 +2229,12 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             hiddenButtons.add(R.id.backgroundBtn)
         if (!packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) hiddenButtons.add(R.id.menuPipBtn) // [MENU-SCROLL]
         if (!packageManager.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN)) hiddenButtons.add(R.id.menuLockBtn)
-        // tombol Audio only hanya berguna bila ada video + audio, atau saat mode ini aktif (untuk kembali)
-        if (!forcedAudioOnly && (player.vid == -1 || !isPlayingAudio))
-            hiddenButtons.add(R.id.audioOnlyBtn)
         run { // [QUALITY-SHEET] sembunyikan untuk berkas lokal tanpa varian
             val pg = MPVLib.getPropertyString("path")?.let { streamSources[it] }
             val web = pg != null && StreamLoader.isWebUrl(pg)
-            if (!web && !forcedAudioOnly && readVideoVariants().size <= 1) hiddenButtons.add(R.id.qualityIconBtn)
+            // [AUDIO-BTN-REMOVED] audio-only kini lewat sheet kualitas: tampil juga untuk berkas lokal yang punya video + audio
+            if (!web && !forcedAudioOnly && readVideoVariants().size <= 1 && (player.vid == -1 || !isPlayingAudio))
+                hiddenButtons.add(R.id.qualityIconBtn)
         }
         run { // [AUDIO-LANG] tampil hanya untuk stream web dengan >= 2 trek bahasa
             val pg = MPVLib.getPropertyString("path")?.let { streamSources[it] }
@@ -2257,13 +2255,6 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             v.findViewById<android.widget.ImageButton>(R.id.audioLangBtn)?.apply { // [AUDIO-LANG] tint merek = bahasa dipilih
                 imageTintList = ColorStateList.valueOf(ContextCompat.getColor(context,
                     if (com.molina.core.common.StreamAudioLang.preferred.isNotEmpty()) R.color.molina_brand else R.color.player_dialog_text))
-            }
-            v.findViewById<android.widget.ImageButton>(R.id.audioOnlyBtn).apply {
-                val label = getString(if (forcedAudioOnly) R.string.audio_only_off else R.string.audio_only_on)
-                contentDescription = label
-                tooltipText = label
-                imageTintList = ColorStateList.valueOf(ContextCompat.getColor(context,
-                    if (forcedAudioOnly) R.color.player_playlist_active else R.color.player_dialog_text))
             }
         }
     }
