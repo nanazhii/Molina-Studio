@@ -15,6 +15,7 @@ import com.molina.core.common.StreamSearchItem
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.runInterruptible
 import org.schabi.newpipe.extractor.InfoItem
@@ -65,9 +66,42 @@ class NewPipeStreamResolver(
             ?: return StreamOutcome.Failure(StreamError.UNSUPPORTED, "url tidak dikenali")
         val started = System.nanoTime()
         return try {
-            val info = runInterruptible(Dispatchers.IO) { StreamInfo.getInfo(service, pageUrl) }
-            val pick = StreamPicker.pick(info, StreamQuality.current, StreamAudioLang.preferred) // [QUALITY] [AUDIO-LANG]
+            var info = runInterruptible(Dispatchers.IO) { StreamInfo.getInfo(service, pageUrl) }
+            var pick = StreamPicker.pick(info, StreamQuality.current, StreamAudioLang.preferred) // [QUALITY] [AUDIO-LANG]
                 ?: return fail(StreamError.NOT_FOUND, "tidak ada stream yang bisa diputar")
+            // [QUALITY-RETRY] kunci eksplisit tidak tercapai karena stream adaptif kosong: ulang getInfo (anggaran waktu terbatas)
+            var attempt = 0
+            if (StreamPicker.shouldRetry(pick, StreamQuality.current) && !noAdaptive.contains(pageUrl)) {
+                while (attempt < RETRY_MAX && (System.nanoTime() - started) / 1_000_000 < RETRY_BUDGET_MS) {
+                    attempt++
+                    AppLog.log(
+                        SOURCE, LogLevel.Info, "resolve",
+                        "[QUALITY-RETRY] kunci ${StreamQuality.current.label} belum tercapai " +
+                            "(${pick.height}p, adaptif=${info.videoOnlyStreams.size}); ulang $attempt/$RETRY_MAX",
+                    )
+                    delay(RETRY_DELAY_MS * attempt)
+                    val again: StreamInfo? = try {
+                        runInterruptible(Dispatchers.IO) { StreamInfo.getInfo(service, pageUrl) }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        currentCoroutineContext().ensureActive()
+                        null
+                    }
+                    if (again == null) continue
+                    val p2 = StreamPicker.pick(again, StreamQuality.current, StreamAudioLang.preferred) ?: continue
+                    if (p2.kind != "progresif-fallback") {
+                        info = again; pick = p2
+                        break
+                    }
+                }
+                if (pick.kind == "progresif-fallback" && attempt >= RETRY_MAX) {
+                    synchronized(noAdaptive) {
+                        if (noAdaptive.size >= 128) noAdaptive.clear()
+                        noAdaptive.add(pageUrl) // video ini memang tanpa adaptif: jangan ulang lagi
+                    }
+                }
+            }
             pick.audioUrl?.let { StreamQuality.rememberAudio(pick.url, it) } // [QUALITY]
             StreamQuality.lastHeight = pick.height // [QUALITY-LOCK]
             StreamAudioLang.lastTracks = StreamPicker.audioChoices(info) // [AUDIO-LANG]
@@ -79,7 +113,8 @@ class NewPipeStreamResolver(
             AppLog.log(
                 SOURCE, LogLevel.Info, "resolve",
                 "OK layanan=${service.serviceInfo.name} jenis=${pick.kind}" +
-                    (if (pick.height > 0) " ${pick.height}p" else "") + " dalam ${ms}ms",
+                    (if (pick.height > 0) " ${pick.height}p" else "") +
+                    (if (attempt > 0) " ulang=$attempt" else "") + " dalam ${ms}ms",
             )
             AppLog.log(
                 SOURCE, LogLevel.Info, "resolve",
@@ -225,6 +260,10 @@ class NewPipeStreamResolver(
 
     internal companion object {
         const val SOURCE = "newpipe"
+        private const val RETRY_MAX = 2 // [QUALITY-RETRY]
+        private const val RETRY_DELAY_MS = 400L
+        private const val RETRY_BUDGET_MS = 9_000L
+        private val noAdaptive: MutableSet<String> = java.util.Collections.synchronizedSet(LinkedHashSet())
         const val WEB_USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0"
         private val lock = Any()

@@ -57,6 +57,16 @@ internal object StreamPicker {
         return null
     }
 
+    /**
+     * [QUALITY-RETRY] Kunci resolusi eksplisit jatuh ke stream gabungan (-fallback) karena tidak ada stream adaptif.
+     * Extractor menelan galat klien visionOS (satu-satunya sumber adaptif/HLS saat klien Android hanya memberi itag 18),
+     * jadi hasil kosong sering sementara dan layak diulang.
+     */
+    fun shouldRetry(pick: Pick, quality: com.molina.core.common.VideoQuality): Boolean =
+        quality != com.molina.core.common.VideoQuality.AUTO &&
+            quality != com.molina.core.common.VideoQuality.AUDIO &&
+            pick.kind == "progresif-fallback"
+
     /** [QUALITY] Video-only (H.264 diutamakan, tanpa AV1) <= batas + audio terbaik (bahasa [lang]); audio digabung mpv lewat audio-add. */
     private fun pickAdaptive(info: StreamInfo, quality: com.molina.core.common.VideoQuality, lang: String): Pick? {
         val cands = info.videoOnlyStreams.orEmpty().filter {
