@@ -736,9 +736,6 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         rolling = playlistFrom(intent, filepath)
         pendingStartIndex = readStartIndex(intent) // [ORDER-KEEP] baru
         streamTitles.clear()
-        // [STATION-LOGO] logo hanya dibaca dari intent tepercaya (token Molina); intent luar tidak boleh memicu unduhan logo
-        stationLogos = emptyMap()
-        if (ExternalIntentGate.isTrusted(intent?.getStringExtra(ExternalIntentGate.EXTRA))) loadStationLogos(filepath)
         val folder = resolveFolderPlaylist(intent, filepath)
         if (folder != null) {
             MpvLog.i(TAG, "Playlist folder: ${folder.first.size} berkas")
@@ -3087,26 +3084,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         hideStationMarquee() // [STATION-LOGO]
     }
 
-    private var stationLogos: Map<String, String> = emptyMap() // [STATION-LOGO] url stream -> url logo
     private var marqueeUrl: String? = null
-
-    /** [STATION-LOGO] Baca tvg-logo dari memory:// atau berkas .m3u/.m3u8 lokal (maks. 5 MB); hasil menyusul tanpa memblokir UI. */
-    private fun loadStationLogos(filepath: String) {
-        if (MpvLoad.isMemoryPlaylist(filepath)) { stationLogos = StationLogo.parse(filepath); return }
-        val low = filepath.lowercase()
-        if (!filepath.startsWith("/") || !(low.endsWith(".m3u") || low.endsWith(".m3u8"))) return
-        streamScope.launch {
-            val map = withContext(Dispatchers.IO) {
-                runCatching {
-                    java.io.File(filepath).takeIf { it.isFile && it.length() <= 5L * 1024 * 1024 }?.readText()?.let { StationLogo.parse(it) }
-                }.getOrNull()
-            }
-            if (map != null && map.isNotEmpty()) {
-                stationLogos = map
-                marqueeUrl?.let { showStationMarquee(it) }
-            }
-        }
-    }
 
     private fun stationName(url: String): String =
         (streamTitles[url] ?: try { MPVLib.getPropertyString("media-title") } catch (e: Exception) { null }).orEmpty()
@@ -3159,28 +3137,17 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             lp.height = nh
             binding.stationFrame.layoutParams = lp
         }
-        binding.stationInitials.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, (frameH * 0.45f).coerceIn(20f, 48f))
+        binding.stationInitials.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, (frameH * 0.26f).coerceIn(13f, 28f))
     }
 
     private fun showStationMarquee(url: String) { // [STATION-LOGO]
         val name = stationName(url)
         marqueeUrl = url
         binding.stationName.text = name
-        binding.stationInitials.text = StationLogo.initials(name)
-        binding.stationInitials.visibility = View.VISIBLE
-        binding.stationLogo.setImageDrawable(null)
+        binding.stationInitials.text = getString(R.string.brand_wordmark) // [MOLINA-BRAND] identitas Molina, tanpa logo eksternal
         binding.stationMarquee.visibility = View.VISIBLE
         layoutMarquee()
         updateMarqueePulse() // [MARQUEE-PULSE]
-        val logo = stationLogos[url] ?: return
-        if (!StationLogo.enabled(this)) return
-        streamScope.launch {
-            val bmp = StationLogo.load(this@MPVActivity, logo)
-            if (bmp != null && marqueeUrl == url) {
-                binding.stationLogo.setImageBitmap(bmp)
-                binding.stationInitials.visibility = View.GONE
-            }
-        }
     }
 
     private fun updateAnySpectrum(path: String?) { // [SPECTRUM-LIVE]

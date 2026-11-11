@@ -66,21 +66,14 @@
                 android:layout_marginTop="14dp"
                 android:background="@drawable/bg_station_frame">
 
-                <ImageView
-                    android:id="@+id/stationLogo"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:importantForAccessibility="no"
-                    android:padding="10dp"
-                    android:scaleType="fitCenter" />
-
                 <TextView
                     android:id="@+id/stationInitials"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:gravity="center"
+                    android:letterSpacing="0.22"
                     android:textColor="@color/cinema_gold"
-                    android:textSize="56sp"
+                    android:textSize="28sp"
                     android:textStyle="bold" />
             </FrameLayout>
 
