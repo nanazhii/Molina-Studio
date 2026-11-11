@@ -596,7 +596,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         dismissQualitySnack() // [QUALITY-SNACK]
         thumbnailer.release()
         MpvLog.v(TAG, "Exiting.")
-        audioReloadPrev?.let { com.molina.core.common.StreamQuality.current = it } // [AUDIO-ONLY-BTN]
+        // [AUDIO-ONLY-BTN] [QUALITY-SYNC2] pulihkan hanya bila mode masih AUDIO; jika pengguna sudah memilih resolusi di Pengaturan, jangan ditimpa
+        audioReloadPrev?.let { if (com.molina.core.common.StreamQuality.current == com.molina.core.common.VideoQuality.AUDIO) com.molina.core.common.StreamQuality.current = it }
 
         // Suppress any further callbacks
         activityIsForeground = false
@@ -878,6 +879,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             return
         }
 
+        syncAudioOnlyWithLock() // [QUALITY-SYNC2]
         if (lockedUI) { // precaution
             MpvLog.w(TAG, "resumed with locked UI, unlocking")
             unlockUI()
@@ -2727,6 +2729,17 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         MPVLib.command(cmd)
         MPVLib.setPropertyInt("playlist-pos", idx + 1)
         MPVLib.command(arrayOf("playlist-remove", idx.toString()))
+    }
+
+    // [QUALITY-SYNC2] Pengaturan bisa mengganti kunci kualitas saat pemutar di belakang: lepas status audio-only lokal.
+    // Item yang sedang diputar tetap audio sampai dimuat ulang (pilih kualitas di sheet atau matikan ♪); item berikutnya mengikuti kunci.
+    private fun syncAudioOnlyWithLock() {
+        val cur = com.molina.core.common.StreamQuality.current
+        if (forcedAudioOnly && cur != com.molina.core.common.VideoQuality.AUDIO) {
+            forcedAudioOnly = false
+            audioReloadPrev = null
+            updateMetadataDisplay()
+        }
     }
 
     // [QUALITY-SYNC] Mode efektif: audio-only (tombol ♪ / jalur non-web) mengalahkan kunci resolusi tersimpan.
