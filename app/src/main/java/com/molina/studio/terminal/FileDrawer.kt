@@ -51,6 +51,10 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -296,19 +300,30 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
                     }
                 }
             }
-            // [DRAWER-MERGE] Satu tombol "Berkas baru"; dialognya menawarkan Buat (kosong) atau Buka di nano.
+            // [DRAWER-ICONS] Bar aksi hemat ruang: hanya ikon (Berkas baru | Folder baru), tinggi 40dp; label lewat aksesibilitas.
             Box(Modifier.fillMaxWidth().height(1.dp).background(dim.copy(alpha = 0.3f)))
-            Row(
-                Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 4.dp, vertical = 4.dp)
-                    .height(44.dp).clickable { newFile = true }, // [NANO-NEW]
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    W7FileIcon("", 22.dp)
-                    Text("+", color = Brand, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.BottomEnd))
+            Row(Modifier.fillMaxWidth().navigationBarsPadding().height(40.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.weight(1f).fillMaxHeight().clickable { newFile = true } // [NANO-NEW]
+                        .semantics(mergeDescendants = true) { contentDescription = "Berkas baru"; role = Role.Button },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        W7FileIcon("", 22.dp)
+                        Text("+", color = Brand, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.BottomEnd))
+                    }
                 }
-                Spacer(Modifier.width(6.dp))
-                Text("Berkas baru", color = Brand, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Box(Modifier.width(1.dp).height(20.dp).background(dim.copy(alpha = 0.3f)))
+                Box(
+                    Modifier.weight(1f).fillMaxHeight().clickable { sheet = Sheet.NewDir(root) } // [FILE-DRAWER3] folder baru di akar drawer
+                        .semantics(mergeDescendants = true) { contentDescription = "Folder baru"; role = Role.Button },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Win7Folder(22.dp)
+                        Text("+", color = Brand, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.BottomEnd))
+                    }
+                }
             }
         }
     }
