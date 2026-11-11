@@ -2604,11 +2604,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                     pendingSeekSec = pos.takeIf { it > 1.0 }
                     val a = MpvLoad.loadfileArgs(p.url, "insert-at-play", p.headers, p.title)
                     if (a.isNotEmpty() && a[0] == "loadfile") {
-                        // indeks eksplisit = posisi entri lama: entri baru menggantikan, entri lama bergeser ke idx + 1
-                        val cmd = if (a.size >= 5) a.copyOf().also { it[3] = idx.toString() }
-                                  else arrayOf("loadfile", a[1], "insert-at-play", idx.toString())
-                        MPVLib.command(cmd)
-                        MPVLib.command(arrayOf("playlist-remove", (idx + 1).toString()))
+                        swapCurrentEntry(a, idx) // [RELOAD-FIX]
                     } else {
                         MPVLib.command(a)
                         sq.current = before; audioReloadPrev = null; forcedAudioOnly = !toAudio; updateMetadataDisplay() // [AUDIO-TAG-2]
@@ -2712,6 +2708,21 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         bufferingHandler.postDelayed(qualitySnackHide, 8000L)
     }
 
+    /**
+     * [RELOAD-FIX] Ganti entri playlist yang sedang diputar dengan hasil resolve baru TANPA pindah item.
+     * `insert-at-play` hanya memutar bila tidak ada yang sedang diputar, jadi dulu entri lama dihapus
+     * dan mpv lompat ke item berikutnya (pindah channel). Urutan benar: sisipkan di idx+1, putar,
+     * baru hapus entri lama di idx (entri baru bergeser ke idx).
+     */
+    private fun swapCurrentEntry(a: Array<String>, idx: Int) {
+        val at = (idx + 1).toString()
+        val cmd = if (a.size >= 5) a.copyOf().also { it[2] = "insert-at"; it[3] = at }
+                  else arrayOf("loadfile", a[1], "insert-at", at)
+        MPVLib.command(cmd)
+        MPVLib.setPropertyInt("playlist-pos", idx + 1)
+        MPVLib.command(arrayOf("playlist-remove", idx.toString()))
+    }
+
     // [QUALITY-SYNC] Mode efektif: audio-only (tombol ♪ / jalur non-web) mengalahkan kunci resolusi tersimpan.
     private fun effectiveQuality(): CoreQuality =
         if (forcedAudioOnly) CoreQuality.AUDIO else com.molina.core.common.StreamQuality.current
@@ -2795,10 +2806,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                     pendingSeekSec = pos.takeIf { it > 1.0 }
                     val a = MpvLoad.loadfileArgs(p.url, "insert-at-play", p.headers, p.title)
                     if (a.isNotEmpty() && a[0] == "loadfile") {
-                        val cmd = if (a.size >= 5) a.copyOf().also { it[3] = idx.toString() }
-                                  else arrayOf("loadfile", a[1], "insert-at-play", idx.toString())
-                        MPVLib.command(cmd)
-                        MPVLib.command(arrayOf("playlist-remove", (idx + 1).toString()))
+                        swapCurrentEntry(a, idx) // [RELOAD-FIX]
                     } else MPVLib.command(a)
                     if (sq.lastFallback && !toAudio)
                         showToast(getString(R.string.quality_fallback, q.label, sq.lastHeight), true)
@@ -2850,10 +2858,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                     pendingSeekSec = pos.takeIf { it > 1.0 }
                     val a = MpvLoad.loadfileArgs(p.url, "insert-at-play", p.headers, p.title)
                     if (a.isNotEmpty() && a[0] == "loadfile") {
-                        val cmd = if (a.size >= 5) a.copyOf().also { it[3] = idx.toString() }
-                                  else arrayOf("loadfile", a[1], "insert-at-play", idx.toString())
-                        MPVLib.command(cmd)
-                        MPVLib.command(arrayOf("playlist-remove", (idx + 1).toString()))
+                        swapCurrentEntry(a, idx) // [RELOAD-FIX]
                     } else MPVLib.command(a)
                 }
                 is Prepared.Failed -> {
