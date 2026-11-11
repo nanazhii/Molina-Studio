@@ -362,4 +362,6 @@
     <string name="audio_lang_switched">Switching audio language\u2026</string>
     <string name="audio_lang_next_video">Audio language saved for the next videos</string>
     <string name="brand_wordmark" translatable="false">MOLINA</string> <!-- [MOLINA-BRAND] -->
+    <string name="menu_lock_screen">Lock screen</string> <!-- [MENU-SCROLL] -->
+    <string name="menu_pip">Floating window (PiP)</string>
 </resources>

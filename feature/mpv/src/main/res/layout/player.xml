@@ -444,7 +444,7 @@
             android:visibility="gone"
             tools:text="[gesture]" />
 
-        <!-- Lock / PiP / Settings: menempel di atas baris seekbar, rata kanan dengan teks end time.
+        <!-- [MENU-SCROLL] cari/kunci/PiP pindah ke strip menu; bar ini kini lencana Shield + pengaturan. Dulu: Lock / PiP / Settings: menempel di atas baris seekbar, rata kanan dengan teks end time.
              marginRight 64dp = lebar nextBtn 48dp + inset baris seekbar 16dp (baris seekbar dipaksa LTR, jadi pakai Right bukan End). -->
         <LinearLayout
             android:id="@+id/top_controls"
@@ -476,39 +476,8 @@
                 android:textSize="14sp"
                 tools:text="🔒 0" />
 
-            <ImageButton
-                android:id="@+id/topSearchBtn"
-                style="?buttonBarButtonStyle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:contentDescription="@string/action_open_url"
-                android:minWidth="40dp"
-                android:minHeight="40dp"
-                android:padding="4dp"
-                app:srcCompat="@drawable/ic_search_24dp"
-                app:tint="@color/tint_normal" />
 
-            <ImageButton
-                android:id="@+id/topLockBtn"
-                style="?buttonBarButtonStyle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:minWidth="40dp"
-                android:minHeight="40dp"
-                android:padding="4dp"
-                app:srcCompat="@drawable/ic_lock_24dp"
-                app:tint="@color/tint_normal" />
 
-            <ImageButton
-                android:id="@+id/topPiPBtn"
-                style="?buttonBarButtonStyle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:minWidth="40dp"
-                android:minHeight="40dp"
-                android:padding="4dp"
-                app:srcCompat="@drawable/ic_picture_in_picture_24dp"
-                app:tint="@color/tint_normal" />
 
             <ImageButton
                 android:id="@+id/topMenuBtn"

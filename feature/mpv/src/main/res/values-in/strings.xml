@@ -189,4 +189,6 @@
     <string name="audio_lang_single">Video ini hanya punya satu bahasa audio.</string>
     <string name="audio_lang_switched">Mengganti bahasa audio\u2026</string>
     <string name="audio_lang_next_video">Bahasa audio disimpan untuk video berikutnya</string>
+    <string name="menu_lock_screen">Kunci layar</string> <!-- [MENU-SCROLL] -->
+    <string name="menu_pip">Jendela mengambang (PiP)</string>
 </resources>

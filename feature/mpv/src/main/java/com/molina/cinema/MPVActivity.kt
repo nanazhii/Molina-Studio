@@ -408,11 +408,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             cycleDecoderBtn.setOnClickListener { player.cycleHwdec() }
             cycleSpeedBtn.setOnClickListener { cycleSpeed() }
             abLoopBtn.setOnClickListener { cycleAbLoop() }
-            topLockBtn.setOnClickListener { lockUI() }
             shieldBadge.setOnClickListener { showShieldInfo() }
-            topPiPBtn.setOnClickListener { goIntoPiP() }
             topMenuBtn.setOnClickListener { openTopMenu() }
-            topSearchBtn.setOnClickListener { openSearchUrl() }
             unlockBtn.setOnClickListener { unlockUI() }
             playbackDurationTxt.setOnClickListener {
                 useTimeRemaining = !useTimeRemaining
@@ -499,10 +496,6 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             insetsController.systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
-        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE))
-            binding.topPiPBtn.visibility = View.GONE
-        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN))
-            binding.topLockBtn.visibility = View.GONE
 
         if (showMediaTitle)
             binding.controlsTitleGroup.visibility = View.VISIBLE
@@ -2017,7 +2010,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     private fun genericMenu(
             @LayoutRes layoutRes: Int, buttons: List<MenuItem>, hiddenButtons: Set<Int>,
-            restoreState: StateRestoreCallback, docked: Boolean = false,
+            restoreState: StateRestoreCallback, docked: Boolean = false, maxHeightDp: Int = 0, // [MENU-SCROLL]
             onViewReady: (View) -> Unit = {}) {
         lateinit var dialog: AlertDialog
 
@@ -2052,6 +2045,12 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         }
         dialog.show()
         if (docked) dialog.dockTo(android.view.Gravity.BOTTOM or android.view.Gravity.END, 72, 12)
+        if (docked && maxHeightDp > 0) dialogView.post { // [MENU-SCROLL] batasi tinggi strip; sisanya di-scroll (tepi pudar = petunjuk)
+            val dm = resources.displayMetrics
+            val cap = minOf((maxHeightDp * dm.density).toInt(), (dm.heightPixels * 0.7f).toInt())
+            val w = dialog.window
+            if (w != null && w.decorView.height > cap) w.setLayout(w.attributes.width, cap)
+        }
     }
 
     /** Kunci penanda: berkas lokal atau tautan asal; null untuk stream hasil resolve tanpa tautan asal yang stabil. */
@@ -2173,6 +2172,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                 MenuItem(R.id.bookmarkBtn) {
                     openBookmarks(restoreState); false
                 },
+                MenuItem(R.id.menuSearchBtn) { restoreState(); openSearchUrl(); false }, // [MENU-SCROLL]
                 MenuItem(R.id.backgroundBtn) {
                     // restoring state may (un)pause so do that first
                     restoreState()
@@ -2211,6 +2211,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                 MenuItem(R.id.chapterNext) {
                     MPVLib.command(arrayOf("add", "chapter", "1")); true
                 },
+                MenuItem(R.id.menuLockBtn) { restoreState(); lockUI(); false }, // [MENU-SCROLL]
+                MenuItem(R.id.menuPipBtn) { restoreState(); goIntoPiP(); false },
                 MenuItem(R.id.advancedBtn) { openAdvancedMenu(restoreState); false },
                 MenuItem(R.id.orientationBtn) {
                     autoRotationMode = "manual"
@@ -2221,6 +2223,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
         if (!isPlayingAudio)
             hiddenButtons.add(R.id.backgroundBtn)
+        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) hiddenButtons.add(R.id.menuPipBtn) // [MENU-SCROLL]
+        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN)) hiddenButtons.add(R.id.menuLockBtn)
         // tombol Audio only hanya berguna bila ada video + audio, atau saat mode ini aktif (untuk kembali)
         if (!forcedAudioOnly && (player.vid == -1 || !isPlayingAudio))
             hiddenButtons.add(R.id.audioOnlyBtn)
@@ -2238,7 +2242,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             hiddenButtons.add(R.id.rowChapter)
         /******/
 
-        genericMenu(R.layout.dialog_top_menu, buttons, hiddenButtons, restoreState, docked = true) { v ->
+        genericMenu(R.layout.dialog_top_menu, buttons, hiddenButtons, restoreState, docked = true, maxHeightDp = 264) { v ->
             v.findViewById<android.widget.ImageButton>(R.id.qualityIconBtn)?.apply { // [QUALITY-SHEET] tint = kunci aktif
                 val q = effectiveQuality() // [QUALITY-SYNC]
                 imageTintList = ColorStateList.valueOf(ContextCompat.getColor(context,

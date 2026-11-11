@@ -5,7 +5,11 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:fillViewport="false"
-    android:overScrollMode="ifContentScrolls">
+    android:overScrollMode="ifContentScrolls"
+    android:scrollbars="none"
+    android:fadingEdge="vertical"
+    android:fadingEdgeLength="28dp"
+    android:requiresFadingEdge="vertical">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -25,6 +29,17 @@
         android:contentDescription="@string/action_playlist"
         android:tooltipText="@string/action_playlist"
         android:src="@drawable/ic_menu_playlist" />
+
+        <ImageButton
+        android:id="@+id/menuSearchBtn"
+        style="@style/Widget.Molina.MenuIcon"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:minWidth="0dp"
+        android:minHeight="40dp"
+        android:contentDescription="@string/action_open_url"
+        android:tooltipText="@string/action_open_url"
+        android:src="@drawable/ic_menu_search" /> <!-- [MENU-SCROLL] -->
 
         <ImageButton
         android:id="@+id/bookmarkBtn"
@@ -129,6 +144,28 @@
             android:src="@drawable/ic_menu_next" />
 
     </LinearLayout>
+
+        <ImageButton
+        android:id="@+id/menuLockBtn"
+        style="@style/Widget.Molina.MenuIcon"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:minWidth="0dp"
+        android:minHeight="40dp"
+        android:contentDescription="@string/menu_lock_screen"
+        android:tooltipText="@string/menu_lock_screen"
+        android:src="@drawable/ic_lock_24dp" /> <!-- [MENU-SCROLL] -->
+
+        <ImageButton
+        android:id="@+id/menuPipBtn"
+        style="@style/Widget.Molina.MenuIcon"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:minWidth="0dp"
+        android:minHeight="40dp"
+        android:contentDescription="@string/menu_pip"
+        android:tooltipText="@string/menu_pip"
+        android:src="@drawable/ic_picture_in_picture_24dp" /> <!-- [MENU-SCROLL] -->
 
         <ImageButton
         android:id="@+id/advancedBtn"
