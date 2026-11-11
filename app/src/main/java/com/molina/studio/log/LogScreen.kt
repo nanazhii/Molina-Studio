@@ -505,7 +505,15 @@ private fun CountPill(text: String, color: Color) {
     )
 }
 
+private val ADB_FMT: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("MM-dd HH:mm:ss.SSS").withZone(ZoneId.systemDefault())
+
 private fun format(e: LogEntry): String {
+    // [LOGCAT-ADB] baris logcat mentah: persis format `logcat -v threadtime` (tanpa awalan sumber)
+    if (e.prio != '\u0000') {
+        return "${ADB_FMT.format(Instant.ofEpochMilli(e.time))} ${e.pid.toString().padStart(5)} " +
+            "${e.tid.toString().padStart(5)} ${e.prio} ${e.tag.padEnd(8)}: ${e.message}"
+    }
     val n = if (e.count > 1) "  \u00D7${e.count}" else ""
     return "${TIME_FMT.format(Instant.ofEpochMilli(e.time))} ${e.level.code} " +
         "${e.source}/${e.tag}: ${e.message}$n"

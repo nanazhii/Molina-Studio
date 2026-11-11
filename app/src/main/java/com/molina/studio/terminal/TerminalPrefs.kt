@@ -79,7 +79,7 @@ data class TerminalSettings(
     val softKeyboard: Boolean = true,
     val softKeyboardOnlyIfNoHardware: Boolean = false,
     val marginAdjustment: Boolean = true,
-    val logcatReporter: Boolean = false,
+    val logcatReporter: Boolean = true, // [LOGCAT-ADB] default nyala: pencatat bug
     val fullStorageAccess: Boolean = false,
     val cliClipboard: Boolean = false,
     val redactTranscript: Boolean = false,

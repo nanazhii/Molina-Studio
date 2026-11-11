@@ -9,7 +9,7 @@ import com.molina.core.common.LogLevel
  * Default mati; dinyalakan lewat Settings > Terminal > Debugging.
  */
 object LogcatReporter {
-    private val LINE = Regex("""^\S+\s+\S+\s+\d+\s+\d+\s+([VDIWEFA])\s+(.+?)\s*:\s?(.*)$""")
+    private val LINE = Regex("""^(\d\d)-(\d\d)\s+(\d\d):(\d\d):(\d\d)\.(\d{3})\s+(\d+)\s+(\d+)\s+([VDIWEFA])\s+(.+?)\s*:\s?(.*)$""")
 
     @Volatile private var proc: Process? = null
     private var everStarted = false // [LOGCAT-TOGGLE] nyala ulang tidak memutar ulang 200 baris lama
@@ -59,13 +59,34 @@ object LogcatReporter {
     private fun handle(line: String) {
         if (line.startsWith("---")) return
         val m = LINE.find(line) ?: return
-        val (lv, tag, msg) = m.destructured
-        val level = when (lv[0]) {
+        val g = m.groupValues
+        val pid = g[7].toIntOrNull() ?: return
+        val tid = g[8].toIntOrNull() ?: return
+        val prio = g[9][0]
+        val level = when (prio) {
             'V', 'D' -> LogLevel.Debug
             'I' -> LogLevel.Info
             'W' -> LogLevel.Warn
             else -> LogLevel.Error
         }
-        LogBus.log("logcat", level, tag, msg)
+        val t = epochOf(g[1], g[2], g[3], g[4], g[5], g[6])
+        // [LOGCAT-ADB] simpan waktu/pid/tid/prioritas asli agar tampilan dan ekspor 1:1 dengan `logcat -v threadtime`
+        LogBus.logRaw("logcat", level, g[10], g[11], t, pid, tid, prio)
+    }
+
+    /** Waktu logcat (tanpa tahun) -> epoch ms; bila hasilnya di masa depan (lintas tahun baru) pakai tahun lalu. */
+    private fun epochOf(mo: String, d: String, h: String, mi: String, sec: String, ms: String): Long {
+        val c = java.util.Calendar.getInstance()
+        val year = c.get(java.util.Calendar.YEAR)
+        c.clear()
+        c.set(year, (mo.toIntOrNull() ?: 1) - 1, d.toIntOrNull() ?: 1,
+            h.toIntOrNull() ?: 0, mi.toIntOrNull() ?: 0, sec.toIntOrNull() ?: 0)
+        c.set(java.util.Calendar.MILLISECOND, ms.toIntOrNull() ?: 0)
+        var t = c.timeInMillis
+        if (t > System.currentTimeMillis() + 86_400_000L) {
+            c.set(java.util.Calendar.YEAR, year - 1)
+            t = c.timeInMillis
+        }
+        return t
     }
 }

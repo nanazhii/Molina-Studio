@@ -17,7 +17,11 @@ data class LogEntry(
     val level: LogLevel,
     val tag: String,
     val message: String,
-    val count: Int = 1
+    val count: Int = 1,
+    /** [LOGCAT-ADB] Metadata asli logcat; 0 / '\u0000' = bukan baris logcat mentah. */
+    val pid: Int = 0,
+    val tid: Int = 0,
+    val prio: Char = '\u0000'
 )
 
 /**
@@ -28,7 +32,7 @@ data class LogEntry(
  * Aman dipanggil dari thread mana pun.
  */
 object LogBus : LogSink {
-    private const val MAX_ENTRIES = 1000
+    private const val MAX_ENTRIES = 5000
     private const val PUBLISH_DELAY_MS = 100L
 
     private val lock = Any()
@@ -42,19 +46,26 @@ object LogBus : LogSink {
     private val _entries = MutableStateFlow<List<LogEntry>>(emptyList())
     val entries: StateFlow<List<LogEntry>> = _entries.asStateFlow()
 
-    fun log(source: String, level: LogLevel, tag: String, message: String) {
+    fun log(source: String, level: LogLevel, tag: String, message: String) =
+        logRaw(source, level, tag, message)
+
+    /** [LOGCAT-ADB] Entri dengan metadata asli logcat (waktu epoch, pid, tid, prioritas); baris mentah tidak digabung. */
+    fun logRaw(
+        source: String, level: LogLevel, tag: String, message: String,
+        timeMs: Long = 0L, pid: Int = 0, tid: Int = 0, prio: Char = '\u0000'
+    ) {
         val src = clean(source, 32).lowercase().ifEmpty { "luar" }
         val tg = clean(tag, 64)
-        val msg = clean(message, 2000)
-        val now = System.currentTimeMillis()
+        val msg = clean(message, 4096)
+        val now = if (timeMs > 0L) timeMs else System.currentTimeMillis()
         synchronized(lock) {
             val last = buffer.lastOrNull()
-            if (last != null && last.source == src && last.level == level &&
+            if (prio == '\u0000' && last != null && last.source == src && last.level == level &&
                 last.tag == tg && last.message == msg
             ) {
                 buffer[buffer.lastIndex] = last.copy(count = last.count + 1, time = now)
             } else {
-                buffer.addLast(LogEntry(nextId++, now, src, level, tg, msg))
+                buffer.addLast(LogEntry(nextId++, now, src, level, tg, msg, pid = pid, tid = tid, prio = prio))
                 while (buffer.size > MAX_ENTRIES) buffer.removeFirst()
             }
         }
