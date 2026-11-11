@@ -13,7 +13,7 @@ kotlin {
 }
 
 // Versi dipin; harus sama dengan nama berkas di scripts/newpipe/pins.sha256.
-val newpipeVersion = "v0.27.0"
+val newpipeVersion = "v0.26.5"
 
 dependencies {
     api(project(":core:common"))
