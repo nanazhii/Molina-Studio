@@ -88,6 +88,13 @@ object StreamEnginePrefs {
         SearchLang.enabled = _lockIndonesian.value
         _originalTitles.value = p.getBoolean(KEY_ORIG_TITLE, true)
         SearchLang.originalTitles = _originalTitles.value
+        // [DEFAULT-AUTO] sekali: kunci AUDIO lama (workaround bug pencarian YouTube) dikembalikan ke AUTO
+        if (!p.getBoolean("quality_auto_migrated_v1", false)) {
+            val e = p.edit()
+            if (p.getString(KEY_QUALITY, null) == VideoQuality.AUDIO.name)
+                e.putString(KEY_QUALITY, VideoQuality.AUTO.name)
+            e.putBoolean("quality_auto_migrated_v1", true).apply()
+        }
         val q = VideoQuality.fromName(p.getString(KEY_QUALITY, null)) // [QUALITY]
         _quality.value = q
         StreamQuality.current = q

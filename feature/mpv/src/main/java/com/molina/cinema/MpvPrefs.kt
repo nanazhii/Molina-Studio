@@ -63,6 +63,13 @@ object MpvPrefs {
                 e.putString("no_ui_pause", "always")
             e.putBoolean("no_ui_pause_migrated_v1", true).apply()
         }
+        // [DEFAULT-AUTO] sekali: "Audio only untuk video" yang dinyalakan sebagai workaround dimatikan; video kembali tampil
+        if (!sp.getBoolean("audio_only_default_migrated_v1", false)) {
+            val e = sp.edit()
+            if (try { sp.getBoolean("audio_only_video", false) } catch (ex: ClassCastException) { false })
+                e.putBoolean("audio_only_video", false)
+            e.putBoolean("audio_only_default_migrated_v1", true).apply()
+        }
         prefs = sp
         sp.registerOnSharedPreferenceChangeListener(listener)
         return sp
