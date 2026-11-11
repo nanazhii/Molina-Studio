@@ -85,6 +85,25 @@ internal object PlaybackLog {
         if (title.isNotEmpty() && title != target)
             sb.append(" | judul ").append(title)
         MpvLog.i(TAG, sb.toString())
+        logTracks() // [DIAG-TRACKS]
+    }
+
+    /** [DIAG-TRACKS] Ringkas daftar trek tepat setelah dimuat: v=video a=audio s=sub, * = terpilih, (img) = gambar sampul. */
+    private fun logTracks() {
+        val n = runCatching { MPVLib.getPropertyInt("track-list/count") }.getOrNull() ?: return
+        val sb = StringBuilder("Trek ").append(n).append(':')
+        for (i in 0 until n.coerceAtMost(12)) {
+            val type = prop("track-list/$i/type") ?: "?"
+            val codec = prop("track-list/$i/codec") ?: "?"
+            sb.append(' ').append(type.first()).append('=').append(codec)
+            if (prop("track-list/$i/selected") == "yes") sb.append('*')
+            if (prop("track-list/$i/image") == "yes") sb.append("(img)")
+        }
+        sb.append(" | vid=").append(prop("vid") ?: "?")
+            .append(" aid=").append(prop("aid") ?: "?")
+            .append(" | hwdec=").append(prop("hwdec-current") ?: "-")
+            .append(" vo=").append(prop("current-vo") ?: "-")
+        MpvLog.i(TAG, sb.toString())
     }
 
     /** Playlist pencarian diterima: [total] item, mulai dari nomor [start] (1-based). */
