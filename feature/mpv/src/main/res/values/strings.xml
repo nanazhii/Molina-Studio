@@ -347,4 +347,9 @@
     <string name="quality_unknown">n/a</string>
     <string name="quality_yes">Yes</string>
     <string name="quality_no">No</string>
+    <string name="quality_sheet_title">Video quality</string>
+    <string name="quality_locked_suffix">\u00B7 locked</string>
+    <string name="quality_slow_hint">Slow network? Lock to 480p or Audio only.</string>
+    <string name="quality_fallback">%1$s is not available for this video; using %2$dp</string>
+    <string name="quality_next_video">Quality locked to %1$s for the next videos</string>
 </resources>

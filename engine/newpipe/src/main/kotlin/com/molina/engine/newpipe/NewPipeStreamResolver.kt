@@ -67,6 +67,8 @@ class NewPipeStreamResolver(
             val pick = StreamPicker.pick(info, StreamQuality.current) // [QUALITY]
                 ?: return fail(StreamError.NOT_FOUND, "tidak ada stream yang bisa diputar")
             pick.audioUrl?.let { StreamQuality.rememberAudio(pick.url, it) } // [QUALITY]
+            StreamQuality.lastHeight = pick.height // [QUALITY-LOCK]
+            StreamQuality.lastFallback = pick.kind.endsWith("-fallback")
             val ms = (System.nanoTime() - started) / 1_000_000
             AppLog.log(
                 SOURCE, LogLevel.Info, "resolve",

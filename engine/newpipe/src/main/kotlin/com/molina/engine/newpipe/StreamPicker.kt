@@ -31,7 +31,8 @@ internal object StreamPicker {
         }
 
         bestMuxed(info.videoStreams.orEmpty())?.let { v ->
-            return Pick(v.content, "progresif", v.height)
+            val miss = quality != com.molina.core.common.VideoQuality.AUTO && quality != com.molina.core.common.VideoQuality.AUDIO // [QUALITY-LOCK]
+            return Pick(v.content, if (miss) "progresif-fallback" else "progresif", v.height)
         }
         bestAudio(info.audioStreams.orEmpty())?.let { a ->
             return Pick(a.content, "audio")

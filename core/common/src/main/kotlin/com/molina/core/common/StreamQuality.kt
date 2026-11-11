@@ -27,6 +27,12 @@ enum class VideoQuality(val label: String, val maxHeight: Int, val hint: String)
 /** [QUALITY] Pilihan aktif + peta URL video -> URL audio terpisah (YouTube 720p ke atas = video-only + audio). */
 object StreamQuality {
     @Volatile var current: VideoQuality = VideoQuality.AUTO
+    /** [QUALITY-LOCK] Tinggi & status fallback hasil resolve terakhir (diisi resolver) agar UI bisa memberi tahu pengguna. */
+    @Volatile var lastHeight: Int = 0
+    @Volatile var lastFallback: Boolean = false
+    /** [QUALITY-LOCK] Dipasang aplikasi untuk menyimpan pilihan secara permanen. */
+    @Volatile var onChange: ((VideoQuality) -> Unit)? = null
+    fun set(v: VideoQuality) { current = v; onChange?.invoke(v) }
     private val audio = ConcurrentHashMap<String, String>()
 
     fun rememberAudio(videoUrl: String, audioUrl: String) {

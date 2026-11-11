@@ -77,6 +77,7 @@ object StreamEnginePrefs {
         val q = VideoQuality.fromName(p.getString(KEY_QUALITY, null)) // [QUALITY]
         _quality.value = q
         StreamQuality.current = q
+        StreamQuality.onChange = { setQuality(it) } // [QUALITY-LOCK]
     }
 
     fun enableLan(v: Boolean) {

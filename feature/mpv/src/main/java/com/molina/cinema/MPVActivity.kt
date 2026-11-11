@@ -7,6 +7,7 @@ import com.molina.core.common.StreamHeaders
 import com.molina.core.common.StreamPin
 import com.molina.core.common.StreamOutcome
 import com.molina.core.common.StreamResolvers
+import com.molina.core.common.VideoQuality as CoreQuality // [QUALITY-SHEET]
 import com.molina.core.common.StreamSearchItem
 import com.molina.core.common.ShieldProxy
 import com.molina.core.common.ShieldStats
@@ -2182,6 +2183,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                     false
                 },
                 MenuItem(R.id.audioOnlyBtn) { toggleAudioOnly(); true },
+                MenuItem(R.id.qualityIconBtn) { restoreState(); showQualitySheet(); false }, // [QUALITY-SHEET]
                 MenuItem(R.id.chapterBtn) {
                     val chapters = player.loadChapters()
                     if (chapters.isEmpty())
@@ -2222,11 +2224,22 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         // tombol Audio only hanya berguna bila ada video + audio, atau saat mode ini aktif (untuk kembali)
         if (!forcedAudioOnly && (player.vid == -1 || !isPlayingAudio))
             hiddenButtons.add(R.id.audioOnlyBtn)
+        run { // [QUALITY-SHEET] sembunyikan untuk berkas lokal tanpa varian
+            val pg = MPVLib.getPropertyString("path")?.let { streamSources[it] }
+            val web = pg != null && StreamLoader.isWebUrl(pg)
+            if (!web && !forcedAudioOnly && readVideoVariants().size <= 1) hiddenButtons.add(R.id.qualityIconBtn)
+        }
         if ((MPVLib.getPropertyInt("chapter-list/count") ?: 0) == 0)
             hiddenButtons.add(R.id.rowChapter)
         /******/
 
         genericMenu(R.layout.dialog_top_menu, buttons, hiddenButtons, restoreState, docked = true) { v ->
+            v.findViewById<android.widget.ImageButton>(R.id.qualityIconBtn)?.apply { // [QUALITY-SHEET] tint = kunci aktif
+                val q = com.molina.core.common.StreamQuality.current
+                imageTintList = ColorStateList.valueOf(ContextCompat.getColor(context,
+                    if (q != CoreQuality.AUTO) R.color.player_playlist_active else R.color.player_dialog_text))
+                contentDescription = getString(R.string.quality_sheet_title) + ": " + q.label
+            }
             v.findViewById<android.widget.ImageButton>(R.id.audioOnlyBtn).apply {
                 val label = getString(if (forcedAudioOnly) R.string.audio_only_off else R.string.audio_only_on)
                 contentDescription = label
@@ -2613,6 +2626,103 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         MpvLog.i(TAG, "Audio only: $forcedAudioOnly")
         updateMetadataDisplay() // [AUDIO-TAG-4]
         showToast(getString(if (forcedAudioOnly) R.string.audio_only_on else R.string.audio_only_off), true)
+    }
+
+    // [QUALITY-SHEET] Gaya YouTube: satu daftar; memilih = mengunci (tersimpan, berlaku juga untuk video berikutnya).
+    private fun showQualitySheet() {
+        val order = listOf(CoreQuality.AUTO, CoreQuality.P1080, CoreQuality.P720, CoreQuality.P576, CoreQuality.P480, CoreQuality.AUDIO)
+        val cur = com.molina.core.common.StreamQuality.current
+        val builder = AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog)
+        val header = android.widget.TextView(builder.context).apply {
+            val pad = Utils.convertDp(this@MPVActivity, 24f)
+            setPadding(pad, pad, pad, pad / 2)
+            textSize = 13f
+            val ta = builder.context.obtainStyledAttributes(intArrayOf(android.R.attr.textColorPrimary))
+            setTextColor(ta.getColor(0, android.graphics.Color.WHITE))
+            ta.recycle()
+        }
+        fun refresh() {
+            val c = readPlayConditions()
+            val lines = mutableListOf(getString(R.string.quality_sheet_title), qualityStatus(c, null))
+            if (c.buffering && cur != CoreQuality.AUDIO && cur != CoreQuality.P480) lines.add(getString(R.string.quality_slow_hint))
+            header.text = lines.joinToString("\n")
+        }
+        refresh()
+        builder.setCustomTitle(header)
+        val labels = order.map { q ->
+            q.label + if (q == cur && q != CoreQuality.AUTO) " " + getString(R.string.quality_locked_suffix) else ""
+        }.toTypedArray()
+        builder.setSingleChoiceItems(labels, order.indexOf(cur).coerceAtLeast(0)) { dialog, item ->
+            dialog.dismiss()
+            applyQualityLock(order[item])
+        }
+        builder.setNegativeButton(R.string.dialog_cancel, null)
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        val tick = object : Runnable {
+            override fun run() {
+                if (isFinishing || isDestroyed) return
+                refresh()
+                handler.postDelayed(this, 1000L)
+            }
+        }
+        builder.setOnDismissListener { handler.removeCallbacks(tick) }
+        builder.create().show()
+        handler.postDelayed(tick, 1000L)
+    }
+
+    /** [QUALITY-SHEET] Simpan kunci, lalu resolve ulang item aktif pada kualitas baru dan lanjut dari posisi terakhir. */
+    private fun applyQualityLock(q: CoreQuality) {
+        val sq = com.molina.core.common.StreamQuality
+        val before = sq.current
+        if (q == before) return
+        sq.set(q)
+        audioReloadPrev = null
+        val page = MPVLib.getPropertyString("path")?.let { streamSources[it] }
+        if (page == null || !StreamLoader.isWebUrl(page)) {
+            // bukan hasil resolver web: audio-only lewat track vid; resolusi lewat varian HLS bila ada
+            if ((q == CoreQuality.AUDIO) != forcedAudioOnly) toggleAudioOnly()
+            if (q != CoreQuality.AUDIO) {
+                val vs = readVideoVariants()
+                if (q == CoreQuality.AUTO) MPVLib.setPropertyString("vid", "auto")
+                else if (vs.size > 1) {
+                    val pick = vs.filter { it.height <= q.maxHeight }.maxByOrNull { it.height } ?: vs.minByOrNull { it.height }
+                    if (pick != null) player.vid = pick.mpvId
+                } else showToast(getString(R.string.quality_next_video, q.label), true)
+            }
+            return
+        }
+        val wasAudio = forcedAudioOnly
+        val toAudio = q == CoreQuality.AUDIO
+        forcedAudioOnly = toAudio
+        updateMetadataDisplay()
+        sq.lastFallback = false
+        val pos = MPVLib.getPropertyDouble("time-pos") ?: 0.0
+        val idx = MPVLib.getPropertyInt("playlist-pos") ?: 0
+        showToast(getString(R.string.quality_switched, q.label), true)
+        streamScope.launch {
+            when (val p = StreamLoader.prepare(page) { showToast(getString(R.string.stream_resolving), true) }) {
+                is Prepared.Ready -> {
+                    p.title?.let { streamTitles[p.url] = it }
+                    streamSources[p.url] = page
+                    pendingSeekSec = pos.takeIf { it > 1.0 }
+                    val a = MpvLoad.loadfileArgs(p.url, "insert-at-play", p.headers, p.title)
+                    if (a.isNotEmpty() && a[0] == "loadfile") {
+                        val cmd = if (a.size >= 5) a.copyOf().also { it[3] = idx.toString() }
+                                  else arrayOf("loadfile", a[1], "insert-at-play", idx.toString())
+                        MPVLib.command(cmd)
+                        MPVLib.command(arrayOf("playlist-remove", (idx + 1).toString()))
+                    } else MPVLib.command(a)
+                    if (sq.lastFallback && !toAudio)
+                        showToast(getString(R.string.quality_fallback, q.label, sq.lastHeight), true)
+                }
+                is Prepared.Failed -> {
+                    sq.set(before)
+                    forcedAudioOnly = wasAudio
+                    updateMetadataDisplay()
+                    showToast(getString(StreamLoader.messageRes(p.error)), true)
+                }
+            }
+        }
     }
 
     private fun cycleOrientation() {
