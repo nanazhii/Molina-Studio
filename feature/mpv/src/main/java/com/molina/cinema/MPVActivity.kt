@@ -2240,7 +2240,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
         genericMenu(R.layout.dialog_top_menu, buttons, hiddenButtons, restoreState, docked = true) { v ->
             v.findViewById<android.widget.ImageButton>(R.id.qualityIconBtn)?.apply { // [QUALITY-SHEET] tint = kunci aktif
-                val q = com.molina.core.common.StreamQuality.current
+                val q = effectiveQuality() // [QUALITY-SYNC]
                 imageTintList = ColorStateList.valueOf(ContextCompat.getColor(context,
                     if (q != CoreQuality.AUTO) R.color.molina_brand else R.color.player_dialog_text))
                 contentDescription = getString(R.string.quality_sheet_title) + ": " + q.label
@@ -2456,10 +2456,12 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     private fun qualityStatus(c: PlayConditions, rec: VideoVariant?): String {
         val unk = getString(R.string.quality_unknown)
-        val now = listOfNotNull(
-            if (c.outWidth > 0 && c.outHeight > 0) "${c.outWidth}\u00D7${c.outHeight}" else null,
+        // [QUALITY-NOW] Mode video: "720p · 30 fps · 2.7 Mbps" (bitrate video nyata dari mpv); audio-only: "Hanya audio".
+        val vBps = ((MPVLib.getPropertyDouble("video-bitrate") ?: 0.0)).toLong()
+        val now = if (effectiveQuality() == CoreQuality.AUDIO) CoreQuality.AUDIO.label else listOfNotNull(
+            if (c.outHeight > 0) "${c.outHeight}p" else null,
             if (c.fps > 0) String.format(java.util.Locale.US, "%.0f fps", c.fps) else null,
-            c.hwdec,
+            if (vBps > 0) VideoQuality.mbps(vBps) else null,
         ).joinToString(" \u00B7 ").ifEmpty { unk }
         val net = if (c.netSpeedBps > 0) VideoQuality.mbps(c.netSpeedBps) else unk
         val yesNo = getString(if (c.buffering) R.string.quality_yes else R.string.quality_no)
@@ -2641,7 +2643,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private val bufferingHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private var qualityHintPath: String? = null
     private val bufferingHint = Runnable {
-        val q = com.molina.core.common.StreamQuality.current
+        val q = effectiveQuality() // [QUALITY-SYNC]
         if (isFinishing || isDestroyed || q == CoreQuality.P480 || q == CoreQuality.AUDIO) return@Runnable
         val path = MPVLib.getPropertyString("path") ?: return@Runnable
         val page = streamSources[path]
@@ -2710,15 +2712,19 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         bufferingHandler.postDelayed(qualitySnackHide, 8000L)
     }
 
+    // [QUALITY-SYNC] Mode efektif: audio-only (tombol ♪ / jalur non-web) mengalahkan kunci resolusi tersimpan.
+    private fun effectiveQuality(): CoreQuality =
+        if (forcedAudioOnly) CoreQuality.AUDIO else com.molina.core.common.StreamQuality.current
+
     // [QUALITY-SHEET] Gaya YouTube: satu daftar; memilih = mengunci (tersimpan, berlaku juga untuk video berikutnya).
     private fun showQualitySheet() {
         val order = listOf(CoreQuality.AUTO, CoreQuality.P1080, CoreQuality.P720, CoreQuality.P576, CoreQuality.P480, CoreQuality.AUDIO)
-        val cur = com.molina.core.common.StreamQuality.current
-        val builder = AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog)
+        val cur = effectiveQuality() // [QUALITY-SYNC]
+        val builder = AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog_Compact) // [QUALITY-COMPACT]
         val header = android.widget.TextView(builder.context).apply {
-            val pad = Utils.convertDp(this@MPVActivity, 24f)
-            setPadding(pad, pad, pad, pad / 2)
-            textSize = 13f
+            val pad = Utils.convertDp(this@MPVActivity, 16f)
+            setPadding(pad, pad * 3 / 4, pad, pad / 4)
+            textSize = 12f
             val ta = builder.context.obtainStyledAttributes(intArrayOf(android.R.attr.textColorPrimary))
             setTextColor(ta.getColor(0, android.graphics.Color.WHITE))
             ta.recycle()
@@ -2756,7 +2762,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun applyQualityLock(q: CoreQuality) {
         val sq = com.molina.core.common.StreamQuality
         val before = sq.current
-        if (q == before) return
+        if (q == effectiveQuality()) return // [QUALITY-SYNC]
         sq.set(q)
         audioReloadPrev = null
         val page = MPVLib.getPropertyString("path")?.let { streamSources[it] }

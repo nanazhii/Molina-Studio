@@ -48,6 +48,14 @@
         <item name="dialogCornerRadius">28dp</item>
     </style>
 
+    <!-- [QUALITY-COMPACT] dialog kualitas: baris 40dp + bingkai tipis -->
+    <style name="AppTheme.PlayerDialog.Compact">
+        <item name="android:windowBackground">@drawable/bg_quality_dialog</item>
+        <item name="listPreferredItemHeightSmall">40dp</item>
+        <item name="android:listPreferredItemHeightSmall">40dp</item>
+        <item name="dialogCornerRadius">20dp</item>
+    </style>
+
     <!-- theme for preferences -->
     <style name="AppTheme.Preference" parent="Theme.Material3.DayNight">
         <item name="toolbarStyle">@style/AppTheme.Toolbar.Style</item>
