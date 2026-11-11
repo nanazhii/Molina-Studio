@@ -341,7 +341,6 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         }
 
         override fun run() {
-            binding.topControls.animate().alpha(0f).setDuration(CONTROLS_FADE_DURATION)
             binding.controls.animate().alpha(0f).setDuration(CONTROLS_FADE_DURATION).setListener(listener)
         }
     }
@@ -407,7 +406,6 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             playBtn.setOnClickListener { player.cyclePause() }
             cycleDecoderBtn.setOnClickListener { player.cycleHwdec() }
             cycleSpeedBtn.setOnClickListener { cycleSpeed() }
-            abLoopBtn.setOnClickListener { cycleAbLoop() }
             shieldBadge.setOnClickListener { showShieldInfo() }
             topMenuBtn.setOnClickListener { openTopMenu() }
             unlockBtn.setOnClickListener { unlockUI() }
@@ -1127,7 +1125,6 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     /** Make controls visible, also controls the timeout until they fade. */
     private fun showControls() {
-        updateAbLoopButton()
         if (lockedUI) {
             MpvLog.w(TAG, "cannot show UI in locked mode")
             return
@@ -1136,15 +1133,12 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         // remove all callbacks that were to be run for fading
         fadeHandler.removeCallbacks(fadeRunnable)
         binding.controls.animate().cancel()
-        binding.topControls.animate().cancel()
 
         // reset controls alpha to be visible
         binding.controls.alpha = 1f
-        binding.topControls.alpha = 1f
 
         if (binding.controls.visibility != View.VISIBLE) {
             binding.controls.visibility = View.VISIBLE
-            binding.topControls.visibility = View.VISIBLE
             binding.controls.doOnNextLayout { syncAudioLayout() } // [SPECTRUM] tinggi kontrol baru valid setelah layout
 
             if (this.statsFPS) {
@@ -1168,7 +1162,6 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         // use GONE here instead of INVISIBLE (which makes more sense) because of Android bug with surface views
         // see http://stackoverflow.com/a/12655713/2606891
         binding.controls.visibility = View.GONE
-        binding.topControls.visibility = View.GONE
         binding.statsTextView.visibility = View.GONE
 
         val insetsController = WindowCompat.getInsetsController(window, window.decorView)
@@ -1271,7 +1264,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
      * Returns views eligible for dpad button navigation
      */
     private fun dpadButtons(): Sequence<View> {
-        val groups = arrayOf(binding.controlsButtonGroup, binding.topControls)
+        val groups = arrayOf(binding.controlsButtonGroup)
         return sequence {
             for (g in groups) {
                 for (i in 0 until g.childCount) {
@@ -1951,14 +1944,26 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         val b = MPVLib.getPropertyString("ab-loop-b")
         val hasA = a != null && a != "no"
         val hasB = b != null && b != "no"
-        binding.abLoopBtn.text = if (hasA && !hasB) "A-" else "A-B"
-        binding.abLoopBtn.setTextColor(if (hasA && hasB) 0xFF2ECC71.toInt() else 0xFFFFFFFF.toInt())
         if (announce) {
             showToast(when {
                 hasA && hasB -> "Loop A-B aktif"
                 hasA -> "Titik A ditandai"
                 else -> "Loop A-B dimatikan"
             }, cancel = true)
+        }
+    }
+
+    /** [CTRL-LAYOUT] Label item A-B di menu lanjutan; status loop ikut terlihat. */
+    private fun abLoopLabel(): String {
+        val a = MPVLib.getPropertyString("ab-loop-a")
+        val b = MPVLib.getPropertyString("ab-loop-b")
+        val hasA = a != null && a != "no"
+        val hasB = b != null && b != "no"
+        val base = getString(R.string.ab_loop_btn)
+        return when {
+            hasA && hasB -> "$base  \u2713"
+            hasA -> "$base  (A)"
+            else -> base
         }
     }
 
@@ -2389,6 +2394,10 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             true
         })
 
+        buttons.add(MenuItem(R.id.abLoopMenuBtn) { // [CTRL-LAYOUT] siklus A, B, mati; hasil lewat toast
+            cycleAbLoop()
+            true
+        })
         buttons.add(MenuItem(R.id.sleepTimerBtn) {
             pickSleepTimer(restoreState)
             false
@@ -2412,6 +2421,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         /******/
 
         genericMenu(R.layout.dialog_advanced_menu, buttons, hiddenButtons, restoreState) { v ->
+            v.findViewById<Button>(R.id.abLoopMenuBtn).text = abLoopLabel() // [CTRL-LAYOUT]
             if (sleepTimer.active) {
                 val left = ((sleepTimer.remainingMs() + 59_999L) / 60_000L).toInt()
                 v.findViewById<Button>(R.id.sleepTimerBtn).text =
@@ -2897,9 +2907,9 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     private fun updateAudioUI() {
         val audioButtons = arrayOf(R.id.prevBtn, R.id.cycleAudioBtn, R.id.playBtn,
-                R.id.cycleSpeedBtn, R.id.abLoopBtn, R.id.nextBtn)
+                R.id.cycleSpeedBtn, R.id.topMenuBtn, R.id.nextBtn) // [CTRL-LAYOUT]
         val videoButtons = arrayOf(R.id.cycleAudioBtn, R.id.cycleSubsBtn, R.id.playBtn,
-                R.id.cycleDecoderBtn, R.id.cycleSpeedBtn, R.id.abLoopBtn)
+                R.id.cycleDecoderBtn, R.id.cycleSpeedBtn, R.id.topMenuBtn)
 
         val shouldUseAudioUI = isPlayingAudioOnly()
         if (shouldUseAudioUI == useAudioUI)
@@ -3039,11 +3049,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
      * supaya spektrum berada di atasnya dan tidak tertutup. Memakai tinggi terukur bila ada, jika belum 48dp.
      */
     private fun topBarReserve(): Int {
-        val d = resources.displayMetrics.density
-        val tb = binding.topControls
-        if (tb.visibility != View.VISIBLE) return 0
-        val mb = (tb.layoutParams as? MarginLayoutParams)?.bottomMargin ?: 0
-        return (if (tb.height > 0) tb.height else (48 * d).toInt()) + mb + (8 * d).toInt()
+        return 0 // [CTRL-LAYOUT] bar atas dihapus: Shield di baris status, setelan di baris tombol
     }
 
     private fun layoutSpectrum(reserved: Int) {
@@ -3191,8 +3197,9 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         val artW = if (twoColumnAudio()) resources.displayMetrics.widthPixels else // [LAND-2COL] lebar terbaru (view bisa belum ter-layout ulang)
             binding.nowPlayingArt.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
         val availDp = (artH - binding.stationMarquee.paddingTop - binding.stationMarquee.paddingBottom) / d
-        val frameH = (availDp - 84f).coerceIn(48f, 126f) // [TITLE-BANNER] 84dp = label + jarak + nama satu baris 14sp
-        val frameW = (frameH * 16f / 9f).coerceAtMost((artW - pad[0] - pad[2]) / d)
+        val frameH0 = (availDp - 84f).coerceIn(48f, 126f) // [TITLE-BANNER] 84dp = label + jarak + nama satu baris 14sp
+        val frameH = frameH0.coerceAtMost(64f) // [CTRL-LAYOUT] NOW PLAYING dan MOLINA dirapatkan; lebar dan font tetap
+        val frameW = (frameH0 * 16f / 9f).coerceAtMost((artW - pad[0] - pad[2]) / d)
         val lp = binding.stationFrame.layoutParams
         val nw = (frameW * d).toInt()
         val nh = (frameH * d).toInt()
@@ -3205,7 +3212,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         val nameW = maxOf(nw, (200 * d).toInt()).coerceAtMost((artW - pad[0] - pad[2]).coerceAtLeast(1))
         val nlp = binding.stationName.layoutParams
         if (nlp.width != nameW) { nlp.width = nameW; binding.stationName.layoutParams = nlp }
-        binding.stationInitials.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, (frameH * 0.26f).coerceIn(13f, 28f))
+        binding.stationInitials.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, (frameH0 * 0.26f).coerceIn(13f, 28f))
     }
 
     private fun showStationMarquee(url: String) { // [STATION-LOGO]

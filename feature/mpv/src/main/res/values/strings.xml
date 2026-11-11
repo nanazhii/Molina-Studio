@@ -364,4 +364,5 @@
     <string name="brand_wordmark" translatable="false">MOLINA</string> <!-- [MOLINA-BRAND] -->
     <string name="menu_lock_screen">Lock screen</string> <!-- [MENU-SCROLL] -->
     <string name="menu_pip">Floating window (PiP)</string>
+    <string name="ab_loop_btn">A-B loop</string> <!-- [CTRL-LAYOUT] -->
 </resources>

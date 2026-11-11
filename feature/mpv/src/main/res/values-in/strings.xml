@@ -191,4 +191,5 @@
     <string name="audio_lang_next_video">Bahasa audio disimpan untuk video berikutnya</string>
     <string name="menu_lock_screen">Kunci layar</string> <!-- [MENU-SCROLL] -->
     <string name="menu_pip">Jendela mengambang (PiP)</string>
+    <string name="ab_loop_btn">Loop A-B</string> <!-- [CTRL-LAYOUT] -->
 </resources>

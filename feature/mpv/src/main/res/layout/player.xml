@@ -62,8 +62,8 @@
             <FrameLayout
                 android:id="@+id/stationFrame"
                 android:layout_width="224dp"
-                android:layout_height="126dp"
-                android:layout_marginTop="14dp"> <!-- [BRAND-TEXT] tanpa bingkai -->
+                android:layout_height="64dp"
+                android:layout_marginTop="6dp"> <!-- [BRAND-TEXT] tanpa bingkai -->
 
                 <TextView
                     android:id="@+id/stationInitials"
@@ -143,15 +143,34 @@
 
                 <TextView
                     android:id="@+id/tvBrandLabel"
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:fontFamily="sans-serif-condensed"
                     android:letterSpacing="0.15"
                     android:text="● MOLINA CINEMA"
                     android:textColor="#FF2ECC71"
                     android:textSize="11sp"
                     android:textStyle="bold" />
+
+                <!-- [CTRL-LAYOUT] Lencana Molina Shield tepat setelah label merek. -->
+                <TextView
+                    android:id="@+id/shieldBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:gravity="center"
+                    android:minHeight="28dp"
+                    android:paddingLeft="6dp"
+                    android:paddingRight="6dp"
+                    android:textColor="@color/tint_normal"
+                    android:textSize="12sp"
+                    tools:text="🔒 0" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1"
+                    android:importantForAccessibility="no" />
 
                 <TextClock
                     android:id="@+id/tvClock"
@@ -362,19 +381,17 @@
                     android:textColor="@android:color/white"
                     tools:text="1.00X" />
 
-                <!-- Loop A-B: ketuk 1x = titik A, 2x = titik B (loop), 3x = matikan -->
-                <Button
-                    android:id="@+id/abLoopBtn"
+                <!-- [CTRL-LAYOUT] Setelan (strip menu) menempati posisi A-B; A-B pindah ke menu lanjutan. -->
+                <ImageButton
+                    android:id="@+id/topMenuBtn"
                     style="?buttonBarButtonStyle"
+                    android:background="@drawable/bg_wmp_btn"
+                    android:minWidth="44dp"
+                    android:minHeight="44dp"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/bg_wmp_pill"
-                    android:minWidth="0dp"
-                    android:paddingLeft="10dp"
-                    android:paddingRight="10dp"
-                    android:text="A-B"
-                    android:textColor="@android:color/white"
-                    tools:text="A-B" />
+                    app:srcCompat="@drawable/ic_settings_black_24dp"
+                    app:tint="@color/tint_normal" />
 
             </LinearLayout>
         </LinearLayout>
@@ -444,53 +461,6 @@
             android:visibility="gone"
             tools:text="[gesture]" />
 
-        <!-- [MENU-SCROLL] cari/kunci/PiP pindah ke strip menu; bar ini kini lencana Shield + pengaturan. Dulu: Lock / PiP / Settings: menempel di atas baris seekbar, rata kanan dengan teks end time.
-             marginRight 64dp = lebar nextBtn 48dp + inset baris seekbar 16dp (baris seekbar dipaksa LTR, jadi pakai Right bukan End). -->
-        <LinearLayout
-            android:id="@+id/top_controls"
-            tools:ignore="RtlHardcoded"
-            style="?buttonBarStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_above="@id/controls"
-            android:layout_alignRight="@id/controls"
-            android:layout_marginRight="64dp"
-            android:layout_marginBottom="4dp"
-            android:alpha="0.9"
-            android:background="@drawable/bg_pill_controls"
-            android:orientation="horizontal"
-            android:paddingLeft="4dp"
-            android:paddingRight="4dp">
-
-            <!-- Lencana Molina Shield: gembok (https), peringatan (tidak terenkripsi), jumlah blokir. -->
-            <TextView
-                android:id="@+id/shieldBadge"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical"
-                android:minHeight="40dp"
-                android:gravity="center"
-                android:paddingLeft="8dp"
-                android:paddingRight="8dp"
-                android:textColor="@color/tint_normal"
-                android:textSize="14sp"
-                tools:text="🔒 0" />
-
-
-
-
-            <ImageButton
-                android:id="@+id/topMenuBtn"
-                style="?buttonBarButtonStyle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:minWidth="40dp"
-                android:minHeight="40dp"
-                android:padding="4dp"
-                app:srcCompat="@drawable/ic_settings_black_24dp"
-                app:tint="@color/tint_normal" />
-
-        </LinearLayout>
 
         <!-- mismatching width/height so that the button appears exactly square?! -->
         <ImageButton
