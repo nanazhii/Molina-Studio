@@ -62,6 +62,7 @@ object StreamEnginePrefs {
         _quality.value = v
         StreamQuality.current = v
         sp?.edit()?.putString(KEY_QUALITY, v.name)?.apply()
+        StreamQuality.notifyChosen(v) // [QUALITY-SYNC3]
     }
 
     private val _audioLang = MutableStateFlow("") // [AUDIO-LANG]

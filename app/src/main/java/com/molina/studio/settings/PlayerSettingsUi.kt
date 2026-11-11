@@ -102,7 +102,9 @@ internal fun PlayerSettingsPage(onOpenCinema: () -> Unit) {
 
     Spacer(Modifier.height(16.dp))
     PackageSectionHeader("Kualitas video YouTube") // [QUALITY]
-    val quality by StreamEnginePrefs.quality.collectAsState()
+    val savedQuality by StreamEnginePrefs.quality.collectAsState()
+    val audioNow by com.molina.core.common.StreamQuality.audioOnlyActive.collectAsState() // [QUALITY-SYNC3]
+    val quality = if (audioNow) VideoQuality.AUDIO else savedQuality
     PackageGroupCard {
         VideoQuality.values().forEachIndexed { i, q ->
             if (i > 0) PackageDivider()

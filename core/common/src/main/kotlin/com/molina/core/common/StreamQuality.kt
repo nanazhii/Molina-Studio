@@ -37,6 +37,11 @@ object StreamQuality {
     @Volatile var lastFallback: Boolean = false
     /** [QUALITY-LOCK] Dipasang aplikasi untuk menyimpan pilihan secara permanen. */
     @Volatile var onChange: ((VideoQuality) -> Unit)? = null
+    /** [QUALITY-SYNC3] Status runtime: pemutar sedang audio-only (tombol ♪ / kunci). Tidak disimpan; dipakai UI Pengaturan agar selaras. */
+    val audioOnlyActive = kotlinx.coroutines.flow.MutableStateFlow(false)
+    /** [QUALITY-SYNC3] Setiap pilihan eksplisit dari Pengaturan (juga bila nilainya sama) agar pemutar yang berjalan menyesuaikan diri. */
+    val chosen = kotlinx.coroutines.flow.MutableSharedFlow<VideoQuality>(extraBufferCapacity = 4)
+    fun notifyChosen(v: VideoQuality) { chosen.tryEmit(v) }
     fun set(v: VideoQuality) { current = v; onChange?.invoke(v) }
     private val audio = ConcurrentHashMap<String, String>()
 

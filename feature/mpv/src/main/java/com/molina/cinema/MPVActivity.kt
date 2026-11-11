@@ -475,6 +475,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         // Initialize listeners for the player view
         initListeners()
         streamScope.launch { ShieldStats.blockedCount.collect { updateShieldBadge() } }
+        streamScope.launch { com.molina.core.common.StreamQuality.chosen.collect { syncPlayerToLock(it) } } // [QUALITY-SYNC3-B]
 
         gestures = TouchGestures(this)
 
@@ -606,6 +607,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         MpvLog.v(TAG, "Exiting.")
         // [AUDIO-ONLY-BTN] [QUALITY-SYNC2] pulihkan hanya bila mode masih AUDIO; jika pengguna sudah memilih resolusi di Pengaturan, jangan ditimpa
         audioReloadPrev?.let { if (com.molina.core.common.StreamQuality.current == com.molina.core.common.VideoQuality.AUDIO) com.molina.core.common.StreamQuality.current = it }
+        com.molina.core.common.StreamQuality.audioOnlyActive.value = false // [QUALITY-SYNC3-D]
 
         // Suppress any further callbacks
         activityIsForeground = false
@@ -2587,6 +2589,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     }
 
     private var forcedAudioOnly = false
+        set(v) { field = v; com.molina.core.common.StreamQuality.audioOnlyActive.value = v } // [QUALITY-SYNC3-A]
 
     // [AUDIO-ONLY-BTN] Mode audio murni untuk item YouTube: resolve ulang hanya sebagai audio (video tidak diunduh),
     // lanjut dari posisi terakhir. Aktif untuk item berikutnya juga sampai dimatikan.
@@ -2791,6 +2794,15 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     // [QUALITY-SYNC2] Pengaturan bisa mengganti kunci kualitas saat pemutar di belakang: lepas status audio-only lokal.
     // Item yang sedang diputar tetap audio sampai dimuat ulang (pilih kualitas di sheet atau matikan ♪); item berikutnya mengikuti kunci.
+    /** [QUALITY-SYNC3-C] Pilihan di Pengaturan saat pemutar berjalan: Audio <-> video langsung diterapkan; antar-resolusi berlaku pada video berikutnya. */
+    private fun syncPlayerToLock(want: CoreQuality) {
+        if (isFinishing || isDestroyed) return
+        if ((want == CoreQuality.AUDIO) == forcedAudioOnly) return
+        val sq = com.molina.core.common.StreamQuality
+        sq.current = if (forcedAudioOnly) CoreQuality.AUDIO else (audioReloadPrev ?: CoreQuality.AUTO) // keadaan nyata sebelum diterapkan
+        applyQualityLock(want)
+    }
+
     private fun syncAudioOnlyWithLock() {
         val cur = com.molina.core.common.StreamQuality.current
         if (forcedAudioOnly && cur != com.molina.core.common.VideoQuality.AUDIO) {

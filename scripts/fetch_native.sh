@@ -14,6 +14,11 @@ if [ -z "${NATIVE_TAG:-}" ] || ! [[ "${NATIVE_SHA256:-}" =~ ^[0-9a-f]{64}$ ]]; t
   echo "::error::NATIVE_TAG dan NATIVE_SHA256 (64 hex huruf kecil) harus diisi keduanya" >&2; exit 1
 fi
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
+# [FETCH-HINT] pesan jelas bila tag pin tidak ada di Release (mis. release terhapus/riwayat repo diganti)
+if ! gh release view "$NATIVE_TAG" --repo "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY kosong}" >/dev/null 2>&1; then
+  echo "::error::Release '$NATIVE_TAG' tidak ditemukan. Jalankan workflow 'Native mpv' (Actions > Run workflow), lalu isi NATIVE_TAG dan NATIVE_SHA256 di native/prebuilt.env dari ringkasan run." >&2
+  exit 1
+fi
 gh release download "$NATIVE_TAG" --repo "${GITHUB_REPOSITORY:?GITHUB_REPOSITORY kosong}" \
   --pattern molina-native-arm64.tgz --dir "$T"
 echo "$NATIVE_SHA256  $T/molina-native-arm64.tgz" | sha256sum -c -
