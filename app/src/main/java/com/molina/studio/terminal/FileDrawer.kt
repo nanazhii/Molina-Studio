@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -160,7 +159,6 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
     var menuFor by remember { mutableStateOf<String?>(null) }
     var sheet by remember { mutableStateOf<Sheet?>(null) }
     var newFile by remember { mutableStateOf(false) }
-    var addFile by remember { mutableStateOf(false) } // [DRAWER-BOTTOM]
     BackHandler(onBack = onClose)
 
     fun load(dir: File) {
@@ -298,28 +296,19 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
                     }
                 }
             }
-            // [DRAWER-BOTTOM] Bar aksi di bawah: Tambah berkas (kosong) + Nano baru. Folder baru khusus editor Code.
+            // [DRAWER-MERGE] Satu tombol "Berkas baru"; dialognya menawarkan Buat (kosong) atau Buka di nano.
             Box(Modifier.fillMaxWidth().height(1.dp).background(dim.copy(alpha = 0.3f)))
-            Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Row(
-                    Modifier.weight(1f).height(44.dp).clickable { addFile = true },
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        W7FileIcon("", 22.dp)
-                        Text("+", color = Brand, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.BottomEnd))
-                    }
-                    Spacer(Modifier.width(6.dp))
-                    Text("Tambah berkas", color = Brand, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(
+                Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 4.dp, vertical = 4.dp)
+                    .height(44.dp).clickable { newFile = true }, // [NANO-NEW]
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    W7FileIcon("", 22.dp)
+                    Text("+", color = Brand, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.BottomEnd))
                 }
-                Row(
-                    Modifier.weight(1f).height(44.dp).clickable { newFile = true }, // [NANO-NEW]
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center
-                ) {
-                    Icon(Icons.Filled.Edit, contentDescription = "Berkas baru (nano)", tint = Brand, modifier = Modifier.size(22.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Nano baru", color = Brand, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
+                Spacer(Modifier.width(6.dp))
+                Text("Berkas baru", color = Brand, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }
@@ -364,9 +353,8 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
             }
         }
     }
-    if (newFile) NewNanoFileDialog(onDismiss = { newFile = false }, onOpened = { newFile = false; onClose() }, baseDir = root) // [NANO-NEW] [FILE-DRAWER3] buat di folder aktif drawer
-    if (addFile) NewNanoFileDialog( // [DRAWER-BOTTOM] dropdown ekstensi sama dengan Nano baru, tapi hanya membuat berkas
-        onDismiss = { addFile = false }, onOpened = {}, baseDir = root, createOnly = true,
-        onCreated = { nf -> addFile = false; load(root); toast(ctx, "Berkas dibuat: " + nf.name) }
+    if (newFile) NewNanoFileDialog( // [NANO-NEW] [FILE-DRAWER3] [DRAWER-MERGE] buat di folder aktif drawer: Buat (kosong) atau Buka di nano
+        onDismiss = { newFile = false }, onOpened = { newFile = false; onClose() }, baseDir = root,
+        onCreated = { nf -> newFile = false; load(root); toast(ctx, "Berkas dibuat: " + nf.name) }
     )
 }

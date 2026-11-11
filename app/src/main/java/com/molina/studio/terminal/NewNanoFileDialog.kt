@@ -86,7 +86,7 @@ internal object NanoName {
 @Composable
 internal fun NewNanoFileDialog(
     onDismiss: () -> Unit, onOpened: () -> Unit, baseDir: java.io.File? = null,
-    createOnly: Boolean = false, onCreated: (java.io.File) -> Unit = {} // [DRAWER-BOTTOM] createOnly: buat berkas kosong, tanpa membuka nano
+    onCreated: (java.io.File) -> Unit = {} // [DRAWER-MERGE] "Buat" = berkas kosong tanpa membuka nano
 ) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope() // [DRAWER-BOTTOM]
@@ -96,15 +96,17 @@ internal fun NewNanoFileDialog(
     var ext by remember { mutableStateOf(init.second) }
     var menu by remember { mutableStateOf(false) }
     val full = NanoName.join(stem, ext)
-    fun go() {
+    fun create() { // [DRAWER-MERGE] berkas kosong, tanpa membuka nano
         if (stem.isBlank()) return
-        if (createOnly) { // [DRAWER-BOTTOM]
-            scope.launch {
-                val r = withContext(Dispatchers.IO) { runCatching { FileOps.touch(dir, full) } }
-                r.onSuccess { onCreated(it) }
-                    .onFailure { Toast.makeText(ctx, it.message ?: "Gagal membuat berkas", Toast.LENGTH_SHORT).show() }
-            }
-        } else if (MolinaExplorer.newInTerminal(ctx, dir, full)) onOpened()
+        scope.launch {
+            val r = withContext(Dispatchers.IO) { runCatching { FileOps.touch(dir, full) } }
+            r.onSuccess { onCreated(it) }
+                .onFailure { Toast.makeText(ctx, it.message ?: "Gagal membuat berkas", Toast.LENGTH_SHORT).show() }
+        }
+    }
+    fun go() { // buka di nano (juga aksi tombol Enter di keyboard)
+        if (stem.isBlank()) return
+        if (MolinaExplorer.newInTerminal(ctx, dir, full)) onOpened()
     }
     val frameShape = RoundedCornerShape(10.dp)
     Dialog(onDismissRequest = onDismiss) { // [NANO-DIALOG-BLACK] hitam pekat, bingkai putih keabuan, tinggi dipadatkan
@@ -116,7 +118,7 @@ internal fun NewNanoFileDialog(
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
             Text(
-                if (createOnly) "Tambah berkas" else "Berkas baru (nano)",
+                "Berkas baru", // [DRAWER-MERGE]
                 color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold
             )
             Spacer(Modifier.height(3.dp))
@@ -163,11 +165,17 @@ internal fun NewNanoFileDialog(
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                 ) { Text("Batal", color = NanoDialogDim) }
                 TextButton(
+                    onClick = { create() }, enabled = stem.isNotBlank(), modifier = Modifier.height(36.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                ) { // [DRAWER-MERGE]
+                    Text("Buat", color = if (stem.isNotBlank()) Color.White else NanoDialogDim.copy(alpha = 0.5f))
+                }
+                TextButton(
                     onClick = { go() }, enabled = stem.isNotBlank(), modifier = Modifier.height(36.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                 ) {
                     Text(
-                        if (createOnly) "Buat" else "Buka",
+                        "Buka di nano",
                         color = if (stem.isNotBlank()) MolinaTheme.Brand else NanoDialogDim.copy(alpha = 0.5f),
                         fontWeight = FontWeight.Bold
                     )
