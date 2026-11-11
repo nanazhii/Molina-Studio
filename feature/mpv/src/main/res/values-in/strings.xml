@@ -181,4 +181,5 @@
     <string name="quality_fallback">%1$s tidak tersedia untuk video ini; memakai %2$dp</string>
     <string name="quality_next_video">Kualitas dikunci ke %1$s untuk video berikutnya</string>
     <string name="quality_slow_toast">Jaringan lambat? Ketuk ikon HD lalu pilih 480p atau Hanya audio.</string>
+    <string name="quality_slow_snack">Jaringan lambat. Kunci ke 480p?</string>
 </resources>

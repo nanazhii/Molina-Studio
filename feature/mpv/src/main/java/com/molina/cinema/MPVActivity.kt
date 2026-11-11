@@ -602,6 +602,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     override fun onDestroy() {
         bufferingHandler.removeCallbacks(bufferingHint) // [QUALITY-SUGGEST]
+        dismissQualitySnack() // [QUALITY-SNACK]
         thumbnailer.release()
         MpvLog.v(TAG, "Exiting.")
         audioReloadPrev?.let { com.molina.core.common.StreamQuality.current = it } // [AUDIO-ONLY-BTN]
@@ -2639,12 +2640,67 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         val page = streamSources[path]
         if (page == null || !StreamLoader.isWebUrl(page) || qualityHintPath == path) return@Runnable
         qualityHintPath = path
-        showToast(getString(R.string.quality_slow_toast), true)
+        showQualitySnack() // [QUALITY-SNACK]
     }
 
     private fun onBufferingChanged(on: Boolean) {
         bufferingHandler.removeCallbacks(bufferingHint)
         if (on) bufferingHandler.postDelayed(bufferingHint, 6000L)
+        else bufferingHandler.post { dismissQualitySnack() } // [QUALITY-SNACK] saran basi bila buffering selesai
+    }
+
+    // [QUALITY-SNACK] Bar ala Snackbar buatan sendiri: tombol aksi langsung mengunci 480p; hilang sendiri setelah 8 dtk.
+    private var qualitySnack: android.view.View? = null
+    private val qualitySnackHide = Runnable { dismissQualitySnack() }
+
+    private fun dismissQualitySnack() {
+        bufferingHandler.removeCallbacks(qualitySnackHide)
+        qualitySnack?.let { (it.parent as? android.view.ViewGroup)?.removeView(it) }
+        qualitySnack = null
+    }
+
+    private fun showQualitySnack() {
+        val root = findViewById<android.view.ViewGroup>(android.R.id.content) ?: return
+        fun dp(v: Float): Int = Utils.convertDp(this, v)
+        dismissQualitySnack()
+        val brand = ContextCompat.getColor(this, R.color.molina_brand)
+        val bar = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(dp(16f), dp(4f), dp(4f), dp(4f))
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(0xF2141414.toInt())
+                cornerRadius = dp(12f).toFloat()
+                setStroke(dp(1f), brand)
+            }
+            elevation = dp(8f).toFloat()
+        }
+        bar.addView(android.widget.TextView(this).apply {
+            text = getString(R.string.quality_slow_snack)
+            setTextColor(android.graphics.Color.WHITE)
+            textSize = 13f
+        }, android.widget.LinearLayout.LayoutParams(0, android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        bar.addView(android.widget.TextView(this).apply {
+            text = CoreQuality.P480.label
+            setTextColor(brand)
+            textSize = 14f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding(dp(14f), dp(10f), dp(14f), dp(10f))
+            setOnClickListener {
+                dismissQualitySnack()
+                applyQualityLock(CoreQuality.P480)
+            }
+        })
+        root.addView(bar, android.widget.FrameLayout.LayoutParams(
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+            android.view.Gravity.BOTTOM or android.view.Gravity.CENTER_HORIZONTAL
+        ).apply {
+            bottomMargin = dp(96f)
+            marginStart = dp(16f)
+            marginEnd = dp(16f)
+        })
+        qualitySnack = bar
+        bufferingHandler.postDelayed(qualitySnackHide, 8000L)
     }
 
     // [QUALITY-SHEET] Gaya YouTube: satu daftar; memilih = mengunci (tersimpan, berlaku juga untuk video berikutnya).
