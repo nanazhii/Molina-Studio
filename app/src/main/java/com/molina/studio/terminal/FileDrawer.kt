@@ -45,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -84,6 +85,8 @@ private val Brand = MolinaTheme.Brand
 private val DrawerMinWidth = 248.dp // [DRAWER-FRAME] 200 -> 224 -> 248 [DRAWER-GREEN]
 private val DrawerMaxWidth = 288.dp // 240 -> 264 -> 288
 private const val DrawerFraction = 0.40f
+private val DrawerCorner = 16.dp // [DRAWER-ROUND] radius sudut kanan drawer
+private val DrawerShape = androidx.compose.foundation.shape.RoundedCornerShape(topEnd = DrawerCorner, bottomEnd = DrawerCorner)
 private val DrawerFrameColor = Color(0xFF00E676).copy(alpha = 0.6f) // [DRAWER-GREEN] hijau transparan (60%)
 
 /** [FILE-DRAWER2] Keadaan tree dipegang di sini (bukan remember) agar folder utama dan folder terbuka bertahan lintas pembukaan drawer. */
@@ -205,14 +208,24 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
         )
         Column(
             Modifier.fillMaxHeight().width(drawerWidth)
+                .clip(DrawerShape) // [DRAWER-ROUND] sudut kanan membulat; sisi kiri rata dengan tepi layar
                 .background(MaterialTheme.colorScheme.surface)
-                .drawWithContent { // [DRAWER-FRAME] bingkai hijau transparan di atas, bawah, dan kanan; tepi kiri tanpa garis
+                .drawWithContent { // [DRAWER-FRAME] bingkai hijau transparan di atas, kanan, bawah mengikuti lengkung; tepi kiri tanpa garis
                     drawContent()
                     val w = 1.dp.toPx()
-                    val c = DrawerFrameColor
-                    drawRect(c, Offset.Zero, Size(size.width, w))
-                    drawRect(c, Offset(0f, size.height - w), Size(size.width, w))
-                    drawRect(c, Offset(size.width - w, 0f), Size(w, size.height))
+                    val r = DrawerCorner.toPx()
+                    val y1 = w / 2f
+                    val y2 = size.height - w / 2f
+                    val x2 = size.width - w / 2f
+                    val frame = androidx.compose.ui.graphics.Path().apply {
+                        moveTo(0f, y1)
+                        lineTo(x2 - r, y1)
+                        arcTo(androidx.compose.ui.geometry.Rect(x2 - 2 * r, y1, x2, y1 + 2 * r), -90f, 90f, false)
+                        lineTo(x2, y2 - r)
+                        arcTo(androidx.compose.ui.geometry.Rect(x2 - 2 * r, y2 - 2 * r, x2, y2), 0f, 90f, false)
+                        lineTo(0f, y2)
+                    }
+                    drawPath(frame, DrawerFrameColor, style = androidx.compose.ui.graphics.drawscope.Stroke(width = w))
                 }
                 .clickable(interactionSource = swallow, indication = null, onClick = {})
                 .onHorizontalSwipe(22.dp, SwipeDirection.Left) { onClose() }
