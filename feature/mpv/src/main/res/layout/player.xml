@@ -77,17 +77,21 @@
                     android:textStyle="bold" />
             </FrameLayout>
 
-            <TextView
+            <com.molina.cinema.MarqueeTextView
                 android:id="@+id/stationName"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:ellipsize="end"
+                android:layout_marginTop="10dp"
+                android:ellipsize="marquee"
+                android:fontFamily="sans-serif-condensed"
                 android:gravity="center"
-                android:maxLines="2"
+                android:marqueeRepeatLimit="marquee_forever"
+                android:maxLines="1"
+                android:scrollHorizontally="true"
+                android:singleLine="true"
                 android:textColor="#FFFFFFFF"
-                android:textSize="20sp"
-                android:textStyle="bold" />
+                android:textSize="14sp"
+                android:textStyle="bold" /> <!-- [TITLE-BANNER] -->
         </LinearLayout>
 
         <!-- [SPECTRUM] Visualizer spektrum audio; tinggi tetap, bottomMargin diatur kode agar di atas bilah kontrol. -->

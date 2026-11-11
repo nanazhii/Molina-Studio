@@ -2908,6 +2908,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             binding.controlsTitleGroup.visibility = View.VISIBLE
             Utils.viewGroupReorder(binding.controlsTitleGroup, arrayOf(R.id.titleTextView, R.id.minorTitleTextView))
             updateMetadataDisplay()
+            applyTitlePlacement() // [TITLE-BANNER]
 
             showControls()
         } else {
@@ -3086,6 +3087,27 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     private var marqueeUrl: String? = null
 
+    /** [TITLE-BANNER] Marquee dimulai ulang hanya bila teks berubah, supaya gulir tidak ter-reset tiap pembaruan. */
+    private fun setStationName(name: String) {
+        val tv = binding.stationName
+        if (tv.text.toString() == name) return
+        tv.text = name
+        tv.post { tv.restartMarquee() }
+    }
+
+    /**
+     * [TITLE-BANNER] Judul tampil di satu tempat saja. Saat banner stasiun tampil (UI audio), judul berjalan di bawah
+     * banner dan panel kontrol hanya memuat baris merek + jam; tanpa banner (berkas lokal) judul tetap di panel kontrol.
+     */
+    private fun applyTitlePlacement() {
+        if (!useAudioUI) return
+        val inBanner = marqueeUrl != null && binding.stationMarquee.visibility == View.VISIBLE
+        val want = if (inBanner) View.GONE else View.VISIBLE
+        if (binding.controlsTitleGroup.visibility == want) return
+        binding.controlsTitleGroup.visibility = want
+        if (!inBanner) listOf(binding.titleTextView, binding.minorTitleTextView).forEach { tv -> tv.post { tv.restartMarquee() } }
+    }
+
     private fun stationName(url: String): String =
         (streamTitles[url] ?: try { MPVLib.getPropertyString("media-title") } catch (e: Exception) { null }).orEmpty()
 
@@ -3116,6 +3138,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         marqueeUrl = null
         updateMarqueePulse() // [MARQUEE-PULSE]
         binding.stationMarquee.visibility = View.GONE
+        applyTitlePlacement() // [TITLE-BANNER]
     }
 
     private fun layoutMarquee() { // [STATION-LOGO] padding sama dengan kartu sampul agar tidak tertimpa spektrum/kontrol
@@ -3127,7 +3150,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         val artW = if (twoColumnAudio()) resources.displayMetrics.widthPixels else // [LAND-2COL] lebar terbaru (view bisa belum ter-layout ulang)
             binding.nowPlayingArt.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
         val availDp = (artH - binding.stationMarquee.paddingTop - binding.stationMarquee.paddingBottom) / d
-        val frameH = (availDp - 102f).coerceIn(48f, 126f) // 102dp = label + jarak + nama stasiun
+        val frameH = (availDp - 84f).coerceIn(48f, 126f) // [TITLE-BANNER] 84dp = label + jarak + nama satu baris 14sp
         val frameW = (frameH * 16f / 9f).coerceAtMost((artW - pad[0] - pad[2]) / d)
         val lp = binding.stationFrame.layoutParams
         val nw = (frameW * d).toInt()
@@ -3137,16 +3160,21 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             lp.height = nh
             binding.stationFrame.layoutParams = lp
         }
+        // [TITLE-BANNER] nama berjalan selebar bingkai (min 200dp, maks lebar tersedia)
+        val nameW = maxOf(nw, (200 * d).toInt()).coerceAtMost((artW - pad[0] - pad[2]).coerceAtLeast(1))
+        val nlp = binding.stationName.layoutParams
+        if (nlp.width != nameW) { nlp.width = nameW; binding.stationName.layoutParams = nlp }
         binding.stationInitials.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, (frameH * 0.26f).coerceIn(13f, 28f))
     }
 
     private fun showStationMarquee(url: String) { // [STATION-LOGO]
         val name = stationName(url)
         marqueeUrl = url
-        binding.stationName.text = name
+        setStationName(name) // [TITLE-BANNER]
         binding.stationInitials.text = getString(R.string.brand_wordmark) // [MOLINA-BRAND] identitas Molina, tanpa logo eksternal
         binding.stationMarquee.visibility = View.VISIBLE
         layoutMarquee()
+        applyTitlePlacement() // [TITLE-BANNER]
         updateMarqueePulse() // [MARQUEE-PULSE]
     }
 
@@ -3159,7 +3187,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         if (path != null || !useAudioUI || !SpectrumPrefs.enabled(this)) { stopLiveSpectrum(); return false }
         val url = try { MPVLib.getPropertyString("path") } catch (e: Exception) { null }
         if (url == null || !(url.startsWith("http://") || url.startsWith("https://"))) { stopLiveSpectrum(); return false }
-        if (spectrumLive != null && spectrumPath == url) { binding.stationName.text = stationName(url); return true } // [STATION-LOGO]
+        if (spectrumLive != null && spectrumPath == url) { setStationName(stationName(url)); return true } // [STATION-LOGO]
         stopSpectrum()
         spectrumPath = url
         setSpectrumReserve(true)
