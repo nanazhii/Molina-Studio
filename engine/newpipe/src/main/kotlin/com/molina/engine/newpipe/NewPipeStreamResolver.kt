@@ -2,6 +2,7 @@ package com.molina.engine.newpipe
 
 import com.molina.core.common.AppLog
 import com.molina.core.common.LogLevel
+import com.molina.core.common.LogRedact
 import com.molina.core.common.OriginalTitles
 import com.molina.core.common.ResolvedStream
 import com.molina.core.common.SearchLang
@@ -79,6 +80,12 @@ class NewPipeStreamResolver(
                 SOURCE, LogLevel.Info, "resolve",
                 "OK layanan=${service.serviceInfo.name} jenis=${pick.kind}" +
                     (if (pick.height > 0) " ${pick.height}p" else "") + " dalam ${ms}ms",
+            )
+            AppLog.log(
+                SOURCE, LogLevel.Info, "resolve",
+                "[DIAG-YT] video=${info.videoStreams.size} videoOnly=${info.videoOnlyStreams.size} " +
+                    "audio=${info.audioStreams.size} hls=${!info.hlsUrl.isNullOrEmpty()} " +
+                    "url=${LogRedact.target(pick.url)} ua=${userAgentFor(pick.url).take(24)}",
             )
             StreamOutcome.Success(
                 ResolvedStream(
@@ -197,7 +204,22 @@ class NewPipeStreamResolver(
         val error = map(e)
         val detail = e.javaClass.simpleName
         AppLog.log(SOURCE, LogLevel.Warn, tag, "gagal $error: $detail")
+        logDetail(tag, e)
         return StreamOutcome.Failure(error, detail)
+    }
+
+    /** [DIAG-YT] Nama kelas penuh, pesan (disamarkan, maks 300), rantai sebab, dan frame teratas; hanya ke log aplikasi. */
+    private fun logDetail(tag: String, e: Throwable) {
+        var t: Throwable? = e
+        var depth = 0
+        while (t != null && depth < 4) {
+            val msg = LogRedact.text((t.message ?: "").replace('\n', ' ')).take(300)
+            AppLog.log(SOURCE, LogLevel.Warn, tag, (if (depth == 0) "[DIAG-YT] " else "sebab: ") + t.javaClass.name + ": " + msg)
+            t.stackTrace.take(if (depth == 0) 6 else 2).forEach { AppLog.log(SOURCE, LogLevel.Debug, tag, "  at $it") }
+            val next = t.cause
+            t = if (next === t) null else next
+            depth++
+        }
     }
 
     internal companion object {
