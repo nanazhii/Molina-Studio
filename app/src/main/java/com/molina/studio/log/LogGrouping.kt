@@ -69,11 +69,32 @@ object LogBus : LogSink {
                 while (buffer.size > MAX_ENTRIES) buffer.removeFirst()
             }
         }
+        if (prio == '\u0000' && src != "logcat") mirrorToFile(src, level, tg, msg, now)
         schedulePublish()
+    }
+
+    /** [LOGCAT-MIRROR] Log AppLog (NewPipe, auto, sistem, dll.) ikut ke berkas logcat dalam format threadtime; tag = sumber.tag. */
+    private fun mirrorToFile(src: String, level: LogLevel, tag: String, msg: String, now: Long) {
+        val p = when (level) {
+            LogLevel.Debug -> 'D'
+            LogLevel.Info -> 'I'
+            LogLevel.Warn -> 'W'
+            LogLevel.Error -> 'E'
+        }
+        val t = if (tag.isEmpty()) src else "$src.$tag"
+        LogFileWriter.append(
+            LogFormat.Threadtime.render(now, android.os.Process.myPid(), android.os.Process.myTid(), p, t, msg),
+            p == 'E'
+        )
     }
 
     override fun emit(event: LogEvent) =
         log(event.source, event.level, event.tag, event.message)
+
+    fun clearSource(source: String) {
+        synchronized(lock) { buffer.removeAll { it.source == source } }
+        schedulePublish()
+    }
 
     fun clear() {
         synchronized(lock) { buffer.clear() }

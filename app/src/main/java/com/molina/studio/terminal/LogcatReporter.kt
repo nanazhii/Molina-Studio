@@ -2,6 +2,7 @@ package com.molina.studio.terminal
 
 import com.molina.studio.log.LogBus
 import com.molina.studio.log.LogFileWriter
+import com.molina.studio.log.LogcatConfig
 import com.molina.core.common.LogLevel
 
 /**
@@ -13,6 +14,7 @@ object LogcatReporter {
     private val LINE = Regex("""^(\d\d)-(\d\d)\s+(\d\d):(\d\d):(\d\d)\.(\d{3})\s+(\d+)\s+(\d+)\s+([VDIWEFA])\s+(.+?)\s*:\s?(.*)$""")
 
     @Volatile private var proc: Process? = null
+    @Volatile private var lastFileMs = 0L // [LOGCAT-DEDUP]
     private var everStarted = false // [LOGCAT-TOGGLE] nyala ulang tidak memutar ulang 200 baris lama
 
     @Synchronized
@@ -22,10 +24,8 @@ object LogcatReporter {
     private fun start() {
         if (proc != null) return
         val p = try {
-            ProcessBuilder(
-                "logcat", "-v", "threadtime", "-T", if (everStarted) "1" else "200",
-                "--pid=${android.os.Process.myPid()}"
-            ).redirectErrorStream(true).start()
+            ProcessBuilder(LogcatConfig.command(!everStarted, android.os.Process.myPid()))
+                .redirectErrorStream(true).start()
         } catch (e: Exception) {
             LogBus.log("logcat", LogLevel.Warn, "reporter", "Gagal memulai logcat: ${e.message}")
             return
@@ -57,9 +57,37 @@ object LogcatReporter {
         proc = null
     }
 
+    /** [LOGCAT-CONFIG] Terapkan ulang -b/-T: hentikan, kosongkan entri logcat lama, putar ulang ekor sesuai konfigurasi. */
+    @Synchronized
+    fun restart() {
+        if (proc == null) return
+        stop()
+        LogBus.clearSource("logcat")
+        everStarted = false
+        start()
+    }
+
+    /** [LOGCAT-CLEAR] Setara `logcat -c`. Di Android 8 tanpa izin sistem bisa ditolak; hasilnya dicatat. */
+    fun clearDevice() {
+        Thread({
+            try {
+                val p = ProcessBuilder("logcat", "-c").redirectErrorStream(true).start()
+                val out = p.inputStream.bufferedReader().readText().trim()
+                val code = p.waitFor()
+                if (code != 0 || out.isNotEmpty()) {
+                    LogBus.log("logcat", LogLevel.Warn, "reporter", "logcat -c: $out (kode $code)")
+                }
+            } catch (e: Exception) {
+                LogBus.log("logcat", LogLevel.Warn, "reporter", "logcat -c gagal: ${e.message}")
+            }
+        }, "molina-logcat-clear").apply { isDaemon = true }.start()
+    }
+
     private fun handle(line: String) {
-        if (line.startsWith("---")) return
-        val m = LINE.find(line) ?: return
+        // [LOGCAT-RAW-FILE] pemisah buffer ("--------- beginning of main") dan baris tak dikenal tetap masuk berkas, seperti adb
+        if (line.startsWith("---")) { LogFileWriter.append(line, false); return }
+        val m = LINE.find(line)
+        if (m == null) { if (line.isNotBlank()) LogFileWriter.append(line, false); return }
         val g = m.groupValues
         val pid = g[7].toIntOrNull() ?: return
         val tid = g[8].toIntOrNull() ?: return
@@ -74,7 +102,10 @@ object LogcatReporter {
         // [LOGCAT-ADB] simpan waktu/pid/tid/prioritas asli agar tampilan dan ekspor 1:1 dengan `logcat -v threadtime`
         LogBus.logRaw("logcat", level, g[10], g[11], t, pid, tid, prio)
         // [LOGCAT-FILE] salin mentah ke berkas bergulir; E/F langsung di-flush agar selamat dari crash
-        LogFileWriter.append(line, prio == 'E' || prio == 'F' || prio == 'A')
+        if (t >= lastFileMs) { // putar ulang saat restart tidak menggandakan baris di berkas
+            lastFileMs = t
+            LogFileWriter.append(line, prio == 'E' || prio == 'F' || prio == 'A')
+        }
     }
 
     /** Waktu logcat (tanpa tahun) -> epoch ms; bila hasilnya di masa depan (lintas tahun baru) pakai tahun lalu. */

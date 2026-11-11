@@ -58,7 +58,7 @@ object LogFileWriter {
 
     /** Baris logcat mentah (sudah format threadtime). Aman dari thread mana pun. */
     fun append(line: String, urgent: Boolean) {
-        if (ctx == null || line.isEmpty()) return
+        if (line.isEmpty()) return
         val safe = LogRedact.text(line)
         synchronized(lock) {
             pending.addLast(safe)

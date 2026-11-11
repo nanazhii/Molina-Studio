@@ -146,7 +146,10 @@ private fun buildRows(list: List<LogEntry>, group: Boolean, openKeys: Set<String
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LogScreen(modifier: Modifier = Modifier) {
-    val entries by LogBus.entries.collectAsState()
+    val liveEntries by LogBus.entries.collectAsState()
+    var paused by remember { mutableStateOf(false) } // [LOGCAT-PAUSE]
+    var frozen by remember { mutableStateOf<List<LogEntry>>(emptyList()) }
+    val entries = if (paused) frozen else liveEntries
     var source by rememberSaveable { mutableStateOf("") }
     LaunchedEffect(Unit) { LogNav.take()?.let { source = it } } // [DIAG-LOGNAV]
     var levelIdx by rememberSaveable { mutableStateOf(0) }
@@ -158,6 +161,8 @@ fun LogScreen(modifier: Modifier = Modifier) {
     var searchOpen by rememberSaveable { mutableStateOf(false) }
     var raw by rememberSaveable { mutableStateOf(false) } // [LOGCAT-RAW]
     var fmt by remember { mutableStateOf(LogFormat.current) } // [LOGCAT-FORMAT]
+    var bufLabel by remember { mutableStateOf(LogcatConfig.bufferLabel()) } // [LOGCAT-CONFIG]
+    var tailLabel by remember { mutableStateOf(LogcatConfig.tailLabel()) }
     val searchFocus = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     val level = LevelFilter.entries[levelIdx.coerceIn(0, LevelFilter.entries.lastIndex)]
@@ -239,7 +244,7 @@ fun LogScreen(modifier: Modifier = Modifier) {
             LevelButton("Cari", caret = false, active = searchOpen || q.isNotEmpty()) { searchOpen = !searchOpen }
             Spacer(Modifier.weight(1f))
             Text(
-                if (lf.error != null) "\u26A0 ${lf.error}" else "${shown.size} baris",
+                if (lf.error != null) "\u26A0 ${lf.error}" else (if (paused) "\u23F8 " else "") + "${shown.size} baris",
                 fontSize = 11.sp, color = if (lf.error != null) MolinaTheme.Warn else MolinaTheme.Muted
             )
             Box {
@@ -269,6 +274,24 @@ fun LogScreen(modifier: Modifier = Modifier) {
                     DropdownMenuItem(
                         text = { Text("Format salin/ekspor: ${fmt.label}", fontSize = 13.sp) },
                         onClick = { fmt = fmt.next(); LogFormat.current = fmt }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(if (paused) "Lanjutkan (jeda aktif)" else "Jeda tampilan", fontSize = 13.sp) },
+                        onClick = { actionMenu = false; if (!paused) frozen = liveEntries; paused = !paused }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Buffer (-b): $bufLabel", fontSize = 13.sp) },
+                        onClick = {
+                            LogcatConfig.cycleBuffer(); bufLabel = LogcatConfig.bufferLabel()
+                            com.molina.studio.terminal.LogcatReporter.restart()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Baris awal (-T): $tailLabel", fontSize = 13.sp) },
+                        onClick = {
+                            LogcatConfig.cycleTail(); tailLabel = LogcatConfig.tailLabel()
+                            com.molina.studio.terminal.LogcatReporter.restart()
+                        }
                     )
                     DropdownMenuItem(
                         text = { Text("Kirim pesan uji", fontSize = 13.sp) },
@@ -368,7 +391,7 @@ fun LogScreen(modifier: Modifier = Modifier) {
             title = { Text("Hapus semua log?") },
             text = { Text("${entries.size} entri akan dihapus. Tindakan ini tidak dapat dibatalkan.") },
             confirmButton = {
-                TextButton(onClick = { LogBus.clear(); confirmClear = false }) {
+                TextButton(onClick = { LogBus.clear(); com.molina.studio.terminal.LogcatReporter.clearDevice(); confirmClear = false }) {
                     Text("Hapus", color = MolinaTheme.Bad)
                 }
             },
