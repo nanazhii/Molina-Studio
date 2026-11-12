@@ -1020,6 +1020,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private var isPlayingAudio = false
 
     private var useAudioUI = false
+        set(v) { field = v; com.molina.core.common.StreamQuality.audioOnlyActive.value = v || forcedAudioOnly } // [QUALITY-SYNC4-A] UI audio = keadaan nyata mpv (tanpa trek video)
 
     private var lockedUI = false
 
@@ -2589,7 +2590,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     }
 
     private var forcedAudioOnly = false
-        set(v) { field = v; com.molina.core.common.StreamQuality.audioOnlyActive.value = v } // [QUALITY-SYNC3-A]
+        set(v) { field = v; com.molina.core.common.StreamQuality.audioOnlyActive.value = v || useAudioUI } // [QUALITY-SYNC3-A] [QUALITY-SYNC4-B]
 
     // [AUDIO-ONLY-BTN] Mode audio murni untuk item YouTube: resolve ulang hanya sebagai audio (video tidak diunduh),
     // lanjut dari posisi terakhir. Aktif untuk item berikutnya juga sampai dimatikan.
@@ -2797,7 +2798,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     /** [QUALITY-SYNC3-C] Pilihan di Pengaturan saat pemutar berjalan: Audio <-> video langsung diterapkan; antar-resolusi berlaku pada video berikutnya. */
     private fun syncPlayerToLock(want: CoreQuality) {
         if (isFinishing || isDestroyed) return
-        if ((want == CoreQuality.AUDIO) == forcedAudioOnly) return
+        if ((want == CoreQuality.AUDIO) == (forcedAudioOnly || useAudioUI)) return // [QUALITY-SYNC4-G]
         val sq = com.molina.core.common.StreamQuality
         sq.current = if (forcedAudioOnly) CoreQuality.AUDIO else (audioReloadPrev ?: CoreQuality.AUTO) // keadaan nyata sebelum diterapkan
         applyQualityLock(want)
@@ -2815,7 +2816,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     // [QUALITY-SYNC] Mode efektif: audio-only (tombol ♪ / jalur non-web) mengalahkan kunci resolusi tersimpan.
     private fun effectiveQuality(): CoreQuality =
-        if (forcedAudioOnly) CoreQuality.AUDIO else com.molina.core.common.StreamQuality.current
+        if (forcedAudioOnly || useAudioUI) CoreQuality.AUDIO else com.molina.core.common.StreamQuality.current // [QUALITY-SYNC4-C] cermin keadaan nyata, bukan hanya kunci
 
     // [QUALITY-SHEET] Gaya YouTube: satu daftar; memilih = mengunci (tersimpan, berlaku juga untuk video berikutnya).
     private fun showQualitySheet() {
@@ -2886,7 +2887,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun applyQualityLock(q: CoreQuality) {
         val sq = com.molina.core.common.StreamQuality
         val before = sq.current
-        if (q == effectiveQuality()) return // [QUALITY-SYNC]
+        if (q == effectiveQuality() && q == before) return // [QUALITY-SYNC] [QUALITY-SYNC4-D] kunci tetap disimpan walau keadaan nyata sudah sama
         sq.set(q)
         audioReloadPrev = null
         val page = MPVLib.getPropertyString("path")?.let { streamSources[it] }
@@ -3023,6 +3024,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             return
         useAudioUI = shouldUseAudioUI
         MpvLog.v(TAG, "Audio UI: $useAudioUI")
+        MpvLog.i(TAG, "[QUALITY-SYNC4-H] audioUI=$useAudioUI forced=$forcedAudioOnly kunci=${com.molina.core.common.StreamQuality.current.name} vid=${MPVLib.getPropertyString("vid")}")
         applyControlMargins() // [LAND-2COL] mode dua kolom bergantung pada useAudioUI
 
         val seekbarGroup = binding.controlsSeekbarGroup
@@ -3088,7 +3090,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     /** Tinggi aktual (>0) bila item web diputar lebih rendah dari kunci eksplisit; selain itu 0. */
     private fun qualityMismatch(): Int {
         val lock = com.molina.core.common.StreamQuality.current
-        if (forcedAudioOnly || lock == CoreQuality.AUTO || lock == CoreQuality.AUDIO) return 0
+        if (forcedAudioOnly || useAudioUI || lock == CoreQuality.AUTO || lock == CoreQuality.AUDIO) return 0 // [QUALITY-SYNC4-E]
         val page = MPVLib.getPropertyString("path")?.let { streamSources[it] } ?: return 0
         if (!StreamLoader.isWebUrl(page)) return 0
         val h = MPVLib.getPropertyInt("video-params/h") ?: 0
@@ -3097,7 +3099,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     /** [QUALITY-BADGE-ACTUAL] Tinggi aktual (>0) item web yang sedang diputar; 0 bila audio-only/bukan web/belum diketahui. */
     private fun actualHeight(): Int {
-        if (forcedAudioOnly) return 0
+        if (forcedAudioOnly || useAudioUI) return 0 // [QUALITY-SYNC4-F]
         val page = MPVLib.getPropertyString("path")?.let { streamSources[it] } ?: return 0
         if (!StreamLoader.isWebUrl(page)) return 0
         return MPVLib.getPropertyInt("video-params/h") ?: 0
