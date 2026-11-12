@@ -21,6 +21,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.delay
 import com.molina.cinema.databinding.PlayerBinding
 import com.molina.cinema.MPVLib.MpvEvent
 import android.animation.Animator
@@ -82,6 +84,35 @@ typealias StateRestoreCallback = () -> Unit
 class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObserver {
     // Resolusi stream (NewPipe) jalan di sini; dibatalkan di onDestroy.
     private val streamScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    // [ANR-FIX2] Semua get/set property & command mpv yang sinkron dari jalur UI dijalankan di thread khusus ini,
+    // bukan di main thread. Core mpv bisa sibuk (reinit decoder, buka stream HLS, audio-add via jaringan) dan
+    // JNI sinkron akan memblokir pemanggilnya; bila itu main thread -> kontrol macet -> dialog ANR "Tunggu / Tutup".
+    private val mpvDispatcher = java.util.concurrent.Executors
+        .newSingleThreadExecutor { r -> Thread(r, "molina-mpv-call") }.asCoroutineDispatcher()
+
+    /** [ANR-FIX2] Set property/command tanpa memblokir main thread; urutan antar-pemanggilan terjaga (satu thread). */
+    private fun mpvPost(block: () -> Unit) {
+        streamScope.launch(mpvDispatcher) {
+            try { block() } catch (e: Exception) { MpvLog.w(TAG, "mpvPost gagal: ${e.message}") }
+        }
+    }
+
+    private class QualitySnap(val path: String?, val variants: List<VideoVariant>, val pos: Double, val idx: Int)
+
+    @Volatile private var tierShiftBusy = false
+    private var tracksJob: Job? = null
+
+    /** [ANR-FIX2] track-list berubah berkali-kali saat ganti varian: debounce, baca di thread khusus. */
+    private fun loadTracksAsync() {
+        tracksJob?.cancel()
+        tracksJob = streamScope.launch {
+            delay(150L)
+            withContext(mpvDispatcher) {
+                try { player.loadTracks() } catch (e: Exception) { MpvLog.w(TAG, "loadTracks gagal: ${e.message}") }
+            }
+        }
+    }
 
     /** Path entri yang sedang diputar, disimpan agar lencana Shield tidak memanggil mpv dari thread UI. */
     @Volatile private var shieldPath: String = ""
@@ -652,6 +683,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         PlaybackLog.detach()
         WatchStats.flush()
         streamScope.cancel()
+        tracksJob = null
+        (mpvDispatcher as? java.io.Closeable)?.close() // [ANR-FIX2]
         // [SPECTRUM-LEAK] hentikan analisis spektrum (MediaCodec/MediaExtractor) agar tidak jalan setelah Activity hancur
         spectrumAnalyzer?.cancel()
         spectrumAnalyzer = null
@@ -2541,10 +2574,20 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             setTextColor(ta.getColor(0, android.graphics.Color.WHITE))
             ta.recycle()
         }
-        fun refresh() {
-            val c = readPlayConditions()
-            val recId = VideoQuality.recommend(variants, c, player.vid)
-            header.text = qualityStatus(c, variants.firstOrNull { it.mpvId == recId })
+        var inFlight = false
+        fun refresh() { // [ANR-FIX2]
+            if (inFlight) return
+            inFlight = true
+            streamScope.launch {
+                try {
+                    val text = withContext(mpvDispatcher) {
+                        val c = readPlayConditions()
+                        val recId = VideoQuality.recommend(variants, c, player.vid)
+                        qualityStatus(c, variants.firstOrNull { it.mpvId == recId })
+                    }
+                    header.text = text
+                } finally { inFlight = false }
+            }
         }
         refresh()
         builder.setCustomTitle(header)
@@ -2661,7 +2704,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                     pendingSeekSec = pos.takeIf { it > 1.0 }
                     val a = MpvLoad.loadfileArgs(p.url, "insert-at-play", p.headers, p.title)
                     if (a.isNotEmpty() && a[0] == "loadfile") {
-                        withContext(Dispatchers.IO) { swapCurrentEntry(a, idx) } /* [ANR-FIX] */ // [RELOAD-FIX]
+                        withContext(mpvDispatcher) { swapCurrentEntry(a, idx) } /* [ANR-FIX] */ // [RELOAD-FIX]
                     } else {
                         MPVLib.command(a)
                         sq.current = before; audioReloadPrev = null; forcedAudioOnly = !toAudio; updateMetadataDisplay() // [AUDIO-TAG-2]
@@ -2684,9 +2727,9 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         if (reloadAsAudioOnly()) return // [AUDIO-ONLY-BTN]
         forcedAudioOnly = !forcedAudioOnly
         if (forcedAudioOnly)
-            player.vid = -1
+            mpvPost { player.vid = -1 }
         else
-            MPVLib.setPropertyString("vid", "auto")
+            mpvPost { MPVLib.setPropertyString("vid", "auto") }
         MpvLog.i(TAG, "Audio only: $forcedAudioOnly")
         updateMetadataDisplay() // [AUDIO-TAG-4]
         showToast(getString(if (forcedAudioOnly) R.string.audio_only_on else R.string.audio_only_off), true)
@@ -2713,8 +2756,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     private fun noteStall() {
         if (isFinishing || isDestroyed || effectiveQuality() != CoreQuality.AUTO) return
-        if (MPVLib.getPropertyBoolean("seeking") == true) return
-        if ((MPVLib.getPropertyDouble("time-pos") ?: 0.0) < 5.0) return // buffering awal bukan tanda jaringan buruk
+        // [ANR-FIX2] pemeriksaan seeking & time-pos < 5 dtk (buffering awal bukan tanda jaringan buruk) dipindah ke pemanggil
         val now = android.os.SystemClock.elapsedRealtime()
         stallTimes.addLast(now)
         while (stallTimes.isNotEmpty() && now - stallTimes.first() > 60_000L) stallTimes.removeFirst()
@@ -2724,24 +2766,33 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun autoDownshift() {
         val now = android.os.SystemClock.elapsedRealtime()
         if (isFinishing || isDestroyed || now - lastTierShiftAt < 30_000L) return
-        if (effectiveQuality() != CoreQuality.AUTO || MPVLib.getPropertyBoolean("seeking") == true) return
-        val path = MPVLib.getPropertyString("path") ?: return
-        val page = streamSources[path] ?: return
-        if (!StreamLoader.isWebUrl(page) || readVideoVariants().size > 1) return
-        if (!com.molina.core.common.AdaptiveTier.downshift(page)) return
-        lastTierShiftAt = now
-        stallTimes.clear()
-        showToast(getString(R.string.tier_down), true)
-        val pos = MPVLib.getPropertyDouble("time-pos") ?: 0.0
-        val idx = MPVLib.getPropertyInt("playlist-pos") ?: 0
+        if (effectiveQuality() != CoreQuality.AUTO || tierShiftBusy) return // [ANR-FIX2]
+        tierShiftBusy = true
         streamScope.launch {
+            val snap = withContext(mpvDispatcher) {
+                if (MPVLib.getPropertyBoolean("seeking") == true) return@withContext null
+                val path = MPVLib.getPropertyString("path") ?: return@withContext null
+                if (readVideoVariants().size > 1) return@withContext null
+                QualitySnap(path, emptyList(), MPVLib.getPropertyDouble("time-pos") ?: 0.0, MPVLib.getPropertyInt("playlist-pos") ?: 0)
+            }
+            val page = snap?.path?.let { streamSources[it] }
+            if (snap == null || page == null || !StreamLoader.isWebUrl(page) || !com.molina.core.common.AdaptiveTier.downshift(page)) {
+                tierShiftBusy = false
+                return@launch
+            }
+            lastTierShiftAt = now
+            stallTimes.clear()
+            tierShiftBusy = false
+            showToast(getString(R.string.tier_down), true)
+            val pos = snap.pos
+            val idx = snap.idx
             when (val p = StreamLoader.prepare(page)) {
                 is Prepared.Ready -> {
                     p.title?.let { streamTitles[p.url] = it }
                     streamSources[p.url] = page
                     pendingSeekSec = pos.takeIf { it > 1.0 }
                     val a = MpvLoad.loadfileArgs(p.url, "insert-at-play", p.headers, p.title)
-                    if (a.isNotEmpty() && a[0] == "loadfile") withContext(Dispatchers.IO) { swapCurrentEntry(a, idx) } /* [ANR-FIX] */ else MPVLib.command(a)
+                    if (a.isNotEmpty() && a[0] == "loadfile") withContext(mpvDispatcher) { swapCurrentEntry(a, idx) } /* [ANR-FIX] */ else MPVLib.command(a)
                 }
                 is Prepared.Failed -> showToast(getString(StreamLoader.messageRes(p.error)), true)
             }
@@ -2754,7 +2805,12 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         if (on) {
             bufferingHandler.postDelayed(bufferingHint, 6000L)
             bufferingHandler.postDelayed(tierLongStall, 8000L) // [AUTO-NET-2]
-            bufferingHandler.post { noteStall() }
+            streamScope.launch { // [ANR-FIX2] baca seeking/time-pos di thread khusus
+                val skip = withContext(mpvDispatcher) {
+                    MPVLib.getPropertyBoolean("seeking") == true || (MPVLib.getPropertyDouble("time-pos") ?: 0.0) < 5.0
+                }
+                if (!skip) noteStall()
+            }
         } else bufferingHandler.post { dismissQualitySnack() } // [QUALITY-SNACK] saran basi bila buffering selesai
     }
 
@@ -2865,11 +2921,21 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             setTextColor(ta.getColor(0, android.graphics.Color.WHITE))
             ta.recycle()
         }
-        fun refresh() {
-            val c = readPlayConditions()
-            val lines = mutableListOf(getString(R.string.quality_sheet_title), qualityStatus(c, null))
-            if (c.buffering && cur != CoreQuality.AUDIO && cur != CoreQuality.P480) lines.add(getString(R.string.quality_slow_hint))
-            header.text = lines.joinToString("\n")
+        var inFlight = false
+        fun refresh() { // [ANR-FIX2]
+            if (inFlight) return
+            inFlight = true
+            streamScope.launch {
+                try {
+                    val text = withContext(mpvDispatcher) {
+                        val c = readPlayConditions()
+                        val lines = mutableListOf(getString(R.string.quality_sheet_title), qualityStatus(c, null))
+                        if (c.buffering && cur != CoreQuality.AUDIO && cur != CoreQuality.P480) lines.add(getString(R.string.quality_slow_hint))
+                        lines.joinToString("\n")
+                    }
+                    header.text = text
+                } finally { inFlight = false }
+            }
         }
         refresh()
         builder.setCustomTitle(header)
@@ -2902,16 +2968,15 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
      * memulai ulang siaran tanpa mengubah apa pun. Bila stream sudah memuat beberapa varian video, cukup pindah
      * trek `vid` (atau matikan untuk audio saja): tanpa memuat ulang, posisi tetap. Kunci sudah disimpan oleh pemanggil.
      */
-    private fun switchVariantNoReload(q: CoreQuality) {
+    private fun switchVariantNoReload(q: CoreQuality, vs: List<VideoVariant>) {
         if (q == CoreQuality.AUDIO) {
             forcedAudioOnly = true
-            player.vid = -1
+            mpvPost { player.vid = -1 }
         } else {
             forcedAudioOnly = false
-            val vs = readVideoVariants()
             val pick = if (q == CoreQuality.AUTO) null
                 else vs.filter { it.height <= q.maxHeight }.maxByOrNull { it.height } ?: vs.minByOrNull { it.height }
-            if (pick != null) player.vid = pick.mpvId else MPVLib.setPropertyString("vid", "auto")
+            if (pick != null) mpvPost { player.vid = pick.mpvId } else mpvPost { MPVLib.setPropertyString("vid", "auto") }
         }
         updateMetadataDisplay()
         showToast(getString(R.string.quality_switched, q.label), true)
@@ -2924,20 +2989,35 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         if (q == effectiveQuality() && q == before) return // [QUALITY-SYNC] [QUALITY-SYNC4-D] kunci tetap disimpan walau keadaan nyata sudah sama
         sq.set(q)
         audioReloadPrev = null
-        val page = MPVLib.getPropertyString("path")?.let { streamSources[it] }
-        if (page != null && StreamLoader.isWebUrl(page) && readVideoVariants().size > 1) { // [LIVE-SWITCH]
-            switchVariantNoReload(q)
+        streamScope.launch { // [ANR-FIX2] baca keadaan mpv di thread khusus, lanjutkan logika di main
+            val snap = withContext(mpvDispatcher) {
+                QualitySnap(
+                    MPVLib.getPropertyString("path"),
+                    readVideoVariants(),
+                    MPVLib.getPropertyDouble("time-pos") ?: 0.0,
+                    MPVLib.getPropertyInt("playlist-pos") ?: 0,
+                )
+            }
+            applyQualityLockOn(q, before, snap)
+        }
+    }
+
+    private fun applyQualityLockOn(q: CoreQuality, before: CoreQuality, snap: QualitySnap) {
+        val sq = com.molina.core.common.StreamQuality
+        val page = snap.path?.let { streamSources[it] }
+        if (page != null && StreamLoader.isWebUrl(page) && snap.variants.size > 1) { // [LIVE-SWITCH]
+            switchVariantNoReload(q, snap.variants)
             return
         }
         if (page == null || !StreamLoader.isWebUrl(page)) {
             // bukan hasil resolver web: audio-only lewat track vid; resolusi lewat varian HLS bila ada
             if ((q == CoreQuality.AUDIO) != forcedAudioOnly) toggleAudioOnly()
             if (q != CoreQuality.AUDIO) {
-                val vs = readVideoVariants()
-                if (q == CoreQuality.AUTO) MPVLib.setPropertyString("vid", "auto")
+                val vs = snap.variants
+                if (q == CoreQuality.AUTO) mpvPost { MPVLib.setPropertyString("vid", "auto") }
                 else if (vs.size > 1) {
                     val pick = vs.filter { it.height <= q.maxHeight }.maxByOrNull { it.height } ?: vs.minByOrNull { it.height }
-                    if (pick != null) player.vid = pick.mpvId
+                    if (pick != null) mpvPost { player.vid = pick.mpvId }
                 } else showToast(getString(R.string.quality_next_video, q.label), true)
             }
             return
@@ -2945,11 +3025,11 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         val wasAudio = forcedAudioOnly
         val toAudio = q == CoreQuality.AUDIO
         forcedAudioOnly = toAudio
-        if (!toAudio) MPVLib.setPropertyString("vid", "auto") // [VID-AUTO] tanpa ini vid=no (pengaturan Audio saja) tetap berlaku pada stream YouTube
+        if (!toAudio) mpvPost { MPVLib.setPropertyString("vid", "auto") } // [VID-AUTO] tanpa ini vid=no (pengaturan Audio saja) tetap berlaku pada stream YouTube
         updateMetadataDisplay()
         sq.lastFallback = false
-        val pos = MPVLib.getPropertyDouble("time-pos") ?: 0.0
-        val idx = MPVLib.getPropertyInt("playlist-pos") ?: 0
+        val pos = snap.pos
+        val idx = snap.idx
         showToast(getString(R.string.quality_switched, q.label), true)
         streamScope.launch {
             when (val p = StreamLoader.prepare(page) { showToast(getString(R.string.stream_resolving), true) }) {
@@ -2959,8 +3039,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                     pendingSeekSec = pos.takeIf { it > 1.0 }
                     val a = MpvLoad.loadfileArgs(p.url, "insert-at-play", p.headers, p.title)
                     if (a.isNotEmpty() && a[0] == "loadfile") {
-                        withContext(Dispatchers.IO) { swapCurrentEntry(a, idx) } /* [ANR-FIX] */ // [RELOAD-FIX]
-                    } else MPVLib.command(a)
+                        withContext(mpvDispatcher) { swapCurrentEntry(a, idx) } /* [ANR-FIX] */ // [RELOAD-FIX]
+                    } else withContext(mpvDispatcher) { MPVLib.command(a) }
                     if (sq.lastFallback && !toAudio) {
                         lastQualityToastMs = System.currentTimeMillis() // [QUALITY-ACTUAL] cegah toast ganda
                         showToast(getString(R.string.quality_fallback, q.label, sq.lastHeight), true)
@@ -2969,7 +3049,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                 is Prepared.Failed -> {
                     sq.set(before)
                     forcedAudioOnly = wasAudio
-                    if (wasAudio) player.vid = -1 // [VID-AUTO] selaraskan trek video dengan status yang dipulihkan
+                    if (wasAudio) mpvPost { player.vid = -1 } // [VID-AUTO] selaraskan trek video dengan status yang dipulihkan
                     updateMetadataDisplay()
                     showToast(getString(StreamLoader.messageRes(p.error)), true)
                 }
@@ -3014,7 +3094,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                     pendingSeekSec = pos.takeIf { it > 1.0 }
                     val a = MpvLoad.loadfileArgs(p.url, "insert-at-play", p.headers, p.title)
                     if (a.isNotEmpty() && a[0] == "loadfile") {
-                        withContext(Dispatchers.IO) { swapCurrentEntry(a, idx) } /* [ANR-FIX] */ // [RELOAD-FIX]
+                        withContext(mpvDispatcher) { swapCurrentEntry(a, idx) } /* [ANR-FIX] */ // [RELOAD-FIX]
                     } else MPVLib.command(a)
                 }
                 is Prepared.Failed -> {
@@ -3146,10 +3226,14 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         return com.molina.core.common.AdaptiveTier.offsetFor(page) > 0
     }
 
-    private fun checkQualityMatch() {
-        val h = qualityMismatch()
-        if (h == 0) return
-        val path = MPVLib.getPropertyString("path")
+    private fun checkQualityMatch() { // [ANR-FIX2]
+        streamScope.launch {
+            val (h, path) = withContext(mpvDispatcher) { qualityMismatch() to MPVLib.getPropertyString("path") }
+            if (h != 0) checkQualityMatchOnUi(h, path)
+        }
+    }
+
+    private fun checkQualityMatchOnUi(h: Int, path: String?) {
         if (path == qualityNotedPath) return
         qualityNotedPath = path
         val lock = com.molina.core.common.StreamQuality.current
@@ -3681,11 +3765,14 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         }
     }
 
-    private fun updateDecoderButton() {
-        binding.cycleDecoderBtn.text = when (player.hwdecActive) {
-            "mediacodec" -> "HW+"
-            "no" -> "SW"
-            else -> "HW"
+    private fun updateDecoderButton() { // [ANR-FIX2]
+        streamScope.launch {
+            val active = withContext(mpvDispatcher) { player.hwdecActive }
+            binding.cycleDecoderBtn.text = when (active) {
+                "mediacodec" -> "HW+"
+                "no" -> "SW"
+                else -> "HW"
+            }
         }
     }
 
@@ -3837,7 +3924,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun eventPropertyUi(property: String, dummy: Any?, metaUpdated: Boolean) {
         if (!activityIsForeground) return
         when (property) {
-            "track-list" -> player.loadTracks()
+            "track-list" -> loadTracksAsync() // [ANR-FIX2]
             "current-tracks/audio/selected", "current-tracks/video/image" -> updateAudioUI()
             "hwdec-current" -> updateDecoderButton()
         }
@@ -3903,10 +3990,14 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     }
 
     private fun eventUi(eventId: Int) {
-        if (eventId == MpvEvent.MPV_EVENT_FILE_LOADED) attachExternalAudio() // [QUALITY]
-        if (eventId == MpvEvent.MPV_EVENT_FILE_LOADED) pendingSeekSec?.let { s -> // [AUDIO-ONLY-BTN]
+        if (eventId == MpvEvent.MPV_EVENT_FILE_LOADED) { // [QUALITY] [AUDIO-ONLY-BTN] [ANR-FIX2]
+            // audio-add membuka URL audio terpisah lewat jaringan secara sinkron (720p/1080p = video-only + audio terpisah).
+            val seekTo = pendingSeekSec
             pendingSeekSec = null
-            MPVLib.command(arrayOf("seek", s.toString(), "absolute"))
+            mpvPost {
+                attachExternalAudio()
+                if (seekTo != null) MPVLib.command(arrayOf("seek", seekTo.toString(), "absolute"))
+            }
         }
         if (!activityIsForeground) return
         if (eventId == MpvEvent.MPV_EVENT_FILE_LOADED) updateNowPlayingArt() // [COVER-ART]

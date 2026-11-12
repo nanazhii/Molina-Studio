@@ -210,23 +210,25 @@ internal class MPVView(context: Context, attrs: AttributeSet) : BaseMPVView(cont
     }
 
     data class Track(val mpvId: Int, val name: String)
-    var tracks = mapOf<String, MutableList<Track>>(
+    @Volatile var tracks = mapOf<String, MutableList<Track>>(
             "audio" to arrayListOf(),
             "video" to arrayListOf(),
             "sub" to arrayListOf())
 
-    fun loadTracks() {
-        for (list in tracks.values) {
-            list.clear()
+    @Synchronized
+    fun loadTracks() { // [ANR-FIX2] dibangun di daftar lokal lalu ditukar sekaligus: aman dipanggil dari thread non-UI
+        val fresh = mapOf<String, MutableList<Track>>(
+                "audio" to arrayListOf(), "video" to arrayListOf(), "sub" to arrayListOf())
+        for (list in fresh.values) {
             // pseudo-track to allow disabling audio/subs
             list.add(Track(-1, context.getString(R.string.track_off)))
         }
-        val count = MPVLib.getPropertyInt("track-list/count")!!
+        val count = MPVLib.getPropertyInt("track-list/count") ?: return
         // Note that because events are async, properties might disappear at any moment
         // so use ?: continue instead of !!
         for (i in 0 until count) {
             val type = MPVLib.getPropertyString("track-list/$i/type") ?: continue
-            if (!tracks.containsKey(type)) {
+            if (!fresh.containsKey(type)) {
                 MpvLog.w(TAG, "Got unknown track type: $type")
                 continue
             }
@@ -240,11 +242,12 @@ internal class MPVView(context: Context, attrs: AttributeSet) : BaseMPVView(cont
                 context.getString(R.string.ui_track_text, mpvId, (lang ?: "") + (title ?: ""))
             else
                 context.getString(R.string.ui_track, mpvId)
-            tracks.getValue(type).add(Track(
+            fresh.getValue(type).add(Track(
                     mpvId=mpvId,
                     name=trackName
             ))
         }
+        tracks = fresh
     }
 
     data class PlaylistItem(val index: Int, val filename: String, val title: String?)

@@ -38,25 +38,25 @@ object MPVLib {
 
     external fun observeProperty(property: String, format: Int)
 
-    private val observers = mutableListOf<EventObserver>()
+    private val observers = java.util.concurrent.CopyOnWriteArrayList<EventObserver>() // [ANR-FIX2] tanpa lock: add/removeObserver di main tidak lagi menunggu thread event
 
     @JvmStatic
     fun addObserver(o: EventObserver) {
-        synchronized(observers) {
+        run {
             observers.add(o)
         }
     }
 
     @JvmStatic
     fun removeObserver(o: EventObserver) {
-        synchronized(observers) {
+        run {
             observers.remove(o)
         }
     }
 
     @JvmStatic
     fun eventProperty(property: String, value: Long) {
-        synchronized(observers) {
+        run {
             for (o in observers)
                 o.eventProperty(property, value)
         }
@@ -64,7 +64,7 @@ object MPVLib {
 
     @JvmStatic
     fun eventProperty(property: String, value: Boolean) {
-        synchronized(observers) {
+        run {
             for (o in observers)
                 o.eventProperty(property, value)
         }
@@ -72,7 +72,7 @@ object MPVLib {
 
     @JvmStatic
     fun eventProperty(property: String, value: Double) {
-        synchronized(observers) {
+        run {
             for (o in observers)
                 o.eventProperty(property, value)
         }
@@ -80,7 +80,7 @@ object MPVLib {
 
     @JvmStatic
     fun eventProperty(property: String, value: String) {
-        synchronized(observers) {
+        run {
             for (o in observers)
                 o.eventProperty(property, value)
         }
@@ -88,7 +88,7 @@ object MPVLib {
 
     @JvmStatic
     fun eventProperty(property: String) {
-        synchronized(observers) {
+        run {
             for (o in observers)
                 o.eventProperty(property)
         }
@@ -96,31 +96,31 @@ object MPVLib {
 
     @JvmStatic
     fun event(eventId: Int) {
-        synchronized(observers) {
+        run {
             for (o in observers)
                 o.event(eventId)
         }
     }
 
-    private val log_observers = mutableListOf<LogObserver>()
+    private val log_observers = java.util.concurrent.CopyOnWriteArrayList<LogObserver>()
 
     @JvmStatic
     fun addLogObserver(o: LogObserver) {
-        synchronized(log_observers) {
+        run {
             log_observers.add(o)
         }
     }
 
     @JvmStatic
     fun removeLogObserver(o: LogObserver) {
-        synchronized(log_observers) {
+        run {
             log_observers.remove(o)
         }
     }
 
     @JvmStatic
     fun logMessage(prefix: String, level: Int, text: String) {
-        synchronized(log_observers) {
+        run {
             for (o in log_observers)
                 o.logMessage(prefix, level, text)
         }
