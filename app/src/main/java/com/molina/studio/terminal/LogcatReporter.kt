@@ -18,7 +18,10 @@ object LogcatReporter {
     private var everStarted = false // [LOGCAT-TOGGLE] nyala ulang tidak memutar ulang 200 baris lama
 
     @Synchronized
-    fun setEnabled(on: Boolean) { if (on) start() else stop() }
+    fun setEnabled(on: Boolean) { // [ANR-LOG]
+        com.molina.studio.log.AnrWatchdog.setEnabled(on)
+        if (on) start() else stop()
+    }
 
     @Synchronized
     private fun start() {

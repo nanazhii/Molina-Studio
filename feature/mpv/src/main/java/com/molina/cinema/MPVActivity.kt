@@ -92,9 +92,13 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         .newSingleThreadExecutor { r -> Thread(r, "molina-mpv-call") }.asCoroutineDispatcher()
 
     /** [ANR-FIX2] Set property/command tanpa memblokir main thread; urutan antar-pemanggilan terjaga (satu thread). */
-    private fun mpvPost(block: () -> Unit) {
+    private fun mpvPost(label: String = "", block: () -> Unit) { // [ANR-LOG]
         streamScope.launch(mpvDispatcher) {
+            val t0 = android.os.SystemClock.elapsedRealtime()
             try { block() } catch (e: Exception) { MpvLog.w(TAG, "mpvPost gagal: ${e.message}") }
+            val dt = android.os.SystemClock.elapsedRealtime() - t0
+            // bukti di logcat: panggilan ini dulu berjalan di main thread dan menjadi penyebab ANR
+            if (dt >= 300L) MpvLog.w(TAG, "[mpv-call] ${label.ifEmpty { "panggilan" }} lambat $dt ms (di thread molina-mpv-call, UI tetap responsif)")
         }
     }
 
@@ -3994,7 +3998,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             // audio-add membuka URL audio terpisah lewat jaringan secara sinkron (720p/1080p = video-only + audio terpisah).
             val seekTo = pendingSeekSec
             pendingSeekSec = null
-            mpvPost {
+            mpvPost("audio-add+seek") {
                 attachExternalAudio()
                 if (seekTo != null) MPVLib.command(arrayOf("seek", seekTo.toString(), "absolute"))
             }
