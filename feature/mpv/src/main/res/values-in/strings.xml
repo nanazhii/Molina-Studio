@@ -198,6 +198,9 @@
     <string name="audio_only_off">Kembali ke video</string>
     <string name="stream_resolving">Memuat stream\u2026</string>
     <string name="stream_err_unsupported">Tautan ini tidak didukung</string>
+    <string name="ytdlp_missing_title">yt-dlp belum siap</string>
+    <string name="ytdlp_missing_msg">Tautan ini (mis. TikTok atau Facebook) membutuhkan yt-dlp. Buka Pengaturan &gt; Paket &gt; yt-dlp untuk memasangnya (butuh Debian dan Python 3).</string>
+    <string name="ytdlp_missing_open">Buka Paket</string>
     <string name="stream_err_not_found">Video tidak ditemukan atau tidak tersedia</string>
     <string name="stream_err_private">Video ini bersifat pribadi</string>
     <string name="stream_err_age">Video ini dibatasi usia</string>

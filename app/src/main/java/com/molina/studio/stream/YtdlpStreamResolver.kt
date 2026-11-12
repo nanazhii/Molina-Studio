@@ -2,6 +2,7 @@ package com.molina.studio.stream
 
 import android.content.Context
 import com.molina.core.common.AppLog
+import com.molina.core.common.FailureAction
 import com.molina.core.common.LogLevel
 import com.molina.core.common.LogRedact
 import com.molina.core.common.ResolvedStream
@@ -33,7 +34,7 @@ internal class YtdlpStreamResolver(
     override suspend fun resolve(pageUrl: String): StreamOutcome<ResolvedStream> {
         val bin = when (val st = YtdlpLocator.status(ctx)) {
             is YtdlpStatus.Ready -> st.guestBinary
-            else -> return unsupported(st.hint())
+            else -> return unsupported(st.hint(), FailureAction.INSTALL_YTDLP)
         }
         val where = LogRedact.target(pageUrl)
         AppLog.log("stream", LogLevel.Info, TAG, "resolve $where")
@@ -57,7 +58,7 @@ internal class YtdlpStreamResolver(
         if (!enabled()) return StreamOutcome.Failure(StreamError.UNSUPPORTED, "yt-dlp dimatikan")
         val bin = when (val st = YtdlpLocator.status(ctx)) {
             is YtdlpStatus.Ready -> st.guestBinary
-            else -> return unsupported(st.hint())
+            else -> return unsupported(st.hint(), FailureAction.INSTALL_YTDLP)
         }
         val o = YtdlpRunner.run(ctx, bin, YtdlpCommand.searchArgs(query, limit), SEARCH_TIMEOUT_MS)
         if (o.timedOut) return fail(StreamError.NETWORK, "pencarian lewat waktu")
@@ -86,15 +87,15 @@ internal class YtdlpStreamResolver(
         )
     }
 
-    private fun unsupported(hint: String?): StreamOutcome.Failure {
+    private fun unsupported(hint: String?, action: FailureAction? = null): StreamOutcome.Failure {
         AppLog.log("stream", LogLevel.Warn, TAG, hint ?: "yt-dlp tidak siap")
-        return StreamOutcome.Failure(StreamError.UNSUPPORTED, hint)
+        return StreamOutcome.Failure(StreamError.UNSUPPORTED, hint, action)
     }
 
     private fun failure(exit: Int, stderr: String, where: String): StreamOutcome.Failure {
         // 126/127: biner/python tidak bisa dijalankan di guest (bukan galat situs).
         if (exit == 126 || exit == 127) {
-            return unsupported("yt-dlp tidak bisa dijalankan (exit $exit). ${YtdlpCommand.HINT_INSTALL}")
+            return unsupported("yt-dlp tidak bisa dijalankan (exit $exit). ${YtdlpCommand.HINT_INSTALL}", FailureAction.INSTALL_YTDLP)
         }
         val err = YtdlpCommand.classify(stderr)
         return fail(err, "exit=$exit ${YtdlpCommand.briefError(stderr)} ($where)")

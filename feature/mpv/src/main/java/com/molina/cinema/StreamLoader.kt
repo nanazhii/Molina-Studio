@@ -1,5 +1,6 @@
 package com.molina.cinema
 
+import com.molina.core.common.FailureAction
 import com.molina.core.common.StreamEntry
 import com.molina.core.common.StreamError
 import com.molina.core.common.StreamHeaders
@@ -16,7 +17,7 @@ internal sealed interface Prepared {
         val title: String?,
         val entries: List<StreamEntry> = emptyList(),
     ) : Prepared
-    data class Failed(val error: StreamError) : Prepared
+    data class Failed(val error: StreamError, val action: FailureAction? = null) : Prepared
 }
 
 /**
@@ -50,7 +51,7 @@ internal object StreamLoader {
                 when (val r = resolver.resolve(raw)) {
                     is StreamOutcome.Success ->
                         Prepared.Ready(r.value.url, StreamHeaders.sanitize(r.value.headers), r.value.title, r.value.entries)
-                    is StreamOutcome.Failure -> Prepared.Failed(r.error)
+                    is StreamOutcome.Failure -> Prepared.Failed(r.error, r.action)
                 }
             }
         }

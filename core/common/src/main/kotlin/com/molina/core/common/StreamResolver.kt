@@ -41,12 +41,19 @@ enum class StreamError {
     UNSUPPORTED, NOT_FOUND, PRIVATE, AGE_RESTRICTED, GEO_BLOCKED, NETWORK, PARSE, UNKNOWN
 }
 
+/** [YTDLP-CARD] Tindakan perbaikan yang boleh ditawarkan UI bersama galat. */
+enum class FailureAction { INSTALL_YTDLP }
+
 /** Hasil operasi resolver. Galat yang diharapkan dikembalikan sebagai [Failure], bukan exception. */
 sealed interface StreamOutcome<out T> {
     data class Success<T>(val value: T) : StreamOutcome<T>
 
     /** [detail] untuk log; jangan isi URL lengkap atau token (log tetap disamarkan [LogRedact]). */
-    data class Failure(val error: StreamError, val detail: String? = null) : StreamOutcome<Nothing>
+    data class Failure(
+        val error: StreamError,
+        val detail: String? = null,
+        val action: FailureAction? = null,
+    ) : StreamOutcome<Nothing>
 }
 
 interface StreamResolver {

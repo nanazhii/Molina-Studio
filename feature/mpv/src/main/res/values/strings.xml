@@ -240,6 +240,9 @@
     <string name="sleep_timer_done">Sleep timer: playback paused</string>
     <string name="stream_resolving">Resolving stream…</string>
     <string name="stream_err_unsupported">This link is not supported</string>
+    <string name="ytdlp_missing_title">yt-dlp is not ready</string>
+    <string name="ytdlp_missing_msg">This link (for example TikTok or Facebook) needs yt-dlp. Open Settings &gt; Packages &gt; yt-dlp to install it (requires Debian and Python 3).</string>
+    <string name="ytdlp_missing_open">Open Packages</string>
     <string name="stream_err_not_found">Video not found or unavailable</string>
     <string name="stream_err_private">This video is private</string>
     <string name="stream_err_age">This video is age-restricted</string>

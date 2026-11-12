@@ -122,10 +122,41 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                 }
                 is Prepared.Failed -> {
                     MpvLog.w(TAG, "[LOAD-DIAG] resolve gagal: ${p.error.name} target=${com.molina.core.common.LogRedact.target(raw)}") // [LOAD-DIAG]
-                    showToast(getString(StreamLoader.messageRes(p.error)), true)
+                    reportResolveFailure(p) // [YTDLP-CARD]
                 }
             }
         }
+    }
+
+    /** [YTDLP-CARD] Buka Pengaturan > Paket di MainActivity (hanya navigasi); pemutar tetap di tugasnya sendiri. */
+    private fun openPackages() {
+        val i = Intent().setClassName(packageName, "com.molina.studio.MainActivity")
+            .putExtra("molina_open_tab", "packages")
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        try {
+            startActivity(i)
+        } catch (e: Exception) {
+            MpvLog.w(TAG, "Pengaturan Paket gagal dibuka: ${e.message}")
+        }
+    }
+
+    /**
+     * [YTDLP-CARD] Galat resolve: bila penyebabnya yt-dlp belum siap, tampilkan kartu dengan jalan keluar
+     * (Buka Paket) alih-alih toast singkat. [onClosed] dipanggil setelah kartu ditutup (atau langsung untuk toast).
+     */
+    private fun reportResolveFailure(p: Prepared.Failed, onClosed: () -> Unit = {}) {
+        if (p.action != com.molina.core.common.FailureAction.INSTALL_YTDLP || isFinishing || isDestroyed) {
+            showToast(getString(StreamLoader.messageRes(p.error)), true)
+            onClosed()
+            return
+        }
+        AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog)
+            .setTitle(R.string.ytdlp_missing_title)
+            .setMessage(R.string.ytdlp_missing_msg)
+            .setPositiveButton(R.string.ytdlp_missing_open) { _, _ -> openPackages() }
+            .setNegativeButton(R.string.dialog_cancel, null)
+            .setOnDismissListener { onClosed() }
+            .show()
     }
 
     /** Sisa playlist hasil resolver (mis. daftar channel yt-dlp) ditambahkan setelah item pertama. */
@@ -553,8 +584,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                             player.playWhenReady(p.url, startHeaders + p.headers, p.title) { appendResolved(p, startHeaders) }
                         }
                         is Prepared.Failed -> {
-                            showToast(getString(StreamLoader.messageRes(p.error)), true)
-                            finishWithResult(RESULT_CANCELED)
+                            MpvLog.w(TAG, "[LOAD-DIAG] resolve gagal (buka awal): ${p.error.name}") // [LOAD-DIAG]
+                            reportResolveFailure(p) { finishWithResult(RESULT_CANCELED) } // [YTDLP-CARD]
                         }
                     }
                 }
