@@ -120,7 +120,10 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                     appendResolved(p, headers)
                     onLoaded()
                 }
-                is Prepared.Failed -> showToast(getString(StreamLoader.messageRes(p.error)), true)
+                is Prepared.Failed -> {
+                    MpvLog.w(TAG, "[LOAD-DIAG] resolve gagal: ${p.error.name} target=${com.molina.core.common.LogRedact.target(raw)}") // [LOAD-DIAG]
+                    showToast(getString(StreamLoader.messageRes(p.error)), true)
+                }
             }
         }
     }
@@ -2627,7 +2630,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                     pendingSeekSec = pos.takeIf { it > 1.0 }
                     val a = MpvLoad.loadfileArgs(p.url, "insert-at-play", p.headers, p.title)
                     if (a.isNotEmpty() && a[0] == "loadfile") {
-                        swapCurrentEntry(a, idx) // [RELOAD-FIX]
+                        withContext(Dispatchers.IO) { swapCurrentEntry(a, idx) } /* [ANR-FIX] */ // [RELOAD-FIX]
                     } else {
                         MPVLib.command(a)
                         sq.current = before; audioReloadPrev = null; forcedAudioOnly = !toAudio; updateMetadataDisplay() // [AUDIO-TAG-2]
@@ -2707,7 +2710,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                     streamSources[p.url] = page
                     pendingSeekSec = pos.takeIf { it > 1.0 }
                     val a = MpvLoad.loadfileArgs(p.url, "insert-at-play", p.headers, p.title)
-                    if (a.isNotEmpty() && a[0] == "loadfile") swapCurrentEntry(a, idx) else MPVLib.command(a)
+                    if (a.isNotEmpty() && a[0] == "loadfile") withContext(Dispatchers.IO) { swapCurrentEntry(a, idx) } /* [ANR-FIX] */ else MPVLib.command(a)
                 }
                 is Prepared.Failed -> showToast(getString(StreamLoader.messageRes(p.error)), true)
             }
@@ -2925,7 +2928,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                     pendingSeekSec = pos.takeIf { it > 1.0 }
                     val a = MpvLoad.loadfileArgs(p.url, "insert-at-play", p.headers, p.title)
                     if (a.isNotEmpty() && a[0] == "loadfile") {
-                        swapCurrentEntry(a, idx) // [RELOAD-FIX]
+                        withContext(Dispatchers.IO) { swapCurrentEntry(a, idx) } /* [ANR-FIX] */ // [RELOAD-FIX]
                     } else MPVLib.command(a)
                     if (sq.lastFallback && !toAudio) {
                         lastQualityToastMs = System.currentTimeMillis() // [QUALITY-ACTUAL] cegah toast ganda
@@ -2980,7 +2983,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                     pendingSeekSec = pos.takeIf { it > 1.0 }
                     val a = MpvLoad.loadfileArgs(p.url, "insert-at-play", p.headers, p.title)
                     if (a.isNotEmpty() && a[0] == "loadfile") {
-                        swapCurrentEntry(a, idx) // [RELOAD-FIX]
+                        withContext(Dispatchers.IO) { swapCurrentEntry(a, idx) } /* [ANR-FIX] */ // [RELOAD-FIX]
                     } else MPVLib.command(a)
                 }
                 is Prepared.Failed -> {
