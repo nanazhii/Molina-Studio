@@ -111,7 +111,7 @@ internal fun PlayerSettingsPage(onOpenCinema: () -> Unit) {
             PackageChoiceRow(q.label, quality == q, { StreamEnginePrefs.setQuality(q) }, q.hint)
         }
     }
-    PackageNote("Berlaku pada video berikutnya. Bila resolusi pilihan tidak tersedia, dipakai yang terdekat.")
+    PackageNote("Berlaku pada video berikutnya, dan pada video yang sedang diputar saat Anda kembali ke pemutar. Bila resolusi pilihan tidak tersedia, dipakai yang terdekat.")
 
     Spacer(Modifier.height(16.dp))
     PackageSectionHeader("Bahasa audio YouTube") // [AUDIO-LANG]

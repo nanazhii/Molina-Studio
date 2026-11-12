@@ -551,6 +551,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         // set up initial UI state
         readSettings()
         forcedAudioOnly = MpvPrefs.current(applicationContext).audioOnlyVideo // [AUDIO-ONLY] status awal
+        BackgroundPlaybackState.applyQuality = applyQualityHook // [QUALITY-NOW]
         // [PREF-AUDIO] vid=no sudah dipasang mpv dari pengaturan ini. Tanpa penyelarasan, kunci 480/720 memilih video-only
         // (adaptif) yang gagal dibuka ("No video or audio streams selected") atau stream gabungan yang tampil tanpa gambar.
         // Penimpaan sementara (bukan set()): kunci tersimpan tidak berubah dan dipulihkan saat keluar lewat audioReloadPrev.
@@ -671,6 +672,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     override fun onDestroy() {
         bufferingHandler.removeCallbacks(bufferingHint) // [QUALITY-SUGGEST]
         bufferingHandler.removeCallbacks(tierLongStall) // [AUTO-NET-2]
+        if (BackgroundPlaybackState.applyQuality === applyQualityHook) BackgroundPlaybackState.applyQuality = null // [QUALITY-NOW]
         dismissQualitySnack() // [QUALITY-SNACK]
         thumbnailer.release()
         MpvLog.v(TAG, "Exiting.")
@@ -2887,6 +2889,24 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         MPVLib.command(arrayOf("playlist-remove", idx.toString()))
     }
 
+    /** [QUALITY-NOW2] Resolve ulang item web aktif sesuai kunci saat ini, lanjut dari posisi terakhir. */
+    private fun reloadCurrentWeb(page: String) {
+        val pos = MPVLib.getPropertyDouble("time-pos") ?: 0.0
+        val idx = MPVLib.getPropertyInt("playlist-pos") ?: 0
+        streamScope.launch {
+            when (val p = StreamLoader.prepare(page) { showToast(getString(R.string.stream_resolving), true) }) {
+                is Prepared.Ready -> {
+                    p.title?.let { streamTitles[p.url] = it }
+                    streamSources[p.url] = page
+                    pendingSeekSec = pos.takeIf { it > 1.0 }
+                    val a = MpvLoad.loadfileArgs(p.url, "insert-at-play", p.headers, p.title)
+                    if (a.isNotEmpty() && a[0] == "loadfile") swapCurrentEntry(a, idx) else MPVLib.command(a)
+                }
+                is Prepared.Failed -> showToast(getString(StreamLoader.messageRes(p.error)), true)
+            }
+        }
+    }
+
     // [QUALITY-SYNC2] Pengaturan bisa mengganti kunci kualitas saat pemutar di belakang: lepas status audio-only lokal.
     // Item yang sedang diputar tetap audio sampai dimuat ulang (pilih kualitas di sheet atau matikan ♪); item berikutnya mengikuti kunci.
     /** [QUALITY-SYNC3-C] Pilihan di Pengaturan saat pemutar berjalan: Audio <-> video langsung diterapkan; antar-resolusi berlaku pada video berikutnya. */
@@ -2906,6 +2926,18 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             audioReloadPrev = null
             updateMetadataDisplay()
         }
+        // [QUALITY-NOW2] Kunci bisa diganti (Pengaturan/Home) saat pemutar di belakang: samakan item web yang sedang
+        // diputar dengan kunci (video <-> audio saja). Hanya setelah item benar-benar berjalan, agar tidak memuat ulang saat memuat.
+        val page = MPVLib.getPropertyString("path")?.let { streamSources[it] }
+        if (page != null && StreamLoader.isWebUrl(page) && readVideoVariants().size <= 1 &&
+            (MPVLib.getPropertyDouble("time-pos") ?: 0.0) > 1.0 && MPVLib.getPropertyBoolean("paused-for-cache") != true) {
+            val wantAudio = cur == com.molina.core.common.VideoQuality.AUDIO
+            if (wantAudio != useAudioUI) {
+                if (!wantAudio) MPVLib.setPropertyString("vid", "auto")
+                reloadCurrentWeb(page)
+            }
+        }
+        publishMode() // [QUALITY-NOW]
     }
 
     // [QUALITY-SYNC] Mode efektif: audio-only (tombol ♪ / jalur non-web) mengalahkan kunci resolusi tersimpan.
@@ -3142,6 +3174,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             return
         useAudioUI = shouldUseAudioUI
         MpvLog.v(TAG, "Audio UI: $useAudioUI")
+        publishMode() // [QUALITY-NOW]
         MpvLog.i(TAG, "[QUALITY-SYNC4-H] audioUI=$useAudioUI forced=$forcedAudioOnly kunci=${com.molina.core.common.StreamQuality.current.name} vid=${MPVLib.getPropertyString("vid")}")
         applyControlMargins() // [LAND-2COL] mode dua kolom bergantung pada useAudioUI
 
@@ -3248,7 +3281,19 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         }
     }
 
+    // [QUALITY-NOW] Status resolusi mengikuti kenyataan: AUDIO bila tanpa gambar video, selain itu kunci aktif.
+    private val applyQualityHook: (CoreQuality) -> Unit = { q -> runOnUiThread { applyQualityLock(q) } }
+
+    private fun nowQuality(): CoreQuality {
+        if (forcedAudioOnly || useAudioUI) return CoreQuality.AUDIO
+        val lock = com.molina.core.common.StreamQuality.current
+        return if (lock == CoreQuality.AUDIO) CoreQuality.AUTO else lock // video tampil: AUDIO tidak mungkin
+    }
+
+    private fun publishMode() = BackgroundPlaybackState.setMode(nowQuality())
+
     private fun updateMetadataDisplay() {
+        publishMode() // [QUALITY-NOW]
         BackgroundPlaybackState.audioOnly = forcedAudioOnly || com.molina.core.common.StreamQuality.current == com.molina.core.common.VideoQuality.AUDIO // [AUDIO-TAG-NOTIF]
         BackgroundPlaybackService.refreshRequested?.invoke()
         if (!useAudioUI) {
