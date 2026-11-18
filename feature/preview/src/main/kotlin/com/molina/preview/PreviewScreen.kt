@@ -23,12 +23,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.molina.code.preview.PreviewKind
-import com.molina.code.preview.PreviewKinds
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.File
+import com.molina.core.preview.PreviewKind
+import com.molina.core.preview.PreviewKinds
 
 /** Batas pratinjau; sama dengan editor Code lama. */
 object PreviewLimits {

@@ -1,4 +1,4 @@
-package com.molina.code.preview
+package com.molina.core.preview
 
 /**
  * Pratinjau HTML sederhana yang tetap native: HTML diubah menjadi model blok yang sama dengan

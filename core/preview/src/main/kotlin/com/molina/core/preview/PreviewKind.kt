@@ -1,4 +1,6 @@
-package com.molina.code.preview
+package com.molina.core.preview
+
+import com.molina.code.preview.RunPlans
 
 /** Jenis keluaran yang bisa dihasilkan tombol Play untuk sebuah berkas. */
 enum class PreviewKind { NONE, MARKDOWN, JSON, HTML, SCRIPT }

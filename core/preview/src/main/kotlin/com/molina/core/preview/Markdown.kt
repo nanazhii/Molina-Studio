@@ -1,4 +1,4 @@
-package com.molina.code.preview
+package com.molina.core.preview
 
 /** Potongan teks inline. [flags] adalah gabungan [MdFlag]; [href] terisi bila bagian dari tautan. */
 class MdSpan(val text: String, val flags: Int = 0, val href: String? = null)

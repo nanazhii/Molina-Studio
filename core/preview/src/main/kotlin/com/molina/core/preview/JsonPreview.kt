@@ -1,4 +1,4 @@
-package com.molina.code.preview
+package com.molina.core.preview
 
 enum class JsonTok { KEY, STRING, NUMBER, LITERAL, PUNCT, SPACE }
 

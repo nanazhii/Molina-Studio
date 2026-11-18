@@ -11,20 +11,20 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
-import com.molina.code.preview.HtmlPreview
-import com.molina.code.preview.JsonPretty
-import com.molina.code.preview.JsonPreview
-import com.molina.code.preview.JsonTok
-import com.molina.code.preview.MdBlock
-import com.molina.code.preview.MdDoc
-import com.molina.code.preview.MdFlag
-import com.molina.code.preview.MdSpan
-import com.molina.code.preview.Markdown
 import com.molina.code.preview.OutLine
-import com.molina.code.preview.PreviewKind
-import com.molina.code.preview.PreviewKinds
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.molina.core.preview.HtmlPreview
+import com.molina.core.preview.JsonPretty
+import com.molina.core.preview.JsonPreview
+import com.molina.core.preview.JsonTok
+import com.molina.core.preview.Markdown
+import com.molina.core.preview.MdBlock
+import com.molina.core.preview.MdDoc
+import com.molina.core.preview.MdFlag
+import com.molina.core.preview.MdSpan
+import com.molina.core.preview.PreviewKind
+import com.molina.core.preview.PreviewKinds
 
 /** Isi panel bawah: pratinjau tab aktif, atau keluaran skrip. */
 internal enum class PaneMode { Preview, Output }

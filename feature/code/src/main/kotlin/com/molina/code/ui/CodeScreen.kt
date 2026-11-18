@@ -48,9 +48,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
-import com.molina.code.preview.PreviewKind
 import io.github.rosemoe.sora.widget.SelectionMovement
 import kotlinx.coroutines.delay
+import com.molina.core.preview.PreviewKind
 
 /**
  * Layar tab Code (F2, F3, F4): header path, tab bar, editor, toolbar, dan panel direktori.

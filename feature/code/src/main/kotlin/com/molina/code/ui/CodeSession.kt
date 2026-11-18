@@ -26,7 +26,6 @@ import com.molina.code.history.ShadowPolicy // [EXT-DIFF2]
 import com.molina.code.history.RestorePlan // [EXT-DIFF3]
 import com.molina.code.history.UndoLedger // [EXT-DIFF5]
 import com.molina.code.history.NanoInbox // [NANO-INBOX]
-import com.molina.code.preview.PreviewKind
 import com.molina.code.preview.PythonTerminalRun
 import com.molina.code.preview.TerminalRunLang
 import com.molina.code.preview.RunPlans
@@ -40,6 +39,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
+import com.molina.core.preview.PreviewKind
 
 /**
  * Satu tab editor. Tiap tab punya instance editor sendiri (dibuat malas) sehingga isi, posisi

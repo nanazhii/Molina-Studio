@@ -9,7 +9,7 @@ import glob, os, re, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Modul penuh yang terkunci.
-LOCKED = ["feature/code", "feature/preview", "core/exec"]
+LOCKED = ["feature/code", "feature/preview", "core/exec", "core/preview"]
 FORBIDDEN_PROJECTS = [":core:common", ":core:storage", ":feature:mpv", ":engine:newpipe",
                       ":terminal-emulator", ":terminal-view", ":app", ":vault"]
 

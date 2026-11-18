@@ -2,6 +2,17 @@
 // Jalankan: bash scripts/code-tests/run.sh
 import com.molina.code.preview.*
 import kotlin.random.Random
+import com.molina.core.preview.HtmlPreview
+import com.molina.core.preview.Inline
+import com.molina.core.preview.JsonPretty
+import com.molina.core.preview.JsonPreview
+import com.molina.core.preview.JsonTok
+import com.molina.core.preview.Markdown
+import com.molina.core.preview.MdBlock
+import com.molina.core.preview.MdFlag
+import com.molina.core.preview.MdSpan
+import com.molina.core.preview.PreviewKind
+import com.molina.core.preview.PreviewKinds
 
 var failed = 0
 var total = 0

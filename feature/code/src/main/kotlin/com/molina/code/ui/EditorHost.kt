@@ -8,7 +8,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.viewinterop.AndroidView
-import com.molina.code.preview.PreviewKind
 import io.github.rosemoe.sora.event.ContentChangeEvent
 import io.github.rosemoe.sora.event.PublishSearchResultEvent
 import io.github.rosemoe.sora.event.SelectionChangeEvent
@@ -17,6 +16,7 @@ import io.github.rosemoe.sora.widget.CodeEditor
 import io.github.rosemoe.sora.widget.component.Magnifier // [CODE-NOMAG]
 import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
 import java.util.WeakHashMap
+import com.molina.core.preview.PreviewKind
 
 /**
  * Menampilkan editor milik tab aktif. Wadah FrameLayout dipakai agar pergantian tab hanya

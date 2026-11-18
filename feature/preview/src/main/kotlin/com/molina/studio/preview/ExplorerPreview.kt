@@ -1,8 +1,8 @@
 package com.molina.studio.preview
 
-import com.molina.code.preview.PreviewKind
-import com.molina.code.preview.PreviewKinds
 import java.io.File
+import com.molina.core.preview.PreviewKind
+import com.molina.core.preview.PreviewKinds
 
 /** [EXPLORER-PREVIEW] Penjelajah: hanya Markdown, HTML, dan JSON yang punya menu Pratinjau. */
 object ExplorerPreview {
