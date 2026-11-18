@@ -38,7 +38,7 @@ import com.molina.studio.terminal.RootfsAdmin
 import com.molina.studio.terminal.RootfsAdminState
 import com.molina.studio.terminal.RootfsBackupFile
 import com.molina.studio.terminal.RootfsManager
-import com.molina.studio.terminal.RootfsState
+import com.molina.core.api.RootfsState
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

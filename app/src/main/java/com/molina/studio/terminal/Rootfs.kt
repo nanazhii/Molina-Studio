@@ -1,5 +1,6 @@
 package com.molina.studio.terminal
 
+import com.molina.core.api.RootfsState
 import android.content.Context
 import android.system.Os
 import kotlinx.coroutines.CoroutineScope
@@ -18,17 +19,6 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
 import java.util.zip.GZIPInputStream
-
-sealed interface RootfsState {
-    data object Missing : RootfsState
-    data class Downloading(val percent: Int) : RootfsState
-    data object Verifying : RootfsState
-    data class Extracting(val percent: Int) : RootfsState
-    data object Ready : RootfsState
-    data class Failed(val message: String) : RootfsState
-    /** [TERM-ROOTFS2] backup/restore/reset sedang berjalan (RootfsAdmin); Terminal terkunci. */
-    data class Maintenance(val label: String) : RootfsState
-}
 
 private class InstallCancelled : RuntimeException()
 

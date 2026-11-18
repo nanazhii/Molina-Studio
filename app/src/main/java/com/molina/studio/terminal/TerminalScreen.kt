@@ -1,5 +1,6 @@
 package com.molina.studio.terminal
 
+import com.molina.core.api.RootfsState
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager

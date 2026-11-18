@@ -6,7 +6,7 @@ import com.molina.core.common.TrashBin
 import com.molina.studio.AppPaths
 import com.molina.studio.terminal.CrashReporter
 import com.molina.studio.terminal.RootfsManager
-import com.molina.studio.terminal.RootfsState
+import com.molina.core.api.RootfsState
 import java.io.File
 import java.util.concurrent.TimeUnit
 

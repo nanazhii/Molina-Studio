@@ -10,7 +10,7 @@ import com.molina.code.preview.ScriptLaunch
 import com.molina.core.common.LogLevel
 import com.molina.studio.log.LogBus
 import com.molina.studio.terminal.RootfsManager
-import com.molina.studio.terminal.RootfsState
+import com.molina.core.api.RootfsState
 import com.molina.studio.terminal.TerminalSessions
 import com.molina.terminal.TerminalSession
 import java.io.File

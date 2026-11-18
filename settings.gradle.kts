@@ -19,3 +19,4 @@ include(":app", ":core:common", ":core:storage", ":core:exec", ":feature:preview
 include(":vault")
 include(":core:ui")
 include(":core:security")
+include(":core:api")

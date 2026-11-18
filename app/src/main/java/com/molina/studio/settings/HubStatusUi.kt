@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.molina.studio.automation.AutoState
 import com.molina.studio.terminal.RootfsManager
-import com.molina.studio.terminal.RootfsState
+import com.molina.core.api.RootfsState
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

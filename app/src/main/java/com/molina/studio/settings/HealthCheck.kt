@@ -11,7 +11,7 @@ import com.molina.studio.AppPaths
 import com.molina.studio.cinema.MpvVersionBridge
 import com.molina.studio.code.ScriptCommand
 import com.molina.studio.terminal.RootfsManager
-import com.molina.studio.terminal.RootfsState
+import com.molina.core.api.RootfsState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

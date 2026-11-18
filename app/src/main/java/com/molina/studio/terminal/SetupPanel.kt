@@ -1,5 +1,6 @@
 package com.molina.studio.terminal
 
+import com.molina.core.api.RootfsState
 import com.molina.studio.ui.MolinaTheme
 import android.content.ClipData
 import android.content.ClipboardManager
