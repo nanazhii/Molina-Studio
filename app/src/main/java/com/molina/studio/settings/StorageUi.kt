@@ -35,6 +35,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.nio.file.Files
 import java.util.Locale
+import com.molina.core.exec.ProotHostEnv
 
 private class StorageInfo(
     val rootfs: Long, val aptCache: Long, val appCache: Long, val workspace: Long, val trash: Long,
@@ -88,7 +89,7 @@ internal fun trashVolumes(ctx: android.content.Context): List<File> {
 
 private fun measure(ctx: android.content.Context, cancelled: () -> Boolean): StorageInfo {
     val ws = File(Environment.getExternalStorageDirectory(), MolinaServices.terminal.workspaceDir)
-    val appCache = (ctx.cacheDir.listFiles() ?: emptyArray()).filter { it.name != "proot-tmp" && !it.name.startsWith("debian-rootfs.tar.gz") }
+    val appCache = (ctx.cacheDir.listFiles() ?: emptyArray()).filter { it.name != ProotHostEnv.TMP_DIR_NAME && !it.name.startsWith("debian-rootfs.tar.gz") }
         .sumOf { dirSize(it, cancelled) }
     val st = StatFs(ctx.filesDir.absolutePath)
     return StorageInfo(
@@ -101,7 +102,7 @@ private fun measure(ctx: android.content.Context, cancelled: () -> Boolean): Sto
 
 /** Hapus cache aplikasi kecuali proot-tmp (dipakai sesi Terminal yang sedang berjalan). */
 private fun cleanAppCache(ctx: android.content.Context): Long {
-    val kids = (ctx.cacheDir.listFiles() ?: emptyArray()).filter { it.name != "proot-tmp" && !it.name.startsWith("debian-rootfs.tar.gz") }
+    val kids = (ctx.cacheDir.listFiles() ?: emptyArray()).filter { it.name != ProotHostEnv.TMP_DIR_NAME && !it.name.startsWith("debian-rootfs.tar.gz") }
     val before = kids.sumOf { dirSize(it) { false } }
     kids.forEach { wipe(it) }
     return before

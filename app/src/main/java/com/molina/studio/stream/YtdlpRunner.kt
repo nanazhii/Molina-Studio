@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import com.molina.core.exec.ProotHostEnv
 
 /**
  * Menjalankan yt-dlp di Debian PRoot. Aturan:
@@ -65,7 +66,7 @@ internal object YtdlpRunner {
 
     private fun runSync(ctx: Context, guestBinary: String, args: List<String>, timeoutMs: Long): Output {
         val nativeDir = ctx.applicationInfo.nativeLibraryDir
-        val tmp = File(ctx.cacheDir, "proot-tmp").apply { mkdirs() }
+        val tmp = ProotHostEnv.tmpDir(ctx.cacheDir)
         val rootfsDir = RootfsManager.rootfsDir(ctx)
         val rootfs = rootfsDir.absolutePath
         // DNS guest ditulis saat sesi Terminal dibuat; di sini resolver bisa jalan tanpa sesi sama sekali.
@@ -76,13 +77,7 @@ internal object YtdlpRunner {
         val pb = ProcessBuilder(cmd).directory(ctx.filesDir)
         pb.environment().apply {
             clear()
-            put("PROOT_LOADER", "$nativeDir/libproot_loader.so")
-            put("PROOT_TMP_DIR", tmp.absolutePath)
-            put("TMPDIR", tmp.absolutePath)
-            put("PATH", "/system/bin")
-            put("HOME", ctx.filesDir.absolutePath)
-            System.getenv("ANDROID_ROOT")?.let { put("ANDROID_ROOT", it) }
-            System.getenv("ANDROID_DATA")?.let { put("ANDROID_DATA", it) }
+            putAll(ProotHostEnv.map(nativeDir, tmp, ctx.filesDir))
         }
 
         val started = System.nanoTime()

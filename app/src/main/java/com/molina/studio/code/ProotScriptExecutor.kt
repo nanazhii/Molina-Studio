@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
+import com.molina.core.exec.ProotHostEnv
 
 /**
  * Menjalankan skrip dari editor Code di Debian PRoot milik Molina Terminal. Aturan:
@@ -128,7 +129,7 @@ internal class ProotScriptExecutor(context: Context, private val lane: Lane = La
         buildArgs: (String, List<String>) -> List<String>,
     ): ProcessBuilder {
         val nativeDir = app.applicationInfo.nativeLibraryDir
-        val tmp = File(app.cacheDir, "proot-tmp").apply { mkdirs() }
+        val tmp = ProotHostEnv.tmpDir(app.cacheDir)
         try { MolinaDns.writeResolvConf(app, rootfsDir) } catch (e: Exception) { }
 
         // Lingkup storage sama dengan Terminal: default hanya folder kerja Molina yang di-bind.
@@ -154,13 +155,7 @@ internal class ProotScriptExecutor(context: Context, private val lane: Lane = La
         val pb = ProcessBuilder(cmd).directory(app.filesDir)
         pb.environment().apply {
             clear()
-            put("PROOT_LOADER", "$nativeDir/libproot_loader.so")
-            put("PROOT_TMP_DIR", tmp.absolutePath)
-            put("TMPDIR", tmp.absolutePath)
-            put("PATH", "/system/bin")
-            put("HOME", app.filesDir.absolutePath)
-            System.getenv("ANDROID_ROOT")?.let { put("ANDROID_ROOT", it) }
-            System.getenv("ANDROID_DATA")?.let { put("ANDROID_DATA", it) }
+            putAll(ProotHostEnv.map(nativeDir, tmp, app.filesDir))
         }
         return pb
     }

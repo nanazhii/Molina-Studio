@@ -9,6 +9,7 @@ import com.molina.studio.terminal.CrashReporter
 import com.molina.core.api.RootfsState
 import java.io.File
 import java.util.concurrent.TimeUnit
+import com.molina.core.exec.ProotHostEnv
 
 internal enum class CleanupId { Rootfs, AppCache, AptCache, OldReports, OldCrashes, OldTranscripts, DebianTemp, TrashBin }
 
@@ -39,7 +40,7 @@ internal object CleanupManager {
         listOf(File(ctx.cacheDir, ROOTFS_ARCHIVE), File(ctx.cacheDir, "$ROOTFS_ARCHIVE.part")).filter { it.exists() }
 
     private fun appCacheEntries(ctx: Context): List<File> =
-        (ctx.cacheDir.listFiles() ?: emptyArray()).filter { it.name != "proot-tmp" && !it.name.startsWith(ROOTFS_ARCHIVE) }
+        (ctx.cacheDir.listFiles() ?: emptyArray()).filter { it.name != ProotHostEnv.TMP_DIR_NAME && !it.name.startsWith(ROOTFS_ARCHIVE) }
 
     private fun aptEntries(ctx: Context): List<File> {
         val dir = aptArchives(ctx)

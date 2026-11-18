@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
 import java.util.concurrent.TimeUnit
+import com.molina.core.exec.ProotHostEnv
 
 /** [DIAG-CHECK] Tingkat hasil pemeriksaan; urutan ordinal dipakai untuk mencari yang terburuk. */
 internal enum class CheckLevel(val glyph: String) { Ok("\u2713"), Warn("\u26A0"), Bad("\u2717") }
@@ -118,19 +119,13 @@ internal object HealthCheck {
         if (MolinaServices.terminal.rootfsState.value != RootfsState.Ready || !File(nativeDir, "libproot.so").isFile) {
             return CheckResult(name, CheckLevel.Warn, "dilewati: Debian atau PRoot belum siap")
         }
-        val tmp = File(ctx.cacheDir, "proot-tmp").apply { mkdirs() }
+        val tmp = ProotHostEnv.tmpDir(ctx.cacheDir)
         val argv = ScriptCommand.prootArgv(root.absolutePath, "/", emptyList(), listOf("/bin/sh", "-c", "echo molina-ok"))
         val pb = ProcessBuilder(YtdlpCommand.SH_WRAPPER + "$nativeDir/libproot.so" + argv).directory(ctx.filesDir)
         pb.redirectErrorStream(true)
         pb.environment().apply {
             clear()
-            put("PROOT_LOADER", "$nativeDir/libproot_loader.so")
-            put("PROOT_TMP_DIR", tmp.absolutePath)
-            put("TMPDIR", tmp.absolutePath)
-            put("PATH", "/system/bin")
-            put("HOME", ctx.filesDir.absolutePath)
-            System.getenv("ANDROID_ROOT")?.let { put("ANDROID_ROOT", it) }
-            System.getenv("ANDROID_DATA")?.let { put("ANDROID_DATA", it) }
+            putAll(ProotHostEnv.map(nativeDir, tmp, ctx.filesDir))
         }
         val t0 = System.nanoTime()
         val proc = try {

@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import com.molina.core.exec.ProotHostEnv
 
 /**
  * [ARCHIVE4] Membuka arsip yang tidak dikuasai [ArchiveEngine] (RAR, ISO, CAB, multi-bagian, ...) lewat `7z` di Debian
@@ -415,17 +416,11 @@ internal class DebianArchive(context: Context) {
             } catch (e: IllegalArgumentException) {
                 throw IOException(e.message ?: "Argumen proot tidak valid")
             }
-            val tmp = File(app.cacheDir, "proot-tmp").apply { mkdirs() }
+            val tmp = ProotHostEnv.tmpDir(app.cacheDir)
             pb = ProcessBuilder(YtdlpCommand.SH_WRAPPER + "$nativeDir/libproot.so" + argv).directory(app.filesDir)
             pb.environment().apply {
                 clear()
-                put("PROOT_LOADER", "$nativeDir/libproot_loader.so")
-                put("PROOT_TMP_DIR", tmp.absolutePath)
-                put("TMPDIR", tmp.absolutePath)
-                put("PATH", "/system/bin")
-                put("HOME", app.filesDir.absolutePath)
-                System.getenv("ANDROID_ROOT")?.let { put("ANDROID_ROOT", it) }
-                System.getenv("ANDROID_DATA")?.let { put("ANDROID_DATA", it) }
+                putAll(ProotHostEnv.map(nativeDir, tmp, app.filesDir))
             }
         }
         val proc = try {

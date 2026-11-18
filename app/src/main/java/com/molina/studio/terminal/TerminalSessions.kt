@@ -14,6 +14,7 @@ import com.molina.core.common.LogLevel
 import com.molina.terminal.TerminalSession
 import java.io.File
 import kotlin.math.min
+import com.molina.core.exec.ProotHostEnv
 
 /**
  * Daftar sesi Debian (PRoot), maksimal [MAX_SESSIONS]. Sesi tetap hidup walau tab aplikasi
@@ -185,7 +186,7 @@ object TerminalSessions {
         val nativeDir = ctx.applicationInfo.nativeLibraryDir
         val rootfsDir = RootfsManager.rootfsDir(ctx)
         val rootfs = rootfsDir.absolutePath
-        val tmp = File(ctx.cacheDir, "proot-tmp").apply { mkdirs() }
+        val tmp = ProotHostEnv.tmpDir(ctx.cacheDir)
         val guestCwd = cwd?.takeIf { it.startsWith("/") } ?: "/root" // home default: prompt tampil sebagai user@localhost:~
         val storage = Environment.getExternalStorageDirectory().absolutePath
 
@@ -245,15 +246,7 @@ object TerminalSessions {
             sysvipc = ProotCaps.supports(File(nativeDir, "libproot.so"), "sysvipc"),
         )
         val args = config.args()
-        val env = buildList {
-            add("PROOT_LOADER=$nativeDir/libproot_loader.so")
-            add("PROOT_TMP_DIR=${tmp.absolutePath}")
-            add("TMPDIR=${tmp.absolutePath}")
-            add("PATH=/system/bin")
-            add("HOME=${ctx.filesDir.absolutePath}")
-            System.getenv("ANDROID_ROOT")?.let { add("ANDROID_ROOT=$it") }
-            System.getenv("ANDROID_DATA")?.let { add("ANDROID_DATA=$it") }
-        }.toTypedArray()
+        val env = ProotHostEnv.asArray(nativeDir, tmp, ctx.filesDir)
         val session = TerminalSession(
             "$nativeDir/libproot.so", ctx.filesDir.absolutePath, args, env, 2000, client
         )
