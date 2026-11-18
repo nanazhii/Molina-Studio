@@ -53,7 +53,7 @@ import com.molina.studio.ui.MolinaTheme
 // [SPLIT-DIALOGS] Dialog kecil Penjelajah: nama, kata sandi, konfirmasi hapus, info, plus tapToFocus; dipecah dari Win7OpenDialog.kt.
 
 @Composable
-fun W7NameDialog(
+internal fun W7NameDialog(
     title: String, initial: String, selectEnd: Int, okLabel: String, hint: String? = null, // [NANO-NEW]
     onCancel: () -> Unit, onOk: (String) -> Unit
 ) {
@@ -87,7 +87,7 @@ fun W7NameDialog(
 }
 
 @Composable
-fun W7SecretField( // [ARCHIVE2] internal: dipakai ArchiveCompressDialog
+internal fun W7SecretField( // [ARCHIVE2] internal: dipakai ArchiveCompressDialog
     value: String, onChange: (String) -> Unit, show: Boolean,
     modifier: Modifier, onDone: () -> Unit
 ) {
@@ -108,7 +108,7 @@ fun W7SecretField( // [ARCHIVE2] internal: dipakai ArchiveCompressDialog
 
 /** [ZIP-AES] Dialog kata sandi: [confirmField] meminta ketik dua kali (membuat ZIP), tanpa itu satu kali (mengekstrak). */
 @Composable
-fun W7PasswordDialog(
+internal fun W7PasswordDialog(
     title: String, okLabel: String, confirmField: Boolean, note: String,
     onCancel: () -> Unit, onOk: (String) -> Unit
 ) {
@@ -156,7 +156,7 @@ fun W7PasswordDialog(
 }
 
 @Composable
-fun W7ConfirmDialog(files: List<File>, permanent: Boolean, onCancel: () -> Unit, onOk: () -> Unit) {
+internal fun W7ConfirmDialog(files: List<File>, permanent: Boolean, onCancel: () -> Unit, onOk: () -> Unit) {
     val hasDir = files.any { it.isDirectory }
     val verb = if (permanent) "Hapus permanen" else "Pindahkan ke Recycle Bin"
     W7Panel(if (permanent) "Hapus permanen" else "Recycle Bin", onCancel) {
@@ -203,7 +203,7 @@ fun W7ConfirmDialog(files: List<File>, permanent: Boolean, onCancel: () -> Unit,
 }
 
 @Composable
-fun W7InfoDialog(files: List<File>, debian: Boolean?, onDismiss: () -> Unit) {
+internal fun W7InfoDialog(files: List<File>, debian: Boolean?, onDismiss: () -> Unit) {
     var ps by remember(files) { mutableStateOf<List<FileOps.Props>?>(null) }
     var failed by remember(files) { mutableStateOf(false) }
     LaunchedEffect(files) {
@@ -292,7 +292,7 @@ fun W7InfoDialog(files: List<File>, debian: Boolean?, onDismiss: () -> Unit) {
 }
 
 @Composable
-fun W7InfoRow(label: String, value: String) {
+internal fun W7InfoRow(label: String, value: String) {
     Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
         Text(label, color = Win7.TextDim, fontSize = 12.sp, modifier = Modifier.width(62.dp))
         Text(value, color = Win7.Ink, fontSize = 12.sp, modifier = Modifier.weight(1f))
@@ -303,7 +303,7 @@ fun W7InfoRow(label: String, value: String) {
  * [KB-TAP] Kolom teks tidak bisa menerima fokus otomatis (fokus awal jendela dialog); fokus baru
  * diizinkan setelah disentuh pengguna, dan dikunci lagi saat fokus lepas. Keyboard tidak muncul sendiri.
  */
-fun Modifier.tapToFocus(): Modifier = composed {
+internal fun Modifier.tapToFocus(): Modifier = composed {
     var armed by remember { mutableStateOf(false) }
     this
         .focusProperties { canFocus = armed }
