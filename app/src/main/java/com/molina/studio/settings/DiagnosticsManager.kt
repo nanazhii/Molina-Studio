@@ -1,5 +1,6 @@
 package com.molina.studio.settings
 
+import com.molina.core.api.MolinaServices
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -15,7 +16,6 @@ import com.molina.studio.log.BugReport
 import com.molina.studio.log.LogBus
 import com.molina.studio.log.ReportId
 import com.molina.studio.terminal.CrashReporter
-import com.molina.studio.terminal.RootfsManager
 import com.molina.studio.terminal.TerminalPrefs
 import java.io.File
 import java.io.IOException
@@ -133,10 +133,10 @@ internal object DiagnosticsManager {
         AptHistory.init(app)
         AutoPrefs.init(app)
         TerminalPrefs.init(app)
-        RootfsManager.refresh(app)
+        MolinaServices.terminal.refreshRootfs()
         val auto = AutoPrefs.state.value
         return hubStatusRows(
-            RootfsManager.state.value, AptHistory.pending.value, auto,
+            MolinaServices.terminal.rootfsState.value, AptHistory.pending.value, auto,
             maxOf(auto.lastBackup, BackupManager.lastBackupMs(app))
         ).map { it.label to it.value }
     }

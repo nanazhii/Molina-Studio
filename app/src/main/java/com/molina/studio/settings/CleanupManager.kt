@@ -1,11 +1,11 @@
 package com.molina.studio.settings
 
+import com.molina.core.api.MolinaServices
 import android.content.Context
 import com.molina.core.common.MolinaDir
 import com.molina.core.common.TrashBin
 import com.molina.studio.AppPaths
 import com.molina.studio.terminal.CrashReporter
-import com.molina.studio.terminal.RootfsManager
 import com.molina.core.api.RootfsState
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -76,13 +76,13 @@ internal object CleanupManager {
     }
 
     private fun debianTemp(ctx: Context): List<File> {
-        val root = RootfsManager.rootfsDir(ctx)
+        val root = MolinaServices.terminal.rootfsDir()
         return listOf("tmp", "var/log").flatMap { File(root, it).listFiles()?.toList() ?: emptyList() }
     }
 
     fun scan(ctx: Context, cancelled: () -> Boolean): List<CleanupItem> {
-        RootfsManager.refresh(ctx)
-        val ready = RootfsManager.state.value is RootfsState.Ready
+        MolinaServices.terminal.refreshRootfs()
+        val ready = MolinaServices.terminal.rootfsState.value is RootfsState.Ready
         fun size(files: List<File>) = files.sumOf { dirSize(it, cancelled) }
         return listOf(
             CleanupItem(

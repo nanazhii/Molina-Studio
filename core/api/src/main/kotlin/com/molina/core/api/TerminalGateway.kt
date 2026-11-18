@@ -39,6 +39,8 @@ interface TerminalGateway {
      */
     fun typeCommand(command: String, inNewSession: Boolean): Boolean
     fun send(text: String)
+    /** Tempel [text] ke sesi aktif tanpa memeriksa program layar penuh; false bila tidak ada sesi. */
+    fun pasteRaw(text: String): Boolean
     /** Tempel [text] ke sesi aktif; [PasteResult] menjelaskan bila ditolak. */
     fun paste(text: String): PasteResult
 

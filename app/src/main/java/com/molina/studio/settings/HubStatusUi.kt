@@ -1,5 +1,6 @@
 package com.molina.studio.settings
 
+import com.molina.core.api.MolinaServices
 import com.molina.studio.ui.components.PkgState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,7 +23,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.molina.studio.automation.AutoState
-import com.molina.studio.terminal.RootfsManager
 import com.molina.core.api.RootfsState
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -150,8 +150,8 @@ internal fun W7HubStatusCard(
     onAutomation: () -> Unit
 ) {
     val ctx = LocalContext.current
-    remember { RootfsManager.refresh(ctx) }
-    val rootfs by RootfsManager.state.collectAsState()
+    remember { MolinaServices.terminal.refreshRootfs() }
+    val rootfs by MolinaServices.terminal.rootfsState.collectAsState()
     val backupMs = remember(auto.lastBackup) { maxOf(auto.lastBackup, BackupManager.lastBackupMs(ctx)) }
     HubCard("Status Molina", hubStatusRows(rootfs, aptPending, auto, backupMs, onSystem, onPackages, onAutomation))
     Spacer(Modifier.height(12.dp))

@@ -73,6 +73,12 @@ class TerminalGatewayImpl(context: Context) : TerminalGateway {
         main.post(task)
     }
 
+    override fun pasteRaw(text: String): Boolean {
+        val em = TerminalSessions.currentSession?.emulator ?: return false
+        em.paste(text)
+        return true
+    }
+
     override fun paste(text: String): PasteResult {
         val em = TerminalSessions.currentSession?.emulator ?: return PasteResult.NO_SESSION
         if (em.isAlternateBufferActive) return PasteResult.FULLSCREEN_PROGRAM

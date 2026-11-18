@@ -1,5 +1,6 @@
 package com.molina.studio.settings
 
+import com.molina.core.api.MolinaServices
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -114,7 +115,7 @@ internal fun PurgePreviewDialog(tool: ToolItem, onProceed: (Boolean) -> Unit, on
                             Text("Cadangkan konfigurasi dulu", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             Text(
                                 tool.backupPaths.joinToString(", ") { it.substringAfterLast('/') } +
-                                    " ke /sdcard/${com.molina.studio.terminal.TerminalSessions.WORKSPACE_DIR}/.molina-backup. Kredensial/token tidak disertakan.",
+                                    " ke /sdcard/${MolinaServices.terminal.workspaceDir}/.molina-backup. Kredensial/token tidak disertakan.",
                                 color = dim, fontSize = 11.sp
                             )
                         }

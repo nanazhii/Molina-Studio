@@ -1,5 +1,6 @@
 package com.molina.studio.settings
 
+import com.molina.core.api.MolinaServices
 import com.molina.studio.ui.components.PackageDivider
 import com.molina.studio.ui.components.PackageGroupCard
 import com.molina.studio.ui.components.PackageInfoRow
@@ -27,8 +28,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.molina.core.common.TrashBin
-import com.molina.studio.terminal.RootfsManager
-import com.molina.studio.terminal.TerminalSessions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -74,7 +73,7 @@ internal fun wipe(f: File) {
     }
 }
 
-internal fun aptArchives(ctx: android.content.Context) = File(RootfsManager.rootfsDir(ctx), "var/cache/apt/archives")
+internal fun aptArchives(ctx: android.content.Context) = File(MolinaServices.terminal.rootfsDir(), "var/cache/apt/archives")
 
 /** Akar yang punya Recycle Bin (.molina-trash): penyimpanan internal, kartu SD, dan beranda Debian. */
 internal fun trashVolumes(ctx: android.content.Context): List<File> {
@@ -82,18 +81,18 @@ internal fun trashVolumes(ctx: android.content.Context): List<File> {
     File("/storage").listFiles()?.forEach {
         if (it.isDirectory && it.canRead() && it.name != "emulated" && it.name != "self") out.add(it)
     }
-    val home = File(RootfsManager.rootfsDir(ctx), "root")
+    val home = File(MolinaServices.terminal.rootfsDir(), "root")
     if (home.isDirectory) out.add(home)
     return out
 }
 
 private fun measure(ctx: android.content.Context, cancelled: () -> Boolean): StorageInfo {
-    val ws = File(Environment.getExternalStorageDirectory(), TerminalSessions.WORKSPACE_DIR)
+    val ws = File(Environment.getExternalStorageDirectory(), MolinaServices.terminal.workspaceDir)
     val appCache = (ctx.cacheDir.listFiles() ?: emptyArray()).filter { it.name != "proot-tmp" && !it.name.startsWith("debian-rootfs.tar.gz") }
         .sumOf { dirSize(it, cancelled) }
     val st = StatFs(ctx.filesDir.absolutePath)
     return StorageInfo(
-        dirSize(RootfsManager.rootfsDir(ctx), cancelled), dirSize(aptArchives(ctx), cancelled), appCache,
+        dirSize(MolinaServices.terminal.rootfsDir(), cancelled), dirSize(aptArchives(ctx), cancelled), appCache,
         if (ws.isDirectory) dirSize(ws, cancelled) else 0L,
         runCatching { TrashBin.usage(trashVolumes(ctx)) }.getOrDefault(0L),
         st.availableBytes, st.totalBytes
@@ -136,7 +135,7 @@ internal fun StoragePage(onOpenPackages: () -> Unit) {
             PackageDivider()
             PackageInfoRow("Cache aplikasi", fmtBytes(i.appCache))
             PackageDivider()
-            PackageInfoRow("Folder Molina (/sdcard/" + TerminalSessions.WORKSPACE_DIR + ")", fmtBytes(i.workspace))
+            PackageInfoRow("Folder Molina (/sdcard/" + MolinaServices.terminal.workspaceDir + ")", fmtBytes(i.workspace))
             PackageDivider()
             PackageInfoRow("Recycle Bin", fmtBytes(i.trash))
         }

@@ -63,7 +63,6 @@ import com.molina.studio.code.ScriptStore
 import com.molina.studio.code.RunCheckPrefs // [SCRIPT-HINT]
 import com.molina.studio.code.ScriptHintParser
 import com.molina.studio.code.ScriptHints
-import com.molina.studio.terminal.TerminalSessions
 import com.molina.studio.ui.MolinaTheme
 import java.text.SimpleDateFormat
 import java.util.Date

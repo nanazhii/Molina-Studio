@@ -1,5 +1,6 @@
 package com.molina.studio.settings
 
+import com.molina.core.api.MolinaServices
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -37,7 +38,6 @@ import androidx.compose.ui.unit.sp
 import com.molina.studio.terminal.RootfsAdmin
 import com.molina.studio.terminal.RootfsAdminState
 import com.molina.studio.terminal.RootfsBackupFile
-import com.molina.studio.terminal.RootfsManager
 import com.molina.core.api.RootfsState
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -67,7 +67,7 @@ private fun mb(bytes: Long) = "${bytes / (1024 * 1024)} MB"
 internal fun RootfsAdminDialog(onDismiss: () -> Unit) {
     val ctx = LocalContext.current
     val st by RootfsAdmin.state.collectAsState()
-    val rootfs by RootfsManager.state.collectAsState()
+    val rootfs by MolinaServices.terminal.rootfsState.collectAsState()
     var pending by remember { mutableStateOf<Pending?>(null) }
     var backups by remember { mutableStateOf(RootfsAdmin.listBackups(ctx)) }
     val running = st as? RootfsAdminState.Running

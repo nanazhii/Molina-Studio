@@ -1,5 +1,6 @@
 package com.molina.studio.settings
 
+import com.molina.core.api.MolinaServices
 import com.molina.studio.ui.components.PackageSectionHeader
 import com.molina.studio.ui.components.PackageStatusCard
 import com.molina.studio.ui.components.ActionChip
@@ -317,7 +318,7 @@ internal fun PackagesPage(
                 "${pr.tool.name}: ${pr.action.label}",
                 (if (pr.backup) ToolPurge.backupScript(pr.tool.name, pr.tool.backupPaths) else "") + scriptOf(pr.tool, pr.action),
                 pr.action.timeoutMs,
-                note + if (pr.backup) " Konfigurasi dicadangkan dulu ke /sdcard/${com.molina.studio.terminal.TerminalSessions.WORKSPACE_DIR}/.molina-backup." else "",
+                note + if (pr.backup) " Konfigurasi dicadangkan dulu ke /sdcard/${MolinaServices.terminal.workspaceDir}/.molina-backup." else "",
                 pr.action.confirm && !pr.previewed
             ),
             onClose = { pending = null }

@@ -1,5 +1,6 @@
 package com.molina.studio.settings
 
+import com.molina.core.api.MolinaServices
 import com.molina.studio.ui.components.PkgState
 import com.molina.studio.ui.components.PackageStatusCard
 import android.content.Context
@@ -10,7 +11,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import com.molina.studio.terminal.RootfsManager
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -24,7 +24,7 @@ internal object DebianInfoReader {
      * jadi cepat dan aman dipanggil di latar. Mengembalikan null bila rootfs belum terpasang.
      */
     fun read(ctx: Context): DebianInfo? {
-        val root = RootfsManager.rootfsDir(ctx)
+        val root = MolinaServices.terminal.rootfsDir()
         val ver = File(root, "etc/debian_version")
         if (!ver.isFile) return null
         val release = runCatching { ver.readText().trim() }.getOrDefault("").ifBlank { "?" }

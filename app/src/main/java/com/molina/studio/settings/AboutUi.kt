@@ -1,5 +1,6 @@
 package com.molina.studio.settings
 
+import com.molina.core.api.MolinaServices
 import com.molina.studio.ui.components.PackageSectionHeader
 import com.molina.studio.ui.components.PackageStatusCard
 import androidx.compose.foundation.layout.padding
@@ -22,7 +23,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.molina.studio.automation.AutoPrefs
 import com.molina.studio.cinema.MpvVersionBridge
-import com.molina.studio.terminal.RootfsManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -42,8 +42,8 @@ internal fun HubInfoPage(
     onLicenses: () -> Unit
 ) {
     val ctx = LocalContext.current
-    remember { AptHistory.init(ctx); AutoPrefs.init(ctx); RootfsManager.refresh(ctx) }
-    val rootfs by RootfsManager.state.collectAsState()
+    remember { AptHistory.init(ctx); AutoPrefs.init(ctx); MolinaServices.terminal.refreshRootfs() }
+    val rootfs by MolinaServices.terminal.rootfsState.collectAsState()
     val pending by AptHistory.pending.collectAsState()
     val auto by AutoPrefs.state.collectAsState()
     val diag by HealthCheck.last.collectAsState() // [DIAG-BADGE]

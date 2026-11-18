@@ -6,9 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Environment
 import android.widget.Toast
-import com.molina.studio.terminal.TerminalActions
-import com.molina.studio.terminal.TerminalPrefs
-import com.molina.studio.terminal.TerminalSessions
+import com.molina.core.api.MolinaServices
 import com.molina.cinema.MpvFolder
 import com.molina.code.run.ScriptShare
 import com.molina.studio.cinema.CinemaActions
@@ -32,7 +30,7 @@ internal object MolinaExplorer {
     @Volatile private var rootfsPath: String? = null
 
     fun attach(ctx: Context) {
-        rootfsPath = com.molina.studio.terminal.RootfsManager.rootfsDir(ctx).absolutePath
+        rootfsPath = MolinaServices.terminal.rootfsDir().absolutePath
     }
 
     /** Path di dalam Debian PRoot; penyimpanan internal di-bind ke /sdcard. */
@@ -56,10 +54,11 @@ internal object MolinaExplorer {
      */
     fun visibleInDebian(f: File, forNewSession: Boolean = false): Boolean {
         // Bind PRoot tetap selama sesi hidup: ikuti sesi aktif, bukan hanya setelan terbaru
-        val full = if (forNewSession) TerminalPrefs.fullStorageAccess
-            else TerminalSessions.fullAccessOf(TerminalSessions.currentSession) ?: TerminalPrefs.fullStorageAccess
+        val gw = MolinaServices.terminal
+        val full = if (forNewSession) gw.fullStorageAccess
+            else gw.activeFullAccess() ?: gw.fullStorageAccess
         val roots = if (full) listOf(base()) else listOf(
-            base() + "/" + TerminalSessions.WORKSPACE_DIR,
+            base() + "/" + gw.workspaceDir,
             base() + "/" + com.molina.core.common.MolinaPaths.APP_FOLDER,
         )
         val p = f.absolutePath
@@ -142,16 +141,16 @@ internal object MolinaExplorer {
 
     /** [NANO-NEW] Jalankan nano pada [path] (path Debian) di sesi aktif, lalu pindah ke tab Terminal. */
     private fun launchNano(ctx: Context, path: String): Boolean {
-        val em = TerminalSessions.currentSession?.emulator
-        if (em == null) {
+        val gw = MolinaServices.terminal
+        if (!gw.hasActiveSession()) {
             Toast.makeText(ctx, "Belum ada sesi terminal aktif. Buka Terminal terlebih dahulu.", Toast.LENGTH_LONG).show()
             return false
         }
-        if (em.isAlternateBufferActive) {
+        if (gw.isFullscreenProgramActive()) {
             Toast.makeText(ctx, "Terminal sedang menjalankan program layar penuh. Keluar dulu, atau buka sesi baru.", Toast.LENGTH_LONG).show()
             return false
         }
-        TerminalActions.send("nano " + quote(path) + "\r")
+        gw.send("nano " + quote(path) + "\r")
         ScriptNav.openTerminal = true
         return true
     }
@@ -197,12 +196,12 @@ internal object MolinaExplorer {
     /** Sisipkan path ter-quote (satu atau banyak, dipisah spasi) ke input shell sesi aktif, tanpa Enter. */
     fun insertPaths(ctx: Context, files: List<File>) {
         if (files.isEmpty()) return
-        val em = TerminalSessions.currentSession?.emulator
-        if (em == null) {
+        val gw = MolinaServices.terminal
+        if (!gw.hasActiveSession()) {
             Toast.makeText(ctx, "Belum ada sesi terminal aktif. Buka Terminal terlebih dahulu.", Toast.LENGTH_LONG).show()
             return
         }
-        em.paste(files.joinToString(" ") { quote(debianPath(it)) } + " ")
+        gw.pasteRaw(files.joinToString(" ") { quote(debianPath(it)) } + " ")
         val note = if (files.all { visibleInDebian(it) }) "Path dikirim ke Terminal" else "Path dikirim, tetapi lokasi ini tidak terlihat di Debian"
         Toast.makeText(ctx, note, Toast.LENGTH_SHORT).show()
     }
@@ -227,14 +226,15 @@ internal object MolinaExplorer {
             return false
         }
         val target = debianPath(dir)
-        val created = try { TerminalSessions.newSession(ctx, target, target.substringAfterLast('/').ifEmpty { "sdcard" }) } catch (e: Exception) { null }
-        if (created != null) {
+        val gw = MolinaServices.terminal
+        val created = try { gw.newSession(target, target.substringAfterLast('/').ifEmpty { "sdcard" }) } catch (e: Exception) { false }
+        if (created) {
             Toast.makeText(ctx, "Terminal dibuka di " + target, Toast.LENGTH_SHORT).show()
-        } else if (TerminalSessions.currentSession?.emulator != null && visibleInDebian(dir)) {
-            TerminalActions.send("cd " + quote(target) + "\r")
+        } else if (gw.hasActiveSession() && visibleInDebian(dir)) {
+            gw.send("cd " + quote(target) + "\r")
             Toast.makeText(ctx, "Batas sesi penuh: cd di sesi aktif ke " + target, Toast.LENGTH_LONG).show()
         } else {
-            Toast.makeText(ctx, "Batas sesi penuh (" + TerminalSessions.MAX_SESSIONS + "). Tutup salah satu sesi terlebih dahulu.", Toast.LENGTH_LONG).show()
+            Toast.makeText(ctx, "Batas sesi penuh (" + gw.maxSessions + "). Tutup salah satu sesi terlebih dahulu.", Toast.LENGTH_LONG).show()
             return false
         }
         ScriptNav.openTerminal = true
@@ -251,9 +251,7 @@ internal object MolinaExplorer {
         val dir = (if (f.isDirectory) f else f.parentFile)
         if (dir != null && dir.isDirectory && REUSE_SESSION_BY_START_DIR && visibleInDebian(dir, forNewSession = true)) {
             val target = debianPath(dir)
-            val idx = TerminalSessions.indexOfStartDir(target)
-            if (idx >= 0) {
-                TerminalSessions.select(idx)
+            if (MolinaServices.terminal.selectByStartDir(target)) {
                 Toast.makeText(ctx, "Terminal dibuka di " + target, Toast.LENGTH_SHORT).show()
                 ScriptNav.openTerminal = true
                 return true
@@ -337,7 +335,7 @@ internal object MolinaExplorer {
 
     /** Jalankan `cd` ke folder di sesi aktif (langsung dieksekusi). Hanya untuk folder yang terlihat di Debian. */
     fun changeDir(ctx: Context, dir: File) {
-        if (TerminalSessions.currentSession?.emulator == null) {
+        if (!MolinaServices.terminal.hasActiveSession()) {
             Toast.makeText(ctx, "Belum ada sesi terminal aktif. Buka Terminal terlebih dahulu.", Toast.LENGTH_LONG).show()
             return
         }
@@ -348,7 +346,7 @@ internal object MolinaExplorer {
         if (!visibleInDebian(dir)) {
             Toast.makeText(
                 ctx,
-                if (TerminalPrefs.fullStorageAccess && TerminalSessions.fullAccessOf(TerminalSessions.currentSession) == false)
+                if (MolinaServices.terminal.fullStorageAccess && MolinaServices.terminal.activeFullAccess() == false)
                     "Sesi terminal ini dibuat sebelum Akses penyimpanan penuh aktif. Buka sesi baru (NEW SESSION)."
                 else
                     "Folder ini tidak terlihat di Debian. Aktifkan \"Akses penyimpanan penuh\" di Setelan Terminal (berlaku di sesi baru), atau pindahkan ke folder Molina.",
@@ -356,7 +354,7 @@ internal object MolinaExplorer {
             ).show()
             return
         }
-        TerminalActions.send("cd " + quote(debianPath(dir)) + "\r")
+        MolinaServices.terminal.send("cd " + quote(debianPath(dir)) + "\r")
         Toast.makeText(ctx, "cd " + debianPath(dir), Toast.LENGTH_SHORT).show()
     }
 }

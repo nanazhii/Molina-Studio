@@ -1,5 +1,6 @@
 package com.molina.studio.settings
 
+import com.molina.core.api.MolinaServices
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -10,7 +11,6 @@ import com.molina.core.common.YtdlpInstall
 import com.molina.studio.AppPaths
 import com.molina.studio.cinema.MpvVersionBridge
 import com.molina.studio.code.ScriptCommand
-import com.molina.studio.terminal.RootfsManager
 import com.molina.core.api.RootfsState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -97,10 +97,10 @@ internal object HealthCheck {
     }
 
     private fun rootfs(ctx: Context): CheckResult {
-        RootfsManager.refresh(ctx)
-        return when (val st = RootfsManager.state.value) {
+        MolinaServices.terminal.refreshRootfs()
+        return when (val st = MolinaServices.terminal.rootfsState.value) {
             RootfsState.Ready ->
-                if (File(RootfsManager.rootfsDir(ctx), "usr/bin").isDirectory)
+                if (File(MolinaServices.terminal.rootfsDir(), "usr/bin").isDirectory)
                     CheckResult("Debian", CheckLevel.Ok, "rootfs siap, isi lengkap")
                 else
                     CheckResult("Debian", CheckLevel.Bad, "penanda siap, tetapi usr/bin tidak ada; pulihkan atau pasang ulang", CheckAction.ManageDebian)
@@ -114,8 +114,8 @@ internal object HealthCheck {
     private fun debianRuns(ctx: Context): CheckResult {
         val name = "Debian jalan"
         val nativeDir = ctx.applicationInfo.nativeLibraryDir
-        val root = RootfsManager.rootfsDir(ctx)
-        if (RootfsManager.state.value != RootfsState.Ready || !File(nativeDir, "libproot.so").isFile) {
+        val root = MolinaServices.terminal.rootfsDir()
+        if (MolinaServices.terminal.rootfsState.value != RootfsState.Ready || !File(nativeDir, "libproot.so").isFile) {
             return CheckResult(name, CheckLevel.Warn, "dilewati: Debian atau PRoot belum siap")
         }
         val tmp = File(ctx.cacheDir, "proot-tmp").apply { mkdirs() }
