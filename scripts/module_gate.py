@@ -13,7 +13,9 @@ import pathlib, re, sys
 
 ENGINE_EXTRA = {":terminal-emulator", ":terminal-view", ":vault"}
 ENGINE_LINKS = {(":terminal-view", ":terminal-emulator")}
-KNOWN_DEBT = {}
+KNOWN_DEBT = {
+    (":feature:code", ":feature:preview"): "feature -> feature; split package com.molina.code.preview; selesaikan via :core:preview (5b)",
+}
 DEP = re.compile(r'\b(?:api|implementation|compileOnly|runtimeOnly)\(\s*project\(\s*"(:[\w:-]+)"\s*\)\s*\)')
 
 
