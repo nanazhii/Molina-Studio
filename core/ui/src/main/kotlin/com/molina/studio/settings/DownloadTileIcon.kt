@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.Dp
 
 /** Ikon ubin Unduhan di beranda Settings: panel Aero biru dengan panah turun dan nampan. */
 @Composable
-internal fun W7IconDownloadBig(box: Dp) {
+fun W7IconDownloadBig(box: Dp) {
     Canvas(Modifier.size(box)) {
         val w = size.width
         val h = size.height

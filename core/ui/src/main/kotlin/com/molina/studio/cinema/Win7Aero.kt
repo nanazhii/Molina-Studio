@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.sp
 import com.molina.studio.ui.MolinaTheme
 
 /** Token Windows 7 (Aero) untuk pemilih file lokal Molina Cinema. */
-internal object Win7 {
+object Win7 {
     val FrameTop = MolinaTheme.Explorer.FrameTop
     val FrameBottom = MolinaTheme.Explorer.FrameBottom
     val FrameLine = MolinaTheme.Explorer.FrameLine
@@ -54,7 +54,7 @@ internal object Win7 {
 }
 
 @Composable
-internal fun Win7Button(
+fun Win7Button(
     label: String,
     modifier: Modifier = Modifier,
     isDefault: Boolean = false,
@@ -81,7 +81,7 @@ internal fun Win7Button(
 }
 
 @Composable
-internal fun Win7BackOrb(enabled: Boolean, onClick: (() -> Unit)? = null) { // [ORB-UNIFY] onClick null = hanya gambar
+fun Win7BackOrb(enabled: Boolean, onClick: (() -> Unit)? = null) { // [ORB-UNIFY] onClick null = hanya gambar
     val top = if (enabled) Color(0xFF8FC4EE) else Color(0xFFD7DDE4)
     val bottom = if (enabled) Color(0xFF2D6DB5) else Color(0xFFB5BDC7)
     Box(
@@ -105,7 +105,7 @@ internal fun Win7BackOrb(enabled: Boolean, onClick: (() -> Unit)? = null) { // [
 }
 
 @Composable
-internal fun Win7Close(onClick: () -> Unit) {
+fun Win7Close(onClick: () -> Unit) {
     val shape = RoundedCornerShape(bottomStart = 5.dp, bottomEnd = 5.dp)
     Box(
         Modifier.width(44.dp).height(20.dp).clip(shape)
@@ -166,15 +166,15 @@ private fun W7YellowFolder(box: Dp, lightTop: Color, star: Boolean) {
 }
 
 @Composable
-internal fun Win7Folder(box: Dp) = W7YellowFolder(box, Color(0xFFF8DB7B), false)
+fun Win7Folder(box: Dp) = W7YellowFolder(box, Color(0xFFF8DB7B), false)
 
 /** Folder akar Molina (/sdcard/Molina): kuning lebih terang dengan bintang kecil sebagai pembeda. */
 @Composable
-internal fun Win7MolinaFolder(box: Dp) = W7YellowFolder(box, Color(0xFFFFE9A6), true)
+fun Win7MolinaFolder(box: Dp) = W7YellowFolder(box, Color(0xFFFFE9A6), true)
 
 /** Berkas bergaya Home Theater: halaman gelap, garis tepi emas, lencana emas (video = putar, audio = not). */
 @Composable
-internal fun Win7File(video: Boolean, box: Dp) {
+fun Win7File(video: Boolean, box: Dp) {
     Canvas(Modifier.size(box)) {
         val w = size.width
         val h = size.height
@@ -203,7 +203,7 @@ internal fun Win7File(video: Boolean, box: Dp) {
 }
 
 @Composable
-internal fun Win7Drive(box: Dp) {
+fun Win7Drive(box: Dp) {
     Canvas(Modifier.size(box)) {
         val w = size.width
         val h = size.height

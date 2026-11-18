@@ -21,10 +21,10 @@ import androidx.compose.ui.unit.sp
 import com.molina.studio.ui.MolinaTheme
 
 /** [FILES-ICONS] Bentuk lencana untuk media; jenis lain memakai label singkat (PY, XML, ZIP, ...). */
-internal enum class W7Shape { NONE, IMAGE, VIDEO, AUDIO }
+enum class W7Shape { NONE, IMAGE, VIDEO, AUDIO }
 
 /** Warna + label/bentuk per ekstensi. Ekstensi tak dikenal: emas merek dengan 3 huruf pertama ekstensi. */
-internal class W7Glyph(val color: Color, val label: String?, val shape: W7Shape = W7Shape.NONE) {
+class W7Glyph(val color: Color, val label: String?, val shape: W7Shape = W7Shape.NONE) {
     companion object {
         private val MAP = HashMap<String, W7Glyph>().also { m ->
             fun put(exts: String, g: W7Glyph) {
@@ -76,7 +76,7 @@ internal class W7Glyph(val color: Color, val label: String?, val shape: W7Shape 
 
 /** Ikon berkas per ekstensi: halaman gelap beraksen warna jenisnya + lencana (gambar/video/audio) atau label. */
 @Composable
-internal fun W7FileIcon(ext: String, box: Dp) {
+fun W7FileIcon(ext: String, box: Dp) {
     val g = remember(ext) { W7Glyph.of(ext) }
     Box(Modifier.size(box)) {
         Canvas(Modifier.fillMaxSize()) {

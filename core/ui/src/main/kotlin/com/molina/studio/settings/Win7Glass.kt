@@ -52,7 +52,7 @@ import com.molina.studio.ui.MolinaTheme
 import kotlin.math.hypot
 
 /** Pilihan tampilan kaca/RGB (SharedPreferences molina_ui). Animasi RGB mati secara bawaan (hemat baterai); pengguna bisa menyalakannya. */
-internal object GlassPrefs {
+object GlassPrefs {
     private const val PREFS = "molina_ui"
     private const val KEY_RGB = "rgb_anim"
     private const val DEFAULT_RGB = false // [RGB-DEFAULT-OFF] nilai tersimpan milik pengguna tidak diubah
@@ -94,7 +94,7 @@ internal object GlassPrefs {
 }
 
 /** [RGB-PER-HALAMAN] Lokasi bingkai RGB. Tiap lokasi punya sakelar sendiri di bawah sakelar utama. */
-internal enum class RgbSpot(val key: String, val label: String) {
+enum class RgbSpot(val key: String, val label: String) {
     Cinema("rgb_spot_cinema", "Beranda Cinema"),
     Unduhan("rgb_spot_unduhan", "Halaman Unduhan"),
     Monitor("rgb_spot_monitor", "Monitor Sistem")
@@ -115,7 +115,7 @@ private val GlassBottom = Color(0xFF101010)
  * ulang, tanpa recomposition). Selain itu bingkai statis emas-biru Molina tanpa animasi sama sekali.
  */
 @Composable
-internal fun RgbFrame(modifier: Modifier = Modifier, animate: Boolean = true, spot: RgbSpot? = null, content: @Composable () -> Unit) {
+fun RgbFrame(modifier: Modifier = Modifier, animate: Boolean = true, spot: RgbSpot? = null, content: @Composable () -> Unit) {
     val ctx = LocalContext.current
     remember(ctx) { GlassPrefs.load(ctx); GlassPrefs.loadSpots(ctx) }
     val shape = RoundedCornerShape(11.dp)
@@ -153,7 +153,7 @@ internal fun RgbFrame(modifier: Modifier = Modifier, animate: Boolean = true, sp
 
 /** Jendela ala Windows 7 Aero: tepi kaca berkilap, bilah judul berikon, dan area klien hitam. */
 @Composable
-internal fun Win7GlassWindow(
+fun Win7GlassWindow(
     title: String,
     icon: @Composable () -> Unit,
     modifier: Modifier = Modifier,
@@ -205,7 +205,7 @@ internal fun Win7GlassWindow(
  * dihaluskan dengan animateFloatAsState.
  */
 @Composable
-internal fun GlossBar(
+fun GlossBar(
     fraction: Float?,
     top: Color,
     bottom: Color,
@@ -258,7 +258,7 @@ internal fun GlossBar(
 }
 
 /** Kartu berlapis gradasi gelap dengan bingkai tipis berwarna [accent] (hijau/kuning/merah/biru sesuai status). */
-internal fun Modifier.win7Card(accent: Color = W7D.Line): Modifier {
+fun Modifier.win7Card(accent: Color = Color(0xFF3A3A3A)): Modifier {
     val shape = RoundedCornerShape(6.dp)
     return this
         .clip(shape)
@@ -268,7 +268,7 @@ internal fun Modifier.win7Card(accent: Color = W7D.Line): Modifier {
 
 /** Grafik garis riwayat 0..100 (terbaru di kanan), maksimal [maxPoints] titik. */
 @Composable
-internal fun Sparkline(values: List<Int>, color: Color, modifier: Modifier = Modifier, maxPoints: Int = 60) {
+fun Sparkline(values: List<Int>, color: Color, modifier: Modifier = Modifier, maxPoints: Int = 60) {
     Canvas(
         modifier
             .fillMaxWidth()
