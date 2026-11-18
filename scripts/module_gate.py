@@ -13,9 +13,7 @@ import pathlib, re, sys
 
 ENGINE_EXTRA = {":terminal-emulator", ":terminal-view", ":vault"}
 ENGINE_LINKS = {(":terminal-view", ":terminal-emulator")}
-KNOWN_DEBT = {
-    (":feature:code", ":feature:preview"): "feature -> feature; pindahkan preview ke core atau pakai kontrak",
-}
+KNOWN_DEBT = {}
 DEP = re.compile(r'\b(?:api|implementation|compileOnly|runtimeOnly)\(\s*project\(\s*"(:[\w:-]+)"\s*\)\s*\)')
 
 
