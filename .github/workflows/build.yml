@@ -26,6 +26,10 @@ jobs:
         run: python3 scripts/offline_gate.py
       - name: Gerbang komponen bundel
         run: python3 scripts/bundle_gate.py
+      - name: Gerbang modul (lapisan core/feature/engine)
+        run: python3 scripts/module_gate.py
+      - name: Siklus paket app (ratchet, turunkan angkanya seiring ekstraksi)
+        run: python3 scripts/pkg_graph.py --max-cycles 13
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
