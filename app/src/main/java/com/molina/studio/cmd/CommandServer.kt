@@ -14,7 +14,7 @@ import com.molina.core.common.LogLevel
 import com.molina.studio.cinema.CinemaActions
 import com.molina.studio.code.CodeNav
 import com.molina.studio.preview.PreviewNav
-import com.molina.studio.log.LogBus
+import com.molina.core.log.LogBus
 import com.molina.studio.system.MpvControl
 import java.io.ByteArrayOutputStream
 import java.io.File

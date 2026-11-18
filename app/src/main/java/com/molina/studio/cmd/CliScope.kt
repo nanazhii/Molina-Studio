@@ -4,7 +4,7 @@ import android.content.Context
 import android.os.SystemClock
 import com.molina.core.common.LogLevel
 import com.molina.core.common.MolinaPaths
-import com.molina.studio.log.LogBus
+import com.molina.core.log.LogBus
 import com.molina.studio.terminal.TerminalPrefs
 import com.molina.studio.terminal.TerminalSessions
 import java.util.concurrent.atomic.AtomicLong

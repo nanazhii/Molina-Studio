@@ -1,4 +1,4 @@
-package com.molina.studio.log
+package com.molina.core.log
 
 import android.os.Handler
 import android.os.Looper

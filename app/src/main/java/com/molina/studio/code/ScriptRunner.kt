@@ -6,7 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.molina.code.preview.ScriptLaunch
 import com.molina.core.common.LogLevel
-import com.molina.studio.log.LogBus
+import com.molina.core.log.LogBus
 import com.molina.core.api.MolinaServices
 import com.molina.core.api.RootfsState
 import java.io.File

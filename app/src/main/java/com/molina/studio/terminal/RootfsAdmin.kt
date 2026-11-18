@@ -6,7 +6,7 @@ import com.molina.core.common.LogLevel
 import com.molina.core.common.MolinaDir
 import com.molina.studio.AppPaths
 import com.molina.studio.code.ProotScriptExecutor
-import com.molina.studio.log.LogBus
+import com.molina.core.log.LogBus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

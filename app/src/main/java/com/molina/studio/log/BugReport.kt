@@ -22,6 +22,9 @@ import java.io.IOException
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import com.molina.core.log.LogBus
+import com.molina.core.log.LogEntry
+import com.molina.core.log.ReportId
 
 /**
  * Laporan bug dalam satu berkas, empat bagian: (1) ringkasan, (2) PER KELOMPOK (Cinema, Terminal, Sistem,

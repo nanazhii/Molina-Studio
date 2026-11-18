@@ -78,6 +78,13 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
+import com.molina.core.log.LogBus
+import com.molina.core.log.LogClient
+import com.molina.core.log.LogEntry
+import com.molina.core.log.LogFilter
+import com.molina.core.log.LogFormat
+import com.molina.core.log.LogServer
+import com.molina.core.log.LogcatConfig
 
 private val SOURCES = listOf(
     "" to "Semua",

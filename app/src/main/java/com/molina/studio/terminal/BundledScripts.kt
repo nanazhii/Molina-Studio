@@ -6,7 +6,7 @@ import com.molina.core.common.BundledScriptPolicy.Action
 import com.molina.core.common.LogLevel
 import com.molina.core.common.MolinaDir
 import com.molina.studio.AppPaths
-import com.molina.studio.log.LogBus
+import com.molina.core.log.LogBus
 import java.io.File
 import java.security.MessageDigest
 

@@ -11,7 +11,7 @@ import android.util.Log
 import com.molina.studio.AppPaths
 import com.molina.studio.MainActivity
 import com.molina.studio.R
-import com.molina.studio.log.LogBus
+import com.molina.core.log.LogBus
 import com.molina.core.common.CrashContext
 import com.molina.core.common.LogLevel
 import com.molina.core.common.LogRedact

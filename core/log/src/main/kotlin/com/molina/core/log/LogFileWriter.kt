@@ -1,10 +1,10 @@
-package com.molina.studio.log
+package com.molina.core.log
 
 import android.content.Context
 import com.molina.core.common.ExitHooks
 import com.molina.core.common.LogLevel
 import com.molina.core.common.LogRedact
-import com.molina.studio.AppPaths
+import com.molina.core.common.MolinaPaths
 import java.io.File
 import java.io.IOException
 import java.text.SimpleDateFormat
@@ -37,6 +37,7 @@ object LogFileWriter {
     private const val POSTMORTEM_KEEP = 5
 
     @Volatile private var ctx: Context? = null
+    @Volatile private var paths: MolinaPaths? = null
     @Volatile private var prev: String? = null
     private val lock = Any()
     private val flushLock = Any()
@@ -48,8 +49,9 @@ object LogFileWriter {
     }
 
     /** Aman dipanggil berulang; panggil sekali saat aplikasi mulai, sebelum LogcatReporter dinyalakan. */
-    fun attach(context: Context) {
+    fun attach(context: Context, molinaPaths: MolinaPaths) {
         if (ctx != null) return
+        paths = molinaPaths
         val app = context.applicationContext
         ctx = app
         ExitHooks.register("logcat-file") { cleanExit() }
@@ -102,12 +104,12 @@ object LogFileWriter {
     }
 
     private fun flush() { synchronized(flushLock) {
-        val c = ctx ?: return@synchronized
+        val p = paths ?: return@synchronized
         val pm = prev
         val batch = synchronized(lock) { val b = ArrayList(pending); pending.clear(); b }
         if (pm == null && batch.isEmpty()) return@synchronized
         try {
-            val dir = File(AppPaths.get(c).appRoot, DIR)
+            val dir = File(p.appRoot, DIR)
             if (!dir.isDirectory && !dir.mkdirs()) throw IOException("folder tidak bisa dibuat: ${dir.path}")
             if (pm != null) { writePostMortem(dir, pm); prev = null }
             if (batch.isNotEmpty()) {

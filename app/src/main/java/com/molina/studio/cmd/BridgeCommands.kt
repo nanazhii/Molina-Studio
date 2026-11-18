@@ -15,7 +15,7 @@ import android.os.SystemClock
 import com.molina.core.common.LogLevel
 import com.molina.studio.MainActivity
 import com.molina.studio.R
-import com.molina.studio.log.LogBus
+import com.molina.core.log.LogBus
 import com.molina.studio.settings.MolinaExplorer
 import com.molina.studio.terminal.TerminalPrefs
 import com.molina.studio.ui.MolinaTheme

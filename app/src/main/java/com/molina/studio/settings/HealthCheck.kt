@@ -223,7 +223,7 @@ internal object HealthCheck {
     private fun cinemaLog(): CheckResult {
         val name = "Log Cinema"
         val since = System.currentTimeMillis() - CINEMA_LOG_WINDOW_MS
-        val errs = com.molina.studio.log.LogBus.entries.value.filter {
+        val errs = com.molina.core.log.LogBus.entries.value.filter {
             it.source == "mpv" && it.level == com.molina.core.common.LogLevel.Error && it.time >= since
         }
         if (errs.isEmpty()) return CheckResult(name, CheckLevel.Ok, "tidak ada error mpv dalam 5 menit terakhir")

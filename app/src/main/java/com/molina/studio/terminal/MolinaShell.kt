@@ -1,7 +1,7 @@
 package com.molina.studio.terminal
 
 import com.molina.core.common.LogLevel
-import com.molina.studio.log.LogBus
+import com.molina.core.log.LogBus
 import com.molina.studio.ui.MolinaTheme
 import android.content.Context
 import java.io.File

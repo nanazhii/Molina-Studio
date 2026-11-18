@@ -1,4 +1,4 @@
-package com.molina.studio.log
+package com.molina.core.log
 
 import java.time.Instant
 import java.time.ZoneId

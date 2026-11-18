@@ -1,8 +1,8 @@
 package com.molina.studio.terminal
 
-import com.molina.studio.log.LogBus
-import com.molina.studio.log.LogFileWriter
-import com.molina.studio.log.LogcatConfig
+import com.molina.core.log.LogBus
+import com.molina.core.log.LogFileWriter
+import com.molina.core.log.LogcatConfig
 import com.molina.core.common.LogLevel
 
 /**
@@ -19,7 +19,7 @@ object LogcatReporter {
 
     @Synchronized
     fun setEnabled(on: Boolean) { // [ANR-LOG]
-        com.molina.studio.log.AnrWatchdog.setEnabled(on)
+        com.molina.core.log.AnrWatchdog.setEnabled(on)
         if (on) start() else stop()
     }
 

@@ -7,7 +7,7 @@ import android.content.pm.ShortcutManager
 import android.graphics.drawable.Icon
 import com.molina.core.common.LogLevel
 import com.molina.studio.cinema.CinemaRecent
-import com.molina.studio.log.LogBus
+import com.molina.core.log.LogBus
 import com.molina.studio.security.ShortcutToken
 import java.util.concurrent.Executors
 

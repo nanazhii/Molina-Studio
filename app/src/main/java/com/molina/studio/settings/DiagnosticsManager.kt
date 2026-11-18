@@ -13,8 +13,8 @@ import com.molina.studio.AppPaths
 import com.molina.studio.automation.AutoPrefs
 import com.molina.studio.cinema.MpvVersionBridge
 import com.molina.studio.log.BugReport
-import com.molina.studio.log.LogBus
-import com.molina.studio.log.ReportId
+import com.molina.core.log.LogBus
+import com.molina.core.log.ReportId
 import com.molina.studio.terminal.CrashReporter
 import com.molina.studio.terminal.TerminalPrefs
 import java.io.File

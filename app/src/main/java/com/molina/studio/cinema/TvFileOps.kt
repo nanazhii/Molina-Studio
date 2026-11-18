@@ -36,7 +36,7 @@ import com.molina.core.common.ResumeMark
 import com.molina.core.common.TrashBin
 import com.molina.core.common.TrashItem
 import com.molina.core.common.TvGuide
-import com.molina.studio.log.LogBus
+import com.molina.core.log.LogBus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

@@ -8,7 +8,7 @@ import com.molina.core.common.GuardedStreamResolver
 import com.molina.core.common.ShieldProxy
 import com.molina.core.common.StreamResolvers
 import com.molina.engine.newpipe.NewPipeStreamResolver
-import com.molina.studio.log.LogBus
+import com.molina.core.log.LogBus
 import com.molina.studio.security.PrivacyPrefs
 import com.molina.studio.security.ShieldPrefs
 import com.molina.studio.stream.StreamEnginePrefs
@@ -22,7 +22,7 @@ class MolinaApp : Application() {
         super.onCreate()
         AppLog.install(LogBus)
         com.molina.core.api.MolinaServices.terminal = com.molina.studio.terminal.TerminalGatewayImpl(this)
-        com.molina.studio.log.AnrWatchdog.attach(this) // [ANR-LOG]
+        com.molina.core.log.AnrWatchdog.attach(this) // [ANR-LOG]
         // Molina Shield harus hidup sebelum mpv diinisialisasi (opsi http_proxy dibaca saat init).
         ShieldPrefs.init(this)
         ShieldProxy.start()

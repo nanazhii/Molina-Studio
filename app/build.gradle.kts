@@ -75,6 +75,7 @@ dependencies {
     implementation(project(":core:ui"))
     implementation(project(":core:security"))
     implementation(project(":core:api"))
+    implementation(project(":core:log"))
     implementation("org.apache.commons:commons-compress:1.27.1")
     implementation("net.lingala.zip4j:zip4j:2.11.5")
     implementation("org.tukaani:xz:1.10") // [ARCHIVE] dekoder XZ/LZMA2 untuk tar.xz, xz, dan 7z

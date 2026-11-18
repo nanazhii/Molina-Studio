@@ -80,7 +80,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import com.molina.core.common.CrashContext
 import com.molina.core.common.LogLevel
-import com.molina.studio.log.LogBus
+import com.molina.core.log.LogBus
 
 private val TvBg = Color(0xFF0E0B10)
 private val TileShape = RoundedCornerShape(6.dp)

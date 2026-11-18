@@ -9,7 +9,7 @@ import com.molina.studio.AppExit
 import android.os.Environment
 import android.system.Os
 import android.system.OsConstants
-import com.molina.studio.log.LogBus
+import com.molina.core.log.LogBus
 import com.molina.core.common.LogLevel
 import com.molina.terminal.TerminalSession
 import java.io.File
