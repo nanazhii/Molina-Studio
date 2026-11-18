@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.sp
 import com.molina.code.preview.CommandBlockSpec
 import com.molina.code.preview.ScriptLaunch
 import com.molina.studio.settings.CommandBlock
-import com.molina.studio.terminal.TerminalSessions
+import com.molina.core.api.MolinaServices
 import com.molina.studio.ui.MolinaTheme
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -48,7 +48,7 @@ import java.util.Locale
 @Composable
 internal fun ScriptRunDialog(item: ScriptItem, onDismiss: () -> Unit) {
     val ctx = LocalContext.current
-    val canNew = TerminalSessions.sessions.isNotEmpty() && TerminalSessions.canAdd()
+    val canNew = MolinaServices.terminal.let { it.sessionCount > 0 && it.canAddSession() }
     fun go(newSession: Boolean) {
         onDismiss()
         val err = ScriptRunner.run(ctx, item, newSession)

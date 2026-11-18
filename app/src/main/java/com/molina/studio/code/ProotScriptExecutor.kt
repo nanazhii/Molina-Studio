@@ -18,11 +18,9 @@ import com.molina.core.common.AppLog
 import com.molina.core.common.LogLevel
 import com.molina.core.common.YtdlpCommand
 import com.molina.studio.system.AndroidProcessOps
+import com.molina.core.api.MolinaServices
 import com.molina.studio.terminal.MolinaDns
-import com.molina.studio.terminal.RootfsManager
 import com.molina.studio.terminal.StorageBinds
-import com.molina.studio.terminal.TerminalPrefs
-import com.molina.studio.terminal.TerminalSessions
 import java.io.File
 import java.io.InputStream
 import java.io.InputStreamReader
@@ -85,7 +83,7 @@ internal class ProotScriptExecutor(context: Context, private val lane: Lane = La
 
     private fun runSync(req: RunRequest, out: RunListener, handle: Handle): RunResult {
         ScriptCommand.validate(req.args + (req.guestArgv ?: emptyList()), req.env)?.let { return failed(it) }
-        val rootfsDir = RootfsManager.rootfsDir(app)
+        val rootfsDir = MolinaServices.terminal.rootfsDir()
         if (!File(rootfsDir, "usr/bin/env").exists()) {
             return failed("Debian belum terpasang. Buka Settings > Terminal untuk menyiapkannya.")
         }
@@ -135,8 +133,8 @@ internal class ProotScriptExecutor(context: Context, private val lane: Lane = La
 
         // Lingkup storage sama dengan Terminal: default hanya folder kerja Molina yang di-bind.
         val storage = Environment.getExternalStorageDirectory().absolutePath
-        val workspace = TerminalSessions.WORKSPACE_DIR
-        val full = TerminalPrefs.fullStorageAccess
+        val workspace = MolinaServices.terminal.workspaceDir
+        val full = MolinaServices.terminal.fullStorageAccess
         val binds: List<String> = if (full) {
             File(rootfsDir, "storage/emulated/0").mkdirs()
             listOf("--bind=$storage:/sdcard", "--bind=$storage:/storage/emulated/0")
@@ -327,7 +325,7 @@ internal class ProotScriptExecutor(context: Context, private val lane: Lane = La
         val argv = req.guestArgv
         if (argv.isEmpty()) return StreamResult(-1, false, 0L, "Perintah kosong.")
         ScriptCommand.validate(argv, req.env)?.let { return StreamResult(-1, false, 0L, it) }
-        val rootfsDir = RootfsManager.rootfsDir(app)
+        val rootfsDir = MolinaServices.terminal.rootfsDir()
         if (!File(rootfsDir, "usr/bin/env").exists()) {
             return StreamResult(-1, false, 0L, "Debian belum terpasang. Buka Settings > Terminal untuk menyiapkannya.")
         }

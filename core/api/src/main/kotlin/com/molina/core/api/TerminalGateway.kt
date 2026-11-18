@@ -21,6 +21,8 @@ interface TerminalGateway {
     fun canAddSession(): Boolean
     /** True bila ada sesi aktif dengan emulator siap. */
     fun hasActiveSession(): Boolean
+    /** True bila sesi aktif sedang menjalankan program layar penuh (mis. nano, vim). */
+    fun isFullscreenProgramActive(): Boolean
     /** Izin penyimpanan penuh milik sesi aktif; null bila tidak ada sesi. */
     fun activeFullAccess(): Boolean?
     fun ensureSession()
@@ -31,6 +33,11 @@ interface TerminalGateway {
     fun killAll()
 
     // Input ke terminal aktif
+    /**
+     * Ketik [command] lalu Enter ke sesi (baru bila [inNewSession]) setelah shell siap.
+     * False bila batas sesi tercapai.
+     */
+    fun typeCommand(command: String, inNewSession: Boolean): Boolean
     fun send(text: String)
     /** Tempel [text] ke sesi aktif; [PasteResult] menjelaskan bila ditolak. */
     fun paste(text: String): PasteResult

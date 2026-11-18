@@ -1,7 +1,7 @@
 package com.molina.studio.code
 
 import android.content.Context
-import com.molina.studio.terminal.RootfsManager
+import com.molina.core.api.MolinaServices
 import java.io.File
 
 /**
@@ -12,7 +12,7 @@ import java.io.File
 object RunCheckPrefs {
     val MODES = listOf("ask", "fix", "no")
 
-    private fun file(ctx: Context) = File(RootfsManager.rootfsDir(ctx), "root/.config/molina/run-ask")
+    private fun file(ctx: Context) = File(MolinaServices.terminal.rootfsDir(), "root/.config/molina/run-ask")
 
     fun get(ctx: Context): String {
         val v = runCatching { file(ctx).takeIf { it.isFile }?.readText()?.lineSequence()?.firstOrNull()?.trim() }.getOrNull()
@@ -20,7 +20,7 @@ object RunCheckPrefs {
     }
 
     // [RUN-HINT] Tips skrip (shebang, izin eksekusi). Dibaca molina-run dari ~/.config/molina/run-notes; berkas tidak ada = tampil.
-    private fun notesFile(ctx: Context) = File(RootfsManager.rootfsDir(ctx), "root/.config/molina/run-notes")
+    private fun notesFile(ctx: Context) = File(MolinaServices.terminal.rootfsDir(), "root/.config/molina/run-notes")
 
     fun notesOn(ctx: Context): Boolean = runCatching {
         notesFile(ctx).takeIf { it.isFile }?.readText()?.lineSequence()?.firstOrNull()?.trim() != "off"

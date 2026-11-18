@@ -1,8 +1,8 @@
 package com.molina.studio.code
 
+import com.molina.core.api.MolinaServices
+import com.molina.core.api.PasteResult
 import com.molina.studio.terminal.PasteGuard
-import com.molina.studio.terminal.TerminalActions
-import com.molina.studio.terminal.TerminalSessions
 
 /**
  * Jembatan Code -> Terminal. Teks ditempel lewat emulator (bracketed paste bila shell mendukung),
@@ -17,8 +17,8 @@ internal object CodeTerminalBridge {
     fun guestPath(f: java.io.File): String? = com.molina.code.preview.GuestPaths.of(
         f.absolutePath,
         android.os.Environment.getExternalStorageDirectory().absolutePath,
-        TerminalSessions.WORKSPACE_DIR,
-        com.molina.studio.terminal.TerminalPrefs.fullStorageAccess,
+        MolinaServices.terminal.workspaceDir,
+        MolinaServices.terminal.fullStorageAccess,
         listOf(com.molina.core.common.MolinaPaths.APP_FOLDER)
     )
 
@@ -27,15 +27,13 @@ internal object CodeTerminalBridge {
         if (text.length > MAX_CHARS || lines > MAX_LINES) {
             return "Teks terlalu panjang ($lines baris) untuk ditempel. Simpan sebagai berkas lalu Jalankan di Terminal, atau tempel di nano."
         }
-        val em = TerminalSessions.currentSession?.emulator
-            ?: return "Terminal belum siap. Buka Settings > Terminal sekali dulu."
-        if (em.isAlternateBufferActive) return "Terminal sedang menjalankan program layar penuh"
+        val gw = MolinaServices.terminal
+        if (!gw.hasActiveSession()) return "Terminal belum siap. Buka Settings > Terminal sekali dulu."
+        if (gw.isFullscreenProgramActive()) return "Terminal sedang menjalankan program layar penuh"
         // Lewat PasteGuard -> PasteShape: dialog Python telanjang / heredoc tanpa penutup sama seperti tempel di Terminal.
         PasteGuard.pasteGuarded(ctx, text) { t ->
-            val cur = TerminalSessions.currentSession?.emulator
-            if (cur != null && !cur.isAlternateBufferActive) {
-                cur.paste(t)
-                if (execute) TerminalActions.send("\r")
+            if (gw.paste(t) == PasteResult.OK) {
+                if (execute) gw.send("\r")
                 ScriptNav.openTerminal = true
             }
         }
