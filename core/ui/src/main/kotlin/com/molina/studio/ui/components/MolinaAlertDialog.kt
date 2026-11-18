@@ -46,7 +46,7 @@ private object MolinaDialogSpec {
  * padding isi diperkecil sehingga blok tidak terlalu luas. Tombol memakai warna primer tema (hijau).
  */
 @Composable
-internal fun MolinaAlertDialog(
+fun MolinaAlertDialog(
     onDismissRequest: () -> Unit,
     confirmButton: @Composable () -> Unit,
     modifier: Modifier = Modifier,

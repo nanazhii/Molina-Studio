@@ -51,7 +51,7 @@ import com.molina.studio.ui.MolinaTheme
  * ToolCard di "Alat tambahan di Debian": sudut 10dp, border 1,5dp, strip status 3dp di kiri,
  * judul 15sp tebal, subjudul 12sp redup, header seksi 14sp NavHeader.
  */
-internal enum class PkgState { Unchecked, Current, Outdated, Checking }
+enum class PkgState { Unchecked, Current, Outdated, Checking }
 
 private val PkgShape = RoundedCornerShape(10.dp)
 private val PkgBorder = MolinaTheme.PanelBorder // [TOKEN-PUSAT]
@@ -68,7 +68,7 @@ private fun pkgStrip(state: PkgState): Color = when (state) {
 
 /** Header seksi seperti "Alat tambahan di Debian", dengan ringkasan status opsional di kanan. */
 @Composable
-internal fun PackageSectionHeader(title: String, trailing: String? = null, state: PkgState = PkgState.Unchecked) {
+fun PackageSectionHeader(title: String, trailing: String? = null, state: PkgState = PkgState.Unchecked) {
     Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(title, color = MolinaTheme.Explorer.NavHeader, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
         if (trailing != null) {
@@ -90,7 +90,7 @@ internal fun PackageSectionHeader(title: String, trailing: String? = null, state
  * [PAKET-KARTU2] [state] null = tanpa strip; [onClick] non-null = kartu aksi dengan chevron.
  */
 @Composable
-internal fun PackageStatusCard(
+fun PackageStatusCard(
     title: String,
     subtitle: String,
     state: PkgState?,
@@ -129,7 +129,7 @@ internal fun PackageStatusCard(
 
 /** Satu kartu berisi beberapa baris, dipisah garis tipis. */
 @Composable
-internal fun PackageGroupCard(content: @Composable ColumnScope.() -> Unit) {
+fun PackageGroupCard(content: @Composable ColumnScope.() -> Unit) {
     Column(
         Modifier.fillMaxWidth().clip(PkgShape).background(MolinaTheme.Explorer.Card, PkgShape).border(1.5.dp, PkgBorder, PkgShape),
         content = content
@@ -137,13 +137,13 @@ internal fun PackageGroupCard(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-internal fun PackageDivider() {
+fun PackageDivider() {
     Box(Modifier.fillMaxWidth().height(1.dp).background(MolinaTheme.Explorer.Hairline))
 }
 
 /** Baris informasi baca-saja di dalam [PackageGroupCard]: judul tebal, nilai redup. [STORAGE-KARTU] */
 @Composable
-internal fun PackageInfoRow(title: String, value: String) {
+fun PackageInfoRow(title: String, value: String) {
     Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp)) {
         Text(title, color = MolinaTheme.Explorer.Ink, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         Text(value, color = MolinaTheme.Explorer.TextDim, fontSize = 12.sp)
@@ -151,7 +151,7 @@ internal fun PackageInfoRow(title: String, value: String) {
 }
 
 @Composable
-internal fun PackageSwitchRow(title: String, summary: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+fun PackageSwitchRow(title: String, summary: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(
         Modifier.fillMaxWidth().clickable { onChange(!checked) }
             .padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
@@ -167,7 +167,7 @@ internal fun PackageSwitchRow(title: String, summary: String, checked: Boolean, 
 
 /** Blok aksi: kapsul PERIKSA SEKARANG dan PERBARUI SEMUA, lalu catatan redup. */
 @Composable
-internal fun PackageActionsBlock(
+fun PackageActionsBlock(
     running: Boolean,
     updates: Int,
     lastCheck: String,
@@ -191,7 +191,7 @@ internal fun PackageActionsBlock(
 
 /** [PAKET-FRAME] Warna strip status kartu: hijau = terdeteksi, abu = tidak/belum diperiksa, hijau Brand berdenyut = memeriksa. */
 @Composable
-internal fun statusStripColor(detected: Boolean, checking: Boolean, checked: Boolean): Color {
+fun statusStripColor(detected: Boolean, checking: Boolean, checked: Boolean): Color {
     if (checking) {
         val transition = rememberInfiniteTransition()
         val a by transition.animateFloat(
@@ -210,7 +210,7 @@ internal fun statusStripColor(detected: Boolean, checking: Boolean, checked: Boo
 
 /** [PAKET-FRAME] Tombol aksi berbentuk kapsul beroutline (PASANG biru, VERSI putih, HAPUS merah). */
 @Composable
-internal fun ActionChip(label: String, color: Color, onClick: () -> Unit) {
+fun ActionChip(label: String, color: Color, onClick: () -> Unit) {
     val shape = RoundedCornerShape(50)
     Text(
         label, color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1,
@@ -221,7 +221,7 @@ internal fun ActionChip(label: String, color: Color, onClick: () -> Unit) {
 
 /** Lencana bulat merah glossy (jumlah paket menunggu, dsb.) ala Windows 7. */
 @Composable
-internal fun MolinaBadge(text: String, aero: Boolean = false, gold: Boolean = false) {
+fun MolinaBadge(text: String, aero: Boolean = false, gold: Boolean = false) {
     val shape = RoundedCornerShape(10.dp)
     Box(
         Modifier
@@ -248,7 +248,7 @@ internal fun MolinaBadge(text: String, aero: Boolean = false, gold: Boolean = fa
  * [subtitle] teks redup opsional; [preview] cuplikan visual opsional di bawah judul (contoh prompt berwarna).
  */
 @Composable
-internal fun PackageChoiceRow(
+fun PackageChoiceRow(
     title: String,
     selected: Boolean,
     onSelect: () -> Unit,
@@ -277,7 +277,7 @@ internal fun PackageChoiceRow(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun PackageSliderRow(
+fun PackageSliderRow(
     title: String,
     valueText: String,
     value: Float,
@@ -314,7 +314,7 @@ internal fun PackageSliderRow(
 
 /** Catatan redup di bawah kartu grup (pengganti teks bodySmall lepas di halaman setelan). */
 @Composable
-internal fun PackageNote(text: String) {
+fun PackageNote(text: String) {
     Text(
         text, color = MolinaTheme.Explorer.TextDim, fontSize = 12.sp,
         modifier = Modifier.padding(start = 4.dp, top = 6.dp, end = 4.dp)
