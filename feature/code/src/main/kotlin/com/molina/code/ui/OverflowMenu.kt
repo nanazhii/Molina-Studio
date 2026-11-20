@@ -56,20 +56,17 @@ internal class MenuEntry(
 private const val MAX_SHARE_CHARS = 200_000
 
 /**
- * Menu titik tiga (F3b, blueprint bagian 14): 5 grup dipisah hairline, baris 44dp, tinggi maks 72%
+ * Menu titik tiga (F3b, blueprint bagian 14): 4 grup dipisah hairline, baris 44dp, tinggi maks 72%
  * layar, di-anchor kanan atas. Item yang fiturnya belum ada tampil redup dan menyala bertahap
  * sesuai fase (Buka, Muat ulang, Aksi file aktif sejak F4).
  */
-internal fun menuGroups(session: CodeSession, ctx: Context, onDismiss: () -> Unit): List<List<MenuEntry>> { // [CODE-PALETTE] dipakai menu dan Palet Perintah
+internal fun menuGroups(session: CodeSession, ctx: Context, onDismiss: () -> Unit): List<List<MenuEntry>> {
     val tab = session.active
     val rev = tab?.revision ?: 0
     val ed = tab?.editor
     val hasText = rev >= 0 && (ed?.text?.length ?: 0) > 0
 
     return listOf(
-        listOf(
-            MenuEntry("Palet perintah", enabled = true, icon = MenuIcon.Command) { session.paletteOpen = true; onDismiss() }
-        ),
         listOf(
             MenuEntry("Baru", enabled = true, icon = MenuIcon.New) { session.newTab(); onDismiss() },
             MenuEntry("Scratch baru", enabled = true, icon = MenuIcon.New) { session.scratchOpen = true; onDismiss() }, // [CODE-TEMPLATE]
@@ -87,8 +84,6 @@ internal fun menuGroups(session: CodeSession, ctx: Context, onDismiss: () -> Uni
                 onDismiss()
             },
             MenuEntry("Riwayat versi", enabled = tab?.file != null && !tab.loading && session.history != null, icon = MenuIcon.History) { session.historyOpen = true; onDismiss() }, // [CODE-HISTORY]
-            MenuEntry("Jadikan folder proyek", enabled = true, icon = MenuIcon.NewFolder) { session.pickProjectFolder(); onDismiss() }, // [CODE-PROJECT]
-            MenuEntry("Riwayat proyek", enabled = true, icon = MenuIcon.History) { session.openProjectLog(); onDismiss() }, // [CODE-PROJLOG]
             MenuEntry("Notifikasi perubahan" + (if (session.feedUnread > 0) " (${session.feedUnread})" else ""), enabled = true, icon = MenuIcon.History) { session.openChangeFeed(); onDismiss() }, // [CODE-FEED]
             MenuEntry("Aksi file", enabled = tab?.file != null && !session.isLibraryFile(tab.file), icon = MenuIcon.Actions) { // [CODE-DEBLIB]
                 tab?.file?.let { session.fileDialog = FileDialog.Menu(it) }
@@ -126,18 +121,6 @@ internal fun menuGroups(session: CodeSession, ctx: Context, onDismiss: () -> Uni
             },
             MenuEntry("Kirim ke Script Execution", enabled = hasText && session.scriptSink != null, icon = MenuIcon.Script) {
                 session.sendToScripts()
-                onDismiss()
-            },
-            MenuEntry("Simpan ke Vault", enabled = tab?.file != null && !tab.loading && session.vaultSink != null, icon = MenuIcon.ReadOnly) { // MOLINA-H13-BRIDGE
-                session.saveToVault()
-                onDismiss()
-            },
-            MenuEntry("Sisipkan ke Terminal", enabled = hasText && session.terminalSink != null, icon = MenuIcon.Insert) {
-                session.sendToTerminal(false)
-                onDismiss()
-            },
-            MenuEntry("Jalankan di Terminal", enabled = hasText && session.terminalSink != null, icon = MenuIcon.Run, danger = true) {
-                if (session.runLang() != null) session.runInTerminalForLang() else session.sendToTerminal(true) // [CODE-PYRUN2]
                 onDismiss()
             },
             MenuEntry("Simpan sebagai snippet", enabled = hasText && session.snippetSink != null, icon = MenuIcon.Snippet) {

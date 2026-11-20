@@ -163,17 +163,14 @@ fun CodeScreen(session: CodeSession, modifier: Modifier = Modifier, onExit: (() 
         session.active?.let { GotoLineDialog(it) { session.gotoOpen = false } }
     }
 
-    if (session.paletteOpen) CommandPalette(session) { session.paletteOpen = false } // [CODE-PALETTE]
     if (session.findFilesOpen) FindInFilesDialog(session) { session.findFilesOpen = false } // [CODE-SEARCH]
     if (session.templatesOpen) LiveTemplateDialog(session) { session.templatesOpen = false } // [CODE-TEMPLATE]
     if (session.scratchOpen) ScratchDialog(session) { session.scratchOpen = false }
-    if (session.pyRunOpen) session.active?.let { PythonRunDialog(session, it) { session.pyRunOpen = false } } // [CODE-PYRUN]
     if (session.historyOpen) session.active?.let { HistoryDialog(session, it) { session.historyOpen = false; session.historyFocus = null } } // [CODE-HISTORY]
     session.gutterTap?.let { GutterHunkDialog(session, it) { session.gutterTap = null } } // [CODE-HISTORY8]
     if (session.symbolOpen) SymbolDialog(session) { session.symbolOpen = false } // [CODE-SYMBOL]
     session.definitionChoices?.let { DefinitionDialog(session, it) { session.definitionChoices = null } } // [CODE-LSP6]
     if (session.problemsOpen) session.problems?.let { ProblemsDialog(session, it) { session.problemsOpen = false } } // [CODE-CHECK]
-    session.projectLogView?.let { ProjectLogDialog(session, it) { session.projectLogView = null } } // [CODE-PROJLOG]
     session.changeFeedView?.let { ChangeFeedDialog(session, it) { session.changeFeedView = null } } // [CODE-FEED]
     if (session.outlineOpen) session.active?.let { OutlineDialog(it) { session.outlineOpen = false } }
     if (session.infoOpen) session.active?.let { FileInfoScreen(it) { session.infoOpen = false } } // [CODE-INFO]

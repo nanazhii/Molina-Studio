@@ -10,9 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.molina.code.guard.DiskGuard
 import com.molina.code.guard.DiskVerdict
-import com.molina.code.guard.ProjectCommit
 import com.molina.code.guard.ProjectLog
-import com.molina.code.guard.ProjectRestore
 import com.molina.code.guard.ProjectStore
 import com.molina.code.guard.RunReport
 import com.molina.code.guard.NanoRunSnap // [NANO-RUNSNAP]
@@ -26,8 +24,6 @@ import com.molina.code.history.ShadowPolicy // [EXT-DIFF2]
 import com.molina.code.history.RestorePlan // [EXT-DIFF3]
 import com.molina.code.history.UndoLedger // [EXT-DIFF5]
 import com.molina.code.history.NanoInbox // [NANO-INBOX]
-import com.molina.code.preview.PythonTerminalRun
-import com.molina.code.preview.TerminalRunLang
 import com.molina.code.preview.RunPlans
 import com.molina.code.run.RunTimeout
 import com.molina.code.run.ScriptExecutor
@@ -235,9 +231,6 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
 
     /** Dialog Pergi ke baris terbuka. */
     var gotoOpen by mutableStateOf(false)
-
-    /** [CODE-PALETTE] Palet Perintah terbuka. */
-    var paletteOpen by mutableStateOf(false)
 
     /** [CODE-SEARCH] Dialog Cari di berkas dan Struktur berkas terbuka. */
     var findFilesOpen by mutableStateOf(false)
@@ -498,8 +491,6 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
     internal var undoRunOpen by mutableStateOf(false)
     private var runSnap: RunReport.Snapshot? = null
     private var runTitle: String = "" // [CODE-PROJLOG] judul skrip yang sedang jalan, untuk pesan catatan proyek
-    /** [CODE-PROJLOG] Potret Riwayat proyek yang sedang ditampilkan (null = dialog tertutup). */
-    internal var projectLogView by mutableStateOf<ProjectLogView?>(null)
     private var runStarting = false
 
     /** Dipasang :app (Debian PRoot). Null = tombol Play untuk skrip memberi tahu bahwa belum tersedia. */
@@ -766,22 +757,6 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
     /** Dipasang :app. Null = menu \"Kirim ke Script Execution\" redup. */
     var scriptSink: ScriptSink? = null
 
-    /** Dipasang :app. (teks, jalankan) -> pesan galat atau null. Null = menu Terminal redup. */
-    var terminalSink: ((String, Boolean) -> String?)? = null
-
-    /** MOLINA-H13-BRIDGE: dipasang :app. (berkas) -> pesan galat atau null bila Vault berhasil dibuka. Null = menu redup. */
-    var vaultSink: ((File) -> String?)? = null
-
-    /** Menu titik tiga: simpan berkas tab aktif ke Molina Vault. Vault membaca dari disk, jadi tab harus sudah tersimpan. */
-    internal fun saveToVault() {
-        val sink = vaultSink ?: run { toast("Molina Vault belum tersedia"); return }
-        val tab = active ?: return
-        if (tab.loading) return
-        val f = tab.file ?: run { toast("Simpan berkas ke disk dulu"); return }
-        if (tab.dirty) { toast("Ada perubahan belum disimpan. Simpan dulu: Vault membaca berkas dari disk"); return }
-        sink(f)?.let { toast(it) }
-    }
-
     /** Teks seleksi aktif, atau baris kursor bila tidak ada seleksi. Kosong bila tidak ada editor. */
     internal fun selectionOrLine(): String {
         val ed = active?.editor ?: return ""
@@ -793,128 +768,9 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         }
     }
 
-    /** Kirim seleksi (atau baris kursor) ke Terminal; [execute] true = langsung Enter. */
-    fun sendToTerminal(execute: Boolean) {
-        val sink = terminalSink
-        if (sink == null) { toast("Terminal belum tersedia"); return }
-        val text = selectionOrLine().trimEnd('\n', '\r')
-        if (text.isBlank()) { toast("Tidak ada teks untuk dikirim"); return }
-        sink(text, execute)?.let { toast(it) }
-    }
-
-    // ---------------------------------------------------------------- [CODE-PYRUN2] Jalankan Python/Shell di Terminal
-
-    /** Dialog "Jalankan di Terminal" untuk .py/.sh terbuka. */
-    var pyRunOpen by mutableStateOf(false)
-
-    /** Dipasang :app. Berkas host -> jalur guest Debian, atau null bila foldernya tidak terlihat di PRoot. */
-    var guestPathResolver: ((File) -> String?)? = null
-
-    /** Dipasang :app. Menyimpan pilihan dialog (mode terakhir, tanya/langsung). Null = tidak diingat. */
+    /** Dipasang :app. Menyimpan pengaturan editor dan pilihan kecil (font, tema, dst). Null = tidak diingat. */
     var runStore: RunStore? = null
         set(value) { field = value; loadEditorFont() } // [CODE-FONT]
-
-    /** Penulisan berkas terakhir oleh Jalankan di Terminal, untuk Urungkan (hanya di memori). */
-    internal var lastTerminalRun by mutableStateOf<TerminalRunUndo?>(null)
-
-    /** Bahasa tab aktif (.py / .sh) dari berkas, atau judul untuk tab tanpa berkas; null = bukan skrip yang dikenal. */
-    internal fun runLang(): TerminalRunLang? {
-        val t = active ?: return null
-        return PythonTerminalRun.langOf(t.file?.name ?: t.title)
-    }
-
-    /** True = dialog tampil (bawaan). False = pengguna memilih "ingat pilihan", langsung jalankan dengan mode terakhir. */
-    internal fun runAsk(): Boolean = runStore?.get(RunPrefs.KEY_ASK) != "0"
-
-    internal fun saveRunAsk(ask: Boolean) {
-        val s = runStore ?: return
-        s.put(RunPrefs.KEY_ASK, if (ask) "1" else "0")
-    }
-
-    /** [CODE-ROLES] Untuk halaman Pengaturan Editor Code: tanya dulu (dialog) atau langsung jalankan. */
-    var runDialogAsks: Boolean
-        get() = runAsk()
-        set(v) { saveRunAsk(v) }
-
-    /** [CODE-ROLES] Ada penulisan berkas terakhir dari Jalankan di Terminal yang bisa diurungkan. */
-    val terminalRunUndoReady: Boolean get() = lastTerminalRun != null
-
-    fun undoTerminalRun() = undoLastTerminalRun()
-
-    /**
-     * Titik masuk menu "Jalankan di Terminal" untuk tab .py/.sh. Dialog tampil kecuali pengguna memilih langsung;
-     * mode berkas langsung hanya untuk tab yang sudah punya berkas (tab baru tetap membuka dialog untuk memberi nama).
-     */
-    fun runInTerminalForLang() {
-        val lang = runLang()
-        val tab = active
-        if (lang == null || tab == null) { sendToTerminal(true); return }
-        val own = tab.file // [CODE-ROLES] heredoc dipensiunkan: selalu dari berkas, diperiksa molina-run
-        if (runAsk() || own == null) { pyRunOpen = true; return }
-        runScriptFileAt(tab, own, lang)
-    }
-
-    internal fun scriptHasSelection(): Boolean = try {
-        active?.editor?.cursor?.isSelected == true
-    } catch (e: Exception) {
-        false
-    }
-
-    /** Berkas tujuan mode berkas: folder berkas tab (atau folder simpan bawaan) + [fileName]. */
-    internal fun scriptTarget(tab: EditorTab, fileName: String?): File? {
-        if (fileName == null) return null
-        return File(tab.file?.parentFile ?: defaultSaveDir(tab), fileName)
-    }
-
-    /** Mode 2: nama dari dialog (ekstensi otomatis) lalu [runScriptFileAt]. */
-    fun runScriptFile(rawName: String, lang: TerminalRunLang) {
-        val tab = active ?: return
-        val n = PythonTerminalRun.normalizeName(rawName, lang)
-        val target = scriptTarget(tab, n.name)
-        if (target == null) { toast(n.error ?: "Nama tidak valid"); return }
-        runScriptFileAt(tab, target, lang)
-    }
-
-    /**
-     * Tulis isi tab ke [target] lalu jalankan dari foldernya. Isi lama dicadangkan ([lastTerminalRun]) sebelum
-     * ditimpa. Tab bersih yang sudah berupa [target] langsung dijalankan tanpa menulis.
-     */
-    internal fun runScriptFileAt(tab: EditorTab, target: File, lang: TerminalRunLang) {
-        val sink = terminalSink
-        if (sink == null) { toast("Terminal belum tersedia"); return }
-        if (tab.loading) { toast("Editor sedang memuat"); return }
-        val guest = guestPathResolver?.invoke(target)
-        if (guest == null) {
-            toast("Folder ini tidak terlihat di Debian. Simpan di folder kerja Molina atau aktifkan akses penuh storage.")
-            return
-        }
-        val cmd = PythonTerminalRun.fileCommand(guest, lang)
-        if (tab.file == target && !tab.dirty) { sink(cmd, true)?.let { toast(it) }; return }
-        val raw = FileStore.applyEol(tab.currentTextOrNull(Int.MAX_VALUE) ?: "", tab.eol)
-        if (raw.isBlank()) { toast("Tidak ada kode untuk dijalankan"); return }
-        checkedByMolinaRun { // [CODE-ROLES]
-            val content = raw // [CODE-ROLES]
-            if (content.isBlank()) { toast("Tidak ada kode untuk dijalankan"); return@checkedByMolinaRun }
-            runIo {
-                var undo: TerminalRunUndo? = null
-                var err: String? = null
-                try {
-                    undo = TerminalRunEngine.begin(target, content)
-                    FileStore.writeUtf8Atomic(target, content)
-                } catch (e: Exception) {
-                    err = e.message ?: "Gagal menulis berkas"
-                }
-                val failure = err
-                val made = undo
-                mainHandler.post {
-                    if (failure != null) { toast(failure); return@post }
-                    lastTerminalRun = made
-                    dir.refresh()
-                    sink(cmd, true)?.let { toast(it) }
-                }
-            }
-        }
-    }
 
     /** Dipasang :app. (nama, isi) -> pesan hasil untuk toast. Null = menu Simpan sebagai snippet redup. */
     var snippetSink: ((String, String) -> String)? = null
@@ -1052,12 +908,6 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
 
     /** Folder awal pemilih Buka: folder berkas tab aktif, lalu folder utama panel. */
     internal fun defaultOpenDir(): File = active?.file?.parentFile ?: dir.root
-
-    /** [CODE-PROJECT] Menu "Jadikan folder proyek": pilih folder, lalu buat penanda `.molina` (proyek lokal tanpa Git). */
-    internal fun pickProjectFolder() {
-        val start = RunReport.findRoot(defaultOpenDir())
-        picker = PickerRequest(PickMode.Folder, start, "Pilih folder proyek") { createProjectAt(it) }
-    }
 
     /** [CODE-FEED] Di thread IO: catat perubahan skrip sebagai notifikasi (folder mana pun) dan segarkan lencana menu. */
     private fun recordFeed(snap: RunReport.Snapshot, rep: RunReport.Report, source: String, label: String) {
@@ -1422,143 +1272,6 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         }
     }
 
-    /** [CODE-PROJLOG] Menu "Riwayat proyek": tampilkan log proyek `.molina` yang memuat folder aktif. */
-    internal fun openProjectLog() {
-        val ri = RunReport.findRootInfo(defaultOpenDir())
-        when (ri.how) {
-            com.molina.code.guard.ProjectMarker.DIR -> runIo {
-                val list = ProjectLog.read(ri.root)
-                val pend = ProjectCommit.pending(ri.root) // [CODE-COMMIT] null bila belum pernah commit
-                val snaps = ProjectStore.snapshotTimes(ri.root) // [CODE-STORE]
-                mainHandler.post { projectLogView = ProjectLogView(ri.root, list, pend, snaps) }
-            }
-            ".git" -> toast("Folder ini repo Git: riwayatnya memakai Git")
-            else -> toast("Belum proyek. Pakai menu Jadikan folder proyek dulu")
-        }
-    }
-
-    /** [CODE-COMMIT] Commit manual: catat berkas yang berubah sejak commit terakhir di log proyek, lalu segarkan dialog. */
-    internal fun commitProject(root: File, message: String) {
-        runIo {
-            val res = try {
-                ProjectCommit.commit(root, message, System.currentTimeMillis())
-            } catch (e: Exception) {
-                null
-            }
-            val committed = res?.status == ProjectCommit.Status.COMMITTED
-            val list = if (committed) ProjectLog.read(root) else null
-            val snaps = if (committed) ProjectStore.snapshotTimes(root) else emptySet() // [CODE-STORE]
-            mainHandler.post {
-                toast(
-                    when (res?.status) {
-                        ProjectCommit.Status.COMMITTED -> "Commit dibuat: ${res.entry?.fileCount ?: 0} berkas" +
-                            if (res.unsaved > 0) " (${res.unsaved} berkas isinya tidak tersimpan)" else ""
-                        ProjectCommit.Status.NOTHING -> "Tidak ada perubahan sejak commit terakhir"
-                        ProjectCommit.Status.DISABLED -> "Folder ini bukan proyek .molina"
-                        ProjectCommit.Status.TOO_BIG -> "Proyek terlalu besar untuk di-commit"
-                        else -> "Gagal membuat commit"
-                    }
-                )
-                if (list != null) projectLogView = ProjectLogView(root, list, 0, snaps)
-            }
-        }
-    }
-
-    /**
-     * [CODE-STORE] Kembalikan [path] di proyek [root] ke isinya pada commit [time] (salinan lokal). Tab berkas itu yang
-     * masih berisi perubahan belum disimpan menolak pemulihan; tab bersih dimuat ulang setelahnya.
-     */
-    internal fun restoreProjectFile(root: File, time: Long, path: String) {
-        val target = File(root, path)
-        if (tabFor(target)?.dirty == true) {
-            toast("Simpan atau tutup tab $path dulu")
-            return
-        }
-        runIo {
-            val st = try {
-                ProjectCommit.restoreFile(root, time, path, System.currentTimeMillis())
-            } catch (e: Exception) {
-                ProjectStore.RestoreStatus.FAILED
-            }
-            val ok = st == ProjectStore.RestoreStatus.OK
-            val list = if (ok) ProjectLog.read(root) else null
-            val pend = if (ok) ProjectCommit.pending(root) else null
-            val snaps = if (ok) ProjectStore.snapshotTimes(root) else emptySet()
-            mainHandler.post {
-                toast(
-                    when (st) {
-                        ProjectStore.RestoreStatus.OK -> "Dipulihkan: $path"
-                        ProjectStore.RestoreStatus.NO_BLOB -> "Isi versi ini tidak tersimpan (berkas besar atau penyimpanan penuh)"
-                        ProjectStore.RestoreStatus.NO_SNAPSHOT, ProjectStore.RestoreStatus.NOT_IN_SNAPSHOT -> "Versi ini tidak tersedia lagi"
-                        ProjectStore.RestoreStatus.BAD_PATH -> "Path tidak aman, dibatalkan"
-                        ProjectStore.RestoreStatus.FAILED -> "Gagal memulihkan $path"
-                    }
-                )
-                if (ok) {
-                    tabFor(target)?.let { if (!it.dirty) doReload(it) }
-                    if (list != null) projectLogView = ProjectLogView(root, list, pend, snaps)
-                }
-            }
-        }
-    }
-
-    /**
-     * [CODE-RESTORE] Pulihkan seluruh proyek [root] ke commit [time] ([affected] = path dari pratinjau). Commit pengaman
-     * dibuat otomatis lebih dulu. Tab berkas terdampak yang masih berisi perubahan belum disimpan menolak pemulihan;
-     * tab bersih dimuat ulang setelahnya.
-     */
-    internal fun restoreProjectAll(root: File, time: Long, affected: List<String>) {
-        affected.firstOrNull { tabFor(File(root, it))?.dirty == true }?.let {
-            toast("Simpan atau tutup tab $it dulu")
-            return
-        }
-        runIo {
-            val res = try {
-                ProjectRestore.run(root, time, System.currentTimeMillis())
-            } catch (e: Exception) {
-                ProjectRestore.Result(ProjectRestore.Status.SAFETY_FAILED)
-            }
-            val ok = res.status == ProjectRestore.Status.OK
-            val list = ProjectLog.read(root)
-            val pend = ProjectCommit.pending(root)
-            val snaps = ProjectStore.snapshotTimes(root)
-            mainHandler.post {
-                toast(
-                    when (res.status) {
-                        ProjectRestore.Status.OK ->
-                            "Proyek dipulihkan: ${res.overwritten} ditimpa, ${res.created} dibuat, ${res.deleted} dihapus" +
-                                (if (res.skipped > 0) ", ${res.skipped} dilewati" else "") +
-                                (if (res.failed > 0) ", ${res.failed} gagal" else "")
-                        ProjectRestore.Status.NO_SNAPSHOT -> "Versi ini tidak tersedia lagi"
-                        ProjectRestore.Status.DISABLED -> "Folder ini bukan proyek"
-                        ProjectRestore.Status.TOO_BIG -> "Proyek terlalu besar untuk dipulihkan"
-                        ProjectRestore.Status.SAFETY_FAILED -> "Gagal membuat commit pengaman; tidak ada berkas yang diubah"
-                    }
-                )
-                if (ok) for (p in affected) tabFor(File(root, p))?.let { if (!it.dirty && File(root, p).isFile) doReload(it) }
-                projectLogView = ProjectLogView(root, list, pend, snaps)
-            }
-        }
-    }
-
-    private fun createProjectAt(folder: File) {
-        runIo {
-            val mark = com.molina.code.guard.ProjectMarker.markerIn(folder)
-            val r = if (mark != null) null else com.molina.code.guard.ProjectMarker.create(folder, System.currentTimeMillis())
-            mainHandler.post {
-                val name = folder.name.ifEmpty { folder.path }
-                toast(
-                    when {
-                        mark != null -> "$name sudah proyek (ditandai $mark)"
-                        r == com.molina.code.guard.ProjectMarker.Result.CREATED ->
-                            "Proyek dibuat: $name. Laporan perubahan skrip kini memindai folder ini"
-                        else -> "Gagal membuat penanda proyek di $name"
-                    }
-                )
-                dir.refresh()
-            }
-        }
-    }
 
     /**
      * Buka berkas di tab. Berkas yang sudah terbuka hanya dipilih (tidak ada tab ganda). Tab "Baru"
@@ -1964,9 +1677,6 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
     private inline fun checkedByMolinaRun(go: () -> Unit) = go()
 
     private var lastStaleCheck = 0L
-
-    private fun kindOf(lang: TerminalRunLang): ScriptPrecheck.Kind =
-        if (lang == TerminalRunLang.PY) ScriptPrecheck.Kind.PY else ScriptPrecheck.Kind.SH
 
     /** Periksa [text] sebelum dijalankan. Bersih: [go] langsung. Bermasalah: dialog Tetap jalankan/Batal. */
     private fun guardedRun(title: String, text: String, kind: ScriptPrecheck.Kind, go: (ScriptPrecheck.Report) -> Unit) {

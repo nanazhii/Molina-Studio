@@ -8,7 +8,6 @@ interface RunStore {
 
 internal object RunPrefs {
     /** "0" = jangan tanya lagi (langsung pakai mode terakhir), selain itu dialog tampil. */
-    const val KEY_ASK = "run_ask"
 
     /** [CODE-FONT] Ukuran font editor (sp), bilangan bulat. Memakai penyimpanan yang sama. */
     const val KEY_FONT_SP = "editor_font_sp"

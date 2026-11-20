@@ -35,7 +35,7 @@ Anda bisa menulis skrip, menjalankannya, memasang alat tambahan, lalu pindah men
 - Pemeriksa kode: JSON dan XML bawaan, serta Python (pyflakes) dan Shell (shellcheck) bila terpasang di Debian.
 - Pemformat JSON dan XML.
 - Dukungan language server (LSP) untuk Python.
-- Pencarian dalam berkas, palet perintah, dan riwayat perubahan dengan perbandingan (diff).
+- Pencarian dalam berkas dan riwayat perubahan dengan perbandingan (diff).
 - Offline di sisi kode: editor, Penjelajah, dan pratinjau tidak membuka koneksi internet. Skrip yang Anda jalankan di Debian memakai jaringan perangkat seperti biasa.
 
 ## Molina Cinema
