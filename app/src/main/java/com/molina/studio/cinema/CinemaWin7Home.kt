@@ -30,7 +30,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import com.molina.studio.stream.StreamEnginePrefs
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -125,10 +124,6 @@ private fun TitleOrb() {
 
 @Composable
 private fun BrandRow(live: Boolean) {
-    val quality by StreamEnginePrefs.quality.collectAsState() // [QUALITY-BADGE]
-    val actualH by com.molina.core.common.StreamQuality.lastHeightFlow.collectAsState() // [QUALITY-BADGE-ACTUAL]
-    val playing by com.molina.cinema.BackgroundPlaybackState.mode.collectAsState() // [QUALITY-NOW]
-    val shown = if (live) (playing ?: quality) else quality // [QUALITY-NOW] saat memutar: tampilkan mode yang benar-benar jalan
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Image(painterResource(R.drawable.ic_cinema_orb), contentDescription = null, modifier = Modifier.size(56.dp))
         Spacer(Modifier.width(12.dp))
@@ -136,15 +131,7 @@ private fun BrandRow(live: Boolean) {
             Text("Molina", color = MolinaTheme.Brand, fontSize = 24.sp, fontWeight = FontWeight.Bold)
             Text("CINEMA \u00B7 HOME THEATER", color = Win7.NavHeader, fontSize = 11.sp, letterSpacing = 2.sp)
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) { // [QUALITY-BADGE]
-            QualityBadge(shown, actual = if (live) actualH else 0) { // [QUALITY-TAP] ketuk = resolusi berikutnya (AUTO -> 480 -> 576 -> 720 -> 1080 -> AUTO)
-                val all = com.molina.core.common.VideoQuality.values()
-                val next = all[(shown.ordinal + 1) % all.size]
-                val apply = com.molina.cinema.BackgroundPlaybackState.applyQuality // [QUALITY-NOW] saat memutar: terapkan ke item yang jalan
-                if (live && apply != null) apply(next) else StreamEnginePrefs.setQuality(next)
-            }
-            if (live) LiveBadge()
-        }
+        if (live) LiveBadge()
     }
 }
 

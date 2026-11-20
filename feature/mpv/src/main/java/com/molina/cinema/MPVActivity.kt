@@ -2272,7 +2272,6 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                     openCinemaHome()
                     false
                 },
-                MenuItem(R.id.qualityIconBtn) { restoreState(); showQualitySheet(); false }, // [QUALITY-SHEET]
                 MenuItem(R.id.audioLangBtn) { restoreState(); showAudioLangSheet(); false }, // [AUDIO-LANG]
                 MenuItem(R.id.chapterBtn) {
                     val chapters = player.loadChapters()
@@ -2315,13 +2314,6 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             hiddenButtons.add(R.id.backgroundBtn)
         if (!packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) hiddenButtons.add(R.id.menuPipBtn) // [MENU-SCROLL]
         if (!packageManager.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN)) hiddenButtons.add(R.id.menuLockBtn)
-        run { // [QUALITY-SHEET] sembunyikan untuk berkas lokal tanpa varian
-            val pg = MPVLib.getPropertyString("path")?.let { streamSources[it] }
-            val web = pg != null && StreamLoader.isWebUrl(pg)
-            // [AUDIO-BTN-REMOVED] audio-only kini lewat sheet kualitas: tampil juga untuk berkas lokal yang punya video + audio
-            if (!web && !forcedAudioOnly && readVideoVariants().size <= 1 && (player.vid == -1 || !isPlayingAudio))
-                hiddenButtons.add(R.id.qualityIconBtn)
-        }
         run { // [AUDIO-LANG] tampil hanya untuk stream web dengan >= 2 trek bahasa
             val pg = MPVLib.getPropertyString("path")?.let { streamSources[it] }
             if (pg == null || !StreamLoader.isWebUrl(pg) || com.molina.core.common.StreamAudioLang.lastTracks.size < 2)
@@ -2332,15 +2324,6 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         /******/
 
         genericMenu(R.layout.dialog_top_menu, buttons, hiddenButtons, restoreState, docked = true, maxHeightDp = 264) { v ->
-            v.findViewById<android.widget.ImageButton>(R.id.qualityIconBtn)?.apply { // [QUALITY-SHEET] tint = kunci aktif
-                val q = effectiveQuality() // [QUALITY-SYNC]
-                val gap = qualityMismatch() // [QUALITY-ACTUAL] ikon kuning = kunci tidak tercapai
-                val lowered = tierLowered() // [AUTO-NET-2] ikon kuning juga bila AUTO diturunkan karena macet
-                imageTintList = if (gap > 0 || lowered) ColorStateList.valueOf(android.graphics.Color.parseColor("#FFB020"))
-                    else ColorStateList.valueOf(ContextCompat.getColor(context,
-                        if (q != CoreQuality.AUTO) R.color.molina_brand else R.color.player_dialog_text))
-                contentDescription = getString(R.string.quality_sheet_title) + ": " + q.label + (if (gap > 0) " (${gap}p)" else if (q == CoreQuality.AUTO && actualHeight() > 0) " (${actualHeight()}p)" else "")
-            }
             v.findViewById<android.widget.ImageButton>(R.id.audioLangBtn)?.apply { // [AUDIO-LANG] tint merek = bahasa dipilih
                 imageTintList = ColorStateList.valueOf(ContextCompat.getColor(context,
                     if (com.molina.core.common.StreamAudioLang.preferred.isNotEmpty()) R.color.molina_brand else R.color.player_dialog_text))
@@ -2809,7 +2792,6 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         bufferingHandler.removeCallbacks(bufferingHint)
         bufferingHandler.removeCallbacks(tierLongStall) // [AUTO-NET-2]
         if (on) {
-            bufferingHandler.postDelayed(bufferingHint, 6000L)
             bufferingHandler.postDelayed(tierLongStall, 8000L) // [AUTO-NET-2]
             streamScope.launch { // [ANR-FIX2] baca seeking/time-pos di thread khusus
                 val skip = withContext(mpvDispatcher) {
@@ -2943,61 +2925,6 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     // [QUALITY-SYNC] Mode efektif: audio-only (tombol ♪ / jalur non-web) mengalahkan kunci resolusi tersimpan.
     private fun effectiveQuality(): CoreQuality =
         if (forcedAudioOnly || useAudioUI) CoreQuality.AUDIO else com.molina.core.common.StreamQuality.current // [QUALITY-SYNC4-C] cermin keadaan nyata, bukan hanya kunci
-
-    // [QUALITY-SHEET] Gaya YouTube: satu daftar; memilih = mengunci (tersimpan, berlaku juga untuk video berikutnya).
-    private fun showQualitySheet() {
-        val order = listOf(CoreQuality.AUTO, CoreQuality.P1080, CoreQuality.P720, CoreQuality.P576, CoreQuality.P480, CoreQuality.AUDIO)
-        val cur = effectiveQuality() // [QUALITY-SYNC]
-        val builder = AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog_Compact) // [QUALITY-COMPACT]
-        val header = android.widget.TextView(builder.context).apply {
-            val pad = Utils.convertDp(this@MPVActivity, 16f)
-            setPadding(pad, pad * 3 / 4, pad, pad / 4)
-            textSize = 12f
-            val ta = builder.context.obtainStyledAttributes(intArrayOf(android.R.attr.textColorPrimary))
-            setTextColor(ta.getColor(0, android.graphics.Color.WHITE))
-            ta.recycle()
-        }
-        var inFlight = false
-        fun refresh() { // [ANR-FIX2]
-            if (inFlight) return
-            inFlight = true
-            streamScope.launch {
-                try {
-                    val text = withContext(mpvDispatcher) {
-                        val c = readPlayConditions()
-                        val lines = mutableListOf(getString(R.string.quality_sheet_title), qualityStatus(c, null))
-                        if (c.buffering && cur != CoreQuality.AUDIO && cur != CoreQuality.P480) lines.add(getString(R.string.quality_slow_hint))
-                        lines.joinToString("\n")
-                    }
-                    header.text = text
-                } finally { inFlight = false }
-            }
-        }
-        refresh()
-        builder.setCustomTitle(header)
-        val labels = order.map { q ->
-            q.label + (if (q == cur && q != CoreQuality.AUTO) " " + getString(R.string.quality_locked_suffix) else "") +
-                (if (q == cur && qualityMismatch() > 0) " " + getString(R.string.quality_actual_suffix, qualityMismatch())
-                    else if (q == cur && q == CoreQuality.AUTO && actualHeight() > 0) " " + getString(R.string.quality_actual_suffix, actualHeight())
-                    else "") // [QUALITY-ACTUAL]
-        }.toTypedArray()
-        builder.setSingleChoiceItems(labels, order.indexOf(cur).coerceAtLeast(0)) { dialog, item ->
-            dialog.dismiss()
-            applyQualityLock(order[item])
-        }
-        builder.setNegativeButton(R.string.dialog_cancel, null)
-        val handler = android.os.Handler(android.os.Looper.getMainLooper())
-        val tick = object : Runnable {
-            override fun run() {
-                if (isFinishing || isDestroyed) return
-                refresh()
-                handler.postDelayed(this, 1000L)
-            }
-        }
-        builder.setOnDismissListener { handler.removeCallbacks(tick) }
-        builder.create().show()
-        handler.postDelayed(tick, 1000L)
-    }
 
     /**
      * [LIVE-SWITCH] Siaran live (HLS) selalu memakai URL yang sama untuk semua kualitas, jadi resolve ulang hanya

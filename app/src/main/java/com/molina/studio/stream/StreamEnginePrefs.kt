@@ -61,7 +61,6 @@ object StreamEnginePrefs {
     fun setQuality(v: VideoQuality) {
         _quality.value = v
         StreamQuality.current = v
-        sp?.edit()?.putString(KEY_QUALITY, v.name)?.apply()
         StreamQuality.notifyChosen(v) // [QUALITY-SYNC3]
     }
 
@@ -96,7 +95,9 @@ object StreamEnginePrefs {
                 e.putString(KEY_QUALITY, VideoQuality.AUTO.name)
             e.putBoolean("quality_auto_migrated_v1", true).apply()
         }
-        val q = VideoQuality.fromName(p.getString(KEY_QUALITY, null)) // [QUALITY]
+        // [HD-DIHAPUS] pilihan resolusi dihapus: pilihan lama dibuang, selalu AUTO
+        if (p.contains(KEY_QUALITY)) p.edit().remove(KEY_QUALITY).apply()
+        val q = VideoQuality.AUTO // [QUALITY]
         _quality.value = q
         StreamQuality.current = q
         StreamQuality.onChange = { setQuality(it) } // [QUALITY-LOCK]

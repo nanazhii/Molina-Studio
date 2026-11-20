@@ -8,7 +8,6 @@ import com.molina.studio.ui.components.PackageStatusCard
 import com.molina.studio.ui.components.PackageSwitchRow
 import com.molina.studio.ui.components.PackageChoiceRow
 import com.molina.studio.ui.components.PackageNote
-import com.molina.core.common.VideoQuality
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.unit.dp
@@ -99,19 +98,6 @@ internal fun PlayerSettingsPage(onOpenCinema: () -> Unit) {
             HwdecBridge.setEnabled(ctx, it)
         }
     }
-
-    Spacer(Modifier.height(16.dp))
-    PackageSectionHeader("Kualitas video YouTube") // [QUALITY]
-    val savedQuality by StreamEnginePrefs.quality.collectAsState()
-    val audioNow by com.molina.core.common.StreamQuality.audioOnlyActive.collectAsState() // [QUALITY-SYNC3]
-    val quality = if (audioNow) VideoQuality.AUDIO else savedQuality
-    PackageGroupCard {
-        VideoQuality.values().forEachIndexed { i, q ->
-            if (i > 0) PackageDivider()
-            PackageChoiceRow(q.label, quality == q, { StreamEnginePrefs.setQuality(q) }, q.hint)
-        }
-    }
-    PackageNote("Berlaku pada video berikutnya, dan pada video yang sedang diputar saat Anda kembali ke pemutar. Bila resolusi pilihan tidak tersedia, dipakai yang terdekat.")
 
     Spacer(Modifier.height(16.dp))
     PackageSectionHeader("Bahasa audio YouTube") // [AUDIO-LANG]
