@@ -131,7 +131,7 @@ internal object FileStore {
         val arr = dir.listFiles() ?: return null
         return arr.asSequence()
             .map { DirEntry(it, it.isDirectory) }
-            .sortedWith(com.molina.core.common.DirOrder.foldersFirst<DirEntry>({ it.isDir }, { it.file.name })) // [FILE-CONTRACT]
+            .sortedWith(com.molina.core.files.DirOrder.foldersFirst<DirEntry>({ it.isDir }, { it.file.name })) // [FILE-CONTRACT]
             .take(MAX_LIST_ENTRIES)
             .toList()
     }

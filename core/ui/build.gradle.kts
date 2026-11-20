@@ -19,7 +19,7 @@ android {
 }
 
 dependencies {
-    api(project(":core:common")) // [FILE-CONTRACT] FolderKind tampil di API publik MintFolderTint
+    api(project(":core:files")) // [FILE-CONTRACT] FolderKind tampil di API publik MintFolderTint
     implementation(platform("androidx.compose:compose-bom:2024.12.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")

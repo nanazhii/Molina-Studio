@@ -23,8 +23,8 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
-import com.molina.core.common.FolderKind
-import com.molina.core.common.FolderKinds
+import com.molina.core.files.FolderKind
+import com.molina.core.files.FolderKinds
 import com.molina.studio.ui.MolinaTheme
 
 /** [MINT-ICONS] Palet ikon gaya Linux Mint (Mint-Y): halaman abu terang; kontras nyaman di dark mode. */

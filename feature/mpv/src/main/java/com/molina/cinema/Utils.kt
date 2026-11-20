@@ -265,8 +265,8 @@ internal object Utils {
         return lines.joinToString("\n", "", "\n")
     }
 
-    /** Urutan alami: "ep2" sebelum "ep10". [FILE-CONTRACT] Implementasi tunggal di :core:common (NaturalOrder). */
-    fun naturalCompare(a: String, b: String): Int = com.molina.core.common.NaturalOrder.compare(a, b)
+    /** Urutan alami: "ep2" sebelum "ep10". [FILE-CONTRACT] Implementasi tunggal di :core:files (NaturalOrder). */
+    fun naturalCompare(a: String, b: String): Int = com.molina.core.files.NaturalOrder.compare(a, b)
 
     /**
      * Media satu folder dengan berkas [path] (urut alami) dan indeks berkas itu.

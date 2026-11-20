@@ -12,7 +12,7 @@ object MpvFolder {
     private const val MAX_DEPTH = 6
 
     private fun isMedia(f: File): Boolean =
-        f.isFile && !com.molina.core.common.FileTypes.isHidden(f.name) &&
+        f.isFile && !com.molina.core.files.FileTypes.isHidden(f.name) &&
             f.extension.lowercase().let { it in Utils.MEDIA_EXTENSIONS && it !in SKIP }
 
     /** Path berkas media pertama di [dir] (tidak rekursif), atau null bila tidak ada. */
@@ -34,7 +34,7 @@ object MpvFolder {
             val canon = runCatching { d.canonicalPath }.getOrNull() ?: return
             if (!seen.add(canon)) return
             val children = d.listFiles() ?: return
-            val sorted = children.filter { !com.molina.core.common.FileTypes.isHidden(it.name) } // [FILE-CONTRACT]
+            val sorted = children.filter { !com.molina.core.files.FileTypes.isHidden(it.name) } // [FILE-CONTRACT]
                 .sortedWith { a, b -> Utils.naturalCompare(a.name, b.name) }
             for (f in sorted) {
                 if (out.size >= MAX_ENTRIES) return

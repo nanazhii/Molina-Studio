@@ -18,8 +18,8 @@ import java.io.File
  * sehingga thread utama tidak terblokir. Kegagalan dicatat agar tidak dicoba berulang.
  */
 internal object W7Thumb {
-    private val VIDEO = com.molina.core.common.FileTypes.VIDEO // [FILE-CONTRACT]
-    private val AUDIO = com.molina.core.common.FileTypes.AUDIO
+    private val VIDEO = com.molina.core.files.FileTypes.VIDEO // [FILE-CONTRACT]
+    private val AUDIO = com.molina.core.files.FileTypes.AUDIO
     private const val MAX_W = 160
     private const val MAX_H = 90
     private const val MAX_COVER = 120

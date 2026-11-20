@@ -105,7 +105,7 @@ private sealed class Sheet {
 }
 
 /** Isi folder: folder dulu, lalu berkas, urut nama. Memblokir: panggil dari thread IO. */
-private fun listDir(dir: File): List<File> = com.molina.core.common.DirOrder.list(dir) // [FILE-CONTRACT]
+private fun listDir(dir: File): List<File> = com.molina.core.files.DirOrder.list(dir) // [FILE-CONTRACT]
 
 private fun toast(ctx: Context, msg: String) {
     Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()

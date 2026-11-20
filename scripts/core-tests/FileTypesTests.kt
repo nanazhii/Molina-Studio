@@ -1,8 +1,8 @@
-import com.molina.core.common.DirOrder
-import com.molina.core.common.FileTypes
-import com.molina.core.common.FolderKind
-import com.molina.core.common.FolderKinds
-import com.molina.core.common.NaturalOrder
+import com.molina.core.files.DirOrder
+import com.molina.core.files.FileTypes
+import com.molina.core.files.FolderKind
+import com.molina.core.files.FolderKinds
+import com.molina.core.files.NaturalOrder
 import java.io.File
 import kotlin.system.exitProcess
 

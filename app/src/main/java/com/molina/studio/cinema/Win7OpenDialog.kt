@@ -134,9 +134,9 @@ private fun w7StemEnd(name: String, dir: Boolean): Int =
     if (dir) name.length else name.lastIndexOf('.').let { if (it > 0) it else name.length }
 
 internal val W7_ID = Locale("id", "ID")
-internal val W7_LISTS = com.molina.core.common.FileTypes.LISTS // [FILE-CONTRACT]
-private val W7_AUDIO = com.molina.core.common.FileTypes.AUDIO
-internal val W7_MEDIA = com.molina.core.common.FileTypes.MEDIA
+internal val W7_LISTS = com.molina.core.files.FileTypes.LISTS // [FILE-CONTRACT]
+private val W7_AUDIO = com.molina.core.files.FileTypes.AUDIO
+internal val W7_MEDIA = com.molina.core.files.FileTypes.MEDIA
 
 private fun w7HasStorage(ctx: Context) =
     ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED

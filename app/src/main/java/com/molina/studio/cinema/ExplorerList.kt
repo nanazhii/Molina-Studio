@@ -117,6 +117,6 @@ internal object ExplorerList {
         return ordered(items.filter { it.isDir }, dirKey) + ordered(items.filter { !it.isDir }, o.key)
     }
 
-    /** Heuristik teks. [FILE-CONTRACT] Implementasi tunggal di :core:common (FileTypes.looksText). */
-    fun looksText(f: File): Boolean = com.molina.core.common.FileTypes.looksText(f)
+    /** Heuristik teks. [FILE-CONTRACT] Implementasi tunggal di :core:files (FileTypes.looksText). */
+    fun looksText(f: File): Boolean = com.molina.core.files.FileTypes.looksText(f)
 }
