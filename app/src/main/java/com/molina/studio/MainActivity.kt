@@ -56,8 +56,9 @@ import androidx.compose.ui.graphics.Color
 
 private enum class Tab(@StringRes val labelRes: Int, val glyph: String, val color: Color) {
     Mpv(R.string.tab_mpv, "\u25B6", Color(0xFFB388FF)),          // [NAV-SLIM] ungu pekat: bioskop
-    Files(R.string.tab_files, "\u25A4", Color(0xFF5C9DFF)),       // biru pekat: penjelajah berkas (Editor dibuka dari sini, layar penuh)
-    Terminal(R.string.tab_terminal, ">_", Color(0xFFFFB74D)),      // amber: terminal (slot lama Editor)
+    Files(R.string.tab_files, "\u25A4", Color(0xFF5C9DFF)),       // biru pekat: penjelajah berkas
+    Editor(R.string.tab_editor, "</>", Color(0xFF69F0AE)),         // [NAV-EDITOR] hijau mint: editor kode (tab sendiri)
+    Terminal(R.string.tab_terminal, ">_", Color(0xFFFFB74D)),      // amber: terminal
     Settings(R.string.tab_settings, "\u2699", Color(0xFFB8C2CC))  // abu dingin terang: pengaturan
 }
 
@@ -229,10 +230,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme(colorScheme = MolinaColors) {
                 var selected by rememberSaveable { mutableIntStateOf(0) }
-                var codeOpen by rememberSaveable { mutableStateOf(false) } // Editor Code layar penuh, dibuka dari Berkas
-                androidx.compose.runtime.LaunchedEffect(selected) { if (selected != Tab.Files.ordinal) codeOpen = false }
                 androidx.compose.runtime.LaunchedEffect(selected) { com.molina.core.common.CrashContext.tab = this@MainActivity.getString(Tab.entries[selected].labelRes) }
-                androidx.compose.runtime.LaunchedEffect(selected, codeOpen) { // [NANO-INBOX] snapshot nano masuk Riwayat Code saat pindah tab
+                androidx.compose.runtime.LaunchedEffect(selected) { // [NANO-INBOX] snapshot nano masuk Riwayat Code saat pindah tab
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { codeSessionRef?.importNanoInbox() }
                 }
                 val codeSession = remember {
@@ -280,8 +279,7 @@ class MainActivity : ComponentActivity() {
                 // Editor Code: layar penuh dari tab Berkas (bukan tab nav). Dipakai jembatan Terminal -> Code dan pintasan "code".
                 androidx.compose.runtime.LaunchedEffect(com.molina.studio.code.CodeNav.openEditor) {
                     if (com.molina.studio.code.CodeNav.openEditor) {
-                        selected = Tab.Files.ordinal
-                        codeOpen = true
+                        selected = Tab.Editor.ordinal
                         com.molina.studio.code.CodeNav.openEditor = false
                     }
                 }
@@ -296,7 +294,7 @@ class MainActivity : ComponentActivity() {
                 androidx.compose.runtime.LaunchedEffect(com.molina.studio.code.CodeNav.pending) {
                     com.molina.studio.code.CodeNav.pending?.let { req ->
                         codeSession.openScript(req.title, req.key, req.text)
-                        selected = Tab.Files.ordinal; codeOpen = true
+                        selected = Tab.Editor.ordinal
                         com.molina.studio.code.CodeNav.pending = null
                     }
                 }
@@ -305,7 +303,7 @@ class MainActivity : ComponentActivity() {
                     val files = com.molina.studio.code.CodeNav.pendingFiles
                     if (files.isNotEmpty()) {
                         files.forEach { codeSession.openFile(it) }
-                        selected = Tab.Files.ordinal; codeOpen = true
+                        selected = Tab.Editor.ordinal
                         com.molina.studio.code.CodeNav.pendingFiles = emptyList()
                     }
                 }
@@ -349,7 +347,7 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     containerColor = MaterialTheme.colorScheme.background,
                     bottomBar = {
-                        if (!keyboardVisible && !codeOpen) {
+                        if (!keyboardVisible) {
                             Column {
                                 com.molina.studio.settings.ToolRunPill() // [MINIMIZE-RUN]
                                 Box(
@@ -413,17 +411,16 @@ class MainActivity : ComponentActivity() {
                 ) { pad ->
                     when (Tab.entries[selected]) {
                         Tab.Files -> {
-                            if (codeOpen) {
-                                androidx.activity.compose.BackHandler(onBack = { codeOpen = false })
-                                com.molina.code.ui.CodeScreen(codeSession, Modifier.fillMaxSize().padding(pad), onExit = { codeOpen = false })
-                            } else {
-                                // [EDITOR-IN-DROP] Editor kini di menu drop (ikon kisi) Penjelajah; pil mengambang dihapus agar tidak menimpa.
-                                com.molina.studio.settings.FilesTabScreen(
-                                    Modifier.fillMaxSize().padding(pad),
-                                    onExit = { selected = Tab.Mpv.ordinal },
-                                    onOpenEditor = { codeOpen = true }
-                                )
-                            }
+                            // [NAV-EDITOR] Editor kini tab sendiri; onOpenEditor = null menyembunyikan item "Editor" di menu drop.
+                            com.molina.studio.settings.FilesTabScreen(
+                                Modifier.fillMaxSize().padding(pad),
+                                onExit = { selected = Tab.Mpv.ordinal }
+                            )
+                            return@Scaffold
+                        }
+                        Tab.Editor -> { // [NAV-EDITOR]
+                            androidx.activity.compose.BackHandler(onBack = { selected = Tab.Files.ordinal })
+                            com.molina.code.ui.CodeScreen(codeSession, Modifier.fillMaxSize().padding(pad), onExit = { selected = Tab.Files.ordinal })
                             return@Scaffold
                         }
                         Tab.Mpv -> {
