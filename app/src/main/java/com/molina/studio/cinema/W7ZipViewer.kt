@@ -31,6 +31,19 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import com.molina.studio.ui.MolinaTheme
+import android.view.Gravity
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 
 // [SPLIT-ZIP] Penampil ZIP Penjelajah (W7ZipDialog dan pendukungnya), dipecah dari Win7OpenDialog.kt.
 
@@ -245,106 +258,176 @@ internal fun W7ZipDialog(
         }
     }
     var showHelp by remember { mutableStateOf(false) } // [ZIP-LAYOUT]
-    W7Panel("ZIP: " + zip.name, { tryClose() }) {
-        val l = listing
-        val e = err
-        when {
-            e != null -> Text(e, color = MolinaTheme.Bad, fontSize = 12.sp)
-            l == null -> Text("Membaca isi ZIP\u2026", color = Win7.TextDim, fontSize = 12.sp)
-            else -> {
-                Text(
-                    l.files.toString() + " berkas, " + l.folders + " folder \u2022 " + FileOps.readable(l.totalSize),
-                    color = Win7.Ink, fontSize = 12.sp
-                )
-                if (l.encrypted) {
-                    Spacer(Modifier.height(4.dp))
-                    Text("Terenkripsi AES: kata sandi diminta saat membuka entri, menyimpan, atau mengekstrak.", color = Color(0xFFE0A800), fontSize = 12.sp)
+    // [ZIP-SHEET] Desain lembar bawah ala Molina_Studio (ArchiveSheet): judul + ringkasan, chip breadcrumb, Cari,
+    // baris dua baris dengan centang, tombol "Ekstrak semua". Logika ZIP (buka/simpan/tempel/hapus) tidak berubah.
+    var query by remember(zip) { mutableStateOf("") }
+    var searchOpen by remember(zip) { mutableStateOf(false) }
+    var menuOpen by remember(zip) { mutableStateOf(false) }
+    val sl = listing
+    val se = err
+    val rows: List<W7ZipChild> = remember(sl, cwd, query) {
+        if (sl == null) emptyList()
+        else if (query.isBlank()) w7ZipChildren(sl.entries, cwd)
+        else {
+            val q = query.trim().lowercase()
+            sl.entries.asSequence()
+                .filter { it.name.trimEnd('/').substringAfterLast('/').lowercase().contains(q) }
+                .take(200)
+                .map { en ->
+                    val n = en.name.trimEnd('/')
+                    W7ZipChild(if (en.isDir) n + "/" else n, n.substringAfterLast('/'), en.isDir, en.size)
                 }
-                Spacer(Modifier.height(6.dp))
-                Text("/" + cwd, color = Win7.NavHeader, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Spacer(Modifier.height(4.dp))
-                val children = remember(l, cwd) { w7ZipChildren(l.entries, cwd) }
-                Column(
-                    Modifier.fillMaxWidth().heightIn(max = 220.dp).background(Win7.Input)
-                        .border(1.dp, Win7.Field).verticalScroll(rememberScrollState())
-                ) {
-                    if (cwd.isNotEmpty()) Row(
-                        Modifier.fillMaxWidth().clickable(enabled = !busy) {
-                            cwd = cwd.trimEnd('/').substringBeforeLast('/', "").let { if (it.isEmpty()) "" else it + "/" }
-                            picked = null
-                        }.padding(horizontal = 6.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("\u2190  ..", color = Win7.NavHeader, fontSize = 12.sp)
-                    }
-                    children.forEach { ch ->
-                        val on = !ch.isDir && ch.full == picked
-                        Row(
-                            Modifier.fillMaxWidth()
-                                .then(if (on) Modifier.background(Win7.SelFill) else Modifier)
-                                .clickable(enabled = !busy) {
-                                    delArm = null
-                                    if (ch.isDir) { cwd = ch.full; picked = null }
-                                    else if (picked == ch.full) openEntry(ch.full, null)
-                                    else picked = ch.full
-                                }
-                                .padding(horizontal = 6.dp, vertical = 3.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (ch.isDir) Win7Folder(16.dp) else W7FileIcon(ch.label.substringAfterLast('.', ""), 18.dp)
+                .toList()
+        }
+    }
+    val maxSheetH = (LocalConfiguration.current.screenHeightDp * 0.88f).dp
+    fun parentOf(p: String): String = p.trimEnd('/').substringBeforeLast('/', "").let { if (it.isEmpty()) "" else it + "/" }
+    fun sheetBack() {
+        if (menuOpen) menuOpen = false
+        else if (query.isNotEmpty() || searchOpen) { query = ""; searchOpen = false }
+        else if (cwd.isNotEmpty()) { cwd = parentOf(cwd); picked = null; delArm = null }
+        else tryClose()
+    }
+    Dialog(onDismissRequest = { sheetBack() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        val sheetWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
+        SideEffect { sheetWindow?.setGravity(Gravity.BOTTOM) }
+        val shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+        Column(
+            Modifier.fillMaxWidth().heightIn(max = maxSheetH).clip(shape)
+                .background(W7ZipSheetColors.Bg, shape)
+                .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp)
+        ) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(zip.name, color = W7ZipSheetColors.Ink, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        when {
+                            se != null -> "Gagal membaca arsip"
+                            sl == null -> "Membaca isi arsip\u2026"
+                            else -> "zip \u2022 " + sl.files + " berkas, " + sl.folders + " folder \u2022 " + FileOps.readable(sl.totalSize) + (if (sl.encrypted) " \u2022 terenkripsi" else "")
+                        },
+                        color = W7ZipSheetColors.Dim, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Text(
+                    "\u22EE", color = W7ZipSheetColors.Ink, fontSize = 22.sp,
+                    modifier = Modifier.clickable { menuOpen = !menuOpen }.padding(start = 14.dp, top = 6.dp, end = 6.dp, bottom = 6.dp)
+                )
+            }
+            if (menuOpen) Column(
+                Modifier.fillMaxWidth().padding(top = 6.dp).background(W7ZipSheetColors.Surface)
+                    .border(1.dp, W7ZipSheetColors.Frame.copy(alpha = 0.67f))
+            ) {
+                ZipMenuItem("Terminal di folder salinan", picked != null && !busy && onOpenTerminal != null) { menuOpen = false; picked?.let { openEntry(it, null, true) } }
+                ZipMenuItem("Simpan perubahan ke ZIP", dirty.isNotEmpty() && !busy) { menuOpen = false; saveBack(null) }
+                ZipMenuItem("Tempel dari klip Penjelajah", sl != null && !busy) { menuOpen = false; addFromClip(null) }
+                ZipMenuItem(if (delArm != null) "Yakin hapus? Ketuk lagi" else "Hapus terpilih / folder ini", sl != null && !busy && (picked != null || cwd.isNotEmpty()), danger = true) { menuOpen = false; deleteTarget() }
+                ZipMenuItem("Bantuan", true) { menuOpen = false; showHelp = true }
+                ZipMenuItem("Tutup", true) { menuOpen = false; tryClose() }
+            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(top = 6.dp, bottom = 2.dp)) {
+                    if (query.isNotBlank()) ZipCrumb("Hasil pencarian", true, null)
+                    else {
+                        val segs = cwd.trimEnd('/').split('/').filter { it.isNotEmpty() }
+                        ZipCrumb("Isi arsip", segs.isEmpty(), if (segs.isEmpty()) null else ({ cwd = ""; picked = null; delArm = null }))
+                        segs.forEachIndexed { i, name ->
                             Spacer(Modifier.width(6.dp))
-                            Text(
-                                ch.label, color = if (ch.isDir) Win7.NavHeader else Win7.Ink, fontSize = 12.sp, maxLines = 1,
-                                overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
-                            )
-                            if (opened[ch.full] != null && ch.full in dirty) Text("diubah", color = MolinaTheme.Brand, fontSize = 10.sp, modifier = Modifier.padding(start = 6.dp))
-                            if (!ch.isDir) Text(FileOps.readable(ch.size), color = Win7.TextDim, fontSize = 11.sp, modifier = Modifier.padding(start = 8.dp))
+                            val last = i == segs.lastIndex
+                            ZipCrumb(name, last, if (last) null else ({ cwd = segs.take(i + 1).joinToString("/") + "/"; picked = null; delArm = null }))
                         }
                     }
-                    if (children.isEmpty()) Text("Folder ini kosong.", color = Win7.TextDim, fontSize = 11.sp, modifier = Modifier.padding(6.dp))
-                    if (l.truncated) Text(
-                        "\u2026 hanya " + FileOps.ZIP_LIST_MAX + " entri pertama ditampilkan",
-                        color = Win7.TextDim, fontSize = 11.sp, modifier = Modifier.padding(6.dp)
-                    )
                 }
-                val pv = preview
-                if (pv != null) {
-                    Spacer(Modifier.height(6.dp))
-                    Box(Modifier.fillMaxWidth().height(110.dp).background(Win7.Input).border(1.dp, Win7.Field), Alignment.Center) {
-                        Image(pv, null, Modifier.fillMaxSize().padding(2.dp), contentScale = ContentScale.Fit)
+                Text(
+                    "Cari", color = W7ZipSheetColors.Teal, fontSize = 13.sp,
+                    modifier = Modifier.clickable { searchOpen = !searchOpen; if (!searchOpen) query = "" }.padding(start = 12.dp, top = 6.dp, end = 4.dp, bottom = 6.dp)
+                )
+            }
+            if (searchOpen) BasicTextField(
+                value = query, onValueChange = { query = it; picked = null }, singleLine = true,
+                textStyle = TextStyle(color = W7ZipSheetColors.Ink, fontSize = 14.sp), cursorBrush = SolidColor(W7ZipSheetColors.Teal),
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp).background(W7ZipSheetColors.Surface).padding(horizontal = 12.dp, vertical = 8.dp),
+                decorationBox = { inner ->
+                    Box {
+                        if (query.isEmpty()) Text("Cari nama di arsip", color = W7ZipSheetColors.Dim, fontSize = 14.sp)
+                        inner()
                     }
                 }
-                Spacer(Modifier.height(6.dp))
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { // [ZIP-LAYOUT]
-                    Text("Ketuk berkas untuk memilih, ketuk lagi untuk membuka.", color = Win7.TextDim, fontSize = 11.sp, modifier = Modifier.weight(1f))
-                    Text(
-                        "Bantuan", color = MolinaTheme.Brand, fontSize = 12.sp,
-                        modifier = Modifier.clickable { showHelp = true }.padding(start = 8.dp, top = 6.dp, bottom = 6.dp)
-                    )
+            )
+            if (sl != null && sl.encrypted) Text("Terenkripsi AES: kata sandi diminta saat membuka entri, menyimpan, atau mengekstrak.", color = W7ZipSheetColors.Amber, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+            if (sl != null && sl.truncated) Text("Hanya " + FileOps.ZIP_LIST_MAX + " entri pertama yang dimuat; daftar tidak lengkap.", color = W7ZipSheetColors.Amber, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+            if (se != null) Text(se, color = MolinaTheme.Bad, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+            if (dirty.isNotEmpty()) Text("Diubah: " + dirty.joinToString(", ") { it.substringAfterLast('/') } + ". Simpan lewat menu \u22EE.", color = W7ZipSheetColors.Amber, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+            if (status.isNotEmpty()) Text(status, color = if (statusOk) W7ZipSheetColors.Teal else MolinaTheme.Bad, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+            val listShape = RoundedCornerShape(6.dp)
+            Column(
+                Modifier.weight(1f, fill = false).fillMaxWidth().padding(top = 8.dp).clip(listShape)
+                    .border(1.dp, W7ZipSheetColors.Frame.copy(alpha = 0.67f), listShape).verticalScroll(rememberScrollState())
+            ) {
+                if (sl == null && se == null) Text("Membaca isi arsip\u2026", color = W7ZipSheetColors.Dim, fontSize = 14.sp, modifier = Modifier.padding(vertical = 24.dp, horizontal = 12.dp))
+                else if (sl != null && rows.isEmpty()) Text(if (query.isNotBlank()) "Tidak ada yang cocok." else "Folder ini kosong.", color = W7ZipSheetColors.Dim, fontSize = 14.sp, modifier = Modifier.padding(vertical = 24.dp, horizontal = 12.dp))
+                rows.forEachIndexed { i, ch ->
+                    val on = !ch.isDir && ch.full == picked
+                    if (i > 0) Box(Modifier.padding(start = 58.dp).fillMaxWidth().height(1.dp).background(W7ZipSheetColors.Frame.copy(alpha = 0.67f)))
+                    Row(
+                        Modifier.fillMaxWidth().heightIn(min = 56.dp)
+                            .background(if (on) W7ZipSheetColors.Teal.copy(alpha = 0.16f) else Color.Transparent)
+                            .clickable(enabled = !busy) {
+                                delArm = null
+                                menuOpen = false
+                                if (ch.isDir) { cwd = ch.full; picked = null; query = ""; searchOpen = false }
+                                else if (picked == ch.full) openEntry(ch.full, null)
+                                else picked = ch.full
+                            }
+                            .padding(start = 10.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(Modifier.size(32.dp), Alignment.Center) {
+                            if (ch.isDir) Win7Folder(26.dp) else W7FileIcon(ch.label.substringAfterLast('.', ""), 28.dp)
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(ch.label, color = W7ZipSheetColors.Ink, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            val loc = if (query.isNotBlank()) "/" + parentOf(ch.full).trimEnd('/') + " \u2022 " else ""
+                            val sz = if (ch.isDir) "Folder" else FileOps.readable(ch.size)
+                            Text(loc + sz + (if (ch.full in dirty) " \u2022 diubah" else ""), color = W7ZipSheetColors.Dim, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                        if (on) Text("\u2713", color = W7ZipSheetColors.Teal, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
-        }
-        if (dirty.isNotEmpty()) {
-            Spacer(Modifier.height(4.dp))
-            Text("Diubah: " + dirty.joinToString(", ") { it.substringAfterLast('/') } + ". Tekan Simpan untuk menulis ke ZIP.", color = MolinaTheme.Brand, fontSize = 11.sp)
-        }
-        if (status.isNotEmpty()) {
-            Spacer(Modifier.height(4.dp))
-            Text(status, color = if (statusOk) Win7.NavHeader else MolinaTheme.Bad, fontSize = 12.sp)
-        }
-        Spacer(Modifier.height(10.dp))
-        // [ZIP-LAYOUT-BTN] dua baris, tiap tombol berbobot sama: label tidak lagi terpotong
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Win7Button("Buka", Modifier.weight(1f), isDefault = true, enabled = picked != null && !busy, compact = true) { picked?.let { openEntry(it, null) } }
-            Win7Button("Terminal", Modifier.weight(1f), enabled = picked != null && !busy && onOpenTerminal != null, compact = true) { picked?.let { openEntry(it, null, true) } }
-            Win7Button("Simpan", Modifier.weight(1f), enabled = dirty.isNotEmpty() && !busy, accent = MolinaTheme.Brand, compact = true) { saveBack(null) }
-        }
-        Spacer(Modifier.height(6.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Win7Button("Tempel", Modifier.weight(1f), enabled = listing != null && !busy, compact = true) { addFromClip(null) }
-            Win7Button(if (delArm != null) "Yakin?" else "Hapus", Modifier.weight(1f), enabled = listing != null && !busy && (picked != null || cwd.isNotEmpty()), accent = if (delArm != null) MolinaTheme.Bad else null, compact = true) { deleteTarget() }
-            Win7Button("Ekstrak", Modifier.weight(1f), enabled = listing != null && !busy, compact = true) { onExtract() }
-            Win7Button("Tutup", Modifier.weight(1f), compact = true) { tryClose() }
+            val pv = preview
+            if (pv != null) Box(
+                Modifier.fillMaxWidth().padding(top = 8.dp).height(110.dp).background(W7ZipSheetColors.Surface)
+                    .border(1.dp, W7ZipSheetColors.Frame.copy(alpha = 0.67f)), Alignment.Center
+            ) {
+                Image(pv, null, Modifier.fillMaxSize().padding(2.dp), contentScale = ContentScale.Fit)
+            }
+            val pk = picked
+            if (pk != null) Row(
+                Modifier.fillMaxWidth().padding(top = 8.dp).background(W7ZipSheetColors.Surface).padding(horizontal = 12.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("1 dipilih: " + pk.substringAfterLast('/'), color = W7ZipSheetColors.Frame, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                Text(
+                    "Buka", color = if (busy) W7ZipSheetColors.Dim else W7ZipSheetColors.Teal, fontSize = 14.sp,
+                    modifier = Modifier.clickable(enabled = !busy) { openEntry(pk, null) }.padding(horizontal = 14.dp, vertical = 10.dp)
+                )
+                Text(
+                    "Batal", color = W7ZipSheetColors.Ink, fontSize = 14.sp,
+                    modifier = Modifier.clickable { picked = null; delArm = null }.padding(start = 14.dp, top = 10.dp, end = 6.dp, bottom = 10.dp)
+                )
+            } else {
+                val canAll = sl != null && !busy
+                Box(
+                    Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(8.dp))
+                        .background(if (canAll) W7ZipSheetColors.Teal else W7ZipSheetColors.Teal.copy(alpha = 0.35f))
+                        .clickable(enabled = canAll) { onExtract() }.padding(horizontal = 16.dp, vertical = 12.dp),
+                    Alignment.Center
+                ) {
+                    Text("Ekstrak semua", color = W7ZipSheetColors.OnTeal, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                }
+            }
         }
     }
     if (showHelp) W7HelpPanel(
@@ -373,4 +456,44 @@ internal fun W7ZipDialog(
             else -> openEntry(a.name, pw)
         }
     }
+}
+
+/** [ZIP-SHEET] Token lembar arsip, diport dari Molina_Studio (molina_bg, on_surface, terminal_accent, dst). */
+private object W7ZipSheetColors {
+    val Bg = Color(0xFF000000)
+    val Surface = Color(0xFF0D0D0D)
+    val Ink = Color(0xFFE6EAEE)
+    val Dim = Color(0xFFA9B3BD)
+    val Frame = Color(0xFF9AA0A8)
+    val Teal = Color(0xFF00BFA5)
+    val OnTeal = Color(0xFF00201B)
+    val Amber = Color(0xFF87CF3E)
+}
+
+/** [ZIP-SHEET] Chip breadcrumb: bingkai tipis; folder aktif berlatar teal tipis. */
+@Composable
+private fun ZipCrumb(label: String, active: Boolean, onClick: (() -> Unit)?) {
+    val shape = RoundedCornerShape(16.dp)
+    val teal = W7ZipSheetColors.Teal
+    Box(
+        Modifier.height(32.dp).widthIn(max = 180.dp).clip(shape)
+            .background(if (active) teal.copy(alpha = 0.15f) else Color.Transparent, shape)
+            .border(1.dp, if (active) teal else W7ZipSheetColors.Frame.copy(alpha = 0.67f), shape)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(horizontal = 12.dp),
+        Alignment.Center
+    ) {
+        Text(label, color = if (active) teal else W7ZipSheetColors.Dim, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** [ZIP-SHEET] Satu baris menu \u22EE. */
+@Composable
+private fun ZipMenuItem(label: String, enabled: Boolean, danger: Boolean = false, onClick: () -> Unit) {
+    Text(
+        label,
+        color = if (!enabled) W7ZipSheetColors.Dim.copy(alpha = 0.5f) else if (danger) MolinaTheme.Bad else W7ZipSheetColors.Ink,
+        fontSize = 14.sp,
+        modifier = Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick).padding(horizontal = 14.dp, vertical = 11.dp)
+    )
 }
