@@ -1,6 +1,6 @@
 package com.molina.studio.cinema
 
-import androidx.compose.foundation.Canvas
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -85,71 +85,77 @@ fun W7FileIcon(ext: String, box: Dp) {
     val g = remember(ext) { W7Glyph.of(ext) }
     val ink = if (g.color.luminance() > 0.6f) Color(0xFF263238) else Color.White
     Box(Modifier.size(box)) {
-        Canvas(Modifier.fillMaxSize()) {
+        // [PERF-ICON] Path/Brush/Stroke dibuat sekali per ukuran (drawWithCache), bukan di setiap penggambaran ulang baris.
+        Box(Modifier.fillMaxSize().drawWithCache {
             val w = size.width
             val h = size.height
             val line = (w * 0.045f).coerceAtLeast(1.2f)
+            val stroke = Stroke(width = line)
             val page = Path().apply {
                 moveTo(w * 0.18f, h * 0.06f); lineTo(w * 0.62f, h * 0.06f); lineTo(w * 0.84f, h * 0.28f)
                 lineTo(w * 0.84f, h * 0.94f); lineTo(w * 0.18f, h * 0.94f); close()
             }
-            val dark = g.shape == W7Shape.VIDEO
-            val body = when (g.shape) {
-                W7Shape.IMAGE -> listOf(Color(0xFFBFE6FF), Color(0xFFEAF7FF))
-                W7Shape.VIDEO -> listOf(Color(0xFF37474F), Color(0xFF1C262B))
-                W7Shape.AUDIO -> listOf(Color(0xFFFFFFFF), g.color.copy(alpha = 0.35f))
-                else -> listOf(Color(0xFFFFFFFF), Color(0xFFDDE1E6))
-            }
-            drawPath(page, Brush.verticalGradient(body))
-            when (g.shape) {
-                W7Shape.IMAGE -> {
-                    drawCircle(Color(0xFFFFC107), w * 0.07f, Offset(w * 0.38f, h * 0.38f))
-                    val back = Path().apply {
-                        moveTo(w * 0.18f, h * 0.94f); lineTo(w * 0.18f, h * 0.76f); lineTo(w * 0.40f, h * 0.54f)
-                        lineTo(w * 0.62f, h * 0.76f); lineTo(w * 0.74f, h * 0.64f); lineTo(w * 0.84f, h * 0.74f)
-                        lineTo(w * 0.84f, h * 0.94f); close()
-                    }
-                    drawPath(back, Color(0xFF66BB6A))
-                    val front = Path().apply {
-                        moveTo(w * 0.18f, h * 0.94f); lineTo(w * 0.18f, h * 0.84f); lineTo(w * 0.34f, h * 0.70f)
-                        lineTo(w * 0.52f, h * 0.88f); lineTo(w * 0.60f, h * 0.80f); lineTo(w * 0.72f, h * 0.94f); close()
-                    }
-                    drawPath(front, Color(0xFF2E7D32))
-                }
-                W7Shape.VIDEO -> {
-                    for (i in 0 until 5) {
-                        drawRect(Color(0xFFB0BEC5), Offset(w * 0.21f, h * (0.12f + i * 0.17f)), Size(w * 0.05f, h * 0.08f))
-                        if (i >= 2) drawRect(Color(0xFFB0BEC5), Offset(w * 0.76f, h * (0.12f + i * 0.17f)), Size(w * 0.05f, h * 0.08f))
-                    }
-                    val play = Path().apply {
-                        moveTo(w * 0.36f, h * 0.36f); lineTo(w * 0.36f, h * 0.78f); lineTo(w * 0.68f, h * 0.57f); close()
-                    }
-                    drawPath(play, g.color)
-                }
-                W7Shape.AUDIO -> {
-                    drawCircle(g.color, w * 0.10f, Offset(w * 0.42f, h * 0.74f))
-                    drawRect(g.color, Offset(w * 0.49f, h * 0.34f), Size(w * 0.05f, h * 0.40f))
-                    drawRect(g.color, Offset(w * 0.49f, h * 0.34f), Size(w * 0.20f, h * 0.09f))
-                }
-                W7Shape.ARCHIVE -> {
-                    for (i in 0 until 6) {
-                        drawRect(Color(0xFF6B7280), Offset(w * (if (i % 2 == 0) 0.45f else 0.51f), h * (0.07f + i * 0.075f)), Size(w * 0.05f, h * 0.045f))
-                    }
-                }
-                W7Shape.NONE -> if (g.label == null) {
-                    for (k in 0 until 4) drawRect(Color(0xFFB8BFC8), Offset(w * 0.26f, h * (0.38f + k * 0.12f)), Size(w * (0.50f - (k % 2) * 0.12f), h * 0.04f))
-                } else {
-                    for (k in 0 until 2) drawRect(Color(0xFFB8BFC8), Offset(w * 0.26f, h * (0.34f + k * 0.09f)), Size(w * (0.48f - k * 0.14f), h * 0.035f))
-                }
-            }
-            if (g.label != null) drawRect(g.color, Offset(w * 0.18f, h * 0.54f), Size(w * 0.66f, h * 0.30f))
-            drawPath(page, if (dark) g.color else Color(0xFF8A929C), style = Stroke(width = line))
             val fold = Path().apply {
                 moveTo(w * 0.62f, h * 0.06f); lineTo(w * 0.62f, h * 0.28f); lineTo(w * 0.84f, h * 0.28f); close()
             }
-            drawPath(fold, if (dark) Color(0xFF5C6B73) else Color(0xFFC5CBD3))
-            drawPath(fold, if (dark) g.color else Color(0xFF8A929C), style = Stroke(width = line))
-        }
+            val dark = g.shape == W7Shape.VIDEO
+            val bodyBrush = Brush.verticalGradient(
+                when (g.shape) {
+                    W7Shape.IMAGE -> listOf(Color(0xFFBFE6FF), Color(0xFFEAF7FF))
+                    W7Shape.VIDEO -> listOf(Color(0xFF37474F), Color(0xFF1C262B))
+                    W7Shape.AUDIO -> listOf(Color(0xFFFFFFFF), g.color.copy(alpha = 0.35f))
+                    else -> listOf(Color(0xFFFFFFFF), Color(0xFFDDE1E6))
+                }
+            )
+            val back = if (g.shape == W7Shape.IMAGE) Path().apply {
+                moveTo(w * 0.18f, h * 0.94f); lineTo(w * 0.18f, h * 0.76f); lineTo(w * 0.40f, h * 0.54f)
+                lineTo(w * 0.62f, h * 0.76f); lineTo(w * 0.74f, h * 0.64f); lineTo(w * 0.84f, h * 0.74f)
+                lineTo(w * 0.84f, h * 0.94f); close()
+            } else null
+            val front = if (g.shape == W7Shape.IMAGE) Path().apply {
+                moveTo(w * 0.18f, h * 0.94f); lineTo(w * 0.18f, h * 0.84f); lineTo(w * 0.34f, h * 0.70f)
+                lineTo(w * 0.52f, h * 0.88f); lineTo(w * 0.60f, h * 0.80f); lineTo(w * 0.72f, h * 0.94f); close()
+            } else null
+            val play = if (g.shape == W7Shape.VIDEO) Path().apply {
+                moveTo(w * 0.36f, h * 0.36f); lineTo(w * 0.36f, h * 0.78f); lineTo(w * 0.68f, h * 0.57f); close()
+            } else null
+            onDrawBehind {
+                drawPath(page, bodyBrush)
+                when (g.shape) {
+                    W7Shape.IMAGE -> {
+                        drawCircle(Color(0xFFFFC107), w * 0.07f, Offset(w * 0.38f, h * 0.38f))
+                        back?.let { drawPath(it, Color(0xFF66BB6A)) }
+                        front?.let { drawPath(it, Color(0xFF2E7D32)) }
+                    }
+                    W7Shape.VIDEO -> {
+                        for (i in 0 until 5) {
+                            drawRect(Color(0xFFB0BEC5), Offset(w * 0.21f, h * (0.12f + i * 0.17f)), Size(w * 0.05f, h * 0.08f))
+                            if (i >= 2) drawRect(Color(0xFFB0BEC5), Offset(w * 0.76f, h * (0.12f + i * 0.17f)), Size(w * 0.05f, h * 0.08f))
+                        }
+                        play?.let { drawPath(it, g.color) }
+                    }
+                    W7Shape.AUDIO -> {
+                        drawCircle(g.color, w * 0.10f, Offset(w * 0.42f, h * 0.74f))
+                        drawRect(g.color, Offset(w * 0.49f, h * 0.34f), Size(w * 0.05f, h * 0.40f))
+                        drawRect(g.color, Offset(w * 0.49f, h * 0.34f), Size(w * 0.20f, h * 0.09f))
+                    }
+                    W7Shape.ARCHIVE -> {
+                        for (i in 0 until 6) {
+                            drawRect(Color(0xFF6B7280), Offset(w * (if (i % 2 == 0) 0.45f else 0.51f), h * (0.07f + i * 0.075f)), Size(w * 0.05f, h * 0.045f))
+                        }
+                    }
+                    W7Shape.NONE -> if (g.label == null) {
+                        for (k in 0 until 4) drawRect(Color(0xFFB8BFC8), Offset(w * 0.26f, h * (0.38f + k * 0.12f)), Size(w * (0.50f - (k % 2) * 0.12f), h * 0.04f))
+                    } else {
+                        for (k in 0 until 2) drawRect(Color(0xFFB8BFC8), Offset(w * 0.26f, h * (0.34f + k * 0.09f)), Size(w * (0.48f - k * 0.14f), h * 0.035f))
+                    }
+                }
+                if (g.label != null) drawRect(g.color, Offset(w * 0.18f, h * 0.54f), Size(w * 0.66f, h * 0.30f))
+                drawPath(page, if (dark) g.color else Color(0xFF8A929C), style = stroke)
+                drawPath(fold, if (dark) Color(0xFF5C6B73) else Color(0xFFC5CBD3))
+                drawPath(fold, if (dark) g.color else Color(0xFF8A929C), style = stroke)
+            }
+        })
         val label = g.label
         if (label != null) {
             Box(
