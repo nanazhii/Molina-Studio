@@ -1,5 +1,7 @@
 import com.molina.core.common.DirOrder
 import com.molina.core.common.FileTypes
+import com.molina.core.common.FolderKind
+import com.molina.core.common.FolderKinds
 import com.molina.core.common.NaturalOrder
 import java.io.File
 import kotlin.system.exitProcess
@@ -16,6 +18,9 @@ fun main() {
     check("extOf", FileTypes.extOf("Film.MKV") == "mkv" && FileTypes.extOf("tanpa") == "")
     check("isHidden", FileTypes.isHidden(".x") && !FileTypes.isHidden("x"))
     check("isVideo/isAudio/isMedia", FileTypes.isVideo("a.MP4") && FileTypes.isAudio("b.flac") && FileTypes.isMedia("c.m3u8") && !FileTypes.isMedia("d.txt"))
+    check("FolderKinds", FolderKinds.of("Downloads") == FolderKind.DOWNLOAD && FolderKinds.of("MOVIES") == FolderKind.VIDEO &&
+        FolderKinds.of("Music") == FolderKind.MUSIC && FolderKinds.of("DCIM") == FolderKind.PICTURES &&
+        FolderKinds.of("Documents") == FolderKind.DOCS && FolderKinds.of("src") == FolderKind.DEFAULT && FolderKinds.of("") == FolderKind.DEFAULT)
     val d = java.nio.file.Files.createTempDirectory("ft").toFile()
     try {
         File(d, "b").mkdir(); File(d, "A").mkdir()

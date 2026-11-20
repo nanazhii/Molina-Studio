@@ -58,6 +58,8 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import java.io.File
+import com.molina.studio.cinema.drawMintFolder
+import com.molina.studio.cinema.drawMintFile
 
 internal enum class PickMode { Folder, File }
 
@@ -547,7 +549,7 @@ internal fun PickerDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Canvas(Modifier.size(CodeDimens.TreeFolderIcon)) {
-                                if (e.isDir) drawFolderIcon(false, CodeColors.FolderYellow) else drawFileIcon(extColor(e.file.name))
+                                if (e.isDir) drawMintFolder() else drawMintFile(extColor(e.file.name)) // [MINT-ICONS]
                             }
                             Spacer(Modifier.width(10.dp))
                             BasicText(

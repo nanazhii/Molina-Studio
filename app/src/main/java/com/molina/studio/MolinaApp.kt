@@ -22,6 +22,7 @@ class MolinaApp : Application() {
         super.onCreate()
         AppLog.install(LogBus)
         com.molina.core.api.MolinaServices.terminal = com.molina.studio.terminal.TerminalGatewayImpl(this)
+        com.molina.core.api.MolinaServices.explorer = com.molina.studio.cinema.ExplorerGatewayImpl() // [EXPLORER-GW]
         com.molina.core.log.AnrWatchdog.attach(this) // [ANR-LOG]
         // Molina Shield harus hidup sebelum mpv diinisialisasi (opsi http_proxy dibaca saat init).
         ShieldPrefs.init(this)

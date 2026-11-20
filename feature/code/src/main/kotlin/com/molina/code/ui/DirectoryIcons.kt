@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import com.molina.studio.cinema.drawMintFolder
 
 /** Ikon tombol header panel direktori dan header layar. Digambar di kisi 24 satuan. */
 internal enum class DirIcon { Up, NewFile, NewFolder, Close, Folder }
@@ -50,7 +51,7 @@ internal fun DrawScope.drawDirIcon(kind: DirIcon, color: Color) {
             line(12f, 11.5f, 12f, 17f, color, 1.8f)
             line(9.2f, 14.2f, 14.8f, 14.2f, color, 1.8f)
         }
-        DirIcon.Folder -> drawFolderIcon(false, color)
+        DirIcon.Folder -> drawMintFolder() // [MINT-ICONS] ikon bersama dari :core:ui
     }
 }
 
@@ -83,46 +84,6 @@ private fun DrawScope.drawFolderOutline(color: Color) {
         close()
     }
     drawPath(p, color, style = Stroke(1.6f * k))
-}
-
-/** Folder kuning khas Win7: tertutup, atau terbuka (muka depan miring) untuk folder yang di-expand. */
-internal fun DrawScope.drawFolderIcon(open: Boolean, color: Color) {
-    val k = u()
-    val back = Path().apply {
-        moveTo(2 * k, 5 * k)
-        lineTo(9 * k, 5 * k)
-        lineTo(11 * k, 7 * k)
-        lineTo(21 * k, 7 * k)
-        lineTo(21 * k, 19 * k)
-        lineTo(2 * k, 19 * k)
-        close()
-    }
-    drawPath(back, color.copy(alpha = 0.70f))
-    val front = Path().apply {
-        if (open) {
-            moveTo(5 * k, 10 * k)
-            lineTo(23 * k, 10 * k)
-            lineTo(20 * k, 19 * k)
-            lineTo(2 * k, 19 * k)
-        } else {
-            moveTo(2 * k, 9 * k)
-            lineTo(21 * k, 9 * k)
-            lineTo(21 * k, 19 * k)
-            lineTo(2 * k, 19 * k)
-        }
-        close()
-    }
-    drawPath(front, color)
-}
-
-/** Berkas: halaman bersudut lipat dengan garis warna ekstensi. */
-internal fun DrawScope.drawFileIcon(stripe: Color) {
-    val k = u()
-    drawPath(pagePath(), CodeColors.IconDefault.copy(alpha = 0.14f))
-    drawPath(pagePath(), CodeColors.IconDefault, style = Stroke(1.3f * k))
-    line(14f, 3f, 14f, 8f, CodeColors.IconDefault, 1.3f)
-    line(14f, 8f, 19f, 8f, CodeColors.IconDefault, 1.3f)
-    drawRect(stripe, topLeft = Offset(8f * k, 14f * k), size = Size(9f * k, 3f * k))
 }
 
 /** Segitiga expander gaya Win7: kerangka abu saat tertutup, terisi saat terbuka. */

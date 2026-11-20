@@ -7,4 +7,10 @@ object MolinaServices {
     var terminal: TerminalGateway
         get() = checkNotNull(terminalImpl) { "TerminalGateway belum didaftarkan (MolinaApp.onCreate)" }
         set(v) { terminalImpl = v }
+
+    @Volatile private var explorerImpl: ExplorerGateway? = null
+
+    var explorer: ExplorerGateway
+        get() = checkNotNull(explorerImpl) { "ExplorerGateway belum didaftarkan (MolinaApp.onCreate)" }
+        set(v) { explorerImpl = v }
 }

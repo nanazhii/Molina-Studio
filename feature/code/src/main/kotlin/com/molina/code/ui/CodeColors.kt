@@ -36,7 +36,6 @@ object CodeColors {
     val Brand = Color(0xFF2ECC71)
     val BrandSoft = Color(0xFF7BDCA0)
     val Warning = Color(0xFFFFD54F)       // = MolinaTheme.Warn; peringatan tetap amber, bukan aksen merek
-    val FolderYellow = Color(0xFFE9B949)
     val Danger = Color(0xFFE5484D)
     val Clean = Color(0xFF3FB950)               // indikator berkas sama dengan isi awal (hijau)
     val Modified = Color(0xFF4FA3FF)            // [CODE-DIRTY-BLUE] indikator ada perubahan belum disimpan (biru)
@@ -60,7 +59,7 @@ object CodeColors {
     val ExtKotlin = Color(0xFFB07CFF)
     val ExtPython = Color(0xFF4FA3E0)
     val ExtMarkdown = Color(0xFF7BC8A4)
-    val ExtJson = FolderYellow
+    val ExtJson = com.molina.studio.ui.MolinaTheme.FolderYellow // [MINT-ICONS] satu sumber warna di :core:ui
     val ExtXml = Color(0xFFE08A4F)
     val ExtShell = Color(0xFF8BD35C)
     val ExtDefault = IconDim

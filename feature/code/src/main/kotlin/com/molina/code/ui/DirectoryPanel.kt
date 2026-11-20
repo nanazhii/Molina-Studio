@@ -39,6 +39,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.molina.studio.cinema.drawMintFolder
+import com.molina.studio.cinema.drawMintFile
 
 /**
  * Panel direktori (F4, blueprint bagian 5): laci dari kiri selebar 72% layar (maks 320dp) dengan
@@ -193,7 +195,7 @@ private fun TreeRow(row: DirRow, session: CodeSession, selected: Boolean, onTap:
             }
             Spacer(Modifier.width(6.dp))
             Canvas(Modifier.size(CodeDimens.TreeFolderIcon)) {
-                if (entry.isDir) drawFolderIcon(row.expanded, CodeColors.FolderYellow) else drawFileIcon(extColor(entry.file.name))
+                if (entry.isDir) drawMintFolder(open = row.expanded) else drawMintFile(extColor(entry.file.name)) // [MINT-ICONS]
             }
             Spacer(Modifier.width(6.dp))
             BasicText(

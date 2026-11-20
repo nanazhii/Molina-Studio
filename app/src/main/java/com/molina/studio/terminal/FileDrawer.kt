@@ -79,6 +79,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import com.molina.studio.cinema.MintFolderTint
 
 private val Brand = MolinaTheme.Brand
 // [DRAWER-HAMBURGER] lebar drawer: porsi layar, dijepit ke rentang ini (header butuh sekitar 200dp)
@@ -288,7 +289,7 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
                                 if (isDir) { if (isOpen) "\u25BE" else "\u25B8" } else "",
                                 color = Brand, fontSize = 12.sp, modifier = Modifier.width(14.dp)
                             )
-                            if (isDir) MintFolder(20.dp) else MintFileIcon(f.extension, 20.dp) // ikon Molina, sama dengan Penjelajah
+                            if (isDir) MintFolder(20.dp, open = isOpen, tint = MintFolderTint.of(f.name)) else MintFileIcon(f.extension, 20.dp) // ikon Molina, sama dengan Penjelajah
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 f.name, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,

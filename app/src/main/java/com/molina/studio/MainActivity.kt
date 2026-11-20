@@ -328,6 +328,7 @@ class MainActivity : ComponentActivity() {
                     if (t in Tab.entries.indices) selected = t
                     ShortcutNav.tab = -1
                 }
+                com.molina.studio.cinema.ExplorerHost() // [EXPLORER-GW] pemilih berkas/folder untuk fitur lain
                 // Pintasan skrip di layar utama: dialog konfirmasi sebelum skrip dijalankan.
                 com.molina.studio.code.ScriptRunHost()
                 // Lencana tab Unduhan: emas saat berjalan, hijau saat selesai dan belum dilihat.

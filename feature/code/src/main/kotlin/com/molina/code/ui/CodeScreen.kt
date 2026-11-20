@@ -230,7 +230,7 @@ private fun PathHeader(session: CodeSession, onExit: (() -> Unit)? = null) {
                 .clickable { session.dir.openPanel() },
             contentAlignment = Alignment.Center
         ) {
-            Canvas(Modifier.size(CodeDimens.DrawerHeaderIcon)) { drawDirIcon(DirIcon.Folder, CodeColors.FolderYellow) }
+            Canvas(Modifier.size(CodeDimens.DrawerHeaderIcon)) { drawDirIcon(DirIcon.Folder, CodeColors.IconDefault) }
         }
         Box( // [CODE-PATHBAR] kotak path bergaya bilah alamat Penjelajah: isi #101010, garis 1dp #3A3A3A, sudut siku, tinggi 28dp
             Modifier
