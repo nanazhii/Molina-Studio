@@ -1185,7 +1185,7 @@ private fun W7EntryRow(
                     )
                 } else Modifier
             )
-            .heightIn(min = if (wide) 26.dp else 36.dp)
+            .heightIn(min = if (wide) 38.dp else 56.dp) // [ICON-BIG]
             .padding(horizontal = 6.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1204,17 +1204,18 @@ private fun W7EntryRow(
             )
             Spacer(Modifier.width(6.dp))
         }
-        if (e.isDir) Win7Folder(20.dp) else W7FileIcon(e.file.extension, 22.dp)
-        Spacer(Modifier.width(6.dp))
+        val iconSz = if (wide) 32.dp else 42.dp // [ICON-BIG]
+        if (e.isDir) Win7Folder(iconSz) else W7FileIcon(e.file.extension, iconSz)
+        Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(e.name, color = Win7.Ink, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                Text(e.name, color = Win7.Ink, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 if (played >= 0) W7PlayedChip(played)
             }
-            if (e.rel != null) Text(e.rel, color = Win7.TextDim, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (e.rel != null) Text(e.rel, color = Win7.TextDim, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             else if (!wide) Text(
                 if (e.isDir) w7Date(e.modified) else w7Date(e.modified) + "  \u00B7  " + w7Size(e.size),
-                color = Win7.TextDim, fontSize = 10.sp, maxLines = 1
+                color = Win7.TextDim, fontSize = 12.sp, maxLines = 1
             )
         }
         if (wide) Text(w7Date(e.modified), color = Win7.TextDim, fontSize = 12.sp, maxLines = 1, modifier = Modifier.width(112.dp))
