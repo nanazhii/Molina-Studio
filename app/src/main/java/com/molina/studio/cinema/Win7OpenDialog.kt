@@ -547,7 +547,6 @@ fun Win7OpenDialog(
             message = ""
         }
     }
-    var floatHidden by remember { mutableStateOf(false) } // [FLOAT-INFO] pil melayang tersembunyi saat gulir ke bawah
     val backAction: () -> Unit = { if (multi) { multi = false; picked = emptySet() } else if (!goUp()) onDismiss() }
     val content: @Composable () -> Unit = {
         // [FILEOPS-2] keyboard tidak boleh muncul sendiri saat Penjelajah dibuka
@@ -692,8 +691,8 @@ fun Win7OpenDialog(
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                         granted = granted, entries = shown, key = key, asc = asc, selected = selected,
                         compact = portrait,
-                        bottomInset = if (browse) 52.dp else 0.dp, // [FLOAT-INFO] kartu info dihapus; ruang tetap setinggi pil
-                        onScrollDir = { floatHidden = it }, // [FLOAT-INFO]
+                        bottomInset = 0.dp, // [DOCK-V3] pil pindah ke dock; daftar tidak lagi perlu ruang cadangan
+                        onScrollDir = { }, // [DOCK-V3] pil di dock selalu tampil
                         onSort = { k -> if (key == k) asc = !asc else { key = k; asc = true } },
                         multi = multi, picked = picked, recentRefs = playedRefs,
                         emptyNote = if (query.isNotBlank()) "Tidak ada hasil untuk \"" + query.trim() + "\"" else "Folder ini kosong.",
@@ -711,78 +710,6 @@ fun Win7OpenDialog(
                         }) else null,
                         onAsk = { ask.launch(Manifest.permission.READ_EXTERNAL_STORAGE) }
                     )
-                }
-                if (browse) { // [FLOAT-DOCK] [FLOAT-INFO] baris melayang bawah: pil Debian/menu (kanan)
-                    LaunchedEffect(dir.path) { floatHidden = false }
-                    val flHaptic = androidx.compose.ui.platform.LocalHapticFeedback.current // [FLOAT-HAPTIC]
-                    val flHapticReady = remember { booleanArrayOf(false) }
-                    LaunchedEffect(floatHidden) { // tick ringan saat pil muncul/hilang; lewati komposisi pertama
-                        if (flHapticReady[0]) flHaptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
-                        flHapticReady[0] = true
-                    }
-                    val flTarget = selected?.file ?: dir
-                    val flFiles = if (multi && picked.isNotEmpty()) picked.map { File(it) } else listOf(flTarget)
-                    Row(
-                        Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 8.dp),
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        Spacer(Modifier.weight(1f)) // pendorong: pil Debian/menu tetap rata kanan
-                        Box {
-                            androidx.compose.animation.AnimatedVisibility(
-                                visible = !floatHidden || menuOpen || sortOpen || toolsOpen,
-                                enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically { it },
-                                exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.slideOutVertically { it }
-                            ) {
-                                W7BrowseFloat(
-                        modifier = Modifier,
-                        accent = multi, // [FLOAT-GOLD]
-                        debian = if (flFiles.size == 1) isVisibleInDebian?.invoke(flFiles[0]) else null,
-                        modeLabel = if (!multi) null else if (picked.isEmpty()) "Mode Pilih" else picked.size.toString() + " dipilih",
-                        onHelp = if (multi) ({ showSelectHelp = true }) else null, // [HELP-PANEL]
-                        menu = { // [DROP-MENU] satu ikon kisi di kanan bawah (dekat status Debian) membuka menu drop-up
-                                Box {
-                                    W7DropButton(active = menuOpen || sortOpen || toolsOpen) { menuOpen = !menuOpen }
-                                    if (menuOpen) Popup(
-                                        alignment = Alignment.BottomEnd,
-                                        offset = IntOffset(0, -with(density) { 44.dp.roundToPx() }),
-                                        onDismissRequest = { menuOpen = false },
-                                        properties = PopupProperties(focusable = true)
-                                    ) {
-                                        Column( // [DROP-SCROLL] tinggi maks 70% layar; isi bisa digulir bila tidak muat
-                                            Modifier.width(230.dp)
-                                                .heightIn(max = w7PopupMaxHeight())
-                                                .background(Win7.Input).border(1.dp, Win7.FrameLine)
-                                                .verticalScroll(rememberScrollState())
-                                        ) {
-                                            if (onOpenEditor != null) { // [EDITOR-IN-DROP]
-                                                W7MenuItem(W7Ico.CODE, "Editor", true) { menuOpen = false; onOpenEditor() }
-                                                W7MenuDivider()
-                                            }
-                                            if (portrait) W7MenuItem(W7Ico.NAV, "Panel lokasi", true) { menuOpen = false; navOpen = !navOpen } // [DROP-HAMBURGER]
-                                            if (portrait) W7MenuDivider() // [DROP-DIVIDER]
-                                            W7MenuItem(W7Ico.REFRESH, "Segarkan", true) { menuOpen = false; tick++ }
-                                            W7MenuItem(W7Ico.SORT, "Urut\u2026", true) { menuOpen = false; sortOpen = true }
-                                            W7MenuDivider() // [DROP-DIVIDER]
-                                            W7MenuItem(W7Ico.SELECT, if (multi) "Selesai memilih" else "Pilih", !busy) {
-                                                menuOpen = false
-                                                multi = !multi; picked = emptySet(); selected = null; fileName = ""
-                                            }
-                                            if (multi) W7MenuItem(W7Ico.SELECT_ALL, "Pilih semua", !busy) {
-                                                menuOpen = false
-                                                val here = (entries ?: emptyList()).map { it.file.path }.toSet()
-                                                picked = if (here.isNotEmpty() && picked.containsAll(here)) picked - here else picked + here
-                                            }
-                                            if (picked.isNotEmpty()) W7MenuItem(W7Ico.CLEAR, "Kosongkan pilihan", !busy) { menuOpen = false; picked = emptySet() }
-                                        }
-                                    }
-                                    sortPopup(true)
-                                    toolsPopup()
-                                }
-                            }
-                    )
-                            }
-                        }
-                    }
                 }
                 if (portrait) {
                     Box(Modifier.align(Alignment.CenterStart).width(16.dp).fillMaxHeight().pointerInput(Unit) {
@@ -841,7 +768,7 @@ fun Win7OpenDialog(
                         val dkZip = !dkMedia && !dkText && dkFiles.size == 1 && dkFiles[0].isFile && dkFiles[0].extension.equals("zip", ignoreCase = true)
                         val dkArc = !dkMedia && !dkText && !dkZip && dkFiles.size == 1 && dkFiles[0].isFile && ArchiveRoute.supports(dkFiles[0].name) // [ARCHIVE]
                         W7BrowseDock(
-                            quickLabel = if (dkMedia) "Putar" else if (dkText) "Edit" else if (dkZip) "Buka ZIP" else if (dkArc) "Buka arsip" else "Properti",
+                            quickLabel = if (dkMedia) "Putar" else if (dkText) "Edit" else if (dkZip) "Buka ZIP" else if (dkArc) "Buka arsip" else null, // [DOCK-V3] Properti ada di menu Alat
                             toolsEnabled = !busy,
                             terminalEnabled = onCdTerminal != null || onOpenTerminal != null,
                             onQuick = {
@@ -858,7 +785,55 @@ fun Win7OpenDialog(
                             },
                             onTools = { toolsOpen = true },
                             onTerminal = { (onCdTerminal ?: onOpenTerminal)?.invoke(dkTarget) },
-                            onOpen = { if (dkTarget.isDirectory) go(dkTarget) else smartOpen(dkTarget) }
+                            trailing = { // [DOCK-V3] pil melayang menempati slot bekas Buka
+                                W7BrowseFloat(
+                        modifier = Modifier,
+                        accent = multi, // [FLOAT-GOLD]
+                        debian = if (dkFiles.size == 1) isVisibleInDebian?.invoke(dkFiles[0]) else null,
+                        modeLabel = if (!multi) null else if (picked.isEmpty()) "Mode Pilih" else picked.size.toString() + " dipilih",
+                        onHelp = if (multi) ({ showSelectHelp = true }) else null, // [HELP-PANEL]
+                        menu = { // [DROP-MENU] satu ikon kisi di kanan bawah (dekat status Debian) membuka menu drop-up
+                                Box {
+                                    W7DropButton(active = menuOpen || sortOpen || toolsOpen) { menuOpen = !menuOpen }
+                                    if (menuOpen) Popup(
+                                        alignment = Alignment.BottomEnd,
+                                        offset = IntOffset(0, -with(density) { 44.dp.roundToPx() }),
+                                        onDismissRequest = { menuOpen = false },
+                                        properties = PopupProperties(focusable = true)
+                                    ) {
+                                        Column( // [DROP-SCROLL] tinggi maks 70% layar; isi bisa digulir bila tidak muat
+                                            Modifier.width(230.dp)
+                                                .heightIn(max = w7PopupMaxHeight())
+                                                .background(Win7.Input).border(1.dp, Win7.FrameLine)
+                                                .verticalScroll(rememberScrollState())
+                                        ) {
+                                            if (onOpenEditor != null) { // [EDITOR-IN-DROP]
+                                                W7MenuItem(W7Ico.CODE, "Editor", true) { menuOpen = false; onOpenEditor() }
+                                                W7MenuDivider()
+                                            }
+                                            if (portrait) W7MenuItem(W7Ico.NAV, "Panel lokasi", true) { menuOpen = false; navOpen = !navOpen } // [DROP-HAMBURGER]
+                                            if (portrait) W7MenuDivider() // [DROP-DIVIDER]
+                                            W7MenuItem(W7Ico.REFRESH, "Segarkan", true) { menuOpen = false; tick++ }
+                                            W7MenuItem(W7Ico.SORT, "Urut\u2026", true) { menuOpen = false; sortOpen = true }
+                                            W7MenuDivider() // [DROP-DIVIDER]
+                                            W7MenuItem(W7Ico.SELECT, if (multi) "Selesai memilih" else "Pilih", !busy) {
+                                                menuOpen = false
+                                                multi = !multi; picked = emptySet(); selected = null; fileName = ""
+                                            }
+                                            if (multi) W7MenuItem(W7Ico.SELECT_ALL, "Pilih semua", !busy) {
+                                                menuOpen = false
+                                                val here = (entries ?: emptyList()).map { it.file.path }.toSet()
+                                                picked = if (here.isNotEmpty() && picked.containsAll(here)) picked - here else picked + here
+                                            }
+                                            if (picked.isNotEmpty()) W7MenuItem(W7Ico.CLEAR, "Kosongkan pilihan", !busy) { menuOpen = false; picked = emptySet() }
+                                        }
+                                    }
+                                    sortPopup(true)
+                                    toolsPopup()
+                                }
+                            }
+                    )
+                            }
                         )
                     } else {
                     if (pickFolder) Text(
@@ -1191,7 +1166,7 @@ private fun W7EntryRow(
                     )
                 } else Modifier
             )
-            .heightIn(min = if (wide) 38.dp else 56.dp) // [ICON-BIG]
+            .heightIn(min = if (wide) 30.dp else 44.dp) // [MINT-ICONS]
             .padding(horizontal = 6.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1210,9 +1185,9 @@ private fun W7EntryRow(
             )
             Spacer(Modifier.width(6.dp))
         }
-        val iconSz = if (wide) 32.dp else 42.dp // [ICON-BIG]
-        if (e.isDir) Win7Folder(iconSz) else W7FileIcon(e.file.extension, iconSz)
-        Spacer(Modifier.width(10.dp))
+        val iconSz = if (wide) 22.dp else 28.dp // [MINT-ICONS] lebih kecil, seimbang dengan teks
+        if (e.isDir) MintFolder(iconSz) else MintFileIcon(e.file.extension, iconSz)
+        Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(e.name, color = Win7.Ink, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))

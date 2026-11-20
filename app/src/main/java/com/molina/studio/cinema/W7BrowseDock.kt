@@ -40,26 +40,32 @@ import androidx.compose.ui.semantics.semantics
 import com.molina.studio.ui.MolinaTheme
 
 /**
- * [FILES-DOCK] Panel bawah Penjelajah (mode jelajah): tinggi TETAP, satu baris aksi
- * (Aksi cepat, Alat, Terminal, Buka) dengan bobot sama, tanpa lebar minimum.
+ * [FILES-DOCK] Panel bawah Penjelajah (mode jelajah): satu baris [aksi cepat kontekstual] [Alat] [Terminal] [pil melayang].
+ * [DOCK-V3] Alat dan Terminal berupa ikon saja; Buka dihapus.
  * [FLOAT-DOCK] Status Debian dan menu kisi pindah ke pil melayang [W7BrowseFloat] agar daftar lebih luas.
  */
 @Composable
 internal fun W7BrowseDock(
-    quickLabel: String,
+    quickLabel: String?,
     toolsEnabled: Boolean,
     terminalEnabled: Boolean,
     onQuick: () -> Unit,
     onTools: () -> Unit,
     onTerminal: () -> Unit,
-    onOpen: () -> Unit
+    trailing: @Composable () -> Unit
 ) {
-    // [DOCK-V2] Sisipkan dihapus; Alat menempati slotnya. Terminal = cd + Enter ke sesi aktif [TERMINAL-CD].
-    Row(Modifier.fillMaxWidth().padding(bottom = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        DockButton(quickLabel, Modifier.weight(1f), true, false, null, onQuick)
-        DockButton("Alat", Modifier.weight(1f), toolsEnabled, false, null, onTools)
-        DockButton("Terminal", Modifier.weight(1.1f), terminalEnabled, false, MolinaTheme.Good, onTerminal)
-        DockButton("Buka", Modifier.weight(0.9f), true, true, MolinaTheme.Brand, onOpen)
+    // [DOCK-V3] Buka dihapus; Properti ada di menu Alat. Alat dan Terminal berupa ikon. Pil melayang (menu kisi,
+    // status Debian, Mode Pilih) menempati slot bekas Buka di ujung kanan. quickLabel null = tidak ada aksi cepat kontekstual.
+    Row(
+        Modifier.fillMaxWidth().padding(bottom = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (quickLabel != null) DockButton(quickLabel, Modifier.weight(1f), true, false, null, onQuick)
+        else Spacer(Modifier.weight(1f))
+        DockIconButton(W7Ico.TOOLS, "Alat", toolsEnabled, onTools)
+        DockIconButton(W7Ico.TERMINAL, "Terminal", terminalEnabled, onTerminal)
+        trailing()
     }
 }
 
@@ -156,5 +162,21 @@ private fun DockButton(label: String, modifier: Modifier, enabled: Boolean, prim
             label, color = if (enabled) (accent ?: Win7.Ink) else Win7.TextDim, fontSize = 12.sp,
             maxLines = 1, overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+/** [DOCK-V3] Tombol dock berupa ikon saja (44x36dp, senada W7DropButton); label hanya untuk aksesibilitas. */
+@Composable
+private fun DockIconButton(ico: W7Ico, desc: String, enabled: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(4.dp)
+    Box(
+        Modifier.size(width = 44.dp, height = 36.dp).clip(shape)
+            .background(Brush.verticalGradient(listOf(Win7.BtnTop, Win7.BtnBottom)), shape)
+            .border(1.dp, Win7.BtnLine, shape)
+            .semantics { contentDescription = desc; role = Role.Button }
+            .clickable(enabled = enabled, onClick = onClick),
+        Alignment.Center
+    ) {
+        W7MenuIcon(ico, enabled, 20.dp)
     }
 }

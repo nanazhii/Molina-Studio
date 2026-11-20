@@ -36,7 +36,8 @@ import com.molina.studio.ui.MolinaTheme
 // tombol kisi drop-up (W7DropButton), pemisah (W7MenuDivider), dan batas tinggi popup (w7PopupMaxHeight).
 
 internal enum class W7Ico { PLAY, CODE, SCRIPT, COPY, CUT, PASTE, RENAME, ZIP, UNZIP, DELETE, NEWDIR, STAR, STAR_OUT, INFO, SHARE, OPEN_WITH,
-    REFRESH, SORT, SELECT, SELECT_ALL, CLEAR, MORE, SEARCH, NAV, LOCK, EDIT } // [W7-COMPACT-PORTRAIT]
+    REFRESH, SORT, SELECT, SELECT_ALL, CLEAR, MORE, SEARCH, NAV, LOCK, EDIT,
+    TOOLS, TERMINAL } // [W7-COMPACT-PORTRAIT] [DOCK-V3] TOOLS/TERMINAL untuk tombol dock berupa ikon
 
 /** [W7-COMPACT-PORTRAIT] Perintah bilah berupa ikon (tanpa teks) agar hemat lebar di ponsel potret. */
 @Composable
@@ -127,6 +128,8 @@ internal fun W7MenuIcon(ico: W7Ico, enabled: Boolean, sz: androidx.compose.ui.un
         W7Ico.REFRESH -> MolinaTheme.Brand // [ICON-V2]
         W7Ico.SORT -> MolinaTheme.FolderYellow
         W7Ico.NAV -> MolinaTheme.Link
+        W7Ico.TERMINAL -> MolinaTheme.Good // [DOCK-V3]
+        W7Ico.TOOLS -> MolinaTheme.Brand // [DOCK-V3]
         else -> Win7.NavHeader
     }
     Canvas(Modifier.size(sz)) {
@@ -259,6 +262,15 @@ internal fun W7MenuIcon(ico: W7Ico, enabled: Boolean, sz: androidx.compose.ui.un
                 drawArc(c, startAngle = 180f, sweepAngle = 180f, useCenter = false,
                     topLeft = Offset(5f * u, 2.5f * u), size = Size(6f * u, 6f * u), style = st)
                 drawCircle(c, radius = 0.9f * u, center = Offset(8f * u, 10.5f * u))
+            }
+            W7Ico.TOOLS -> { // [DOCK-V3] kunci inggris: gagang diagonal + rahang terbuka
+                line(3f, 13f, 8.6f, 7.4f)
+                drawArc(c, startAngle = 35f, sweepAngle = 285f, useCenter = false,
+                    topLeft = Offset(7.6f * u, 1.6f * u), size = Size(6.8f * u, 6.8f * u), style = st)
+            }
+            W7Ico.TERMINAL -> { // [DOCK-V3] jendela dengan prompt >_
+                box(1.5f, 2.5f, 13f, 11f)
+                line(4.5f, 6f, 7f, 8.2f); line(7f, 8.2f, 4.5f, 10.5f); line(8.5f, 10.8f, 11.5f, 10.8f)
             }
             W7Ico.INFO -> {
                 drawCircle(c, radius = 6.2f * u, center = Offset(8f * u, 8f * u), style = st)
