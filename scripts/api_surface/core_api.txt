@@ -1,0 +1,51 @@
+com.molina.core.api.AppLog: fun install(sink: LogSink)
+com.molina.core.api.AppLog: fun log(source: String, level: LogLevel, tag: String, message: String)
+com.molina.core.api.ExplorerGateway: fun cancel(id: Long)
+com.molina.core.api.ExplorerGateway: fun complete(id: Long, result: File?)
+com.molina.core.api.ExplorerGateway: fun pick(kind: ExplorerPickKind, startDir: File? = null, onResult: (File?) -> Unit): Long
+com.molina.core.api.ExplorerGateway: val request: StateFlow<ExplorerRequest?>
+com.molina.core.api.ExplorerPickKind: enum entries FILE, FOLDER
+com.molina.core.api.LogLevel.Companion: fun fromCode(c: Char): LogLevel
+com.molina.core.api.LogLevel: companion object
+com.molina.core.api.LogLevel: enum entries Debug('D'), Info('I'), Warn('W'), Error('E')
+com.molina.core.api.LogSink: fun emit(event: LogEvent)
+com.molina.core.api.MolinaServices: var explorer: ExplorerGateway
+com.molina.core.api.MolinaServices: var terminal: TerminalGateway
+com.molina.core.api.PasteResult: enum entries OK, NO_SESSION, FULLSCREEN_PROGRAM
+com.molina.core.api.RootfsState: data class Downloading(val percent: Int) : RootfsState
+com.molina.core.api.RootfsState: data class Extracting(val percent: Int) : RootfsState
+com.molina.core.api.RootfsState: data class Failed(val message: String) : RootfsState
+com.molina.core.api.RootfsState: data class Maintenance(val label: String) : RootfsState
+com.molina.core.api.RootfsState: data object Missing : RootfsState
+com.molina.core.api.RootfsState: data object Ready : RootfsState
+com.molina.core.api.RootfsState: data object Verifying : RootfsState
+com.molina.core.api.TerminalGateway: fun activeFullAccess(): Boolean?
+com.molina.core.api.TerminalGateway: fun canAddSession(): Boolean
+com.molina.core.api.TerminalGateway: fun ensureSession()
+com.molina.core.api.TerminalGateway: fun hasActiveSession(): Boolean
+com.molina.core.api.TerminalGateway: fun isFullscreenProgramActive(): Boolean
+com.molina.core.api.TerminalGateway: fun killAll()
+com.molina.core.api.TerminalGateway: fun newSession(guestCwd: String? = null, label: String? = null): Boolean
+com.molina.core.api.TerminalGateway: fun paste(text: String): PasteResult
+com.molina.core.api.TerminalGateway: fun pasteRaw(text: String): Boolean
+com.molina.core.api.TerminalGateway: fun refreshRootfs()
+com.molina.core.api.TerminalGateway: fun rootfsDir(): File
+com.molina.core.api.TerminalGateway: fun selectByStartDir(guestPath: String): Boolean
+com.molina.core.api.TerminalGateway: fun send(text: String)
+com.molina.core.api.TerminalGateway: fun typeCommand(command: String, inNewSession: Boolean): Boolean
+com.molina.core.api.TerminalGateway: val fullStorageAccess: Boolean
+com.molina.core.api.TerminalGateway: val maxSessions: Int
+com.molina.core.api.TerminalGateway: val rootfsState: StateFlow<RootfsState>
+com.molina.core.api.TerminalGateway: val sessionCount: Int
+com.molina.core.api.TerminalGateway: val workspaceDir: String
+com.molina.core.api: class ExplorerRequest(val id: Long, val kind: ExplorerPickKind, val startDir: File?, val onResult: (File?) -> Unit)
+com.molina.core.api: data class LogEvent( val source: String, val level: LogLevel, val tag: String, val message: String )
+com.molina.core.api: enum class ExplorerPickKind
+com.molina.core.api: enum class LogLevel(val code: Char)
+com.molina.core.api: enum class PasteResult
+com.molina.core.api: fun interface LogSink
+com.molina.core.api: interface ExplorerGateway
+com.molina.core.api: interface TerminalGateway
+com.molina.core.api: object AppLog
+com.molina.core.api: object MolinaServices
+com.molina.core.api: sealed interface RootfsState

@@ -24,6 +24,8 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:api")) // [LOG-CONTRACT]
+    implementation(project(":core:net")) // [CORE-NET]
     // Versi diturunkan dari upstream agar cocok dengan AGP 8.7.3 / compileSdk 35 (lihat docs/UPSTREAM.md)
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.recyclerview:recyclerview:1.3.2")

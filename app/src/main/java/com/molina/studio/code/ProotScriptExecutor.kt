@@ -14,8 +14,8 @@ import com.molina.code.run.RunListener
 import com.molina.code.run.RunRequest
 import com.molina.code.run.RunResult
 import com.molina.code.run.ScriptExecutor
-import com.molina.core.common.AppLog
-import com.molina.core.common.LogLevel
+import com.molina.core.api.AppLog
+import com.molina.core.api.LogLevel
 import com.molina.core.common.YtdlpCommand
 import com.molina.studio.system.AndroidProcessOps
 import com.molina.core.api.MolinaServices

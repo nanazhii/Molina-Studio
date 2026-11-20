@@ -1,4 +1,4 @@
-package com.molina.core.common
+package com.molina.core.net
 
 /** [AUTO-NET] Snapshot jaringan saat resolve. [wifi] = Wi-Fi/Ethernet. [downKbps] 0 = tidak diketahui. */
 data class NetSnapshot(

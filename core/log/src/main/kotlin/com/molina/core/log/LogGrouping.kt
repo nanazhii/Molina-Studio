@@ -1,8 +1,8 @@
 package com.molina.core.log
 
-import com.molina.core.common.LogEvent
-import com.molina.core.common.LogLevel
-import com.molina.core.common.LogSink
+import com.molina.core.api.LogEvent
+import com.molina.core.api.LogLevel
+import com.molina.core.api.LogSink
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

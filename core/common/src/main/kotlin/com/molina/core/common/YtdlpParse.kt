@@ -1,5 +1,7 @@
 package com.molina.core.common
 
+import com.molina.core.net.StreamHeaders
+
 /**
  * Keluaran `yt-dlp -J` (satu video) -> [ResolvedStream]. Murni, tanpa jaringan.
  * Hanya stream gabungan (video+audio, satu URL); video terpisah menunggu 5d-3.

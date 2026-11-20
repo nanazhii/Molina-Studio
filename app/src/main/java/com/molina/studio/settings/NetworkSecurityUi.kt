@@ -15,7 +15,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
-import com.molina.core.common.ShieldStats
+import com.molina.core.net.ShieldStats
 import com.molina.studio.security.PrivacyPrefs
 import com.molina.studio.security.ShieldPrefs
 import com.molina.studio.stream.StreamEnginePrefs

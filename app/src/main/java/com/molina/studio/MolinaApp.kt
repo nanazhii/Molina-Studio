@@ -2,10 +2,10 @@ package com.molina.studio
 
 import android.app.Application
 import com.molina.cinema.MpvLifecycle
-import com.molina.core.common.AppLog
+import com.molina.core.api.AppLog
 import com.molina.core.common.CompositeStreamResolver
 import com.molina.core.common.GuardedStreamResolver
-import com.molina.core.common.ShieldProxy
+import com.molina.core.net.ShieldProxy
 import com.molina.core.common.StreamResolvers
 import com.molina.engine.newpipe.NewPipeStreamResolver
 import com.molina.core.log.LogBus
@@ -31,7 +31,7 @@ class MolinaApp : Application() {
         runCatching { android.system.Os.unsetenv("no_proxy"); android.system.Os.unsetenv("NO_PROXY") }
         MpvLifecycle.installExitHook()
         StreamEnginePrefs.init(this)
-        com.molina.core.common.NetworkHint.provider = { com.molina.studio.stream.NetHint.snapshot(this) } // [AUTO-NET]
+        com.molina.core.net.NetworkHint.provider = { com.molina.studio.stream.NetHint.snapshot(this) } // [AUTO-NET]
         PrivacyPrefs.init(this)
         // [EXT-CONFIRM] token intent internal untuk pemutar; intent luar tanpa token dikonfirmasi bila meminta jaringan
         com.molina.core.common.ExternalIntentGate.tokenProvider = { com.molina.studio.security.ShortcutToken.get(this) }

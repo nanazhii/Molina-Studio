@@ -2,11 +2,11 @@ package com.molina.studio.automation
 
 import android.content.Context
 import android.os.Environment
-import com.molina.core.common.AppLog
+import com.molina.core.api.AppLog
 import com.molina.core.common.DownloadItemStatus
 import com.molina.core.common.DownloadPaths
 import com.molina.core.common.DownloadSessionState
-import com.molina.core.common.LogLevel
+import com.molina.core.api.LogLevel
 import com.molina.studio.cinema.CinemaRecent
 import java.io.File
 

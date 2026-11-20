@@ -1,5 +1,8 @@
 package com.molina.core.common
 
+import com.molina.core.net.NetworkPolicy
+import com.molina.core.net.UrlPolicy
+
 /**
  * Pembungkus resolver yang menerapkan [UrlPolicy] pada dua sisi: URL halaman yang masuk, dan URL
  * stream yang dikembalikan engine. Respons server (NewPipe, yt-dlp) tidak dipercaya: URL hasil

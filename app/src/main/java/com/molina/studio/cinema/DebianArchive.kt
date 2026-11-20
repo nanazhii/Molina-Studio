@@ -1,8 +1,8 @@
 package com.molina.studio.cinema
 
 import android.content.Context
-import com.molina.core.common.AppLog
-import com.molina.core.common.LogLevel
+import com.molina.core.api.AppLog
+import com.molina.core.api.LogLevel
 import com.molina.core.common.SevenZipCommand
 import com.molina.core.common.YtdlpCommand
 import com.molina.studio.system.AndroidProcessOps

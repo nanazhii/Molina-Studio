@@ -28,6 +28,8 @@ jobs:
         run: python3 scripts/bundle_gate.py
       - name: Gerbang modul (lapisan core/feature/engine)
         run: python3 scripts/module_gate.py
+      - name: Gerbang permukaan API (kontrak core:api dan core:files dibekukan)
+        run: python3 scripts/api_surface_gate.py
       - name: Gerbang split package (satu paket = satu modul)
         run: python3 scripts/split_package_gate.py
       - name: Siklus paket app (ratchet, turunkan angkanya seiring ekstraksi)

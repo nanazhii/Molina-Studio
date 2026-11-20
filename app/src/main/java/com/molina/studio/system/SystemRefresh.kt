@@ -4,8 +4,8 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.os.Process
-import com.molina.core.common.AppLog
-import com.molina.core.common.LogLevel
+import com.molina.core.api.AppLog
+import com.molina.core.api.LogLevel
 import com.molina.core.common.RefreshReport
 import com.molina.core.common.Refreshable
 import com.molina.core.common.Refreshers

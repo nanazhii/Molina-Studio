@@ -2,7 +2,7 @@ package com.molina.studio.terminal
 
 import com.molina.core.api.RootfsState
 import android.content.Context
-import com.molina.core.common.LogLevel
+import com.molina.core.api.LogLevel
 import com.molina.core.common.MolinaDir
 import com.molina.studio.AppPaths
 import com.molina.studio.code.ProotScriptExecutor

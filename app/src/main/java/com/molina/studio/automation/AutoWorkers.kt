@@ -3,8 +3,8 @@ package com.molina.studio.automation
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.molina.core.common.AppLog
-import com.molina.core.common.LogLevel
+import com.molina.core.api.AppLog
+import com.molina.core.api.LogLevel
 import com.molina.core.common.MolinaDir
 import com.molina.studio.AppPaths
 import com.molina.studio.packages.ToolChecker

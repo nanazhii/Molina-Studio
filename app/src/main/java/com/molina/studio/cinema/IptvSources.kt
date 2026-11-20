@@ -2,7 +2,7 @@ package com.molina.studio.cinema
 
 import android.content.Context
 import android.net.Uri
-import com.molina.core.common.M3uResult
+import com.molina.core.net.M3uResult
 import org.json.JSONArray
 import org.json.JSONObject
 

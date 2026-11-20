@@ -16,6 +16,8 @@ kotlin {
 val newpipeVersion = "v0.26.5"
 
 dependencies {
+    implementation(project(":core:api")) // [LOG-CONTRACT]
+    implementation(project(":core:net")) // [CORE-NET]
     api(project(":core:common"))
     implementation("com.github.TeamNewPipe:NewPipeExtractor:$newpipeVersion")
 }

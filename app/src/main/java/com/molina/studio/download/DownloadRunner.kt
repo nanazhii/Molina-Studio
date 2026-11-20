@@ -6,17 +6,17 @@ import com.molina.code.run.RunHandle
 import com.molina.code.run.RunListener
 import com.molina.code.run.RunRequest
 import com.molina.code.run.RunResult
-import com.molina.core.common.AppLog
+import com.molina.core.api.AppLog
 import com.molina.core.common.DownloadCommand
 import com.molina.core.common.DownloadFeed
 import com.molina.core.common.DownloadHistory
 import com.molina.core.common.DownloadItemStatus
 import com.molina.core.common.DownloadMaintenance
 import com.molina.core.common.DownloadRequest
-import com.molina.core.common.DownloadUrlGuard
+import com.molina.core.net.DownloadUrlGuard
 import com.molina.core.common.DownloadRunState
 import com.molina.core.common.DownloadSessionState
-import com.molina.core.common.LogLevel
+import com.molina.core.api.LogLevel
 import com.molina.core.common.LogRedact
 import com.molina.core.common.MaintenanceKind
 import com.molina.studio.cinema.SeenStore
@@ -68,16 +68,16 @@ internal object DownloadRunner {
     /** @return pesan galat siap tampil, atau null bila sesi unduhan dimulai. */
     /** [SHIELD-DL-ENV] Alamat proxy Shield untuk skrip unduhan; kosong bila Shield tidak berjalan/dimatikan pengguna. */
     private fun shieldEnv(): Map<String, String> {
-        val url = com.molina.core.common.ShieldProxy.proxyUrl() ?: return emptyMap()
+        val url = com.molina.core.net.ShieldProxy.proxyUrl() ?: return emptyMap()
         return linkedMapOf("MOLINA_SHIELD_PROXY" to url, "MOLINA_SHIELD_PORT" to url.substringAfterLast(':'))
     }
 
     fun start(ctx: Context, request: DownloadRequest): String? {
-        val req = request.copy(allowLan = com.molina.core.common.NetworkPolicy.allowLan) // [DL-NETGUARD]
+        val req = request.copy(allowLan = com.molina.core.net.NetworkPolicy.allowLan) // [DL-NETGUARD]
         DownloadCommand.validate(req)?.let { return it }
         DownloadUrlGuard.check(req.urls)?.let { return it } // [DL-SSRF-GUARD]
         // [SHIELD-DL-CLOSED] Shield menyala tetapi mati: jangan unduh langsung tanpa filter.
-        if (com.molina.core.common.ShieldProxy.failClosed()) return "Molina Shield tidak berjalan. Buka ulang aplikasi."
+        if (com.molina.core.net.ShieldProxy.failClosed()) return "Molina Shield tidak berjalan. Buka ulang aplikasi."
         val app = ctx.applicationContext
         // [WIFI-ONLY] pengguna memilih unduh hanya di jaringan tidak berkuota
         if (DownloadPrefs.wifiOnly(app) && NetworkGuard.isMetered(app)) return NetworkGuard.BLOCK_MSG

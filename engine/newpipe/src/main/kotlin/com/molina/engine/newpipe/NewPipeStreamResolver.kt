@@ -1,10 +1,10 @@
 package com.molina.engine.newpipe
 
-import com.molina.core.common.AppLog
-import com.molina.core.common.LogLevel
+import com.molina.core.api.AppLog
+import com.molina.core.api.LogLevel
 import com.molina.core.common.LogRedact
 import com.molina.core.common.AdaptiveTier
-import com.molina.core.common.NetworkHint
+import com.molina.core.net.NetworkHint
 import com.molina.core.common.OriginalTitles
 import com.molina.core.common.ResolvedStream
 import com.molina.core.common.SearchLang

@@ -2,7 +2,7 @@ package com.molina.studio.terminal
 
 import android.content.Context
 import android.net.ConnectivityManager
-import com.molina.core.common.LogLevel
+import com.molina.core.api.LogLevel
 import com.molina.core.log.LogBus
 import java.io.File
 import java.nio.file.Files

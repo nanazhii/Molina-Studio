@@ -1,5 +1,5 @@
-import com.molina.core.common.IptvLoad
-import com.molina.core.common.IptvLocal
+import com.molina.core.net.IptvLoad
+import com.molina.core.net.IptvLocal
 import java.io.File
 import java.nio.file.Files
 

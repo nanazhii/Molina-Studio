@@ -31,7 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.molina.core.common.ChannelTidy
-import com.molina.core.common.LogLevel
+import com.molina.core.api.LogLevel
 import com.molina.core.common.ResumeMark
 import com.molina.core.common.TrashBin
 import com.molina.core.common.TrashItem

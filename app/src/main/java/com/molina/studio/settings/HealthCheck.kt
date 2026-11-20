@@ -219,7 +219,7 @@ internal object HealthCheck {
         val name = "Log Cinema"
         val since = System.currentTimeMillis() - CINEMA_LOG_WINDOW_MS
         val errs = com.molina.core.log.LogBus.entries.value.filter {
-            it.source == "mpv" && it.level == com.molina.core.common.LogLevel.Error && it.time >= since
+            it.source == "mpv" && it.level == com.molina.core.api.LogLevel.Error && it.time >= since
         }
         if (errs.isEmpty()) return CheckResult(name, CheckLevel.Ok, "tidak ada error mpv dalam 5 menit terakhir")
         val last = errs.last()

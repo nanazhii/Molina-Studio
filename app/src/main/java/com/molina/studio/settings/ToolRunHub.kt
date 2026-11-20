@@ -3,8 +3,8 @@ package com.molina.studio.settings
 import android.content.Context
 import android.widget.Toast
 import com.molina.code.run.RunHandle
-import com.molina.core.common.AppLog
-import com.molina.core.common.LogLevel
+import com.molina.core.api.AppLog
+import com.molina.core.api.LogLevel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

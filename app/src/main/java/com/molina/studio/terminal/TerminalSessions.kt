@@ -10,7 +10,7 @@ import android.os.Environment
 import android.system.Os
 import android.system.OsConstants
 import com.molina.core.log.LogBus
-import com.molina.core.common.LogLevel
+import com.molina.core.api.LogLevel
 import com.molina.terminal.TerminalSession
 import java.io.File
 import kotlin.math.min

@@ -2,7 +2,7 @@ package com.molina.studio.cmd
 
 import android.content.Context
 import android.os.SystemClock
-import com.molina.core.common.LogLevel
+import com.molina.core.api.LogLevel
 import com.molina.core.common.MolinaPaths
 import com.molina.core.log.LogBus
 import com.molina.studio.terminal.TerminalPrefs

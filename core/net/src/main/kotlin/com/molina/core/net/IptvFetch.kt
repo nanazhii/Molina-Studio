@@ -1,4 +1,4 @@
-package com.molina.core.common
+package com.molina.core.net
 
 import java.io.ByteArrayOutputStream
 import java.io.IOException

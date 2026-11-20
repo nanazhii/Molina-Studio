@@ -6,8 +6,9 @@ KC="${KOTLINC:-kotlinc}"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 C=core/common/src/main/kotlin/com/molina/core/common
+NET_D=core/net/src/main/kotlin/com/molina/core/net
 "$KC" -nowarn -d "$OUT" \
-  $C/YtdlpCommand.kt $C/YtdlpParse.kt $C/StreamResolver.kt $C/LogRedact.kt $C/MiniJson.kt $C/JsonCursor.kt $C/StreamHeaders.kt \
+  $C/YtdlpCommand.kt $C/YtdlpParse.kt $C/StreamResolver.kt $C/LogRedact.kt $C/MiniJson.kt $C/JsonCursor.kt $NET_D/StreamHeaders.kt \
   app/src/main/java/com/molina/studio/code/ScriptCommand.kt \
   scripts/code-tests/ScriptCommandTests.kt
 java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" ScriptCommandTestsKt

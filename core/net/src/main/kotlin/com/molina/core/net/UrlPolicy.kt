@@ -1,4 +1,4 @@
-package com.molina.core.common
+package com.molina.core.net
 
 /** Pengaturan kebijakan jaringan yang dibaca lintas modul. :app mengisinya saat start. */
 object NetworkPolicy {

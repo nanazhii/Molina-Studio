@@ -1,10 +1,10 @@
-import com.molina.core.common.NetworkPolicy
-import com.molina.core.common.ShieldPolicy
-import com.molina.core.common.ShieldProxy
-import com.molina.core.common.ShieldStats
-import com.molina.core.common.StreamPin
-import com.molina.core.common.TrackerList
-import com.molina.core.common.UrlPolicy
+import com.molina.core.net.NetworkPolicy
+import com.molina.core.net.ShieldPolicy
+import com.molina.core.net.ShieldProxy
+import com.molina.core.net.ShieldStats
+import com.molina.core.net.StreamPin
+import com.molina.core.net.TrackerList
+import com.molina.core.net.UrlPolicy
 import com.molina.core.common.YtdlpCommand
 import com.molina.cinema.MpvLoad
 import java.net.InetAddress

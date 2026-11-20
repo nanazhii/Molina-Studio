@@ -1,4 +1,4 @@
-package com.molina.core.common
+package com.molina.core.net
 
 /**
  * Penyaring header HTTP dari sumber tak tepercaya (resolver, extra intent) sebelum diberikan ke mpv.

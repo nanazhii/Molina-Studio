@@ -1,4 +1,4 @@
-package com.molina.core.common
+package com.molina.core.api
 
 /** Tingkat log lintas modul. */
 enum class LogLevel(val code: Char) {

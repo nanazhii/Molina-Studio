@@ -1,4 +1,4 @@
-package com.molina.core.common
+package com.molina.core.net
 
 /** Satu saluran dari playlist M3U/IPTV. [group] kosong bila playlist tidak mengelompokkan. */
 class IptvChannel(

@@ -5,7 +5,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
-import com.molina.core.common.LogLevel
+import com.molina.core.api.LogLevel
 import com.molina.core.common.LogRedact
 import com.molina.core.common.MolinaDir
 import com.molina.studio.AppPaths

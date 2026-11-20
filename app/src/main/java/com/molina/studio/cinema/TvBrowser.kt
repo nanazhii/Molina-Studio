@@ -79,7 +79,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import com.molina.core.common.CrashContext
-import com.molina.core.common.LogLevel
+import com.molina.core.api.LogLevel
 import com.molina.core.log.LogBus
 
 private val TvBg = Color(0xFF0E0B10)

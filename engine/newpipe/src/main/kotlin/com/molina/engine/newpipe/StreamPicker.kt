@@ -1,7 +1,7 @@
 package com.molina.engine.newpipe
 
 import com.molina.core.common.AudioChoice
-import com.molina.core.common.NetSnapshot
+import com.molina.core.net.NetSnapshot
 import com.molina.core.common.StreamAudioLang
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.DeliveryMethod

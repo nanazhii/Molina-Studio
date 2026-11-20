@@ -15,5 +15,6 @@ android {
 }
 
 dependencies {
+    api(project(":core:api")) // [LOG-CONTRACT]
     api(project(":core:common"))
 }

@@ -3,7 +3,7 @@ package com.molina.studio.stream
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import com.molina.core.common.NetSnapshot
+import com.molina.core.net.NetSnapshot
 
 /** [AUTO-NET] Membaca jaringan aktif (murah, tanpa permintaan jaringan). */
 object NetHint {

@@ -12,7 +12,7 @@ import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
-import com.molina.core.common.LogLevel
+import com.molina.core.api.LogLevel
 import com.molina.studio.MainActivity
 import com.molina.studio.R
 import com.molina.core.log.LogBus

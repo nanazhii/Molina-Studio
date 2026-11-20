@@ -1,0 +1,20 @@
+com.molina.core.files.DirOrder: fun <T> foldersFirst(isDir: (T) -> Boolean, name: (T) -> String): Comparator<T>
+com.molina.core.files.DirOrder: fun list(dir: File, showHidden: Boolean = true): List<File>
+com.molina.core.files.FileTypes: fun extOf(name: String): String
+com.molina.core.files.FileTypes: fun isAudio(name: String): Boolean
+com.molina.core.files.FileTypes: fun isHidden(name: String): Boolean
+com.molina.core.files.FileTypes: fun isMedia(name: String): Boolean
+com.molina.core.files.FileTypes: fun isVideo(name: String): Boolean
+com.molina.core.files.FileTypes: fun looksText(f: File): Boolean
+com.molina.core.files.FileTypes: val AUDIO: Set<String>
+com.molina.core.files.FileTypes: val LISTS: Set<String>
+com.molina.core.files.FileTypes: val MEDIA: Set<String>
+com.molina.core.files.FileTypes: val VIDEO: Set<String>
+com.molina.core.files.FolderKind: enum entries DEFAULT, DOWNLOAD, VIDEO, MUSIC, PICTURES, DOCS
+com.molina.core.files.FolderKinds: fun of(name: String): FolderKind
+com.molina.core.files.NaturalOrder: fun compare(a: String, b: String): Int
+com.molina.core.files: enum class FolderKind
+com.molina.core.files: object DirOrder
+com.molina.core.files: object FileTypes
+com.molina.core.files: object FolderKinds
+com.molina.core.files: object NaturalOrder

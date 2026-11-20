@@ -1,4 +1,4 @@
-import com.molina.core.common.DownloadUrlGuard
+import com.molina.core.net.DownloadUrlGuard
 
 private var fails = 0
 private var runs = 0

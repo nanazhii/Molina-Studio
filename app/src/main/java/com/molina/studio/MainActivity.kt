@@ -142,7 +142,7 @@ class MainActivity : ComponentActivity() {
         // (BadParcelableException saat dibaca). Jangan crash; buang extra-nya.
         runCatching { dispatchOpenTabIntent(i) }.onFailure {
             runCatching { i?.replaceExtras(null as android.os.Bundle?) }
-            com.molina.core.log.LogBus.log("sistem", com.molina.core.common.LogLevel.Warn, "intent", "Intent dengan extra tidak sah diabaikan")
+            com.molina.core.log.LogBus.log("sistem", com.molina.core.api.LogLevel.Warn, "intent", "Intent dengan extra tidak sah diabaikan")
         }
     }
 
@@ -150,7 +150,7 @@ class MainActivity : ComponentActivity() {
     private fun trustedShortcut(i: android.content.Intent): Boolean {
         val ok = com.molina.studio.security.ShortcutToken.verify(this, i.getStringExtra(com.molina.studio.security.ShortcutToken.EXTRA))
         if (!ok) {
-            com.molina.core.log.LogBus.log("sistem", com.molina.core.common.LogLevel.Warn, "intent", "Aksi pintasan ditolak: token tidak cocok")
+            com.molina.core.log.LogBus.log("sistem", com.molina.core.api.LogLevel.Warn, "intent", "Aksi pintasan ditolak: token tidak cocok")
             android.widget.Toast.makeText(this, "Pintasan kedaluwarsa. Buka ulang Molina lalu coba lagi.", android.widget.Toast.LENGTH_LONG).show()
         }
         return ok

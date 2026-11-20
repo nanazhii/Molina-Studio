@@ -3,7 +3,7 @@ package com.molina.studio.terminal
 import com.molina.core.log.LogBus
 import com.molina.core.log.LogFileWriter
 import com.molina.core.log.LogcatConfig
-import com.molina.core.common.LogLevel
+import com.molina.core.api.LogLevel
 
 /**
  * Logcat reporter: membaca logcat milik proses aplikasi sendiri (tanpa izin tambahan)

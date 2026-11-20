@@ -10,7 +10,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.Process
 import com.molina.cinema.MpvFolder
-import com.molina.core.common.LogLevel
+import com.molina.core.api.LogLevel
 import com.molina.studio.cinema.CinemaActions
 import com.molina.studio.code.CodeNav
 import com.molina.studio.preview.PreviewNav

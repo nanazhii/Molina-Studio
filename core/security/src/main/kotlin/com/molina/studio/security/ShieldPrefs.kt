@@ -2,8 +2,8 @@ package com.molina.studio.security
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.molina.core.common.ShieldProxy
-import com.molina.core.common.TrackerList
+import com.molina.core.net.ShieldProxy
+import com.molina.core.net.TrackerList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

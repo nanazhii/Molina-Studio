@@ -2,7 +2,7 @@ package com.molina.core.log
 
 import android.content.Context
 import com.molina.core.common.ExitHooks
-import com.molina.core.common.LogLevel
+import com.molina.core.api.LogLevel
 import com.molina.core.common.LogRedact
 import com.molina.core.common.MolinaPaths
 import java.io.File

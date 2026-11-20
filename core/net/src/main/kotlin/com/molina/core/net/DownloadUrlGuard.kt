@@ -1,4 +1,4 @@
-package com.molina.core.common
+package com.molina.core.net
 
 /**
  * [DL-SSRF-GUARD] Unduhan (yt-dlp di Debian) tidak lewat Molina Shield, jadi URL yang menunjuk alamat lokal perangkat

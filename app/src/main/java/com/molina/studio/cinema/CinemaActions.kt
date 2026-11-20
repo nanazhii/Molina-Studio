@@ -4,8 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import com.molina.core.common.ExternalIntentGate
-import com.molina.core.common.IptvChannel
-import com.molina.core.common.IptvPlayback
+import com.molina.core.net.IptvChannel
+import com.molina.core.net.IptvPlayback
 import com.molina.core.common.PlaylistExtras
 import com.molina.core.common.PlaylistPlan
 import com.molina.core.common.StreamSearchItem

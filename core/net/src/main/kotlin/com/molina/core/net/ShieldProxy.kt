@@ -1,4 +1,4 @@
-package com.molina.core.common
+package com.molina.core.net
 
 import java.io.IOException
 import java.io.InputStream
@@ -15,6 +15,8 @@ import java.security.SecureRandom
 import java.util.Base64
 import java.util.concurrent.Executors
 import java.util.concurrent.Semaphore
+import com.molina.core.api.AppLog
+import com.molina.core.api.LogLevel
 
 /**
  * Molina Shield: proxy HTTP lokal di 127.0.0.1 (port acak, wajib token) yang dilewati semua lalu

@@ -1,6 +1,6 @@
 package com.molina.core.log
 
-import com.molina.core.common.LogLevel
+import com.molina.core.api.LogLevel
 
 /**
  * [LOGCAT-FILTER] Filter log ala `adb logcat`, dari satu kolom cari. Token dipisah spasi, semuanya digabung (AND):

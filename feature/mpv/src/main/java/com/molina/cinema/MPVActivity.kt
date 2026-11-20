@@ -3,16 +3,16 @@ package com.molina.cinema
 import com.molina.core.common.PlaylistExtras
 import com.molina.core.common.PlaylistPlan
 import com.molina.core.common.RollingQueue
-import com.molina.core.common.StreamHeaders
-import com.molina.core.common.StreamPin
+import com.molina.core.net.StreamHeaders
+import com.molina.core.net.StreamPin
 import com.molina.core.common.StreamOutcome
 import com.molina.core.common.StreamResolvers
 import com.molina.core.common.VideoQuality as CoreQuality // [QUALITY-SHEET]
 import com.molina.core.common.StreamSearchItem
-import com.molina.core.common.ShieldProxy
-import com.molina.core.common.ShieldStats
+import com.molina.core.net.ShieldProxy
+import com.molina.core.net.ShieldStats
 import com.molina.core.common.ExternalIntentGate
-import com.molina.core.common.UrlPolicy
+import com.molina.core.net.UrlPolicy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers

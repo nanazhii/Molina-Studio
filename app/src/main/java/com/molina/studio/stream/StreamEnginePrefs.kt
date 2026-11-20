@@ -2,7 +2,7 @@ package com.molina.studio.stream
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.molina.core.common.NetworkPolicy
+import com.molina.core.net.NetworkPolicy
 import com.molina.core.common.SearchLang
 import com.molina.core.common.StreamAudioLang
 import com.molina.core.common.StreamQuality

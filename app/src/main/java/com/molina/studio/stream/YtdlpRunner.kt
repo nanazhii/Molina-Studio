@@ -1,8 +1,8 @@
 package com.molina.studio.stream
 
 import android.content.Context
-import com.molina.core.common.AppLog
-import com.molina.core.common.LogLevel
+import com.molina.core.api.AppLog
+import com.molina.core.api.LogLevel
 import com.molina.core.common.YtdlpCommand
 import com.molina.studio.system.AndroidProcessOps
 import com.molina.studio.terminal.MolinaDns
@@ -73,7 +73,7 @@ internal object YtdlpRunner {
         try { MolinaDns.writeResolvConf(ctx, rootfsDir) } catch (e: Exception) { }
 
         val cmd = YtdlpCommand.SH_WRAPPER + "$nativeDir/libproot.so" +
-            YtdlpCommand.prootArgs(rootfs, guestBinary, args, com.molina.core.common.ShieldProxy.proxyUrl())
+            YtdlpCommand.prootArgs(rootfs, guestBinary, args, com.molina.core.net.ShieldProxy.proxyUrl())
         val pb = ProcessBuilder(cmd).directory(ctx.filesDir)
         pb.environment().apply {
             clear()
