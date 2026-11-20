@@ -71,7 +71,7 @@ internal fun SymbolDialog(session: CodeSession, onDismiss: () -> Unit) {
             t.currentTextOrNull(SymbolIndex.MAX_BYTES.toInt())?.let { overrides[f.path] = it }
         }
         result = withContext(Dispatchers.IO) {
-            val files = (PaletteScan.scan(root) + openFiles).distinctBy { it.path }
+            val files = (FileScan.scan(root) + openFiles).distinctBy { it.path }
             session.symbolIndex.build(files, overrides) { isActive }
         }
         indexing = false

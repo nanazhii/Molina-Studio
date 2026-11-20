@@ -3,7 +3,7 @@ package com.molina.code.ui
 import java.io.File
 
 // [CODE-SYMBOL] Berkas murni Kotlin (tanpa Compose/Android) agar bisa diuji di JVM: scripts/code-tests/run_symbols.sh.
-// Pengurai struktur (Outline) dan fuzzyScore dipindah ke sini apa adanya dari Outline.kt dan CommandPalette.kt.
+// Pengurai struktur (Outline) dan fuzzyScore dipindah ke sini apa adanya dari Outline.kt dan palet perintah (sudah dihapus).
 
 /** [CODE-SEARCH] Satu simbol di Struktur berkas. [line] basis 0, [depth] 0..4. */
 internal class OutlineItem(val line: Int, val depth: Int, val kind: String, val name: String)

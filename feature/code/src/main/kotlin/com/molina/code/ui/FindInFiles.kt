@@ -148,7 +148,7 @@ internal fun FindInFilesDialog(session: CodeSession, onDismiss: () -> Unit) {
     val focus = remember { FocusRequester() }
     val root = session.dir.root
 
-    LaunchedEffect(root.path) { files = withContext(Dispatchers.IO) { PaletteScan.scan(root) } }
+    LaunchedEffect(root.path) { files = withContext(Dispatchers.IO) { FileScan.scan(root) } }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     LaunchedEffect(query, regexOn, caseOn, files) {
         if (query.length < 2) {
