@@ -106,7 +106,8 @@ internal class MPVView(context: Context, attrs: AttributeSet) : BaseMPVView(cont
         // Limit demuxer cache since the defaults are too high for mobile devices
         val cacheMegs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) 64 else 32
         MPVLib.setOptionString("demuxer-max-bytes", "${cacheMegs * 1024 * 1024}")
-        MPVLib.setOptionString("demuxer-max-back-bytes", "${cacheMegs * 1024 * 1024}")
+        // [PERF-CACHE] buffer mundur cukup 8 MB (maju tetap cacheMegs); hemat sampai 24 MB pada stream
+        MPVLib.setOptionString("demuxer-max-back-bytes", "${8 * 1024 * 1024}")
         //
         val screenshotDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
         screenshotDir.mkdirs()

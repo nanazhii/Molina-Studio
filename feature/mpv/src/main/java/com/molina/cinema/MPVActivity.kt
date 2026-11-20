@@ -531,6 +531,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     override fun onCreate(icicle: Bundle?) {
         super.onCreate(icicle)
 
+        MemProbe.start() // [PERF-MEM]
         // Do these here and not in MainActivity because mpv can be launched from a file browser
         Utils.copyAssets(this)
         BackgroundPlaybackService.createNotificationChannel(this)
@@ -674,6 +675,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         bufferingHandler.removeCallbacks(tierLongStall) // [AUTO-NET-2]
         if (BackgroundPlaybackState.applyQuality === applyQualityHook) BackgroundPlaybackState.applyQuality = null // [QUALITY-NOW]
         dismissQualitySnack() // [QUALITY-SNACK]
+        MemProbe.stop() // [PERF-MEM]
         thumbnailer.release()
         MpvLog.v(TAG, "Exiting.")
         // [AUDIO-ONLY-BTN] [QUALITY-SYNC2] pulihkan hanya bila mode masih AUDIO; jika pengguna sudah memilih resolusi di Pengaturan, jangan ditimpa
