@@ -21,7 +21,11 @@ internal object ExplorerList {
         val onlyExt: Set<String>? = null
     )
 
-    class Item(val file: File, val isDir: Boolean, val size: Long, val modified: Long, val rel: String?)
+    /** [PERF-LIST] nameKey/extKey dihitung sekali per item (bukan di setiap perbandingan sortir). */
+    class Item(val file: File, val isDir: Boolean, val size: Long, val modified: Long, val rel: String?) {
+        val nameKey: String = file.name.lowercase(Locale.ROOT)
+        val extKey: String = file.extension.lowercase(Locale.ROOT)
+    }
     class Result(val items: List<Item>, val truncated: Boolean)
 
     const val MAX_RESULTS = 500
@@ -56,8 +60,15 @@ internal object ExplorerList {
             return f.isDirectory || f.extension.lowercase(Locale.ROOT) in only
         }
         fun item(f: File, rel: String?): Item {
-            val d = f.isDirectory
-            return Item(f, d, if (d) 0L else f.length(), f.lastModified(), rel)
+            // [PERF-LIST] satu stat (readAttributes) menggantikan isDirectory + length + lastModified (3 syscall per berkas)
+            return try {
+                val a = Files.readAttributes(f.toPath(), java.nio.file.attribute.BasicFileAttributes::class.java)
+                val d = a.isDirectory
+                Item(f, d, if (d) 0L else a.size(), a.lastModifiedTime().toMillis(), rel)
+            } catch (e: Exception) {
+                val d = f.isDirectory
+                Item(f, d, if (d) 0L else f.length(), f.lastModified(), rel)
+            }
         }
         val out = ArrayList<Item>()
         if (!o.deep || w.isEmpty()) {
@@ -92,10 +103,10 @@ internal object ExplorerList {
     /** Urut sesuai [Opts]: folder di atas (opsional), kunci sortir, menaik/menurun. Folder diurut per nama bila kuncinya ukuran. */
     fun sort(items: List<Item>, o: Opts): List<Item> {
         fun cmp(k: Key): Comparator<Item> = when (k) {
-            Key.NAME -> compareBy<Item> { it.file.name.lowercase(Locale.ROOT) }
+            Key.NAME -> compareBy<Item> { it.nameKey } // [PERF-LIST] sort
             Key.DATE -> compareBy<Item> { it.modified }
             Key.SIZE -> compareBy<Item> { it.size }
-            Key.TYPE -> compareBy<Item> { it.file.extension.lowercase(Locale.ROOT) }.thenBy { it.file.name.lowercase(Locale.ROOT) }
+            Key.TYPE -> compareBy<Item> { it.extKey }.thenBy { it.nameKey }
         }
         fun ordered(l: List<Item>, k: Key): List<Item> {
             val s = l.sortedWith(cmp(k))

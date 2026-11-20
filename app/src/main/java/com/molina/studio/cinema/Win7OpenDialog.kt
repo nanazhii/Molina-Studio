@@ -328,7 +328,13 @@ fun Win7OpenDialog(
     val shown = remember(entries, playedFirst, playedRefs) {
         val es = entries
         if (es == null || !playedFirst) es
-        else es.sortedWith(compareBy<W7Entry>({ if (it.isDir) 0 else 1 }, { if (it.isDir) 0 else playedRefs.indexOf(w7Norm(it.file.path)).let { i -> if (i < 0) 99 else i } }))
+        else {
+            // [PERF-PLAYED] peta jalur -> peringkat sekali jalan (sebelumnya indexOf linear di setiap perbandingan sortir)
+            val rank = HashMap<String, Int>(playedRefs.size * 2)
+            playedRefs.forEachIndexed { i, r -> rank.putIfAbsent(r, i) }
+            val rankOf = es.associateWith { if (it.isDir) 0 else (rank[w7Norm(it.file.path)] ?: 99) }
+            es.sortedWith(compareBy<W7Entry>({ if (it.isDir) 0 else 1 }, { rankOf.getValue(it) }))
+        }
     }
 
     val roots = vols.map { it.dir.path }
