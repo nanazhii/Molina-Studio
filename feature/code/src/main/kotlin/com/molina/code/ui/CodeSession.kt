@@ -421,6 +421,10 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
     private val io: ExecutorService = Executors.newSingleThreadExecutor { r ->
         Thread(r, "molina-code-io").apply { isDaemon = true }
     }
+    /** [DIR-IO] Thread khusus membaca isi folder panel direktori: tidak antre di belakang pemindaian folder/Riwayat milik [io]. */
+    private val dirIo: ExecutorService = Executors.newFixedThreadPool(2) { r ->
+        Thread(r, "molina-code-dir").apply { isDaemon = true }
+    }
     private val store: DraftStore? = draftDir?.let { DraftStore(it) }
 
     /** [CODE-HISTORY] Riwayat versi per berkas (folder privat, bersama folder draf); null bila sesi tanpa folder draf. */
@@ -1864,6 +1868,15 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         return true
     }
 
+    /** [DIR-IO] Untuk pembacaan folder (panel direktori). Aman dipanggil setelah sesi dilepas (diabaikan). */
+    internal fun runDirIo(block: () -> Unit) {
+        try {
+            dirIo.execute(block)
+        } catch (e: RejectedExecutionException) {
+            // sesi sudah dilepas
+        }
+    }
+
     /** Jalankan [block] di thread IO tunggal sesi. Aman dipanggil setelah sesi dilepas (diabaikan). */
     internal fun runIo(block: () -> Unit) {
         try {
@@ -2017,6 +2030,7 @@ class CodeSession(val workDir: String, draftDir: File? = null) {
         mainHandler.removeCallbacks(draftTask)
         tabs.forEach { it.disposeEditor() }
         io.shutdown()
+        dirIo.shutdown() // [DIR-IO]
     }
 
     companion object {

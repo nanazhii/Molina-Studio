@@ -142,7 +142,7 @@ internal class DirectoryState(private val session: CodeSession, initialRoot: Fil
     private fun load(dir: File) {
         val key = dir.path
         if (!loading.add(key)) return
-        session.runIo {
+        session.runDirIo { // [DIR-IO]
             val list = FileStore.listDir(dir)
             session.mainHandler.post {
                 loading.remove(key)
