@@ -265,24 +265,8 @@ internal object Utils {
         return lines.joinToString("\n", "", "\n")
     }
 
-    private val NUM_PARTS = Regex("\\d+|\\D+")
-
-    /** Urutan alami: "ep2" sebelum "ep10", huruf besar/kecil diabaikan. */
-    fun naturalCompare(a: String, b: String): Int {
-        val x = NUM_PARTS.findAll(a.lowercase()).map { it.value }.toList()
-        val y = NUM_PARTS.findAll(b.lowercase()).map { it.value }.toList()
-        for (i in 0 until minOf(x.size, y.size)) {
-            val p = x[i]
-            val q = y[i]
-            val c = if (p[0].isDigit() && q[0].isDigit()) {
-                val pt = p.trimStart('0')
-                val qt = q.trimStart('0')
-                if (pt.length != qt.length) pt.length - qt.length else pt.compareTo(qt)
-            } else p.compareTo(q)
-            if (c != 0) return c
-        }
-        return x.size - y.size
-    }
+    /** Urutan alami: "ep2" sebelum "ep10". [FILE-CONTRACT] Implementasi tunggal di :core:common (NaturalOrder). */
+    fun naturalCompare(a: String, b: String): Int = com.molina.core.common.NaturalOrder.compare(a, b)
 
     /**
      * Media satu folder dengan berkas [path] (urut alami) dan indeks berkas itu.

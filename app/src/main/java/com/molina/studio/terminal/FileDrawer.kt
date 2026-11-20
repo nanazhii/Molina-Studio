@@ -66,11 +66,11 @@ import com.molina.core.common.TrashBin
 import com.molina.studio.cinema.ExplorerRecent
 import com.molina.studio.cinema.FileOps
 import com.molina.studio.cinema.W7ConfirmDialog
-import com.molina.studio.cinema.W7FileIcon
+import com.molina.studio.cinema.MintFileIcon
 import com.molina.studio.cinema.W7InfoDialog
 import com.molina.studio.cinema.W7NameDialog
 import com.molina.studio.cinema.Win7BackOrb
-import com.molina.studio.cinema.Win7Folder
+import com.molina.studio.cinema.MintFolder
 import com.molina.studio.settings.MolinaExplorer
 import com.molina.studio.ui.MolinaTheme
 import com.molina.studio.ui.SwipeDirection
@@ -104,8 +104,7 @@ private sealed class Sheet {
 }
 
 /** Isi folder: folder dulu, lalu berkas, urut nama. Memblokir: panggil dari thread IO. */
-private fun listDir(dir: File): List<File> =
-    dir.listFiles()?.sortedWith(compareBy<File>({ !it.isDirectory }, { it.name.lowercase() })) ?: emptyList()
+private fun listDir(dir: File): List<File> = com.molina.core.common.DirOrder.list(dir) // [FILE-CONTRACT]
 
 private fun toast(ctx: Context, msg: String) {
     Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
@@ -289,7 +288,7 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
                                 if (isDir) { if (isOpen) "\u25BE" else "\u25B8" } else "",
                                 color = Brand, fontSize = 12.sp, modifier = Modifier.width(14.dp)
                             )
-                            if (isDir) Win7Folder(20.dp) else W7FileIcon(f.extension, 20.dp) // ikon Molina, sama dengan Penjelajah
+                            if (isDir) MintFolder(20.dp) else MintFileIcon(f.extension, 20.dp) // ikon Molina, sama dengan Penjelajah
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 f.name, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -322,7 +321,7 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
                     contentAlignment = Alignment.Center
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Win7Folder(22.dp)
+                        MintFolder(22.dp)
                         Text("+", color = Brand, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.BottomEnd))
                     }
                 }
@@ -333,7 +332,7 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
                     contentAlignment = Alignment.Center
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        W7FileIcon("", 22.dp)
+                        MintFileIcon("", 22.dp)
                         Text("+", color = Brand, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.BottomEnd))
                     }
                 } // [DRAWER-SWAP] Berkas baru kini di kanan

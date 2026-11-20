@@ -18,10 +18,8 @@ import java.io.File
  * sehingga thread utama tidak terblokir. Kegagalan dicatat agar tidak dicoba berulang.
  */
 internal object W7Thumb {
-    private val VIDEO = setOf(
-        "mp4", "mkv", "webm", "avi", "mov", "m4v", "3gp", "ts", "m2ts", "mts", "flv", "wmv", "mpg", "mpeg", "ogv", "vob", "rmvb"
-    )
-    private val AUDIO = setOf("mp3", "m4a", "aac", "flac", "wav", "ogg", "oga", "opus", "wma", "ac3", "dts", "mka")
+    private val VIDEO = com.molina.core.common.FileTypes.VIDEO // [FILE-CONTRACT]
+    private val AUDIO = com.molina.core.common.FileTypes.AUDIO
     private const val MAX_W = 160
     private const val MAX_H = 90
     private const val MAX_COVER = 120

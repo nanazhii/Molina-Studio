@@ -383,7 +383,7 @@ internal fun W7ZipDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(Modifier.size(32.dp), Alignment.Center) {
-                            if (ch.isDir) Win7Folder(26.dp) else W7FileIcon(ch.label.substringAfterLast('.', ""), 28.dp)
+                            if (ch.isDir) MintFolder(26.dp) else MintFileIcon(ch.label.substringAfterLast('.', ""), 28.dp)
                         }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {

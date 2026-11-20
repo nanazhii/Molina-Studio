@@ -117,17 +117,6 @@ internal object ExplorerList {
         return ordered(items.filter { it.isDir }, dirKey) + ordered(items.filter { !it.isDir }, o.key)
     }
 
-    /** Heuristik teks: berkas biasa, maks 5 MB, 4 KB pertama tanpa byte NUL. */
-    fun looksText(f: File): Boolean {
-        if (!f.isFile || f.length() > 5_000_000L) return false
-        return try {
-            f.inputStream().use { s ->
-                val b = ByteArray(4096)
-                val n = s.read(b)
-                (0 until maxOf(n, 0)).none { b[it] == 0.toByte() }
-            }
-        } catch (e: Exception) {
-            false
-        }
-    }
+    /** Heuristik teks. [FILE-CONTRACT] Implementasi tunggal di :core:common (FileTypes.looksText). */
+    fun looksText(f: File): Boolean = com.molina.core.common.FileTypes.looksText(f)
 }

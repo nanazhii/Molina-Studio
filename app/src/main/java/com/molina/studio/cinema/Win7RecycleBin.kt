@@ -128,7 +128,7 @@ internal fun W7BinDialog(volumes: List<File>, onDismiss: () -> Unit, onChanged: 
                                 .padding(horizontal = 6.dp, vertical = 5.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            if (item.isDir) Win7Folder(20.dp)
+                            if (item.isDir) MintFolder(20.dp)
                             else Box(Modifier.padding(horizontal = 3.dp).size(14.dp, 18.dp).border(1.dp, Win7.Line, shape))
                             Spacer(Modifier.width(8.dp))
                             Column(Modifier.weight(1f)) {

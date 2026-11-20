@@ -134,12 +134,9 @@ private fun w7StemEnd(name: String, dir: Boolean): Int =
     if (dir) name.length else name.lastIndexOf('.').let { if (it > 0) it else name.length }
 
 internal val W7_ID = Locale("id", "ID")
-internal val W7_LISTS = setOf("m3u", "m3u8", "pls", "cue")
-private val W7_AUDIO = setOf("mp3", "m4a", "aac", "flac", "wav", "ogg", "oga", "opus", "wma", "ac3", "dts", "mka")
-internal val W7_MEDIA = W7_AUDIO + setOf(
-    "mp4", "mkv", "webm", "avi", "mov", "m4v", "3gp", "ts", "m2ts", "mts", "flv", "wmv",
-    "mpg", "mpeg", "ogv", "vob", "rmvb", "m3u", "m3u8", "pls", "cue"
-)
+internal val W7_LISTS = com.molina.core.common.FileTypes.LISTS // [FILE-CONTRACT]
+private val W7_AUDIO = com.molina.core.common.FileTypes.AUDIO
+internal val W7_MEDIA = com.molina.core.common.FileTypes.MEDIA
 
 private fun w7HasStorage(ctx: Context) =
     ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
@@ -573,7 +570,7 @@ fun Win7OpenDialog(
         ) {
             if (!asScreen) Row(Modifier.fillMaxWidth().height(26.dp), verticalAlignment = Alignment.Top) {
                 Row(Modifier.weight(1f).padding(top = 5.dp, start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Win7Folder(16.dp)
+                    MintFolder(16.dp)
                     Spacer(Modifier.width(6.dp))
                     Text(if (browse) "Penjelajah Molina" else if (pickFolder) "Buka folder" else "Buka", color = Win7.Ink, fontSize = 13.sp)
                 }
@@ -992,11 +989,11 @@ private fun W7Cmd(label: String, enabled: Boolean, onClick: () -> Unit) {
 private fun W7NavPane(favs: List<W7Place>, vols: List<W7Place>, dir: File, modifier: Modifier, onBin: (() -> Unit)? = null, recents: List<File> = emptyList(), onGo: (File) -> Unit) {
     Column(modifier.background(Win7.NavBg).verticalScroll(rememberScrollState()).padding(vertical = 6.dp)) {
         W7NavHeader("Favorit", true)
-        favs.forEach { p -> W7NavItem(p.label, dir == p.dir, { if (p.molina) Win7MolinaFolder(16.dp) else Win7Folder(16.dp) }) { onGo(p.dir) } }
+        favs.forEach { p -> W7NavItem(p.label, dir == p.dir, { if (p.molina) MintFolder(16.dp, star = true) else MintFolder(16.dp) }) { onGo(p.dir) } }
         if (recents.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))
             W7NavHeader("Terakhir", false)
-            recents.forEach { r -> W7NavItem(r.name.ifEmpty { "/" }, dir == r, { Win7Folder(16.dp) }) { onGo(r) } }
+            recents.forEach { r -> W7NavItem(r.name.ifEmpty { "/" }, dir == r, { MintFolder(16.dp) }) { onGo(r) } }
         }
         Spacer(Modifier.height(8.dp))
         W7NavHeader("Komputer", false)
@@ -1186,7 +1183,15 @@ private fun W7EntryRow(
             Spacer(Modifier.width(6.dp))
         }
         val iconSz = if (wide) 22.dp else 28.dp // [MINT-ICONS] lebih kecil, seimbang dengan teks
-        if (e.isDir) MintFolder(iconSz) else MintFileIcon(e.file.extension, iconSz)
+        if (e.isDir) MintFolder(iconSz) else if (W7Thumb.hasThumb(e.file)) { // [LIST-THUMB] frame video / cover audio lewat W7Thumb (cache LRU, dekode di IO)
+            val thumb by produceState<ImageBitmap?>(null, e.file.path) {
+                kotlinx.coroutines.delay(250) // debounce: gulir cepat membatalkan sebelum dekode dimulai
+                value = W7Thumb.load(e.file)?.asImageBitmap()
+            }
+            val tb = thumb
+            if (tb != null) Image(tb, null, Modifier.size(iconSz).clip(RoundedCornerShape(3.dp)), contentScale = ContentScale.Crop)
+            else MintFileIcon(e.file.extension, iconSz)
+        } else MintFileIcon(e.file.extension, iconSz)
         Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

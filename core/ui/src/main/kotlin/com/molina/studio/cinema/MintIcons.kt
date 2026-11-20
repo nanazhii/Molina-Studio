@@ -41,7 +41,7 @@ object MintPalette {
 
 /** [MINT-ICONS] Folder semi-flat: tab di kiri atas, badan bergradasi hijau mint, sorot tipis di atas, bayangan tipis di bawah. */
 @Composable
-fun MintFolder(box: Dp) {
+fun MintFolder(box: Dp, star: Boolean = false) { // [MINT-STAR] star = penanda folder akar Molina
     Canvas(Modifier.size(box)) {
         val w = size.width
         val h = size.height
@@ -52,6 +52,18 @@ fun MintFolder(box: Dp) {
         drawRoundRect(Brush.verticalGradient(listOf(MintPalette.FolderTop, MintPalette.FolderBottom)), fo, fs, CornerRadius(w * 0.07f))
         drawRoundRect(Color.White.copy(alpha = 0.45f), Offset(w * 0.10f, h * 0.385f), Size(w * 0.80f, h * 0.035f), CornerRadius(w * 0.02f))
         drawRoundRect(MintPalette.FolderShade.copy(alpha = 0.55f), Offset(w * 0.06f, h * 0.82f), Size(w * 0.88f, h * 0.04f), CornerRadius(w * 0.02f))
+        if (star) {
+            val sp = Path()
+            for (i in 0 until 10) {
+                val rad = if (i % 2 == 0) w * 0.17f else w * 0.075f
+                val ang = Math.toRadians(-90.0 + i * 36.0)
+                val x = w * 0.5f + (rad * Math.cos(ang)).toFloat()
+                val y = h * 0.62f + (rad * Math.sin(ang)).toFloat()
+                if (i == 0) sp.moveTo(x, y) else sp.lineTo(x, y)
+            }
+            sp.close()
+            drawPath(sp, Color(0xFF2F6B40))
+        }
     }
 }
 

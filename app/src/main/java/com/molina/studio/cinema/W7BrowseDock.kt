@@ -3,6 +3,8 @@ package com.molina.studio.cinema
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -166,15 +168,17 @@ private fun DockButton(label: String, modifier: Modifier, enabled: Boolean, prim
 }
 
 /** [DOCK-V3] Tombol dock berupa ikon saja (44x36dp, senada W7DropButton); label hanya untuk aksesibilitas. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DockIconButton(ico: W7Ico, desc: String, enabled: Boolean, onClick: () -> Unit) {
+    val ctx = LocalContext.current // [DOCK-TIP] tekan lama menampilkan nama tombol
     val shape = RoundedCornerShape(4.dp)
     Box(
         Modifier.size(width = 44.dp, height = 36.dp).clip(shape)
             .background(Brush.verticalGradient(listOf(Win7.BtnTop, Win7.BtnBottom)), shape)
             .border(1.dp, Win7.BtnLine, shape)
             .semantics { contentDescription = desc; role = Role.Button }
-            .clickable(enabled = enabled, onClick = onClick),
+            .combinedClickable(enabled = enabled, onClick = onClick, onLongClick = { Toast.makeText(ctx, desc, Toast.LENGTH_SHORT).show() }),
         Alignment.Center
     ) {
         W7MenuIcon(ico, enabled, 20.dp)
