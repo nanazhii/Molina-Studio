@@ -1,6 +1,6 @@
 package com.molina.studio.code
 
-import com.molina.core.common.YtdlpCommand
+import com.molina.core.download.YtdlpCommand
 
 /** Argumen proot untuk satu skrip. Murni (tanpa Android) supaya mudah diuji (scripts/code-tests). */
 internal object ScriptCommand {

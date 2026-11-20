@@ -1,7 +1,7 @@
 package com.molina.studio.download
 
 import android.content.Context
-import com.molina.core.common.DownloadChoices
+import com.molina.core.download.DownloadChoices
 
 /**
  * Mengingat pilihan mode/kualitas Unduhan terakhir (SharedPreferences molina_download). Disimpan saat unduhan

@@ -1,5 +1,5 @@
-import com.molina.core.common.OriginalTitles
-import com.molina.core.common.StreamSearchItem
+import com.molina.core.stream.OriginalTitles
+import com.molina.core.stream.StreamSearchItem
 import java.util.concurrent.atomic.AtomicInteger
 
 private var fails = 0

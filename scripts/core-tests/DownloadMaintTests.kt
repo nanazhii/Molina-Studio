@@ -1,4 +1,10 @@
 import com.molina.core.common.*
+import com.molina.core.download.DownloadEvent
+import com.molina.core.download.DownloadEventParser
+import com.molina.core.download.DownloadFeed
+import com.molina.core.download.DownloadMaintenance
+import com.molina.core.download.MaintenanceKind
+import com.molina.core.download.MaintenanceTone
 
 private var fails = 0
 private fun check(name: String, ok: Boolean) {

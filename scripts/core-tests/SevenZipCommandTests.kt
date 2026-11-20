@@ -1,5 +1,5 @@
-import com.molina.core.common.SevenZipCommand
-import com.molina.core.common.SevenZipCommand.Failure
+import com.molina.core.download.SevenZipCommand
+import com.molina.core.download.SevenZipCommand.Failure
 import java.io.File
 import java.nio.file.Files
 import java.util.concurrent.TimeUnit

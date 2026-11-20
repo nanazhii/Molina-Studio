@@ -18,12 +18,12 @@ import androidx.compose.ui.unit.sp
 import com.molina.cinema.BackgroundPlaybackState
 import com.molina.cinema.MpvFolder
 import com.molina.core.common.MolinaDir
-import com.molina.core.common.PlaylistPlan
+import com.molina.core.stream.PlaylistPlan
 import com.molina.core.common.Refreshers
-import com.molina.core.common.StreamError
-import com.molina.core.common.StreamOutcome
-import com.molina.core.common.StreamResolvers
-import com.molina.core.common.StreamSearchItem
+import com.molina.core.stream.StreamError
+import com.molina.core.stream.StreamOutcome
+import com.molina.core.stream.StreamResolvers
+import com.molina.core.stream.StreamSearchItem
 import com.molina.studio.AppPaths
 import com.molina.studio.settings.MolinaExplorer
 import com.molina.studio.ui.MolinaTheme

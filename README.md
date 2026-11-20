@@ -86,6 +86,7 @@ Android 8.0 (Oreo) atau lebih baru, dengan prosesor 64-bit (arm64).
 - `feature/mpv`: pemutar Molina Cinema.
 - `engine/newpipe`: mesin pengenal tautan video.
 - `core/common` dan `core/storage`: kode bersama dan penyimpanan.
+- `core/json`, `core/stream`, `core/download`: JSON kecil, resolusi stream, dan perencanaan unduhan (JVM murni).
 - `native` dan `scripts`: komponen native (mpv, FFmpeg) dan skrip pemeriksaan build.
 
 Proyek dibangun lewat GitHub Actions (lihat `.github/workflows`).

@@ -63,6 +63,8 @@ androidComponents {
 }
 
 dependencies {
+    implementation(project(":core:stream"))
+    implementation(project(":core:download"))
     implementation(project(":core:net")) // [CORE-NET]
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
     implementation(project(":terminal-view"))

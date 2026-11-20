@@ -24,6 +24,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:stream"))
     implementation(project(":core:api")) // [LOG-CONTRACT]
     implementation(project(":core:net")) // [CORE-NET]
     // Versi diturunkan dari upstream agar cocok dengan AGP 8.7.3 / compileSdk 35 (lihat docs/UPSTREAM.md)

@@ -8,6 +8,6 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 C=core/common/src/main/kotlin/com/molina/core/common
 "$KC" -nowarn -d "$OUT" \
-  $C/MiniJson.kt $C/JsonCursor.kt $C/MediaSidecar.kt $C/ResumeMark.kt $C/ShelfScan.kt $C/SidecarRows.kt $C/ShelfCard.kt \
+  core/json/src/main/kotlin/com/molina/core/json/MiniJson.kt core/json/src/main/kotlin/com/molina/core/json/JsonCursor.kt $C/MediaSidecar.kt core/json/src/main/kotlin/com/molina/core/json/InfoJsonKeys.kt $C/ResumeMark.kt $C/ShelfScan.kt $C/SidecarRows.kt $C/ShelfCard.kt \
   scripts/core-tests/ShelfCardTests.kt
 java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" ShelfCardTestsKt

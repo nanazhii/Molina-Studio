@@ -3,10 +3,10 @@ package com.molina.studio.stream
 import android.content.Context
 import android.content.SharedPreferences
 import com.molina.core.net.NetworkPolicy
-import com.molina.core.common.SearchLang
-import com.molina.core.common.StreamAudioLang
-import com.molina.core.common.StreamQuality
-import com.molina.core.common.VideoQuality
+import com.molina.core.stream.SearchLang
+import com.molina.core.stream.StreamAudioLang
+import com.molina.core.stream.StreamQuality
+import com.molina.core.stream.VideoQuality
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

@@ -10,6 +10,6 @@ trap 'rm -rf "$OUT"' EXIT
 C=core/common/src/main/kotlin/com/molina/core/common
 NET_D=core/net/src/main/kotlin/com/molina/core/net
 API_D=core/api/src/main/kotlin/com/molina/core/api
-"$KC" -nowarn -d "$OUT" $C/*.kt $NET_D/*.kt $API_D/LogContract.kt scripts/core-tests/stubs/FlowStub.kt \
+"$KC" -nowarn -d "$OUT" $C/*.kt core/json/src/main/kotlin/com/molina/core/json/*.kt core/stream/src/main/kotlin/com/molina/core/stream/*.kt core/download/src/main/kotlin/com/molina/core/download/*.kt $NET_D/*.kt $API_D/LogContract.kt scripts/core-tests/stubs/FlowStub.kt \
   feature/mpv/src/main/java/com/molina/cinema/MpvLoad.kt scripts/core-tests/ShieldTests.kt
 java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" ShieldTestsKt

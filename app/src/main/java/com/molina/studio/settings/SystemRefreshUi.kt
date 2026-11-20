@@ -45,8 +45,8 @@ import androidx.compose.ui.unit.sp
 import com.molina.core.common.AppVisibility
 import com.molina.core.common.RefreshReport
 import com.molina.core.common.Refreshers
-import com.molina.core.common.StreamResolvers
-import com.molina.core.common.YtdlpCommand
+import com.molina.core.stream.StreamResolvers
+import com.molina.core.download.YtdlpCommand
 import com.molina.studio.packages.ToolPurge
 import com.molina.studio.cinema.MemoryRefresh
 import com.molina.studio.stream.StreamEnginePrefs

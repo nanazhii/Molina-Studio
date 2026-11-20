@@ -6,8 +6,8 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Environment
 import android.os.StatFs
-import com.molina.core.common.YtdlpCommand
-import com.molina.core.common.YtdlpInstall
+import com.molina.core.download.YtdlpCommand
+import com.molina.core.download.YtdlpInstall
 import com.molina.studio.AppPaths
 import com.molina.studio.cinema.MpvVersionBridge
 import com.molina.studio.code.ScriptCommand

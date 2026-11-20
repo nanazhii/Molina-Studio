@@ -1,11 +1,11 @@
 package com.molina.cinema
 
-import com.molina.core.common.FailureAction
-import com.molina.core.common.StreamEntry
-import com.molina.core.common.StreamError
+import com.molina.core.stream.FailureAction
+import com.molina.core.stream.StreamEntry
+import com.molina.core.stream.StreamError
 import com.molina.core.net.StreamHeaders
-import com.molina.core.common.StreamOutcome
-import com.molina.core.common.StreamResolvers
+import com.molina.core.stream.StreamOutcome
+import com.molina.core.stream.StreamResolvers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

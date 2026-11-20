@@ -1,8 +1,8 @@
 package com.molina.studio.download
 
 import android.content.Context
-import com.molina.core.common.DownloadHistory
-import com.molina.core.common.DownloadHistoryEntry
+import com.molina.core.download.DownloadHistory
+import com.molina.core.download.DownloadHistoryEntry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

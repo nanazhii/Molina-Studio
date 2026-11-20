@@ -1,6 +1,8 @@
 package com.molina.core.common
 
 import java.io.File
+import com.molina.core.json.InfoJsonKeys
+import com.molina.core.json.MiniJson
 
 /**
  * Poster dan metadata ringkas yang ditulis `molina_dl.py --sidecar` di samping video:
@@ -48,7 +50,7 @@ object MediaSidecar {
                 durationSec = o.number("duration")?.toInt()?.takeIf { it > 0 },
                 year = year(o),
                 description = o.text("description")?.let { clip(it) },
-                webUrl = o.text("webpage_url")?.takeIf { it.startsWith("https://") || it.startsWith("http://") },
+                webUrl = o.text(InfoJsonKeys.WEBPAGE_URL)?.takeIf { it.startsWith("https://") || it.startsWith("http://") },
             )
         } catch (e: java.io.IOException) {
             null
@@ -67,7 +69,7 @@ object MediaSidecar {
 
     private fun year(o: Map<String, Any?>): Int? {
         o.number("release_year")?.toInt()?.let { if (it in 1900..2100) return it }
-        val d = o.text("upload_date") ?: return null
+        val d = o.text(InfoJsonKeys.UPLOAD_DATE) ?: return null
         if (d.length < 4 || !d.take(4).all { it.isDigit() }) return null
         return d.take(4).toInt().takeIf { it in 1900..2100 }
     }

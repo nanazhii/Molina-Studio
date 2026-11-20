@@ -62,7 +62,7 @@ class BackgroundPlaybackService : Service(), MPVLib.EventObserver {
     private fun audioTagged(title: CharSequence?): CharSequence {
         val t = title?.toString().orEmpty()
         if (!BackgroundPlaybackState.audioOnly &&
-            com.molina.core.common.StreamQuality.current != com.molina.core.common.VideoQuality.AUDIO) return t
+            com.molina.core.stream.StreamQuality.current != com.molina.core.stream.VideoQuality.AUDIO) return t
         return if (t.isEmpty()) "\u266A Audio" else "\u266A Audio \u00B7 $t"
     }
 

@@ -1,4 +1,9 @@
 import com.molina.core.common.*
+import com.molina.core.download.DownloadChoices
+import com.molina.core.download.DownloadCommand
+import com.molina.core.download.DownloadMode
+import com.molina.core.download.DownloadPreset
+import com.molina.core.download.DownloadRequest
 
 private var fails = 0
 private fun check(name: String, ok: Boolean) {

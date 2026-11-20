@@ -6,9 +6,9 @@ import android.net.Uri
 import com.molina.core.common.ExternalIntentGate
 import com.molina.core.net.IptvChannel
 import com.molina.core.net.IptvPlayback
-import com.molina.core.common.PlaylistExtras
-import com.molina.core.common.PlaylistPlan
-import com.molina.core.common.StreamSearchItem
+import com.molina.core.stream.PlaylistExtras
+import com.molina.core.stream.PlaylistPlan
+import com.molina.core.stream.StreamSearchItem
 import com.molina.studio.security.ShortcutToken
 
 /** Peluncur Molina Cinema (MPVActivity) dan validasi input. Input pengguna dianggap tidak tepercaya. */

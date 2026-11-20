@@ -3,10 +3,10 @@ package com.molina.studio
 import android.app.Application
 import com.molina.cinema.MpvLifecycle
 import com.molina.core.api.AppLog
-import com.molina.core.common.CompositeStreamResolver
-import com.molina.core.common.GuardedStreamResolver
+import com.molina.core.stream.CompositeStreamResolver
+import com.molina.core.stream.GuardedStreamResolver
 import com.molina.core.net.ShieldProxy
-import com.molina.core.common.StreamResolvers
+import com.molina.core.stream.StreamResolvers
 import com.molina.engine.newpipe.NewPipeStreamResolver
 import com.molina.core.log.LogBus
 import com.molina.studio.security.PrivacyPrefs

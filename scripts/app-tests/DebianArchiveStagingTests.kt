@@ -1,6 +1,6 @@
 package com.molina.studio.cinema
 
-import com.molina.core.common.SevenZipCommand
+import com.molina.core.download.SevenZipCommand
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files

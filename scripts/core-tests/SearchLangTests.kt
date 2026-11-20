@@ -1,6 +1,6 @@
-import com.molina.core.common.SearchLang
-import com.molina.core.common.SearchLang.Verdict
-import com.molina.core.common.StreamSearchItem
+import com.molina.core.stream.SearchLang
+import com.molina.core.stream.SearchLang.Verdict
+import com.molina.core.stream.StreamSearchItem
 
 private var fails = 0
 private fun check(name: String, ok: Boolean) {
@@ -55,9 +55,9 @@ fun main() {
 
     check("kata kunci netral: urutan asli", SearchLang.applyFor("android 17", mix, 50).map { it.title } == mix.map { it.title }) // [SEARCH-FIX-2]
     check("kata kunci ID: tetap dikunci", SearchLang.applyFor("resep nasi goreng yang enak", mix, 50).size == mix.size)
-    check("VideoQuality 720: tertinggi <= 720", com.molina.core.common.VideoQuality.P720.chooseHeight(listOf(360, 480, 720, 1080)) == 720)
-    check("VideoQuality 480: tanpa 480 -> terdekat bawah", com.molina.core.common.VideoQuality.P480.chooseHeight(listOf(360, 720, 1080)) == 360)
-    check("VideoQuality 480: semua lebih tinggi -> terendah", com.molina.core.common.VideoQuality.P480.chooseHeight(listOf(720, 1080)) == 720)
+    check("VideoQuality 720: tertinggi <= 720", com.molina.core.stream.VideoQuality.P720.chooseHeight(listOf(360, 480, 720, 1080)) == 720)
+    check("VideoQuality 480: tanpa 480 -> terdekat bawah", com.molina.core.stream.VideoQuality.P480.chooseHeight(listOf(360, 720, 1080)) == 360)
+    check("VideoQuality 480: semua lebih tinggi -> terendah", com.molina.core.stream.VideoQuality.P480.chooseHeight(listOf(720, 1080)) == 720)
     SearchLang.enabled = false
     check("mati: urutan asli", SearchLang.apply(mix, 50).map { it.title } == mix.map { it.title })
     check("mati: tetap dipotong limit", SearchLang.apply(mix, 2).size == 2)

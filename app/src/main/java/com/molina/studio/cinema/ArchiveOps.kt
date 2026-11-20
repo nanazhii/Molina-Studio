@@ -26,7 +26,7 @@ internal object ArchiveOps {
      */
     fun compress(ctx: Context, files: List<File>, destDir: File, opt: CompressOptions, ctl: FileOps.Ctl): File {
         opt.password?.takeIf { it.isNotEmpty() }?.let { // [ENC-POLICY] pagar terakhir, di luar UI
-            val v = com.molina.core.common.PasswordPolicy.evaluate(it)
+            val v = com.molina.core.download.PasswordPolicy.evaluate(it)
             if (!v.acceptable) throw java.io.IOException(v.message)
         }
         return if (ArchiveRoute.compressViaDebian(opt)) DebianArchive(ctx).create(files, destDir, opt, ctl)

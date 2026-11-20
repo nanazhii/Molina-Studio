@@ -5,7 +5,7 @@ import com.molina.core.net.ShieldStats
 import com.molina.core.net.StreamPin
 import com.molina.core.net.TrackerList
 import com.molina.core.net.UrlPolicy
-import com.molina.core.common.YtdlpCommand
+import com.molina.core.download.YtdlpCommand
 import com.molina.cinema.MpvLoad
 import java.net.InetAddress
 import java.net.Socket

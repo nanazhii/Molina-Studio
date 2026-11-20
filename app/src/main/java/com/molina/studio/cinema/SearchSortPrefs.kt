@@ -1,7 +1,7 @@
 package com.molina.studio.cinema
 
 import android.content.Context
-import com.molina.core.common.SearchSort
+import com.molina.core.stream.SearchSort
 
 /** [RESULTS-SORT-PREF] Urutan hasil pencarian yang terakhir dipilih (bawaan: Terbaru). SharedPreferences molina_ui. */
 internal object SearchSortPrefs {

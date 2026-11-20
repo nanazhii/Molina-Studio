@@ -1,9 +1,9 @@
-import com.molina.core.common.DateFilter
-import com.molina.core.common.DurationFilter
-import com.molina.core.common.RelativeTime
-import com.molina.core.common.SearchOrder
-import com.molina.core.common.SearchSort
-import com.molina.core.common.StreamSearchItem
+import com.molina.core.stream.DateFilter
+import com.molina.core.stream.DurationFilter
+import com.molina.core.stream.RelativeTime
+import com.molina.core.stream.SearchOrder
+import com.molina.core.stream.SearchSort
+import com.molina.core.stream.StreamSearchItem
 
 private var fails = 0
 private fun check(name: String, ok: Boolean) {

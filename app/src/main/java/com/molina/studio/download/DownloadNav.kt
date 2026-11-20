@@ -3,7 +3,7 @@ package com.molina.studio.download
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.molina.core.common.DownloadChoices
+import com.molina.core.download.DownloadChoices
 
 /**
  * Jembatan ke tab Unduhan dari layar lain (mis. kartu hasil pencarian Cinema). [request] menaruh URL di

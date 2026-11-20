@@ -1,4 +1,4 @@
-import com.molina.core.common.YtdlpCommand
+import com.molina.core.download.YtdlpCommand
 import com.molina.studio.code.ScriptCommand
 
 private var fails = 0

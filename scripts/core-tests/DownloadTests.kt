@@ -2,6 +2,15 @@
 // Jalankan: bash scripts/core-tests/run.sh
 import com.molina.core.common.*
 import com.molina.core.common.BundledScriptPolicy.Action
+import com.molina.core.download.DownloadErrorText
+import com.molina.core.download.DownloadEvent
+import com.molina.core.download.DownloadEventParser
+import com.molina.core.download.DownloadItemState
+import com.molina.core.download.DownloadItemStatus
+import com.molina.core.download.DownloadReducer
+import com.molina.core.download.DownloadSessionState
+import com.molina.core.download.DownloadStream
+import com.molina.core.download.DownloadedFile
 
 var failed = 0
 var total = 0

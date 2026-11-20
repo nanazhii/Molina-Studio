@@ -1,5 +1,5 @@
-import com.molina.core.common.SevenZipCommand
-import com.molina.core.common.SevenZipCommand.Op
+import com.molina.core.download.SevenZipCommand
+import com.molina.core.download.SevenZipCommand.Op
 import java.io.File
 import java.nio.file.Files
 

@@ -10,10 +10,10 @@ import android.content.Intent
 import android.graphics.drawable.Icon
 import android.os.IBinder
 import android.os.PowerManager
-import com.molina.core.common.DownloadItemStatus
-import com.molina.core.common.DownloadReducer
-import com.molina.core.common.DownloadCommand
-import com.molina.core.common.DownloadRunState
+import com.molina.core.download.DownloadItemStatus
+import com.molina.core.download.DownloadReducer
+import com.molina.core.download.DownloadCommand
+import com.molina.core.download.DownloadRunState
 import com.molina.studio.MainActivity
 import com.molina.studio.R
 import com.molina.studio.ui.MolinaTheme

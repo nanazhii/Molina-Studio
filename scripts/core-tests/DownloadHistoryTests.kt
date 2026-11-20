@@ -1,4 +1,14 @@
 import com.molina.core.common.*
+import com.molina.core.download.DownloadChoices
+import com.molina.core.download.DownloadCommand
+import com.molina.core.download.DownloadHistory
+import com.molina.core.download.DownloadHistoryEntry
+import com.molina.core.download.DownloadItemState
+import com.molina.core.download.DownloadItemStatus
+import com.molina.core.download.DownloadMode
+import com.molina.core.download.DownloadRequest
+import com.molina.core.download.DownloadSessionState
+import com.molina.core.download.DownloadedFile
 
 private var fails = 0
 private fun check(name: String, ok: Boolean) {

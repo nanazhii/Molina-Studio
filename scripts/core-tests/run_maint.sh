@@ -8,7 +8,7 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 C=core/common/src/main/kotlin/com/molina/core/common
 "$KC" -nowarn -d "$OUT" \
-  $C/LogRedact.kt $C/MiniJson.kt $C/JsonCursor.kt $C/DownloadCommand.kt $C/DownloadEvent.kt \
-  $C/DownloadSession.kt $C/DownloadErrorText.kt $C/DownloadFeed.kt $C/DownloadUi.kt $C/DownloadMaintenance.kt \
+  $C/LogRedact.kt core/json/src/main/kotlin/com/molina/core/json/MiniJson.kt core/json/src/main/kotlin/com/molina/core/json/JsonCursor.kt core/download/src/main/kotlin/com/molina/core/download/DownloadCommand.kt core/download/src/main/kotlin/com/molina/core/download/DownloadEvent.kt \
+  core/download/src/main/kotlin/com/molina/core/download/DownloadSession.kt core/download/src/main/kotlin/com/molina/core/download/DownloadErrorText.kt core/download/src/main/kotlin/com/molina/core/download/DownloadFeed.kt core/download/src/main/kotlin/com/molina/core/download/DownloadUi.kt core/download/src/main/kotlin/com/molina/core/download/DownloadMaintenance.kt \
   scripts/core-tests/DownloadMaintTests.kt
 java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" DownloadMaintTestsKt

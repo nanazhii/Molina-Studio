@@ -7,5 +7,5 @@ KC="${KOTLINC:-kotlinc}"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 C=core/common/src/main/kotlin/com/molina/core/common
-"$KC" -nowarn -d "$OUT" $C/BatchPlan.kt scripts/core-tests/BatchPlanTests.kt
+"$KC" -nowarn -d "$OUT" core/download/src/main/kotlin/com/molina/core/download/BatchPlan.kt scripts/core-tests/BatchPlanTests.kt
 java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" BatchPlanTestsKt

@@ -18,7 +18,7 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.molina.cinema.databinding.DialogSearchResultsBinding
-import com.molina.core.common.StreamSearchItem
+import com.molina.core.stream.StreamSearchItem
 
 /** Satu baris hasil: nomor tetap (tidak berubah saat disaring). */
 internal class SearchEntry(val number: Int, val item: StreamSearchItem)

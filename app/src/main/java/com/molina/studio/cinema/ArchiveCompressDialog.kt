@@ -1,6 +1,6 @@
 package com.molina.studio.cinema
 
-import com.molina.core.common.PasswordPolicy
+import com.molina.core.download.PasswordPolicy
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable

@@ -1,7 +1,7 @@
 package com.molina.studio.stream
 
 import android.content.Context
-import com.molina.core.common.YtdlpCommand
+import com.molina.core.download.YtdlpCommand
 import com.molina.studio.terminal.RootfsManager
 import java.io.File
 

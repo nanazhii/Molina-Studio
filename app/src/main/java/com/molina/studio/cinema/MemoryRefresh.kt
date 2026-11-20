@@ -1,6 +1,6 @@
 package com.molina.studio.cinema
 
-import com.molina.core.common.StreamResolvers
+import com.molina.core.stream.StreamResolvers
 import java.io.File
 
 /**

@@ -7,5 +7,5 @@ KC="${KOTLINC:-kotlinc}"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 C=core/common/src/main/kotlin/com/molina/core/common
-"$KC" -nowarn -d "$OUT" $C/StreamResolver.kt $C/SearchLang.kt scripts/core-tests/SearchLangTests.kt
+"$KC" -nowarn -d "$OUT" core/stream/src/main/kotlin/com/molina/core/stream/StreamResolver.kt core/stream/src/main/kotlin/com/molina/core/stream/SearchLang.kt scripts/core-tests/SearchLangTests.kt
 java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" SearchLangTestsKt

@@ -2,20 +2,20 @@ package com.molina.studio.stream
 
 import android.content.Context
 import com.molina.core.api.AppLog
-import com.molina.core.common.FailureAction
+import com.molina.core.stream.FailureAction
 import com.molina.core.api.LogLevel
 import com.molina.core.common.LogRedact
-import com.molina.core.common.ResolvedStream
-import com.molina.core.common.SearchLang
-import com.molina.core.common.StreamError
-import com.molina.core.common.StreamOutcome
-import com.molina.core.common.StreamResolver
-import com.molina.core.common.StreamSearchItem
-import com.molina.core.common.YtdlUrls
-import com.molina.core.common.YtdlpCommand
-import com.molina.core.common.YtdlpFetch
-import com.molina.core.common.YtdlpParse
-import com.molina.core.common.YtdlpSearch
+import com.molina.core.stream.ResolvedStream
+import com.molina.core.stream.SearchLang
+import com.molina.core.stream.StreamError
+import com.molina.core.stream.StreamOutcome
+import com.molina.core.stream.StreamResolver
+import com.molina.core.stream.StreamSearchItem
+import com.molina.core.stream.YtdlUrls
+import com.molina.core.download.YtdlpCommand
+import com.molina.core.stream.YtdlpFetch
+import com.molina.core.stream.YtdlpParse
+import com.molina.core.stream.YtdlpSearch
 
 /**
  * Resolver cadangan: yt-dlp di Debian PRoot untuk situs yang tidak dikenali NewPipe (TikTok,

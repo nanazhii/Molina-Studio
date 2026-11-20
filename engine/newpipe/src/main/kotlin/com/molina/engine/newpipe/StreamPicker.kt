@@ -1,8 +1,8 @@
 package com.molina.engine.newpipe
 
-import com.molina.core.common.AudioChoice
+import com.molina.core.stream.AudioChoice
 import com.molina.core.net.NetSnapshot
-import com.molina.core.common.StreamAudioLang
+import com.molina.core.stream.StreamAudioLang
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.DeliveryMethod
 import org.schabi.newpipe.extractor.stream.StreamInfo
@@ -24,7 +24,7 @@ internal object StreamPicker {
 
     fun pick(
         info: StreamInfo,
-        quality: com.molina.core.common.VideoQuality = com.molina.core.common.VideoQuality.AUTO,
+        quality: com.molina.core.stream.VideoQuality = com.molina.core.stream.VideoQuality.AUTO,
         audioLang: String = "", // [AUDIO-LANG]
         net: NetSnapshot = NetSnapshot.UNKNOWN, // [AUTO-NET]
         tier: Int = 0, // [AUTO-NET-2] penurunan akibat macet; hanya berlaku di AUTO
@@ -37,22 +37,22 @@ internal object StreamPicker {
         val lang = StreamAudioLang.normalize(audioLang)
         val audios = info.audioStreams.orEmpty()
 
-        val steps = if (quality == com.molina.core.common.VideoQuality.AUTO) tier.coerceAtLeast(0) else 0 // [AUTO-NET-2]
+        val steps = if (quality == com.molina.core.stream.VideoQuality.AUTO) tier.coerceAtLeast(0) else 0 // [AUTO-NET-2]
         val audioCap = if (steps >= 1) 64 else audioCapKbps(net) // [AUTO-NET]
         // [AUDIO-ONLY] hanya audio: URL audio terbaik, video tidak diunduh sama sekali
-        if (quality == com.molina.core.common.VideoQuality.AUDIO) {
+        if (quality == com.molina.core.stream.VideoQuality.AUDIO) {
             bestAudio(audios, lang, audioCap)?.let { a -> return Pick(a.content, "audio", audioLang = langKey(a)) }
         }
         // [AUTO-NET] AUTO = adaptif (video-only + trek audio terpilih, bahasa terjamin): maks 720p, kecuali Wi-Fi (tertinggi).
         // Bila adaptif kosong, jatuh ke stream gabungan di bawah.
-        val q = if (quality == com.molina.core.common.VideoQuality.AUTO && !net.wifi)
-            com.molina.core.common.VideoQuality.P720 else quality
-        if (q != com.molina.core.common.VideoQuality.AUDIO) {
+        val q = if (quality == com.molina.core.stream.VideoQuality.AUTO && !net.wifi)
+            com.molina.core.stream.VideoQuality.P720 else quality
+        if (q != com.molina.core.stream.VideoQuality.AUDIO) {
             pickAdaptive(info, q, lang, audioCap, steps, net)?.let { return it } // [QUALITY]
         }
 
         bestMuxed(info.videoStreams.orEmpty())?.let { v ->
-            val miss = quality != com.molina.core.common.VideoQuality.AUTO && quality != com.molina.core.common.VideoQuality.AUDIO // [QUALITY-LOCK]
+            val miss = quality != com.molina.core.stream.VideoQuality.AUTO && quality != com.molina.core.stream.VideoQuality.AUDIO // [QUALITY-LOCK]
             return Pick(v.content, if (miss) "progresif-fallback" else "progresif", v.height)
         }
         bestAudio(audios, lang, audioCap)?.let { a ->
@@ -67,18 +67,18 @@ internal object StreamPicker {
      * Extractor menelan galat klien visionOS (satu-satunya sumber adaptif/HLS saat klien Android hanya memberi itag 18),
      * jadi hasil kosong sering sementara dan layak diulang.
      */
-    fun shouldRetry(pick: Pick, quality: com.molina.core.common.VideoQuality): Boolean =
-        quality != com.molina.core.common.VideoQuality.AUTO &&
-            quality != com.molina.core.common.VideoQuality.AUDIO &&
+    fun shouldRetry(pick: Pick, quality: com.molina.core.stream.VideoQuality): Boolean =
+        quality != com.molina.core.stream.VideoQuality.AUTO &&
+            quality != com.molina.core.stream.VideoQuality.AUDIO &&
             pick.kind == "progresif-fallback"
 
     /** [QUALITY] Video-only (H.264 diutamakan, tanpa AV1) <= batas + audio terbaik (bahasa [lang]); audio digabung mpv lewat audio-add. */
     private fun pickAdaptive(
-        info: StreamInfo, quality: com.molina.core.common.VideoQuality, lang: String, audioCap: Int = 0,
+        info: StreamInfo, quality: com.molina.core.stream.VideoQuality, lang: String, audioCap: Int = 0,
         steps: Int = 0, net: NetSnapshot = NetSnapshot.UNKNOWN,
     ): Pick? {
         // [AUTO-WIFI] AUTO sampai sini hanya di Wi-Fi: tertinggi dari sumber
-        if (quality == com.molina.core.common.VideoQuality.AUTO) pickTop(info, net, lang, audioCap, steps)?.let { return it }
+        if (quality == com.molina.core.stream.VideoQuality.AUTO) pickTop(info, net, lang, audioCap, steps)?.let { return it }
         val cands = info.videoOnlyStreams.orEmpty().filter {
             it.isUrl() && it.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP &&
                 it.codec?.startsWith("av01", ignoreCase = true) != true

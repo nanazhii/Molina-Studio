@@ -11,6 +11,6 @@ kotlin {
 }
 
 dependencies {
-    api(project(":core:net")) // [CORE-NET] transisi; turun ke implementation setelah Fase C
+    implementation(project(":core:json"))
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
 }

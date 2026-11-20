@@ -3,8 +3,8 @@ package com.molina.studio.stream
 import android.content.Context
 import com.molina.core.api.AppLog
 import com.molina.core.api.LogLevel
-import com.molina.core.common.YtdlpCommand
-import com.molina.core.common.YtdlpInstall
+import com.molina.core.download.YtdlpCommand
+import com.molina.core.download.YtdlpInstall
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL

@@ -1,4 +1,4 @@
-import com.molina.core.common.BatchPlan
+import com.molina.core.download.BatchPlan
 
 private var fails = 0
 private fun check(name: String, ok: Boolean) {
