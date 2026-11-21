@@ -1,7 +1,7 @@
 // Uji JVM murni: DownloadEventParser, DownloadReducer, BundledScriptPolicy.
 // Jalankan: bash scripts/core-tests/run.sh
-import com.molina.core.common.*
-import com.molina.core.common.BundledScriptPolicy.Action
+import com.molina.core.policy.*
+import com.molina.core.policy.BundledScriptPolicy.Action
 import com.molina.core.download.DownloadErrorText
 import com.molina.core.download.DownloadEvent
 import com.molina.core.download.DownloadEventParser

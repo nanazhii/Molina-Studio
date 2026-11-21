@@ -73,7 +73,10 @@ dependencies {
     implementation(project(":core:exec")) // [CORE-EXEC]
     implementation(project(":feature:preview")) // [NANO-PREVIEW]
     implementation(project(":engine:newpipe"))
-    implementation(project(":core:common"))
+    implementation(project(":core:diag"))
+    implementation(project(":core:library"))
+    implementation(project(":core:policy"))
+    implementation(project(":core:system"))
     implementation(project(":core:files")) // [FILE-CONTRACT]
     implementation(project(":core:storage"))
     implementation(project(":core:ui"))

@@ -1,4 +1,4 @@
-import com.molina.core.common.IntentToken
+import com.molina.core.policy.IntentToken
 
 private var fails = 0
 private var runs = 0

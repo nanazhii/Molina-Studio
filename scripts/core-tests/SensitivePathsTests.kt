@@ -1,4 +1,4 @@
-import com.molina.core.common.SensitivePaths
+import com.molina.core.system.SensitivePaths
 import kotlin.system.exitProcess
 
 private var runs = 0

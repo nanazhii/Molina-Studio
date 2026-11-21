@@ -24,7 +24,7 @@ private class SimResult(val track: SpectrumTrack, val steps: Int, val jumps: Int
 private fun simulate(x: FloatArray, sr: Int, playhead: (Long) -> Long, probeAtMs: List<Long>, decodeSpeed: Double = 8.0): SimResult {
     val hop = sr / SpectrumMath.FPS
     val track = SpectrumTrack(sr, hop, initialFrames = 64)
-    val b = SpectrumFrameBuilder(sr, track)
+    var b = SpectrumFrameBuilder(sr, track)
     val chunk = 1024
     var pos = 0                  // posisi sampel sumber (mutlak) yang akan dibaca berikutnya
     var pending = false
@@ -48,10 +48,10 @@ private fun simulate(x: FloatArray, sr: Int, playhead: (Long) -> Long, probeAtMs
     }
 
     while (steps++ < 400_000) {
-        if (now - lastPoll >= 120 && b.frameIndex >= 0 && !pending && track.maxEnd() > 0) {
+        if (now - lastPoll >= 120 && b.frame >= 0 && !pending && track.maxEnd() > 0) {
             lastPoll = now
-            val pf = track.frameAt(playhead(now))
-            when (val st = SpectrumPlanner.whileRunning(track, b.frameIndex, segStart, pf, lastJumpPlay, knownEnd, tried)) {
+            val pf = track.frameFor(playhead(now))
+            when (val st = SpectrumPlanner.whileRunning(track, b.frame, segStart, pf, lastJumpPlay, knownEnd, tried)) {
                 is SpectrumStep.Jump -> if (st.forPlayhead) {
                     if (wantSince == 0L) wantSince = now
                     if (now - wantSince >= 350) { lastJumpPlay = pf; wantSince = 0L; jumpTo(st.frame) }
@@ -61,13 +61,13 @@ private fun simulate(x: FloatArray, sr: Int, playhead: (Long) -> Long, probeAtMs
             }
         }
         if (!eos) {
-            if (pending) { b.restart(pos.toLong()); pending = false }
+            if (pending) { b = SpectrumFrameBuilder(sr, track, pos.toLong()); pending = false }
             val end = minOf(pos + chunk, x.size)
             for (i in pos until end) b.push(x[i])
             now += (chunk * 1000.0 / sr / decodeSpeed).toLong().coerceAtLeast(1)
             pos = end
             if (pos >= x.size) eos = true
-            for (pm in probeAtMs) if (!firstCovered.containsKey(pm) && now >= 0 && track.has(track.frameAt(pm))) firstCovered[pm] = now
+            for (pm in probeAtMs) if (!firstCovered.containsKey(pm) && now >= 0 && track.has(track.frameFor(pm))) firstCovered[pm] = now
         } else {
             knownEnd = track.maxEnd()
             when (val st = SpectrumPlanner.atEnd(track, knownEnd, tried)) {
@@ -116,7 +116,7 @@ fun main() {
     check("sample di rentang terisi true", s.sample(msAt100, out) && out[0] > 0.99f)
     check("sample di celah (sebelum) false", !s.sample(1_000, out))
     check("sample setelah rentang false", !s.sample(10_000, out))
-    check("frameAt konsisten dengan sample", s.frameAt(msAt100) == 100)
+    check("frameAt konsisten dengan sample", s.frameFor(msAt100) == 100)
 
     // --- builder: analisis terputus-putus (restart) = analisis berurutan, frame demi frame
     val sr = 44100
@@ -127,17 +127,16 @@ fun main() {
     check("referensi berurutan menghasilkan frame", total > 380)
 
     val seg = SpectrumTrack(sr, sr / SpectrumMath.FPS, initialFrames = 64)
-    val b2 = SpectrumFrameBuilder(sr, seg)
-    val jumpAt = 8L * sr + 123 // sengaja tidak selaras dengan batas hop
-    b2.restart(jumpAt)
-    val k = b2.frameIndex
-    check("restart: frame pertama setelah posisi + lookahead", k > 0 && k.toLong() * seg.hopSamples - 2048 >= jumpAt && (k - 1).toLong() * seg.hopSamples - 2048 < jumpAt)
+        val jumpAt = 8L * sr + 123 // sengaja tidak selaras dengan batas hop
+    var b2 = SpectrumFrameBuilder(sr, seg, jumpAt)
+    val k = b2.frame
+    check("restart: frame pertama setelah posisi + lookahead", k > 0 && k.toLong() * seg.hopSamples - SpectrumMath.FFT_LOW_SIZE >= jumpAt && (k - 1).toLong() * seg.hopSamples - SpectrumMath.FFT_LOW_SIZE < jumpAt)
     for (i in jumpAt.toInt() until x.size) b2.push(x[i])
     check("setelah lompat: rentang di ekor, ready 0", seg.ready == 0 && seg.has(k) && !seg.has(k - 1) && seg.maxEnd() == total)
-    b2.restart(0L)
-    check("restart(0) kembali ke frame 0", b2.frameIndex == 0)
+    b2 = SpectrumFrameBuilder(sr, seg, 0L)
+    check("builder baru dari 0 mulai di frame 0", b2.frame == 0)
     var i0 = 0
-    while (b2.frameIndex < k + 3 && i0 < x.size) b2.push(x[i0++])
+    while (b2.frame < k + 3 && i0 < x.size) b2.push(x[i0++])
     check("celah terisi: seluruh trek tertutup", seg.ready == total && seg.firstGap(0) == total)
     var same = 0; var diff = 0
     for (f in 0 until total) if (frameBytes(ref, f) == frameBytes(seg, f)) same++ else diff++
@@ -145,11 +144,8 @@ fun main() {
 
     // posisi awal hampir 0 dianggap awal trek
     val near = SpectrumTrack(sr, sr / SpectrumMath.FPS, initialFrames = 64)
-    val bn = SpectrumFrameBuilder(sr, near)
-    bn.restart(500L)
-    check("restart di dekat 0 -> frame 0", bn.frameIndex == 0)
-    bn.restart(-5L)
-    check("restart negatif aman", bn.frameIndex == 0)
+    check("baseSample 0 -> frame 0", SpectrumFrameBuilder(sr, near, 0L).frame == 0)
+    check("baseSample negatif aman -> frame 0", SpectrumFrameBuilder(sr, near, -5L).frame == 0)
 
     // --- perencana
     val p = SpectrumTrack(44100, 1470, initialFrames = 4)

@@ -66,11 +66,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.molina.core.common.ChannelTidy
-import com.molina.core.common.MolinaDir
-import com.molina.core.common.ResumeMark
-import com.molina.core.common.ShelfCard
-import com.molina.core.common.TvGuide
+import com.molina.core.library.ChannelTidy
+import com.molina.core.system.MolinaDir
+import com.molina.core.library.ResumeMark
+import com.molina.core.library.ShelfCard
+import com.molina.core.library.TvGuide
 import com.molina.studio.AppPaths
 import com.molina.studio.ui.MolinaTheme
 import kotlinx.coroutines.Dispatchers
@@ -78,7 +78,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import com.molina.core.common.CrashContext
+import com.molina.core.diag.CrashContext
 import com.molina.core.api.LogLevel
 import com.molina.core.log.LogBus
 

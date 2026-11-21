@@ -42,10 +42,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.molina.core.common.BtopProbe
-import com.molina.core.common.BtopRow
-import com.molina.core.common.BtopSort
-import com.molina.core.common.TaskGroup
+import com.molina.core.system.BtopProbe
+import com.molina.core.system.BtopRow
+import com.molina.core.system.BtopSort
+import com.molina.core.system.TaskGroup
 import com.molina.studio.cinema.Win7
 import com.molina.studio.cinema.Win7Button
 import com.molina.studio.system.BtopMonitor
@@ -270,7 +270,7 @@ internal fun BtopTab() {
     val filtered = remember(snap.rows, query) { BtopProbe.filter(snap.rows, query) }
     val lines = remember(filtered, key, desc, treeMode) {
         if (treeMode) BtopProbe.tree(filtered, key, desc)
-        else BtopProbe.sort(filtered, key, desc).map { com.molina.core.common.BtopTreeLine(it, 0, "") }
+        else BtopProbe.sort(filtered, key, desc).map { com.molina.core.system.BtopTreeLine(it, 0, "") }
     }
     val sel = snap.rows.firstOrNull { it.pid == selPid }
     val canEnd = sel != null && !sel.isSelf

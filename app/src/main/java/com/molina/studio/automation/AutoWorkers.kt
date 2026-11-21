@@ -5,7 +5,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.molina.core.api.AppLog
 import com.molina.core.api.LogLevel
-import com.molina.core.common.MolinaDir
+import com.molina.core.system.MolinaDir
 import com.molina.studio.AppPaths
 import com.molina.studio.packages.ToolChecker
 import com.molina.studio.settings.BackupManager

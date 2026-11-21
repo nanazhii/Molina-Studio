@@ -6,8 +6,8 @@ import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
 import com.molina.core.api.LogLevel
-import com.molina.core.common.LogRedact
-import com.molina.core.common.MolinaDir
+import com.molina.core.diag.LogRedact
+import com.molina.core.system.MolinaDir
 import com.molina.studio.AppPaths
 import com.molina.studio.automation.AutoPrefs
 import com.molina.studio.settings.AptHistory

@@ -2,8 +2,8 @@ package com.molina.engine.newpipe
 
 import com.molina.core.api.AppLog
 import com.molina.core.api.LogLevel
-import com.molina.core.common.LogRedact
-import com.molina.core.common.AdaptiveTier
+import com.molina.core.diag.LogRedact
+import com.molina.core.library.AdaptiveTier
 import com.molina.core.net.NetworkHint
 import com.molina.core.stream.OriginalTitles
 import com.molina.core.stream.ResolvedStream

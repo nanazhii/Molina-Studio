@@ -7,7 +7,7 @@ import android.graphics.Rect
 import androidx.activity.result.contract.ActivityResultContracts
 import android.os.Bundle
 import android.view.ViewTreeObserver
-import com.molina.core.common.AppVisibility
+import com.molina.core.policy.AppVisibility
 import com.molina.core.log.LogServer
 import androidx.activity.ComponentActivity
 import kotlinx.coroutines.launch
@@ -103,7 +103,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        com.molina.core.common.CrashContext.host = com.molina.core.common.CrashContext.HOST_APP
+        com.molina.core.diag.CrashContext.host = com.molina.core.diag.CrashContext.HOST_APP
         AppPaths.ensureIfPermitted(applicationContext)
     }
 
@@ -230,7 +230,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme(colorScheme = MolinaColors) {
                 var selected by rememberSaveable { mutableIntStateOf(0) }
-                androidx.compose.runtime.LaunchedEffect(selected) { com.molina.core.common.CrashContext.tab = this@MainActivity.getString(Tab.entries[selected].labelRes) }
+                androidx.compose.runtime.LaunchedEffect(selected) { com.molina.core.diag.CrashContext.tab = this@MainActivity.getString(Tab.entries[selected].labelRes) }
                 androidx.compose.runtime.LaunchedEffect(selected) { // [NANO-INBOX] snapshot nano masuk Riwayat Code saat pindah tab
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { codeSessionRef?.importNanoInbox() }
                 }
@@ -249,7 +249,7 @@ class MainActivity : ComponentActivity() {
                                 android.os.Environment.getExternalStorageDirectory().absolutePath,
                                 com.molina.studio.terminal.TerminalSessions.WORKSPACE_DIR,
                                 com.molina.studio.terminal.TerminalPrefs.fullStorageAccess,
-                                listOf(com.molina.core.common.MolinaPaths.APP_FOLDER),
+                                listOf(com.molina.core.system.MolinaPaths.APP_FOLDER),
                             )
                         }
                         it.nanoInboxDir = java.io.File(AppPaths.get(this@MainActivity).appRoot, com.molina.code.history.NanoInbox.DIR_NAME) // [NANO-INBOX]

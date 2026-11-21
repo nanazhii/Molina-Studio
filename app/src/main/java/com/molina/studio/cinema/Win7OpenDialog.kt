@@ -101,8 +101,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import com.molina.studio.ui.MolinaTheme
-import com.molina.core.common.TrashBin
-import com.molina.core.common.TrashItem
+import com.molina.core.library.TrashBin
+import com.molina.core.library.TrashItem
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -142,7 +142,7 @@ private fun w7HasStorage(ctx: Context) =
     ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
 
 internal fun w7Favorites(browse: Boolean = false): List<W7Place> = listOfNotNull(
-    W7Place("Molina", File(Environment.getExternalStorageDirectory(), com.molina.core.common.MolinaPaths.APP_FOLDER), true),
+    W7Place("Molina", File(Environment.getExternalStorageDirectory(), com.molina.core.system.MolinaPaths.APP_FOLDER), true),
     W7Place("Video", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)),
     W7Place("Unduhan", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)),
     W7Place("Musik", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)),
@@ -272,7 +272,7 @@ fun Win7OpenDialog(
     val cancelFlag = remember { AtomicBoolean(false) }
     val guard = remember {
         vols.map { File(it.dir, TrashBin.DIR).absolutePath }.toSet() + vols.map { it.dir.absolutePath }.toSet() +
-            File(Environment.getExternalStorageDirectory(), com.molina.core.common.MolinaPaths.APP_FOLDER).absolutePath
+            File(Environment.getExternalStorageDirectory(), com.molina.core.system.MolinaPaths.APP_FOLDER).absolutePath
     }
     fun say(text: String, ok: Boolean = false) { message = text; messageOk = ok }
     fun targets(): List<File> = if (multi) picked.map { File(it) } else listOfNotNull(selected?.file)

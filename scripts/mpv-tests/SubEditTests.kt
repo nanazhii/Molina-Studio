@@ -240,7 +240,7 @@ private fun spectrumTests() {
         val sd = segTrack.data; val qd = seqTrack.data
         var same = true; var cnt = 0
         for (i in 0 until segTrack.highWater) if (segTrack.has(i)) { cnt++; for (b in 0 until 32) if (sd[i * 32 + b] != qd[i * 32 + b]) same = false }
-        check("frame segmen identik dengan berurutan ($cnt frame)", same && cnt > 100)
+        check("frame segmen identik dengan berurutan ($cnt frame)", same && cnt > 2 * SpectrumMath.FPS)
         check("jumlah frame segmen = berurutan - frame pertama", segTrack.highWater == seqTrack.highWater && cnt == seqTrack.highWater - first)
 
         // frame terisi dilewati tanpa ditimpa, lubang diisi, berhenti saat bertemu frame terisi

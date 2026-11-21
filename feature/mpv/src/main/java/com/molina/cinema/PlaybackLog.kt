@@ -1,7 +1,7 @@
 package com.molina.cinema
 
 import android.os.SystemClock
-import com.molina.core.common.LogRedact
+import com.molina.core.diag.LogRedact
 import java.util.Locale
 
 /**

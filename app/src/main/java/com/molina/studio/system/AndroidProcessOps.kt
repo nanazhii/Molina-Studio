@@ -3,10 +3,10 @@ package com.molina.studio.system
 import android.os.Process
 import android.system.Os
 import android.system.OsConstants
-import com.molina.core.common.ProcFs
-import com.molina.core.common.ProcInfo
-import com.molina.core.common.ProcessOps
-import com.molina.core.common.ProcessReaper
+import com.molina.core.system.ProcFs
+import com.molina.core.system.ProcInfo
+import com.molina.core.system.ProcessOps
+import com.molina.core.system.ProcessReaper
 
 /** [ProcessOps] Android: daftar dari /proc, sinyal lewat Os.kill. */
 internal object AndroidProcessOps : ProcessOps {

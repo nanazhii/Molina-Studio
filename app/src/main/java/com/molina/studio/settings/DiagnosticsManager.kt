@@ -7,8 +7,8 @@ import android.content.Intent
 import android.os.Build
 import android.widget.Toast
 import androidx.core.content.FileProvider
-import com.molina.core.common.LogRedact
-import com.molina.core.common.MolinaDir
+import com.molina.core.diag.LogRedact
+import com.molina.core.system.MolinaDir
 import com.molina.studio.AppPaths
 import com.molina.studio.automation.AutoPrefs
 import com.molina.studio.cinema.MpvVersionBridge

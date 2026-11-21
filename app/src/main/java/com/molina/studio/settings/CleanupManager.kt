@@ -2,8 +2,8 @@ package com.molina.studio.settings
 
 import com.molina.core.api.MolinaServices
 import android.content.Context
-import com.molina.core.common.MolinaDir
-import com.molina.core.common.TrashBin
+import com.molina.core.system.MolinaDir
+import com.molina.core.library.TrashBin
 import com.molina.studio.AppPaths
 import com.molina.studio.terminal.CrashReporter
 import com.molina.core.api.RootfsState

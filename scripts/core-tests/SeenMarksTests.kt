@@ -1,5 +1,5 @@
-import com.molina.core.common.SeenMarks
-import com.molina.core.common.VideoKey
+import com.molina.core.library.SeenMarks
+import com.molina.core.library.VideoKey
 
 private var fails = 0
 private fun check(name: String, ok: Boolean) {

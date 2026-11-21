@@ -1,6 +1,6 @@
 package com.molina.core.download
 
-import com.molina.core.common.LogRedact
+import com.molina.core.diag.LogRedact
 
 /** Keadaan satu kali jalan untuk UI: [session] dari event skrip, ditambah status proses. */
 data class DownloadRunState(

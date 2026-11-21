@@ -37,8 +37,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.molina.core.common.BundledComponent
-import com.molina.core.common.BundledComponents
+import com.molina.core.policy.BundledComponent
+import com.molina.core.policy.BundledComponents
 import com.molina.engine.newpipe.NewPipeInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

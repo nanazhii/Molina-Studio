@@ -63,8 +63,8 @@ import com.molina.core.net.IptvChannel
 import com.molina.core.net.IptvFetch
 import com.molina.core.net.IptvLoad
 import com.molina.core.net.IptvLocal
-import com.molina.core.common.MolinaDir
-import com.molina.core.common.MolinaPaths
+import com.molina.core.system.MolinaDir
+import com.molina.core.system.MolinaPaths
 import com.molina.core.net.M3uParser
 import com.molina.core.net.M3uResult
 import com.molina.studio.AppPaths

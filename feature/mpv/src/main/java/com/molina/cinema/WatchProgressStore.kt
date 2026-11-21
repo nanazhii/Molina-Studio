@@ -1,8 +1,8 @@
 package com.molina.cinema
 
 import android.content.Context
-import com.molina.core.common.VideoKey
-import com.molina.core.common.WatchProgress
+import com.molina.core.library.VideoKey
+import com.molina.core.library.WatchProgress
 
 /**
  * [WATCH-PROGRESS] Penyimpanan lokal persentase tontonan video YouTube (kunci = VideoKey dari tautan asal).

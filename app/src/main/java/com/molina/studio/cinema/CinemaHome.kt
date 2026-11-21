@@ -17,9 +17,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.molina.cinema.BackgroundPlaybackState
 import com.molina.cinema.MpvFolder
-import com.molina.core.common.MolinaDir
+import com.molina.core.system.MolinaDir
 import com.molina.core.stream.PlaylistPlan
-import com.molina.core.common.Refreshers
+import com.molina.core.system.Refreshers
 import com.molina.core.stream.StreamError
 import com.molina.core.stream.StreamOutcome
 import com.molina.core.stream.StreamResolvers

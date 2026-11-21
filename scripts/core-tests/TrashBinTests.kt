@@ -1,5 +1,5 @@
-import com.molina.core.common.TrashBin
-import com.molina.core.common.TrashItem
+import com.molina.core.library.TrashBin
+import com.molina.core.library.TrashItem
 import java.io.File
 import java.nio.file.Files
 

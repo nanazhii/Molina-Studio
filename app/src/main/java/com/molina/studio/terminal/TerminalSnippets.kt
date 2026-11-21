@@ -2,8 +2,8 @@ package com.molina.studio.terminal
 
 import android.content.Context
 import android.widget.Toast
-import com.molina.core.common.MolinaDir
-import com.molina.core.common.MolinaPaths
+import com.molina.core.system.MolinaDir
+import com.molina.core.system.MolinaPaths
 import com.molina.studio.AppPaths
 import java.io.File
 import androidx.compose.foundation.background

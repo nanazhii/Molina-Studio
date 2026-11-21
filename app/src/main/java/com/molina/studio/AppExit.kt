@@ -6,7 +6,7 @@ import android.os.Looper
 import android.os.Process
 import android.system.Os
 import android.system.OsConstants
-import com.molina.core.common.ExitHooks
+import com.molina.core.system.ExitHooks
 import com.molina.studio.terminal.TerminalSessions
 import java.io.File
 import java.lang.ref.WeakReference

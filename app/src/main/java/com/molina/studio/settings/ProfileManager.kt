@@ -1,7 +1,7 @@
 package com.molina.studio.settings
 
 import android.content.Context
-import com.molina.core.common.MolinaDir
+import com.molina.core.system.MolinaDir
 import com.molina.studio.AppPaths
 import org.json.JSONObject
 import java.io.File

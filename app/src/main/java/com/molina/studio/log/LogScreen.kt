@@ -70,7 +70,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.molina.core.api.LogLevel
-import com.molina.core.common.MolinaDir
+import com.molina.core.system.MolinaDir
 import com.molina.studio.AppPaths
 import com.molina.studio.ui.MolinaTheme
 import java.io.File
@@ -583,7 +583,7 @@ private const val MAX_SHARE_LINES = 800
 
 private fun joinLogs(list: List<LogEntry>, max: Int): String =
     // [LOG-REDACT] Salin/Bagikan keluar dari aplikasi (clipboard terbaca app lain di Android 8): samarkan URL dan token
-    com.molina.core.common.LogRedact.text(list.takeLast(max).joinToString("\n") { format(it) })
+    com.molina.core.diag.LogRedact.text(list.takeLast(max).joinToString("\n") { format(it) })
 
 private fun copyText(ctx: Context, text: String, what: String) {
     val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager

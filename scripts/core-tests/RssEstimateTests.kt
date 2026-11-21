@@ -1,4 +1,4 @@
-import com.molina.core.common.RssDelta
+import com.molina.core.system.RssDelta
 
 private var fails = 0
 private fun check(name: String, ok: Boolean) {

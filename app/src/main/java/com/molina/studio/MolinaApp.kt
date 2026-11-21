@@ -34,7 +34,7 @@ class MolinaApp : Application() {
         com.molina.core.net.NetworkHint.provider = { com.molina.studio.stream.NetHint.snapshot(this) } // [AUTO-NET]
         PrivacyPrefs.init(this)
         // [EXT-CONFIRM] token intent internal untuk pemutar; intent luar tanpa token dikonfirmasi bila meminta jaringan
-        com.molina.core.common.ExternalIntentGate.tokenProvider = { com.molina.studio.security.ShortcutToken.get(this) }
+        com.molina.core.policy.ExternalIntentGate.tokenProvider = { com.molina.studio.security.ShortcutToken.get(this) }
         com.molina.studio.code.CodePrefs.init(this)
         com.molina.studio.code.ScriptStore.init(this)
         MpvControl.install(this)

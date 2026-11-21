@@ -2,8 +2,8 @@ package com.molina.core.storage
 
 import android.content.Context
 import android.os.Environment
-import com.molina.core.common.MolinaDir
-import com.molina.core.common.MolinaPaths
+import com.molina.core.system.MolinaDir
+import com.molina.core.system.MolinaPaths
 import java.io.File
 
 /** Implementasi Android untuk [MolinaPaths]. Butuh izin storage agar [ensureDirs] berhasil. */

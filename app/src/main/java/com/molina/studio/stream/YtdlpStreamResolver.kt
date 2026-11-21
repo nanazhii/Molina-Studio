@@ -4,7 +4,7 @@ import android.content.Context
 import com.molina.core.api.AppLog
 import com.molina.core.stream.FailureAction
 import com.molina.core.api.LogLevel
-import com.molina.core.common.LogRedact
+import com.molina.core.diag.LogRedact
 import com.molina.core.stream.ResolvedStream
 import com.molina.core.stream.SearchLang
 import com.molina.core.stream.StreamError

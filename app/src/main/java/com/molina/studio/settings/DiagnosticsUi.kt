@@ -3,7 +3,7 @@ package com.molina.studio.settings
 import android.Manifest
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
-import com.molina.core.common.LogRedact
+import com.molina.core.diag.LogRedact
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context

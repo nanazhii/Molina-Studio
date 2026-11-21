@@ -1,12 +1,12 @@
 package com.molina.studio.system
 
 import android.os.Process
-import com.molina.core.common.AppVisibility
-import com.molina.core.common.CpuTracker
-import com.molina.core.common.ReapResult
-import com.molina.core.common.TaskProbe
-import com.molina.core.common.TaskRow
-import com.molina.core.common.TaskTable
+import com.molina.core.policy.AppVisibility
+import com.molina.core.system.CpuTracker
+import com.molina.core.system.ReapResult
+import com.molina.core.system.TaskProbe
+import com.molina.core.system.TaskRow
+import com.molina.core.system.TaskTable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow

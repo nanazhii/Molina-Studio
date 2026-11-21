@@ -9,8 +9,8 @@ import com.molina.code.run.ScanResult
 import com.molina.code.run.ScriptFolder
 import com.molina.code.run.ScriptShare
 import com.molina.code.run.Stamp
-import com.molina.core.common.MolinaDir
-import com.molina.core.common.TrashBin
+import com.molina.core.system.MolinaDir
+import com.molina.core.library.TrashBin
 import com.molina.studio.AppPaths
 import com.molina.studio.ScriptShortcuts
 import com.molina.studio.settings.trashVolumes

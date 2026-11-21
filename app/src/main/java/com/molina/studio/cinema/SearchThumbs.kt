@@ -3,7 +3,7 @@ package com.molina.studio.cinema
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.LruCache
-import com.molina.core.common.ThumbMath
+import com.molina.core.library.ThumbMath
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit

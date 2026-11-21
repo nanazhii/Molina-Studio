@@ -1,7 +1,7 @@
-import com.molina.core.common.Assurance
-import com.molina.core.common.BundledComponents
-import com.molina.core.common.ComponentReport
-import com.molina.core.common.ComponentRole
+import com.molina.core.policy.Assurance
+import com.molina.core.policy.BundledComponents
+import com.molina.core.policy.ComponentReport
+import com.molina.core.policy.ComponentRole
 
 private var fails = 0
 private fun check(name: String, ok: Boolean) {

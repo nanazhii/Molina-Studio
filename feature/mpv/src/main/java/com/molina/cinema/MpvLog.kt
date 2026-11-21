@@ -3,7 +3,7 @@ package com.molina.cinema
 import android.util.Log
 import com.molina.core.api.AppLog
 import com.molina.core.api.LogLevel
-import com.molina.core.common.LogRedact
+import com.molina.core.diag.LogRedact
 
 /**
  * Pengganti android.util.Log untuk modul mpv. Pesan disamarkan (URL, token)

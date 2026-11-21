@@ -1,7 +1,7 @@
 package com.molina.studio.security
 
 import android.content.Context
-import com.molina.core.common.IntentToken
+import com.molina.core.policy.IntentToken
 import java.security.SecureRandom
 
 /**

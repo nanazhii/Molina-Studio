@@ -6,15 +6,15 @@ import android.os.Process
 import android.os.SystemClock
 import android.system.Os
 import android.system.OsConstants
-import com.molina.core.common.AppVisibility
-import com.molina.core.common.BtopProbe
-import com.molina.core.common.BtopRow
-import com.molina.core.common.CoreCpuTracker
-import com.molina.core.common.LoadAvg
-import com.molina.core.common.MemInfo
-import com.molina.core.common.ProcCpuTracker
-import com.molina.core.common.TaskProbe
-import com.molina.core.common.TaskTable
+import com.molina.core.policy.AppVisibility
+import com.molina.core.system.BtopProbe
+import com.molina.core.system.BtopRow
+import com.molina.core.system.CoreCpuTracker
+import com.molina.core.system.LoadAvg
+import com.molina.core.system.MemInfo
+import com.molina.core.system.ProcCpuTracker
+import com.molina.core.system.TaskProbe
+import com.molina.core.system.TaskTable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -66,7 +66,7 @@ internal object BtopMonitor {
             AppVisibility.foreground.first { it }
             val snap = withContext(Dispatchers.IO) {
                 val procs = AndroidProcessOps.list().filter { it.uid == uid && it.alive }
-                val stats = HashMap<Int, com.molina.core.common.ProcStat>()
+                val stats = HashMap<Int, com.molina.core.system.ProcStat>()
                 val cmds = HashMap<Int, List<String>>()
                 for (p in procs) {
                     BtopProbe.readProcStat(p.pid)?.let { stats[p.pid] = it }

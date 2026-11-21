@@ -42,9 +42,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.molina.core.common.AppVisibility
-import com.molina.core.common.RefreshReport
-import com.molina.core.common.Refreshers
+import com.molina.core.policy.AppVisibility
+import com.molina.core.system.RefreshReport
+import com.molina.core.system.Refreshers
 import com.molina.core.stream.StreamResolvers
 import com.molina.core.download.YtdlpCommand
 import com.molina.studio.packages.ToolPurge

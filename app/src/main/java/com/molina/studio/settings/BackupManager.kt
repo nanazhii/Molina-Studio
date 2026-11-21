@@ -2,7 +2,7 @@ package com.molina.studio.settings
 
 import android.content.Context
 import com.molina.cinema.VideoBookmarks
-import com.molina.core.common.MolinaDir
+import com.molina.core.system.MolinaDir
 import com.molina.studio.AppPaths
 import com.molina.studio.code.ScriptStore
 import com.molina.studio.terminal.PromptTheme

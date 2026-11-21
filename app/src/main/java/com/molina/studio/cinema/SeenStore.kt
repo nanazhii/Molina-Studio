@@ -4,8 +4,8 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
-import com.molina.core.common.SeenMarks
-import com.molina.core.common.VideoKey
+import com.molina.core.library.SeenMarks
+import com.molina.core.library.VideoKey
 
 /**
  * [SEEN-BADGES] Penanda video yang sudah diunduh atau pernah diputar (maks. [SeenMarks.MAX] per jenis, terbaru di atas),

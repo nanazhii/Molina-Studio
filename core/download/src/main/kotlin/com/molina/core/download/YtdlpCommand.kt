@@ -1,6 +1,6 @@
 package com.molina.core.download
 
-import com.molina.core.common.LogRedact
+import com.molina.core.diag.LogRedact
 import com.molina.core.stream.StreamError
 import com.molina.core.stream.YtdlpFlags
 import com.molina.core.stream.YtdlpParse

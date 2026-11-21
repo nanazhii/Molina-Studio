@@ -5,10 +5,10 @@ cd "$(dirname "$0")/../.."
 KC="${KOTLINC:-kotlinc}"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
-C=core/common/src/main/kotlin/com/molina/core/common
+DIAG=core/diag/src/main/kotlin/com/molina/core/diag
 NET_D=core/net/src/main/kotlin/com/molina/core/net
 "$KC" -nowarn -d "$OUT" \
-  core/download/src/main/kotlin/com/molina/core/download/YtdlpCommand.kt core/stream/src/main/kotlin/com/molina/core/stream/YtdlpFlags.kt core/stream/src/main/kotlin/com/molina/core/stream/YtdlpParse.kt core/json/src/main/kotlin/com/molina/core/json/InfoJsonKeys.kt core/stream/src/main/kotlin/com/molina/core/stream/StreamResolver.kt $C/LogRedact.kt core/json/src/main/kotlin/com/molina/core/json/MiniJson.kt core/json/src/main/kotlin/com/molina/core/json/JsonCursor.kt $NET_D/StreamHeaders.kt \
+  core/download/src/main/kotlin/com/molina/core/download/YtdlpCommand.kt core/stream/src/main/kotlin/com/molina/core/stream/YtdlpFlags.kt core/stream/src/main/kotlin/com/molina/core/stream/YtdlpParse.kt core/json/src/main/kotlin/com/molina/core/json/InfoJsonKeys.kt core/stream/src/main/kotlin/com/molina/core/stream/StreamResolver.kt $DIAG/LogRedact.kt core/json/src/main/kotlin/com/molina/core/json/MiniJson.kt core/json/src/main/kotlin/com/molina/core/json/JsonCursor.kt $NET_D/StreamHeaders.kt \
   app/src/main/java/com/molina/studio/code/ScriptCommand.kt \
   scripts/code-tests/ScriptCommandTests.kt
 java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" ScriptCommandTestsKt

@@ -1,10 +1,10 @@
-import com.molina.core.common.BtopProbe
-import com.molina.core.common.BtopRow
-import com.molina.core.common.BtopSort
-import com.molina.core.common.CoreCpuTracker
-import com.molina.core.common.CoreTimes
-import com.molina.core.common.ProcCpuTracker
-import com.molina.core.common.TaskGroup
+import com.molina.core.system.BtopProbe
+import com.molina.core.system.BtopRow
+import com.molina.core.system.BtopSort
+import com.molina.core.system.CoreCpuTracker
+import com.molina.core.system.CoreTimes
+import com.molina.core.system.ProcCpuTracker
+import com.molina.core.system.TaskGroup
 
 private var fails = 0
 private fun check(name: String, ok: Boolean) {

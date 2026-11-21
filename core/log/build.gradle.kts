@@ -16,5 +16,7 @@ android {
 
 dependencies {
     api(project(":core:api")) // [LOG-CONTRACT]
-    api(project(":core:common"))
+    api(project(":core:diag"))
+    api(project(":core:system"))
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
 }

@@ -17,7 +17,7 @@ import com.molina.core.net.DownloadUrlGuard
 import com.molina.core.download.DownloadRunState
 import com.molina.core.download.DownloadSessionState
 import com.molina.core.api.LogLevel
-import com.molina.core.common.LogRedact
+import com.molina.core.diag.LogRedact
 import com.molina.core.download.MaintenanceKind
 import com.molina.studio.cinema.SeenStore
 import com.molina.studio.code.ProotScriptExecutor

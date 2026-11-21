@@ -17,14 +17,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import com.molina.core.common.LogRedact
-import com.molina.core.common.MolinaDir
+import com.molina.core.diag.LogRedact
+import com.molina.core.system.MolinaDir
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.molina.core.common.MolinaPaths
+import com.molina.core.system.MolinaPaths
 import com.molina.studio.AppPaths
 import com.molina.studio.code.CodeInbox
 import androidx.compose.material3.Text

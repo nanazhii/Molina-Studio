@@ -19,7 +19,9 @@ dependencies {
     implementation(project(":core:stream"))
     implementation(project(":core:api")) // [LOG-CONTRACT]
     implementation(project(":core:net")) // [CORE-NET]
-    api(project(":core:common"))
+    api(project(":core:diag"))
+    api(project(":core:library"))
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
     implementation("com.github.TeamNewPipe:NewPipeExtractor:$newpipeVersion")
 }
 

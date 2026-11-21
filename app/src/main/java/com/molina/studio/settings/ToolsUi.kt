@@ -259,8 +259,8 @@ internal fun PackagesPage(
     PackageSectionHeader("Komponen bawaan Molina")
     remember { com.molina.studio.automation.AutoPrefs.init(ctx) }
     val bundleSt by com.molina.studio.automation.AutoPrefs.state.collectAsState()
-    val bundleAll = remember { com.molina.core.common.BundledComponents.all(com.molina.engine.newpipe.NewPipeInfo.VERSION) }
-    val bundleRep = remember { com.molina.core.common.BundledComponents.securityReport(bundleAll) }
+    val bundleAll = remember { com.molina.core.policy.BundledComponents.all(com.molina.engine.newpipe.NewPipeInfo.VERSION) }
+    val bundleRep = remember { com.molina.core.policy.BundledComponents.securityReport(bundleAll) }
     val cBundle = ManagedComponents.bundle(bundleSt, bundleAll.size, bundleRep.hashPinned, bundleRep.requiredVerified) // [KOMPONEN-PUSAT]
     PackageStatusCard(
         cBundle.title, cBundle.subtitle, cBundle.state, badge = cBundle.badge,

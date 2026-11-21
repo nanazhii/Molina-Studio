@@ -1,10 +1,10 @@
 package com.molina.studio.terminal
 
 import android.content.Context
-import com.molina.core.common.BundledScriptPolicy
-import com.molina.core.common.BundledScriptPolicy.Action
+import com.molina.core.policy.BundledScriptPolicy
+import com.molina.core.policy.BundledScriptPolicy.Action
 import com.molina.core.api.LogLevel
-import com.molina.core.common.MolinaDir
+import com.molina.core.system.MolinaDir
 import com.molina.studio.AppPaths
 import com.molina.core.log.LogBus
 import java.io.File

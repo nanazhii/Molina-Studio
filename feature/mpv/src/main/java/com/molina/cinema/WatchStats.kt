@@ -2,7 +2,7 @@ package com.molina.cinema
 
 import android.content.Context
 import android.os.SystemClock
-import com.molina.core.common.LogRedact
+import com.molina.core.diag.LogRedact
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File

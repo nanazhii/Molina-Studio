@@ -4,8 +4,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.util.LruCache
-import com.molina.core.common.MediaSidecar
-import com.molina.core.common.ThumbMath
+import com.molina.core.library.MediaSidecar
+import com.molina.core.library.ThumbMath
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File

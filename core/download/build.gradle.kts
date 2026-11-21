@@ -13,6 +13,6 @@ kotlin {
 
 dependencies {
     api(project(":core:stream"))
-    implementation(project(":core:common"))
+    implementation(project(":core:diag"))
     implementation(project(":core:json"))
 }

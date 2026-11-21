@@ -3,7 +3,7 @@ package com.molina.studio.cinema
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import com.molina.core.common.ExternalIntentGate
+import com.molina.core.policy.ExternalIntentGate
 import com.molina.core.net.IptvChannel
 import com.molina.core.net.IptvPlayback
 import com.molina.core.stream.PlaylistExtras

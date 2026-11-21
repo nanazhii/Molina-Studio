@@ -18,6 +18,6 @@ android {
 
 dependencies {
     implementation(project(":core:net")) // [CORE-NET]
-    implementation(project(":core:common"))
+    implementation(project(":core:policy"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
 }

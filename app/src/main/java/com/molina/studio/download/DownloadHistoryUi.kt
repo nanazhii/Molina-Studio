@@ -23,7 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.molina.core.download.DownloadHistoryEntry
-import com.molina.core.common.LogRedact
+import com.molina.core.diag.LogRedact
 import com.molina.studio.ui.MolinaTheme
 import com.molina.studio.settings.W7D
 import com.molina.studio.settings.win7Card

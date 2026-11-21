@@ -7,7 +7,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def rd(p):
     with open(os.path.join(ROOT, p), encoding="utf-8") as f: return f.read()
 
-REG = "core/common/src/main/kotlin/com/molina/core/common/BundledComponents.kt"
+REG = "core/policy/src/main/kotlin/com/molina/core/policy/BundledComponents.kt"
 SHA_OK = {"newpipe", "libmpv", "proot", "rootfs", "ytdlp", "sevenzip"}  # klaim Sha256 baru WAJIB ditambah di sini setelah pin-nya ada
 HEX = re.compile(r"^[0-9a-f]{64}$")
 problems = []

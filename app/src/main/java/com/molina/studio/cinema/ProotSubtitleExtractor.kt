@@ -12,7 +12,7 @@ import com.molina.code.preview.RunPlan
 import com.molina.code.run.RunListener
 import com.molina.code.run.RunRequest
 import com.molina.code.run.RunResult
-import com.molina.core.common.MolinaPaths
+import com.molina.core.system.MolinaPaths
 import com.molina.studio.MainActivity
 import com.molina.studio.code.ProotScriptExecutor
 import com.molina.studio.terminal.RootfsManager

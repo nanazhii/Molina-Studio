@@ -10,7 +10,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Modul penuh yang terkunci.
 LOCKED = ["feature/code", "feature/preview", "core/exec", "core/preview", "core/files"]
-FORBIDDEN_PROJECTS = [":core:common", ":core:storage", ":core:net", ":core:stream", ":core:download", ":feature:mpv", ":engine:newpipe",
+FORBIDDEN_PROJECTS = [":core:library", ":core:system", ":core:policy", ":core:diag", ":core:storage", ":core:net", ":core:stream", ":core:download", ":feature:mpv", ":engine:newpipe",
                       ":terminal-emulator", ":terminal-view", ":app", ":vault"]
 
 # Penjelajah (Berkas) hidup di :app (paket cinema), bercampur dengan kode berjaringan

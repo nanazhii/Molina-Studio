@@ -1,6 +1,6 @@
 package com.molina.core.download
 
-import com.molina.core.common.LogRedact
+import com.molina.core.diag.LogRedact
 
 enum class DownloadMode(val arg: String) { VIDEO("video"), AUDIO("audio") }
 

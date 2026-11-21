@@ -210,7 +210,7 @@ object TerminalSessions {
             File(rootfsDir, "storage/emulated/0/$WORKSPACE_DIR").mkdirs()
             val appBinds = StorageBinds.app(ctx, rootfsDir)
             appVisible = appBinds.isNotEmpty()
-            val wsBinds = if (WORKSPACE_DIR == com.molina.core.common.MolinaPaths.APP_FOLDER) emptyList<String>() else listOf( // [WORKSPACE-IN-MOLINA]
+            val wsBinds = if (WORKSPACE_DIR == com.molina.core.system.MolinaPaths.APP_FOLDER) emptyList<String>() else listOf( // [WORKSPACE-IN-MOLINA]
                 "--bind=${ws.absolutePath}:/sdcard/$WORKSPACE_DIR",
                 "--bind=${ws.absolutePath}:/storage/emulated/0/$WORKSPACE_DIR",
             )
@@ -229,7 +229,7 @@ object TerminalSessions {
             add("PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
             add("MOLINA_HOME=${MolinaShell.HOME_DIR}")
             if (appVisible) add("MOLINA_ROOT=${MolinaShell.APP_ROOT}")
-            add("MOLINA_WORKSPACE=/sdcard/${com.molina.core.common.MolinaPaths.APP_FOLDER}") // [WORKSPACE-NEUTRAL] [WORKSPACE-IN-MOLINA]
+            add("MOLINA_WORKSPACE=/sdcard/${com.molina.core.system.MolinaPaths.APP_FOLDER}") // [WORKSPACE-NEUTRAL] [WORKSPACE-IN-MOLINA]
             add("MOLINA_BRAND=${MolinaShell.BRAND}")
             add("MOLINA_BRAND_SGR=${MolinaShell.BRAND_SGR}")
             add("MOLINA_PS_HOME=${TerminalPrefs.promptTheme.homeSgr}")

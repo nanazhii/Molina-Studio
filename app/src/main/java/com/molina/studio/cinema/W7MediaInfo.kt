@@ -1,8 +1,8 @@
 package com.molina.studio.cinema
 
 import android.media.MediaMetadataRetriever
-import com.molina.core.common.MediaSidecar
-import com.molina.core.common.SidecarRows
+import com.molina.core.library.MediaSidecar
+import com.molina.core.library.SidecarRows
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File

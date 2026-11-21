@@ -1,6 +1,6 @@
 package com.molina.core.download
 
-import com.molina.core.common.LogRedact
+import com.molina.core.diag.LogRedact
 
 /** Sesi perawatan skrip unduhan (tanpa URL): periksa lingkungan atau perbarui yt-dlp. */
 enum class MaintenanceKind(val label: String) {

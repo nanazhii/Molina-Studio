@@ -11,7 +11,7 @@ import com.molina.core.stream.VideoQuality as CoreQuality // [QUALITY-SHEET]
 import com.molina.core.stream.StreamSearchItem
 import com.molina.core.net.ShieldProxy
 import com.molina.core.net.ShieldStats
-import com.molina.core.common.ExternalIntentGate
+import com.molina.core.policy.ExternalIntentGate
 import com.molina.core.net.UrlPolicy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -156,7 +156,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                     onLoaded()
                 }
                 is Prepared.Failed -> {
-                    MpvLog.w(TAG, "[LOAD-DIAG] resolve gagal: ${p.error.name} target=${com.molina.core.common.LogRedact.target(raw)}") // [LOAD-DIAG]
+                    MpvLog.w(TAG, "[LOAD-DIAG] resolve gagal: ${p.error.name} target=${com.molina.core.diag.LogRedact.target(raw)}") // [LOAD-DIAG]
                     reportResolveFailure(p) // [YTDLP-CARD]
                 }
             }
@@ -957,7 +957,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     }
 
     override fun onResume() {
-        com.molina.core.common.CrashContext.host = com.molina.core.common.CrashContext.HOST_PLAYER
+        com.molina.core.diag.CrashContext.host = com.molina.core.diag.CrashContext.HOST_PLAYER
         // If we weren't actually in the background (e.g. multi window mode), don't reinitialize stuff
         if (activityIsForeground) {
             super.onResume()
@@ -2767,7 +2767,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                 QualitySnap(path, emptyList(), MPVLib.getPropertyDouble("time-pos") ?: 0.0, MPVLib.getPropertyInt("playlist-pos") ?: 0)
             }
             val page = snap?.path?.let { streamSources[it] }
-            if (snap == null || page == null || !StreamLoader.isWebUrl(page) || !com.molina.core.common.AdaptiveTier.downshift(page)) {
+            if (snap == null || page == null || !StreamLoader.isWebUrl(page) || !com.molina.core.library.AdaptiveTier.downshift(page)) {
                 tierShiftBusy = false
                 return@launch
             }
@@ -3189,7 +3189,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun tierLowered(): Boolean {
         if (effectiveQuality() != CoreQuality.AUTO) return false
         val page = MPVLib.getPropertyString("path")?.let { streamSources[it] } ?: return false
-        return com.molina.core.common.AdaptiveTier.offsetFor(page) > 0
+        return com.molina.core.library.AdaptiveTier.offsetFor(page) > 0
     }
 
     private fun checkQualityMatch() { // [ANR-FIX2]

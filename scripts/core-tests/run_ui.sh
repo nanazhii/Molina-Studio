@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Uji JVM murni untuk DownloadUi (format ukuran/ETA, pemetaan path Debian -> Android, penggabungan URL) di :core:common.
+# Uji JVM murni untuk DownloadUi (format ukuran/ETA, pemetaan path Debian -> Android, penggabungan URL) di :core:diag.
 # Butuh kotlinc (>= 2.1) di PATH atau KOTLINC=/jalur/kotlinc.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 KC="${KOTLINC:-kotlinc}"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
-C=core/common/src/main/kotlin/com/molina/core/common
+DIAG=core/diag/src/main/kotlin/com/molina/core/diag
 "$KC" -nowarn -d "$OUT" \
-  $C/LogRedact.kt core/download/src/main/kotlin/com/molina/core/download/DownloadCommand.kt core/download/src/main/kotlin/com/molina/core/download/DownloadUi.kt \
+  $DIAG/LogRedact.kt core/download/src/main/kotlin/com/molina/core/download/DownloadCommand.kt core/download/src/main/kotlin/com/molina/core/download/DownloadUi.kt \
   scripts/core-tests/DownloadUiTests.kt
 java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" DownloadUiTestsKt

@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import com.molina.core.api.AppLog
 import com.molina.core.api.LogLevel
-import com.molina.core.common.MolinaPaths
+import com.molina.core.system.MolinaPaths
 import com.molina.core.storage.AndroidMolinaPaths
 import com.molina.studio.terminal.BundledScripts
 import kotlinx.coroutines.CoroutineScope

@@ -58,7 +58,7 @@ import com.molina.core.download.DownloadReducer
 import com.molina.core.download.DownloadRequest
 import com.molina.core.download.DownloadEvent
 import com.molina.core.download.DownloadMaintenance
-import com.molina.core.common.LogRedact
+import com.molina.core.diag.LogRedact
 import com.molina.core.download.MaintenanceKind
 import com.molina.core.download.MaintenanceTone
 import com.molina.studio.cinema.CinemaActions

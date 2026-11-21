@@ -13,7 +13,6 @@ kotlin {
 
 dependencies {
     api(project(":core:net"))
-    implementation(project(":core:common"))
     implementation(project(":core:json"))
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
 }

@@ -34,7 +34,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.molina.core.common.ShelfCard
+import com.molina.core.library.ShelfCard
 import com.molina.studio.ui.MolinaTheme
 import java.io.File
 
@@ -116,7 +116,7 @@ internal fun ChannelCover(name: String, card: ShelfCard.Card?, diameter: Dp = 28
     }
 }
 
-/** Lencana jumlah video pada judul baris rak kanal; teks dari [com.molina.core.common.TvGuide.badge]. */
+/** Lencana jumlah video pada judul baris rak kanal; teks dari [com.molina.core.library.TvGuide.badge]. */
 @Composable
 internal fun CountBadge(text: String) {
     Text(

@@ -30,12 +30,12 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import com.molina.core.common.ChannelTidy
+import com.molina.core.library.ChannelTidy
 import com.molina.core.api.LogLevel
-import com.molina.core.common.ResumeMark
-import com.molina.core.common.TrashBin
-import com.molina.core.common.TrashItem
-import com.molina.core.common.TvGuide
+import com.molina.core.library.ResumeMark
+import com.molina.core.library.TrashBin
+import com.molina.core.library.TrashItem
+import com.molina.core.library.TvGuide
 import com.molina.core.log.LogBus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

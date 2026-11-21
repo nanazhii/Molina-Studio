@@ -61,8 +61,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.molina.core.common.MolinaPaths
-import com.molina.core.common.TrashBin
+import com.molina.core.system.MolinaPaths
+import com.molina.core.library.TrashBin
 import com.molina.studio.cinema.ExplorerRecent
 import com.molina.studio.cinema.FileOps
 import com.molina.studio.cinema.W7ConfirmDialog

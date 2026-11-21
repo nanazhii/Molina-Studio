@@ -1,6 +1,6 @@
 package com.molina.cinema
 
-import com.molina.core.common.ExitHooks
+import com.molina.core.system.ExitHooks
 
 /**
  * Penjaga status libmpv. MPVLib.destroy() tanpa create() (atau dua kali) bisa crash di native,

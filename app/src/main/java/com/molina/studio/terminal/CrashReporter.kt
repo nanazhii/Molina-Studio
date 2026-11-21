@@ -12,10 +12,10 @@ import com.molina.studio.AppPaths
 import com.molina.studio.MainActivity
 import com.molina.studio.R
 import com.molina.core.log.LogBus
-import com.molina.core.common.CrashContext
+import com.molina.core.diag.CrashContext
 import com.molina.core.api.LogLevel
-import com.molina.core.common.LogRedact
-import com.molina.core.common.MolinaDir
+import com.molina.core.diag.LogRedact
+import com.molina.core.system.MolinaDir
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date

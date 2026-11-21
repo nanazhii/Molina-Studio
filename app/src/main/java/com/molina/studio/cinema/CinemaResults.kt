@@ -80,7 +80,7 @@ import com.molina.core.stream.RelativeTime
 import com.molina.core.stream.SearchOrder
 import com.molina.core.stream.SearchSort
 import com.molina.core.stream.StreamSearchItem
-import com.molina.core.common.VideoKey
+import com.molina.core.library.VideoKey
 import com.molina.studio.R
 import com.molina.studio.download.DownloadNav
 import com.molina.studio.ui.MolinaTheme

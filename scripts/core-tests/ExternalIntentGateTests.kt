@@ -1,4 +1,4 @@
-import com.molina.core.common.ExternalIntentGate as G
+import com.molina.core.policy.ExternalIntentGate as G
 import kotlin.system.exitProcess
 
 private var runs = 0

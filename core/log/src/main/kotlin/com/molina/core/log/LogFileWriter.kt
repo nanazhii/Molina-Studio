@@ -1,10 +1,10 @@
 package com.molina.core.log
 
 import android.content.Context
-import com.molina.core.common.ExitHooks
+import com.molina.core.system.ExitHooks
 import com.molina.core.api.LogLevel
-import com.molina.core.common.LogRedact
-import com.molina.core.common.MolinaPaths
+import com.molina.core.diag.LogRedact
+import com.molina.core.system.MolinaPaths
 import java.io.File
 import java.io.IOException
 import java.text.SimpleDateFormat

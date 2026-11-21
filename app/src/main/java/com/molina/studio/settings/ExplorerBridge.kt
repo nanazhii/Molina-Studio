@@ -59,7 +59,7 @@ internal object MolinaExplorer {
             else gw.activeFullAccess() ?: gw.fullStorageAccess
         val roots = if (full) listOf(base()) else listOf(
             base() + "/" + gw.workspaceDir,
-            base() + "/" + com.molina.core.common.MolinaPaths.APP_FOLDER,
+            base() + "/" + com.molina.core.system.MolinaPaths.APP_FOLDER,
         )
         val p = f.absolutePath
         if (rootfsPath?.let { r -> p == r || p.startsWith("$r/") } == true) return true
@@ -263,8 +263,8 @@ internal object MolinaExplorer {
     /** [SHARE-GUARD] Kunci tanda tangan dan kredensial tidak boleh keluar dari Molina lewat FileProvider. */
     private fun blockedSensitive(ctx: Context, files: List<File>): Boolean {
         val bad = files.any { f ->
-            com.molina.core.common.SensitivePaths.isSensitive(f.absolutePath) ||
-                (try { com.molina.core.common.SensitivePaths.isSensitive(f.canonicalPath) } catch (e: Exception) { false })
+            com.molina.core.system.SensitivePaths.isSensitive(f.absolutePath) ||
+                (try { com.molina.core.system.SensitivePaths.isSensitive(f.canonicalPath) } catch (e: Exception) { false })
         }
         if (bad) Toast.makeText(ctx, "Berkas kunci atau kredensial tidak boleh dibagikan keluar Molina.", Toast.LENGTH_LONG).show()
         return bad

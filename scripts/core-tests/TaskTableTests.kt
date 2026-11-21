@@ -1,9 +1,9 @@
-import com.molina.core.common.CpuTracker
-import com.molina.core.common.ProcInfo
-import com.molina.core.common.TaskGroup
-import com.molina.core.common.TaskProbe
-import com.molina.core.common.TaskSort
-import com.molina.core.common.TaskTable
+import com.molina.core.system.CpuTracker
+import com.molina.core.system.ProcInfo
+import com.molina.core.system.TaskGroup
+import com.molina.core.system.TaskProbe
+import com.molina.core.system.TaskSort
+import com.molina.core.system.TaskTable
 
 private var fails = 0
 private fun check(name: String, ok: Boolean) {

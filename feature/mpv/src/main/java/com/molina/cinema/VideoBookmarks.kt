@@ -2,8 +2,8 @@ package com.molina.cinema
 
 import android.content.Context
 import android.os.Environment
-import com.molina.core.common.MolinaDir
-import com.molina.core.common.MolinaPaths
+import com.molina.core.system.MolinaDir
+import com.molina.core.system.MolinaPaths
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
