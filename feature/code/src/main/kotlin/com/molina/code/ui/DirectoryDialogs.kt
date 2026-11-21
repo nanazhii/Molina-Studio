@@ -298,8 +298,7 @@ internal fun DrawerHeaderMenu(session: CodeSession, onDismiss: () -> Unit) {
     }
     val dir = session.dir
     val items = listOf(
-        ActionItem("File baru", icon = MenuIcon.New) { onDismiss(); session.fileDialog = FileDialog.NewFile(dir.root) },
-        ActionItem("Folder baru", icon = MenuIcon.NewFolder) { onDismiss(); session.fileDialog = FileDialog.NewFolder(dir.root) },
+        // [DRAWER-BOTTOM-BAR] File baru dan Folder baru pindah ke bar bawah panel
         ActionItem("Pilih folder utama", icon = MenuIcon.Open) {
             onDismiss()
             session.picker = PickerRequest(PickMode.Folder, dir.root, "Pilih folder utama") { dir.changeRoot(it) }

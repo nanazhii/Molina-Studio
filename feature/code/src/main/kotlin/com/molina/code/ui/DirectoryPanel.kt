@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -37,13 +38,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.molina.core.ui.ExpanderIcon // [EXPANDER-ICON]
 import com.molina.core.ui.FileTreeIcon
+import com.molina.core.ui.MintFileIcon // [DRAWER-BOTTOM-BAR]
+import com.molina.core.ui.MintFolder // [DRAWER-BOTTOM-BAR]
 import com.molina.core.ui.MoreDotsIcon // [DRAWER-DOTS]
 import com.molina.core.ui.Win7BackOrb // [DRAWER-HEADER-SAMA]
 
@@ -86,11 +94,12 @@ internal fun DirectoryPanel(session: CodeSession, modifier: Modifier = Modifier)
         ) {
             DrawerHeader(session)
             Box(Modifier.fillMaxWidth().height(CodeDimens.Hairline).background(CodeColors.Hairline))
+            Box(Modifier.weight(1f).fillMaxWidth()) { // [DRAWER-BOTTOM-BAR] isi mengisi sisa tinggi; bar aksi di bawah
             when {
                 dir.rootUnreadable -> DrawerEmptyState(session)
                 dir.isRootEmpty() -> Box(Modifier.fillMaxSize().padding(20.dp), contentAlignment = Alignment.TopCenter) {
                     BasicText(
-                        text = "Folder kosong. Ketuk ikon file baru atau folder baru di atas.",
+                        text = "Folder kosong. Ketuk ikon folder baru atau berkas baru di bawah.",
                         style = TextStyle(
                             color = CodeColors.TextSecondary,
                             fontSize = CodeDimens.EmptyTextSize,
@@ -114,6 +123,32 @@ internal fun DirectoryPanel(session: CodeSession, modifier: Modifier = Modifier)
                                 session.fileDialog = FileDialog.Menu(row.entry.file, fromTree = true)
                             }
                         )
+                    }
+                }
+            }
+            } // [DRAWER-BOTTOM-BAR] tutup kotak isi
+            // [DRAWER-BOTTOM-BAR] Bar aksi bawah, sama dengan drawer Terminal: ikon saja (Folder baru | File baru), tinggi 40dp.
+            Box(Modifier.fillMaxWidth().height(CodeDimens.Hairline).background(CodeColors.Hairline))
+            Row(Modifier.fillMaxWidth().navigationBarsPadding().height(40.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.weight(1f).fillMaxHeight().clickable { session.fileDialog = FileDialog.NewFolder(dir.root) }
+                        .semantics(mergeDescendants = true) { contentDescription = "Folder baru"; role = Role.Button },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        MintFolder(22.dp)
+                        BasicText("+", modifier = Modifier.align(Alignment.BottomEnd), style = TextStyle(color = CodeColors.Brand, fontSize = 13.sp, fontWeight = FontWeight.Bold))
+                    }
+                }
+                Box(Modifier.width(1.dp).height(20.dp).background(CodeColors.Hairline))
+                Box(
+                    Modifier.weight(1f).fillMaxHeight().clickable { session.fileDialog = FileDialog.NewFile(dir.root) }
+                        .semantics(mergeDescendants = true) { contentDescription = "Berkas baru"; role = Role.Button },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        MintFileIcon("", 22.dp)
+                        BasicText("+", modifier = Modifier.align(Alignment.BottomEnd), style = TextStyle(color = CodeColors.Brand, fontSize = 13.sp, fontWeight = FontWeight.Bold))
                     }
                 }
             }
