@@ -139,7 +139,7 @@ private fun trashGuard(vols: List<File>): Set<String> =
         File(Environment.getExternalStorageDirectory(), MolinaPaths.APP_FOLDER).absolutePath
 
 /** cd ke [dir] di sesi aktif. Menolak bila tak ada sesi, program layar penuh berjalan, atau path tak aman. */
-private fun cdHere(ctx: Context, dir: File): Boolean {
+private fun cdHere(ctx: Context, dir: File, quiet: Boolean = false): Boolean { // [DRAWER-CD-HEADER] quiet = langsung pindah, layar dibersihkan
     val em = TerminalSessions.currentSession?.emulator
     val path = MolinaExplorer.debianPath(dir)
     return when {
@@ -147,7 +147,7 @@ private fun cdHere(ctx: Context, dir: File): Boolean {
         em.isAlternateBufferActive -> { toast(ctx, "Terminal sedang menjalankan program layar penuh. Keluar dulu."); false }
         !MolinaExplorer.visibleInDebian(dir) -> { toast(ctx, "Folder ini tidak terlihat di Debian."); false }
         path.any { it.code < 32 || it.code == 127 } -> { toast(ctx, "Nama folder mengandung karakter kontrol."); false }
-        else -> { TerminalActions.send("cd " + MolinaExplorer.quote(path) + "\r"); true }
+        else -> { TerminalActions.send(if (quiet) " cd " + MolinaExplorer.quote(path) + " && clear\r" else "cd " + MolinaExplorer.quote(path) + "\r"); true }
     }
 }
 
@@ -256,6 +256,7 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
                             headerMenu = false
                             for (p in listOf(root.path) + st.expanded.toList()) load(File(p))
                         })
+                        DropdownMenuItem(text = { Text("cd ke sini") }, onClick = { headerMenu = false; if (cdHere(ctx, root, quiet = true)) onClose() }) // [DRAWER-CD-HEADER]
                         if (root.path != storageRoot.path) {
                             DropdownMenuItem(text = { Text("Ke penyimpanan internal") }, onClick = { headerMenu = false; setRoot(storageRoot) })
                         }
