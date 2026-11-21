@@ -130,6 +130,8 @@ import com.molina.explorer.W7MenuDivider
 import com.molina.explorer.W7MenuItem
 import com.molina.explorer.W7OpenWith
 import com.molina.explorer.W7OpenWithDialog
+import com.molina.explorer.w7Crumbs
+import com.molina.explorer.W7Place
 import com.molina.explorer.W7Thumb
 import com.molina.explorer.W7_ID
 import com.molina.explorer.W7_MEDIA
@@ -142,7 +144,6 @@ internal class W7Entry(val file: File, val isDir: Boolean, val size: Long, val m
 }
 
 private enum class W7Kind(val label: String) { MEDIA("Media (video dan audio)"), ALL("Semua file") }
-internal class W7Place(val label: String, val dir: File, val molina: Boolean = false)
 internal class W7Clip(val files: List<File>, val cut: Boolean)
 internal sealed class W7Sheet {
     class Rename(val file: File) : W7Sheet()

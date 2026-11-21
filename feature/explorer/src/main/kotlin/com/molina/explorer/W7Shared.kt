@@ -36,7 +36,10 @@ val W7_MEDIA = com.molina.core.files.FileTypes.MEDIA
 
 fun w7Date(ms: Long) = SimpleDateFormat("dd/MM/yyyy HH.mm", W7_ID).format(Date(ms))
 
-private fun w7Crumbs(dir: File, drives: List<W7Place>): List<Pair<String, File>> {
+/** [FEATURE-EXPLORER] Tempat/drive di panel navigasi Penjelajah (label, folder, penanda folder Molina). */
+class W7Place(val label: String, val dir: File, val molina: Boolean = false)
+
+fun w7Crumbs(dir: File, drives: List<W7Place>): List<Pair<String, File>> {
     val base = drives.filter { dir.path == it.dir.path || dir.path.startsWith(it.dir.path + "/") }
         .maxByOrNull { it.dir.path.length } ?: W7Place(dir.name.ifEmpty { "/" }, dir)
     val out = mutableListOf(Pair(base.label, base.dir))
