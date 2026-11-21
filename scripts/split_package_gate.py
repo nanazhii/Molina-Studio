@@ -9,8 +9,6 @@ KNOWN_SPLITS = {
     "com.molina.code.lsp": {"core/exec", "feature/code"},
     "com.molina.code.preview": {"core/exec", "feature/code"},
     "com.molina.code.run": {"core/exec", "feature/code"},
-    "com.molina.studio.cinema": {"app", "core/ui"},
-    "com.molina.studio.settings": {"app", "core/ui"},
 }
 
 def module_of(p):

@@ -1,4 +1,4 @@
-package com.molina.core.download
+package com.molina.core.fileops
 
 import java.security.SecureRandom
 import java.util.Locale

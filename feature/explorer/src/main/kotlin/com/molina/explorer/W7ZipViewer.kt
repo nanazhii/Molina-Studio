@@ -1,4 +1,4 @@
-package com.molina.studio.cinema
+package com.molina.explorer
 
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
@@ -47,24 +47,22 @@ import androidx.compose.ui.window.DialogWindowProvider
 import com.molina.core.ui.MintFileIcon
 import com.molina.core.ui.MintFolder
 import com.molina.core.fileops.FileOps
-import com.molina.explorer.W7HelpPanel
-import com.molina.explorer.W7Thumb
 
 // [SPLIT-ZIP] Penampil ZIP Penjelajah (W7ZipDialog dan pendukungnya), dipecah dari Win7OpenDialog.kt.
 
 /** [ZIP-VIEW] Isi ZIP tanpa mengekstrak; tombol Ekstrak memakai alur yang sama dengan menu Alat (termasuk kata sandi). */
-internal val W7_ZIP_IMG = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp")
+val W7_ZIP_IMG = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp")
 
 /** Entri yang sedang dibuka dari ZIP: salinan sementara + cap waktu/ukuran saat dibuka untuk mendeteksi suntingan. */
-internal class W7ZipOpened(val file: File, var lm: Long, var len: Long)
+class W7ZipOpened(val file: File, var lm: Long, var len: Long)
 
 /** Permintaan kata sandi tertunda: kind 0 = buka, 1 = buka di Terminal, 2 = simpan ke ZIP, 3 = tambah ke ZIP [ZIP-EDIT]. */
-internal class W7ZipAsk(val kind: Int, val name: String, val wrong: Boolean)
+class W7ZipAsk(val kind: Int, val name: String, val wrong: Boolean)
 
-internal class W7ZipChild(val full: String, val label: String, val isDir: Boolean, val size: Long)
+class W7ZipChild(val full: String, val label: String, val isDir: Boolean, val size: Long)
 
 /** Isi satu level folder di dalam ZIP (folder tanpa entri eksplisit tetap diturunkan dari path berkas). */
-internal fun w7ZipChildren(entries: List<FileOps.ZipEntryInfo>, cwd: String): List<W7ZipChild> {
+fun w7ZipChildren(entries: List<FileOps.ZipEntryInfo>, cwd: String): List<W7ZipChild> {
     val dirs = LinkedHashSet<String>()
     val files = ArrayList<W7ZipChild>()
     for (en in entries) {
@@ -81,7 +79,7 @@ internal fun w7ZipChildren(entries: List<FileOps.ZipEntryInfo>, cwd: String): Li
 }
 
 @Composable
-internal fun W7ZipDialog(
+fun W7ZipDialog(
     zip: File, onClose: () -> Unit, onOpenFile: (File) -> Unit,
     onOpenTerminal: ((File) -> Boolean)?, clipFiles: () -> List<File>, onExtract: () -> Unit
 ) {

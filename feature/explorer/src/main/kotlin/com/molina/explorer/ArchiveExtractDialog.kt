@@ -1,4 +1,4 @@
-package com.molina.studio.cinema
+package com.molina.explorer
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -41,13 +41,12 @@ import com.molina.core.fileops.FileOps
 import com.molina.core.fileops.ExtractTarget
 import com.molina.core.fileops.ArchiveNames
 import com.molina.core.fileops.ArchiveRoute
-import com.molina.explorer.W7Panel
 
 /** [ARCHIVE] Satu baris isi arsip pada satu level folder: [key] = kunci seleksi (folder berakhiran "/"). */
-internal class ArcChild(val key: String, val label: String, val isDir: Boolean, val size: Long)
+class ArcChild(val key: String, val label: String, val isDir: Boolean, val size: Long)
 
 /** [ARCHIVE] Isi satu level folder [cwd] dari daftar entri; nama dibersihkan dulu (awalan "./" tar dibuang, entri tak aman dilewati). */
-internal fun arcChildren(entries: List<FileOps.ZipEntryInfo>, cwd: String): List<ArcChild> {
+fun arcChildren(entries: List<FileOps.ZipEntryInfo>, cwd: String): List<ArcChild> {
     val dirs = LinkedHashSet<String>()
     val files = ArrayList<ArcChild>()
     for (en in entries) {
@@ -92,9 +91,10 @@ private fun ArcOption(on: Boolean, label: String, note: String, onClick: () -> U
  * [onNeedPassword] (pemanggil menampilkan dialog sandi lalu membuka dialog ini lagi dengan [password]).
  */
 @Composable
-internal fun ArchiveExtractDialog(
+fun ArchiveExtractDialog(
     file: File,
     password: String?,
+    env: ExplorerEnv,
     onNeedPassword: (wrong: Boolean) -> Unit,
     onClose: () -> Unit,
     onExtract: (ExtractTarget, Set<String>?) -> Unit
@@ -111,7 +111,7 @@ internal fun ArchiveExtractDialog(
     val keys = remember(file) { mutableStateListOf<String>() }
 
     LaunchedEffect(file, password) {
-        val r = withContext(Dispatchers.IO) { runCatching { ArchiveOps.list(ctx, file, password) } }
+        val r = withContext(Dispatchers.IO) { runCatching { ArchiveOps.list(env, file, password) } }
         val ex = r.exceptionOrNull()
         when {
             ex is FileOps.NeedPassword -> onNeedPassword(false)

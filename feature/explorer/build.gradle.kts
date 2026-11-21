@@ -25,6 +25,7 @@ dependencies {
     implementation(project(":core:library")) // MediaSidecar, SidecarRows, ThumbMath
     implementation(project(":core:fileops")) // FileOps, ExplorerList
     implementation(project(":core:files")) // FileTypes
+    implementation(project(":core:system")) // MolinaPaths (w7Favorites)
     implementation(platform("androidx.compose:compose-bom:2024.12.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")

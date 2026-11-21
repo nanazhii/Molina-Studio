@@ -64,10 +64,10 @@ import androidx.compose.ui.unit.sp
 import com.molina.core.system.MolinaPaths
 import com.molina.core.library.TrashBin
 import com.molina.core.fileops.FileOps
-import com.molina.studio.cinema.W7ConfirmDialog
+import com.molina.explorer.W7ConfirmDialog
 import com.molina.core.ui.MintFileIcon
-import com.molina.studio.cinema.W7InfoDialog
-import com.molina.studio.cinema.W7NameDialog
+import com.molina.explorer.W7InfoDialog
+import com.molina.explorer.W7NameDialog
 import com.molina.core.ui.Win7BackOrb
 import com.molina.core.ui.MintFolder
 import com.molina.studio.settings.MolinaExplorer

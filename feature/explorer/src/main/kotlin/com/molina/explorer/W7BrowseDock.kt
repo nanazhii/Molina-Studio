@@ -1,4 +1,4 @@
-package com.molina.studio.cinema
+package com.molina.explorer
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -41,9 +41,6 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import com.molina.studio.ui.MolinaTheme
 import com.molina.core.ui.Win7
-import com.molina.explorer.W7HelpIcon
-import com.molina.explorer.W7Ico
-import com.molina.explorer.W7MenuIcon
 
 /**
  * [FILES-DOCK] Panel bawah Penjelajah (mode jelajah): satu baris [aksi cepat kontekstual] [Alat] [Terminal] [pil melayang].
@@ -51,7 +48,7 @@ import com.molina.explorer.W7MenuIcon
  * [FLOAT-DOCK] Status Debian dan menu kisi pindah ke pil melayang [W7BrowseFloat] agar daftar lebih luas.
  */
 @Composable
-internal fun W7BrowseDock(
+fun W7BrowseDock(
     quickLabel: String?,
     toolsEnabled: Boolean,
     terminalEnabled: Boolean,
@@ -80,7 +77,7 @@ internal fun W7BrowseDock(
  * lalu slot [menu] (ikon kisi drop-up). Latar gelap semi-transparan (API 26 tanpa blur).
  */
 @Composable
-internal fun W7BrowseFloat(
+fun W7BrowseFloat(
     modifier: Modifier,
     accent: Boolean = false, // [FLOAT-GOLD] garis tepi emas saat Mode Pilih aktif
     debian: Boolean?,

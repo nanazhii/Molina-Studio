@@ -1,4 +1,4 @@
-package com.molina.studio.cinema
+package com.molina.explorer
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,21 +24,14 @@ import com.molina.core.fileops.FileOps
 import com.molina.core.fileops.ExtractTarget
 import com.molina.core.fileops.ArchiveRoute
 import com.molina.core.fileops.ExplorerList
-import com.molina.explorer.ExplorerFavorites
-import com.molina.explorer.W7Ico
-import com.molina.explorer.W7MenuItem
-import com.molina.explorer.W7_LISTS
-import com.molina.explorer.W7_MEDIA
-import com.molina.explorer.w7Names
-import com.molina.explorer.w7PopupMaxHeight
 
 /**
  * [SPLIT-TOOLS] Menu Alat Penjelajah (popup drop-up): diangkat dari Win7OpenDialog.kt menjadi composable tersendiri.
  * State tetap milik Win7OpenDialog: nilai dikirim sebagai parameter, perubahan lewat callback (onClip, onSheet, dst.).
  */
 @Composable
-internal fun W7ToolsMenu(
-    targets: List<File>, dir: File, browse: Boolean, clip: W7Clip?,
+fun W7ToolsMenu(
+    env: ExplorerEnv, targets: List<File>, dir: File, browse: Boolean, clip: W7Clip?,
     playedFirst: Boolean, playedRefs: List<String>, shown: List<W7Entry>?,
     onPlay: (suspend (List<File>) -> Boolean)?, onOpenInCode: ((List<File>) -> Unit)?,
     onEditInTerminal: ((File) -> Unit)? = null, // [NANO-EDIT]
@@ -117,9 +110,9 @@ internal fun W7ToolsMenu(
                 onDismiss()
                 one?.let { onEditInTerminal?.invoke(it) }
             }
-            W7MenuItem(W7Ico.SEARCH, "Pratinjau (MD/HTML/JSON)", one != null && com.molina.studio.preview.ExplorerPreview.canPreview(one)) { // [EXPLORER-PREVIEW]
+            W7MenuItem(W7Ico.SEARCH, "Pratinjau (MD/HTML/JSON)", one != null && env.preview.canPreview(one)) { // [EXPLORER-PREVIEW]
                 onDismiss()
-                one?.let { com.molina.studio.preview.PreviewNav.pending = it }
+                one?.let { env.preview.open(it) }
             }
             if (newTextEnabled) W7MenuItem(W7Ico.EDIT, "Berkas teks baru (nano)", true) { // [NANO-NEW]
                 onDismiss()
@@ -218,7 +211,7 @@ internal fun W7ToolsMenu(
                         )
                     } else {
                         runOp(
-                            op = { ctl -> ArchiveOps.extract(ctx, one, d, ExtractTarget.NAMED_FOLDER, ctl).describe() },
+                            op = { ctl -> ArchiveOps.extract(env, one, d, ExtractTarget.NAMED_FOLDER, ctl).describe() },
                             onFail = { if (it is FileOps.NeedPassword) { say(""); onSheet(W7Sheet.ArchivePw(one, false)) } }
                         )
                     }

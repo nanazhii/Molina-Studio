@@ -7,5 +7,5 @@ KC="${KOTLINC:-kotlinc}"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 # (tidak memakai berkas core lama)
-"$KC" -nowarn -d "$OUT" core/download/src/main/kotlin/com/molina/core/download/PasswordPolicy.kt scripts/core-tests/PasswordPolicyTests.kt 2>&1 | grep -v '^$' || true
+"$KC" -nowarn -d "$OUT" core/fileops/src/main/kotlin/com/molina/core/fileops/PasswordPolicy.kt scripts/core-tests/PasswordPolicyTests.kt 2>&1 | grep -v '^$' || true
 java -Dfile.encoding=UTF-8 -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" PasswordPolicyTestsKt

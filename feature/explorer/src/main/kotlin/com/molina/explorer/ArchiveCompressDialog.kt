@@ -1,6 +1,6 @@
-package com.molina.studio.cinema
+package com.molina.explorer
 
-import com.molina.core.download.PasswordPolicy
+import com.molina.core.fileops.PasswordPolicy
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -44,7 +44,6 @@ import com.molina.core.ui.Win7Button
 import com.molina.core.fileops.CompressFormat
 import com.molina.core.fileops.CompressOptions
 import com.molina.core.fileops.CompressNames
-import com.molina.explorer.W7Panel
 
 /** [ARCHIVE2] Tombol pilihan format: terpilih = warna seleksi Win7. */
 @Composable
@@ -69,7 +68,7 @@ private fun ArcChip(label: String, on: Boolean, modifier: Modifier, onClick: () 
  * [parentName] = nama folder yang sedang dibuka (dipakai sebagai nama bawaan bila banyak item terpilih).
  */
 @Composable
-internal fun ArchiveCompressDialog(
+fun ArchiveCompressDialog(
     files: List<File>,
     parentName: String,
     onClose: () -> Unit,

@@ -1,4 +1,4 @@
-package com.molina.studio.cinema
+package com.molina.explorer
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -48,11 +48,10 @@ import com.molina.core.ui.MintFolder
 import com.molina.core.ui.Win7
 import com.molina.core.ui.Win7Button
 import com.molina.core.fileops.FileOps
-import com.molina.explorer.W7Panel
 
 /** Ikon Recycle Bin gaya Win7: tong kaca abu-abu dengan tutup dan celah. */
 @Composable
-internal fun Win7BinIcon(box: Dp) {
+fun Win7BinIcon(box: Dp) {
     Canvas(Modifier.size(box)) {
         val w = size.width
         val h = size.height
@@ -73,7 +72,7 @@ private fun daysText(n: Int): String = if (n <= 0) "dibersihkan hari ini" else "
  * Hapus permanen, dan Kosongkan. [onChanged] dipanggil setelah berkas dipulihkan agar daftar Penjelajah menyegarkan diri.
  */
 @Composable
-internal fun W7BinDialog(volumes: List<File>, onDismiss: () -> Unit, onChanged: () -> Unit) {
+fun W7BinDialog(volumes: List<File>, onDismiss: () -> Unit, onChanged: () -> Unit) {
     val scope = rememberCoroutineScope()
     var items by remember { mutableStateOf<List<TrashItem>?>(null) }
     var picked by remember { mutableStateOf<Set<String>>(emptySet()) }

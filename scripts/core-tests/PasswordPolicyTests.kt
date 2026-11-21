@@ -1,5 +1,5 @@
-import com.molina.core.download.PasswordPolicy
-import com.molina.core.download.PasswordPolicy.Strength
+import com.molina.core.fileops.PasswordPolicy
+import com.molina.core.fileops.PasswordPolicy.Strength
 
 private var fails = 0
 private fun check(name: String, ok: Boolean) {

@@ -138,27 +138,10 @@ import com.molina.explorer.W7_MEDIA
 import com.molina.explorer.w7Date
 import com.molina.explorer.w7Names
 import com.molina.explorer.w7PopupMaxHeight
+import com.molina.explorer.W7Entry
 
-internal class W7Entry(val file: File, val isDir: Boolean, val size: Long, val modified: Long, val rel: String? = null) {
-    val name: String get() = file.name
-}
 
 private enum class W7Kind(val label: String) { MEDIA("Media (video dan audio)"), ALL("Semua file") }
-internal class W7Clip(val files: List<File>, val cut: Boolean)
-internal sealed class W7Sheet {
-    class Rename(val file: File) : W7Sheet()
-    class Zip(val files: List<File>) : W7Sheet()
-    class Compress(val files: List<File>) : W7Sheet() // [ARCHIVE2] dialog Kompres (format, level, nama, sandi ZIP)
-    class Password(val zip: File, val wrong: Boolean) : W7Sheet()
-    class ZipView(val zip: File) : W7Sheet() // [ZIP-VIEW]
-    class Archive(val file: File, val pw: String?) : W7Sheet() // [ARCHIVE] 7z/tar/gz/bz2/xz (dan ZIP lewat "Ekstrak pilihan")
-    class ArchivePw(val file: File, val wrong: Boolean) : W7Sheet() // [ARCHIVE]
-    class Info(val files: List<File>) : W7Sheet()
-    class Delete(val files: List<File>, val permanent: Boolean = false) : W7Sheet()
-    object NewDir : W7Sheet()
-    object NewText : W7Sheet() // [NANO-NEW]
-    class OpenWith(val file: File) : W7Sheet() // [NANO-OPENWITH]
-}
 
 private fun w7StemEnd(name: String, dir: Boolean): Int =
     if (dir) name.length else name.lastIndexOf('.').let { if (it > 0) it else name.length }
@@ -168,13 +151,6 @@ private val W7_AUDIO = com.molina.core.files.FileTypes.AUDIO
 private fun w7HasStorage(ctx: Context) =
     ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
 
-internal fun w7Favorites(browse: Boolean = false): List<W7Place> = listOfNotNull(
-    W7Place("Molina", File(Environment.getExternalStorageDirectory(), com.molina.core.system.MolinaPaths.APP_FOLDER), true),
-    W7Place("Video", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)),
-    W7Place("Unduhan", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)),
-    W7Place("Musik", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)),
-    W7Place("Kamera", Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM))
-).filter { it.dir.isDirectory }
 
 /** Beranda Debian (/root di rootfs) sebagai akar tambahan agar berkas Debian bisa dikelola dari Penjelajah. */
 private fun w7DebianPlaces(ctx: Context, browse: Boolean): List<W7Place> {
@@ -481,7 +457,7 @@ fun Win7OpenDialog(
             val d = dir
             val items = s.files
             runOp(op = { ctl ->
-                val made = ArchiveOps.compress(ctx, items, d, opt, ctl) // [ARCHIVE6] 7z bersandi lewat Debian
+                val made = ArchiveOps.compress(appExplorerEnv(ctx), items, d, opt, ctl) // [ARCHIVE6] 7z bersandi lewat Debian
                 "Arsip dibuat: " + made.name + " (" + CompressNames.sizeText(made.length()) + (if (!opt.password.isNullOrEmpty()) ", bersandi" else "") + ")"
             })
         }
@@ -524,7 +500,7 @@ fun Win7OpenDialog(
             )
         }
         is W7Sheet.Archive -> ArchiveExtractDialog( // [ARCHIVE]
-            s.file, s.pw,
+            s.file, s.pw, appExplorerEnv(ctx),
             onNeedPassword = { wrong -> sheet = W7Sheet.ArchivePw(s.file, wrong) },
             onClose = { sheet = null }
         ) { exTarget, exOnly ->
@@ -533,7 +509,7 @@ fun Win7OpenDialog(
             val apw = s.pw
             val d = a.parentFile?.takeIf { it.isDirectory && it.canWrite() } ?: dir
             runOp(
-                op = { ctl -> ArchiveOps.extract(ctx, a, d, exTarget, ctl, apw, exOnly).describe() },
+                op = { ctl -> ArchiveOps.extract(appExplorerEnv(ctx), a, d, exTarget, ctl, apw, exOnly).describe() },
                 onFail = {
                     if (it is FileOps.NeedPassword) { say(""); sheet = W7Sheet.ArchivePw(a, false) }
                     else if (it is FileOps.WrongPassword) { say(""); sheet = W7Sheet.ArchivePw(a, true) }
@@ -660,7 +636,7 @@ fun Win7OpenDialog(
                 }
                 val toolsPopup: @Composable () -> Unit = {
                     if (toolsOpen) W7ToolsMenu( // [SPLIT-TOOLS] isi menu ada di W7ToolsMenu.kt
-                        targets = targets(), dir = dir, browse = browse, clip = clip,
+                        env = remember(ctx) { appExplorerEnv(ctx) }, targets = targets(), dir = dir, browse = browse, clip = clip,
                         playedFirst = playedFirst, playedRefs = playedRefs, shown = shown,
                         onPlay = onPlay, onOpenInCode = onOpenInCode, onEditInTerminal = onEditInTerminal, newTextEnabled = onNewTextInTerminal != null, onSendToScripts = onSendToScripts,
                         onOpenWith = onOpenWith, onShare = onShare, onCopyPath = onCopyPath,
