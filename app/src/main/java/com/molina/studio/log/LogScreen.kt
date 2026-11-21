@@ -465,6 +465,14 @@ private fun sourceColor(source: String): Color = when (source) {
     else -> MolinaTheme.Muted
 }
 
+// [E-3b-3c] Kategori keputusan mpv: policy = penolakan sumber, stall = macet jaringan, quality = perubahan kualitas.
+private fun tagAccent(tag: String): Color? = when (tag) {
+    "policy" -> MolinaTheme.Bad
+    "stall" -> MolinaTheme.Warn
+    "quality" -> Color(0xFF6CB4FF)
+    else -> null
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun EntryRow(e: LogEntry, child: Boolean, query: String, onCopy: () -> Unit) {
@@ -496,7 +504,7 @@ private fun EntryRow(e: LogEntry, child: Boolean, query: String, onCopy: () -> U
         Spacer(Modifier.width(8.dp))
         Text(
             buildAnnotatedString {
-                withStyle(SpanStyle(color = sourceColor(e.source), fontWeight = FontWeight.SemiBold)) {
+                withStyle(SpanStyle(color = tagAccent(e.tag) ?: sourceColor(e.source), fontWeight = FontWeight.SemiBold)) {
                     append(label)
                 }
                 append("  ")

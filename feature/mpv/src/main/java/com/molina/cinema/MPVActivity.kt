@@ -1576,9 +1576,12 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     private fun parsePathFromIntent(intent: Intent): String? {
         fun safeResolveUri(u: Uri?): String? {
-            return if (u != null && u.isHierarchical && !u.isRelative)
-                resolveUri(u)
-            else null
+            if (u == null) return null
+            if (!u.isHierarchical || u.isRelative) {
+                MpvLog.rejected("share: URI tidak hierarkis atau relatif, skema=${SourceScheme.safeLabel(u.scheme)}")
+                return null
+            }
+            return resolveUri(u)
         }
 
         return when (intent.action) {
@@ -1620,7 +1623,11 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
             else -> {
                 // Intent kustom dari Molina Cinema (extra filepath)
-                intent.getStringExtra("filepath")?.takeIf { isAllowedCustomPath(it) }
+                intent.getStringExtra("filepath")?.let { raw ->
+                    // [E-3b-3c] MPVActivity exported: catat alasan penolakan (tanpa isi path) agar aplikasi yang mencoba celah terlihat di tab Log.
+                    val reason = sourcePolicy.denyReason(raw)
+                    if (reason == null) raw else { MpvLog.rejected("filepath: $reason"); null }
+                }
             }
         }
     }
@@ -1641,7 +1648,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     private fun resolveUri(data: Uri): String? {
         // [E-3b-3a] Klasifikasi skema ada di :core:policy (SourceScheme); di sini hanya mengeksekusi hasilnya.
-        val filepath = when (SourceScheme.classify(data.scheme)) {
+        val kind = SourceScheme.classify(data.scheme)
+        val filepath = when (kind) {
             SourceKind.LOCAL_FILE -> data.path?.takeIf { isOutsidePrivateData(it) }
             SourceKind.CONTENT -> translateContentUri(data)
             SourceKind.NETWORK -> data.toString()
@@ -1649,7 +1657,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         }
 
         if (filepath == null)
-            MpvLog.e(TAG, "unknown scheme: ${data.scheme}")
+            MpvLog.rejected(if (kind == SourceKind.REJECTED) "skema=${SourceScheme.safeLabel(data.scheme)}" else "file di data privat atau tanpa path")
         return filepath
     }
 
@@ -2710,12 +2718,15 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun noteStall() {
         if (isFinishing || isDestroyed || effectiveQuality() != CoreQuality.AUTO) return
         // [ANR-FIX2] pemeriksaan seeking & time-pos < 5 dtk (buffering awal bukan tanda jaringan buruk) dipindah ke pemanggil
-        if (stallTracker.recordStall(android.os.SystemClock.elapsedRealtime())) autoDownshift()
+        val trigger = stallTracker.recordStall(android.os.SystemClock.elapsedRealtime())
+        MpvLog.i("stall", "macet ${stallTracker.stallCount}/${StallTracker.THRESHOLD} dalam ${StallTracker.WINDOW_MS / 1000} dtk")
+        if (trigger) autoDownshift()
     }
 
     private fun autoDownshift() {
         if (isFinishing || isDestroyed || effectiveQuality() != CoreQuality.AUTO) return
         if (!stallTracker.tryBeginShift(android.os.SystemClock.elapsedRealtime())) return // [ANR-FIX2]
+        MpvLog.d("quality", "mencoba turun tier otomatis")
         streamScope.launch {
             val snap = withContext(mpvDispatcher) {
                 if (MPVLib.getPropertyBoolean("seeking") == true) return@withContext null
@@ -2726,9 +2737,11 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             val page = snap?.path?.let { streamSources[it] }
             if (snap == null || page == null || !StreamLoader.isWebUrl(page) || !com.molina.core.library.AdaptiveTier.downshift(page)) {
                 stallTracker.abortShift()
+                MpvLog.d("quality", "turun tier tidak dilakukan")
                 return@launch
             }
             stallTracker.commitShift()
+            MpvLog.i("quality", "turun tier otomatis (tingkat ${com.molina.core.library.AdaptiveTier.offsetFor(page)}/${com.molina.core.library.AdaptiveTier.MAX})")
             showToast(getString(R.string.tier_down), true)
             val pos = snap.pos
             val idx = snap.idx

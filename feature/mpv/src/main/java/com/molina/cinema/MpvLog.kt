@@ -17,8 +17,8 @@ internal object MpvLog {
     const val LOGCAT_TAG = "Molina/Mpv"
 
     /** [DIAG-SESSION] Awalan "[tag sNNN]" memuat ID sesi pemutaran aktif; tanpa sesi bentuk lama dipertahankan. */
-    private fun tagged(tag: String, msg: String): String {
-        val sid = PlaybackSessions.current()?.label
+    private fun tagged(tag: String, msg: String, session: Boolean = true): String {
+        val sid = if (session) PlaybackSessions.current()?.label else null
         val head = when {
             tag.isEmpty() || tag == SOURCE -> sid
             sid == null -> tag
@@ -48,22 +48,30 @@ internal object MpvLog {
     fun e(tag: String, tr: Throwable) =
         emit(Log.ERROR, LogLevel.Error, tag, "", tr)
 
+    /**
+     * [E-3b-3c] Penolakan sumber dari luar (MPVActivity exported). Sengaja TANPA ID sesi: intent masuk sebelum sesi
+     * baru dimulai, jadi sesi aktif (bila ada) milik pemutaran lain dan akan menyesatkan. Hanya alasan, tidak pernah isi path.
+     */
+    fun rejected(reason: String) =
+        emit(Log.WARN, LogLevel.Warn, "policy", "sumber ditolak: $reason", null, session = false)
+
     private fun emit(
         prio: Int,
         level: LogLevel,
         tag: String,
         msg: String,
-        tr: Throwable?
+        tr: Throwable?,
+        session: Boolean = true
     ) {
         val safe = LogRedact.text(msg)
         val trace = if (tr == null) "" else
             "\n" + LogRedact.text(Log.getStackTraceString(tr))
-        Log.println(prio, LOGCAT_TAG, tagged(tag, safe) + trace)
+        Log.println(prio, LOGCAT_TAG, tagged(tag, safe, session) + trace)
         val summary = if (tr == null) safe else
             listOf(safe, LogRedact.text(tr.toString()))
                 .filter { it.isNotEmpty() }
                 .joinToString(": ")
         // [DIAG-SESSION] ringkasan: ID sesi ikut ke tab Log (pengelompokan baris identik tetap berlaku per sesi)
-        AppLog.log(SOURCE, level, tag, PlaybackSessions.prefix() + summary)
+        AppLog.log(SOURCE, level, tag, (if (session) PlaybackSessions.prefix() else "") + summary)
     }
 }
