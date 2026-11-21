@@ -104,7 +104,7 @@ import java.util.Date
 import java.util.Locale
 import com.molina.core.ui.MintFileIcon
 import com.molina.core.ui.MintFolder
-import com.molina.core.ui.MintFolderTint
+// [FOLDER-UNIFORM] impor MintFolderTint dihapus (tidak dipakai lagi)
 import com.molina.core.ui.Win7
 import com.molina.core.ui.Win7BackOrb
 import com.molina.core.ui.Win7Button
@@ -739,7 +739,7 @@ private fun W7Cmd(label: String, enabled: Boolean, onClick: () -> Unit) {
 private fun W7NavPane(favs: List<W7Place>, vols: List<W7Place>, dir: File, modifier: Modifier, onBin: (() -> Unit)? = null, recents: List<File> = emptyList(), onGo: (File) -> Unit) {
     Column(modifier.background(Win7.NavBg).verticalScroll(rememberScrollState()).padding(vertical = 6.dp)) {
         W7NavHeader("Favorit", true)
-        favs.forEach { p -> W7NavItem(p.label, dir == p.dir, { if (p.molina) MintFolder(16.dp, star = true) else MintFolder(16.dp, tint = MintFolderTint.of(p.dir.name)) }) { onGo(p.dir) } }
+        favs.forEach { p -> W7NavItem(p.label, dir == p.dir, { if (p.molina) MintFolder(16.dp, star = true) else MintFolder(16.dp) /* [FOLDER-UNIFORM] sidebar */ }) { onGo(p.dir) } }
         if (recents.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))
             W7NavHeader("Terakhir", false)
@@ -933,7 +933,7 @@ private fun W7EntryRow(
             Spacer(Modifier.width(6.dp))
         }
         val iconSz = if (wide) 22.dp else 28.dp // [MINT-ICONS] lebih kecil, seimbang dengan teks
-        if (e.isDir) MintFolder(iconSz, tint = MintFolderTint.of(e.name)) else if (W7Thumb.hasThumb(e.file)) { // [LIST-THUMB] frame video / cover audio lewat W7Thumb (cache LRU, dekode di IO)
+        if (e.isDir) MintFolder(iconSz) /* [FOLDER-UNIFORM] daftar: semua folder mint, sama dengan drawer dan Code */ else if (W7Thumb.hasThumb(e.file)) { // [LIST-THUMB] frame video / cover audio lewat W7Thumb (cache LRU, dekode di IO)
             val thumb by produceState<ImageBitmap?>(null, e.file.path) {
                 kotlinx.coroutines.delay(250) // debounce: gulir cepat membatalkan sebelum dekode dimulai
                 value = W7Thumb.load(e.file)?.asImageBitmap()

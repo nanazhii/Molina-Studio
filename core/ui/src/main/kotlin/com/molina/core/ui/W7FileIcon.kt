@@ -35,23 +35,23 @@ class W7Glyph(val color: Color, val label: String?, val shape: W7Shape = W7Shape
             put("jpg jpeg png gif webp bmp heic heif ico avif", W7Glyph(Color(0xFF4DD0A1), null, W7Shape.IMAGE))
             put("mp4 mkv webm avi mov m4v 3gp ts m2ts mts flv wmv mpg mpeg ogv vob rmvb", W7Glyph(MolinaTheme.Cinema, null, W7Shape.VIDEO))
             put("mp3 m4a aac flac wav ogg oga opus wma ac3 dts mka", W7Glyph(Color(0xFFFF80AB), null, W7Shape.AUDIO))
-            put("py pyw", W7Glyph(Color(0xFFFFD54F), "PY"))
+            put("py pyw", W7Glyph(Color(0xFF3B82F6), "PY")) // [ICON-PALETTE] py: biru (sama dengan desain target); palet dijaga scripts/icon_palette_gate.py
             put("xml html htm xhtml plist", W7Glyph(Color(0xFFFF8A65), "XML"))
             put("svg", W7Glyph(Color(0xFFFFA726), "SVG"))
             put("json", W7Glyph(Color(0xFF4FC3F7), "{}"))
-            put("yml yaml", W7Glyph(Color(0xFF4FC3F7), "YML"))
+            put("yml yaml", W7Glyph(Color(0xFFBA68C8), "YML")) // [ICON-PALETTE] yml: ungu muda, beda dari json
             put("ini conf cfg toml properties env", W7Glyph(Color(0xFF80DEEA), "CFG"))
             put("kt kts", W7Glyph(Color(0xFF7E8CFF), "KT"))
             put("java", W7Glyph(Color(0xFFE57373), "JV"))
-            put("gradle", W7Glyph(Color(0xFF81C784), "GRD"))
+            put("gradle", W7Glyph(Color(0xFF00897B), "GRD")) // [ICON-PALETTE] gradle: teal, beda dari apk
             put("c h", W7Glyph(Color(0xFF64B5F6), "C"))
-            put("cpp cc cxx hpp", W7Glyph(Color(0xFF64B5F6), "C++"))
+            put("cpp cc cxx hpp", W7Glyph(Color(0xFF5C6BC0), "C++")) // [ICON-PALETTE] cpp: indigo, beda dari c
             put("js mjs", W7Glyph(Color(0xFFFFEE58), "JS"))
             put("sh bash zsh", W7Glyph(Color(0xFF9CCC65), "SH"))
             put("md markdown", W7Glyph(Color(0xFFB0BEC5), "MD"))
             put("txt", W7Glyph(Color(0xFF90A4AE), "TXT"))
-            put("log", W7Glyph(Color(0xFF90A4AE), "LOG"))
-            put("csv", W7Glyph(Color(0xFF66BB6A), "CSV"))
+            put("log", W7Glyph(Color(0xFF8D6E63), "LOG")) // [ICON-PALETTE] log: cokelat, beda dari txt
+            put("csv", W7Glyph(Color(0xFF9E9D24), "CSV")) // [ICON-PALETTE] csv: zaitun, beda dari xls
             put("zip", W7Glyph(Color(0xFFFFB74D), "ZIP", W7Shape.ARCHIVE))
             put("7z", W7Glyph(MolinaTheme.Brand, "7Z", W7Shape.ARCHIVE)) // [ARCHIVE] jenis arsip langsung terbaca di daftar
             put("tar", W7Glyph(MolinaTheme.Brand, "TAR", W7Shape.ARCHIVE))

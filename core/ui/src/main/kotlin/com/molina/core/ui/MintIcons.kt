@@ -177,7 +177,7 @@ fun MintFileIcon(ext: String, box: Dp) {
                         }
                     }
                 }
-                if (g.label != null) drawRoundRect(g.color, Offset(w * 0.20f, h * 0.58f), Size(w * 0.62f, h * 0.28f), CornerRadius(w * 0.04f))
+                if (g.label != null) drawRoundRect(g.color, Offset(w * 0.20f, h * 0.56f), Size(w * 0.62f, h * 0.32f), CornerRadius(w * 0.04f)) // [ICON-PALETTE] pita lebih tinggi
                 drawPath(page, MintPalette.PageEdge, style = edge)
                 drawPath(fold, MintPalette.PageEdge, style = edge)
             }
@@ -185,10 +185,12 @@ fun MintFileIcon(ext: String, box: Dp) {
         val label = g.label
         if (label != null) {
             Box(
-                Modifier.fillMaxSize().padding(top = box * 0.58f, bottom = box * 0.14f, start = box * 0.20f, end = box * 0.18f),
+                Modifier.fillMaxSize().padding(top = box * 0.56f, bottom = box * 0.12f, start = box * 0.20f, end = box * 0.18f), // [ICON-PALETTE] label
                 Alignment.Center
             ) {
-                Text(label, color = ink, fontSize = (box.value * 0.26f).coerceAtLeast(7f).sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+                // [ICON-PALETTE] font: sampai 0,30 x ukuran ikon, dibatasi lebar pita agar label 3 huruf tidak terpotong
+                val fs = minOf(box.value * 0.30f, box.value * 0.62f / (label.length * 0.58f)).coerceAtLeast(7.5f).sp
+                Text(label, color = ink, fontSize = fs, lineHeight = fs, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
             }
         }
     }
