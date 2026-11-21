@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.molina.core.system.MolinaPaths
 import com.molina.core.library.TrashBin
+import com.molina.core.fileops.FileNames
 import com.molina.core.fileops.FileOps
 import com.molina.explorer.W7ConfirmDialog
 import com.molina.core.ui.MintFileIcon
@@ -110,9 +111,6 @@ private fun listDir(dir: File): List<File> = com.molina.core.files.DirOrder.list
 private fun toast(ctx: Context, msg: String) {
     Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
 }
-
-private fun stemEnd(f: File): Int =
-    if (f.isDirectory) f.name.length else f.name.lastIndexOf('.').let { if (it > 0) it else f.name.length }
 
 /** Volume penyimpanan untuk Recycle Bin (internal + kartu SD), sama dengan Penjelajah. */
 private fun volumeDirs(): List<File> {
@@ -345,7 +343,7 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
         null -> Unit
         is Sheet.Rename -> W7NameDialog(
             title = if (s.f.isDirectory) "Ubah nama folder" else "Ubah nama berkas",
-            initial = s.f.name, selectEnd = stemEnd(s.f), okLabel = "OK",
+            initial = s.f.name, selectEnd = FileNames.stemEnd(s.f.name, s.f.isDirectory), okLabel = "OK",
             onCancel = { sheet = null }
         ) { name ->
             sheet = null

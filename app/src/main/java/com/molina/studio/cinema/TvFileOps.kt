@@ -12,21 +12,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -49,8 +43,11 @@ import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 import com.molina.core.ui.Win7
 import com.molina.core.ui.Win7Button
+import com.molina.core.fileops.FileNames
 import com.molina.core.fileops.FileOpOutcome
 import com.molina.core.fileops.FileOps
+import com.molina.explorer.W7ConfirmDialog
+import com.molina.explorer.W7NameDialog
 import com.molina.explorer.W7Panel
 
 /** Volume penyimpanan (internal + kartu SD/OTG) untuk Recycle Bin; sama dengan daftar drive penjelajah Win7. */
@@ -204,22 +201,12 @@ internal class TvOps(
 internal fun TvOpsDialogs(sheet: TvSheet?, ops: TvOps, channels: List<TvGuide.Channel>, onClose: () -> Unit) {
     when (sheet) {
         null -> Unit
-        is TvSheet.Rename -> TvRenameDialog(sheet.file, onClose) { name -> onClose(); ops.rename(sheet.file, name) }
-        is TvSheet.Delete -> W7Panel("Recycle Bin", onClose) {
-            val f = sheet.file
-            Text(
-                "Pindahkan ke Recycle Bin: \"" + f.name + "\"" + (if (f.isDirectory) " beserta seluruh isinya?" else "?"),
-                color = Win7.Ink, fontSize = 13.sp
-            )
-            Spacer(Modifier.height(8.dp))
-            Text("Bisa dipulihkan dari Recycle Bin selama " + TrashBin.RETAIN_DAYS + " hari.", color = Win7.TextDim, fontSize = 12.sp)
-            Spacer(Modifier.height(12.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                Win7Button("Pindahkan", isDefault = true) { onClose(); ops.trash(f) }
-                Spacer(Modifier.width(8.dp))
-                Win7Button("Batal", onClick = onClose)
-            }
-        }
+        is TvSheet.Rename -> W7NameDialog(
+            title = "Ganti nama", initial = sheet.file.name,
+            selectEnd = FileNames.stemEnd(sheet.file.name, sheet.file.isDirectory), okLabel = "Ubah",
+            onCancel = onClose
+        ) { name -> onClose(); ops.rename(sheet.file, name) }
+        is TvSheet.Delete -> W7ConfirmDialog(listOf(sheet.file), false, onCancel = onClose) { onClose(); ops.trash(sheet.file) }
         is TvSheet.Tidy -> W7Panel("Rapikan ke folder kanal", onClose) {
             val p = sheet.plan
             Text(
@@ -263,26 +250,6 @@ internal fun TvOpsDialogs(sheet: TvSheet?, ops: TvOps, channels: List<TvGuide.Ch
             }
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { Win7Button("Batal", onClick = onClose) }
-        }
-    }
-}
-
-@Composable
-private fun TvRenameDialog(file: File, onCancel: () -> Unit, onOk: (String) -> Unit) {
-    val stemEnd = if (file.isDirectory) file.name.length else file.name.lastIndexOf('.').takeIf { it > 0 } ?: file.name.length
-    var value by remember { mutableStateOf(TextFieldValue(file.name, TextRange(0, stemEnd))) }
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
-    W7Panel("Ganti nama", onCancel) {
-        OutlinedTextField(
-            value = value, onValueChange = { value = it }, singleLine = true,
-            modifier = Modifier.fillMaxWidth().focusRequester(focus)
-        )
-        Spacer(Modifier.height(12.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-            Win7Button("Ubah", isDefault = true) { onOk(value.text) }
-            Spacer(Modifier.width(8.dp))
-            Win7Button("Batal", onClick = onCancel)
         }
     }
 }

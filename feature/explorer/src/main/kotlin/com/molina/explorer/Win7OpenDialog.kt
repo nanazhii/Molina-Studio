@@ -111,6 +111,7 @@ import com.molina.core.ui.Win7BackOrb
 import com.molina.core.ui.Win7Button
 import com.molina.core.ui.Win7Close
 import com.molina.core.ui.Win7Drive
+import com.molina.core.fileops.FileNames
 import com.molina.core.fileops.FileOps
 import com.molina.core.fileops.CompressNames
 import com.molina.core.fileops.ArchiveRoute
@@ -118,9 +119,6 @@ import com.molina.core.fileops.ExplorerList
 
 
 private enum class W7Kind(val label: String) { MEDIA("Media (video dan audio)"), ALL("Semua file") }
-
-private fun w7StemEnd(name: String, dir: Boolean): Int =
-    if (dir) name.length else name.lastIndexOf('.').let { if (it > 0) it else name.length }
 
 private val W7_AUDIO = com.molina.core.files.FileTypes.AUDIO
 
@@ -339,7 +337,7 @@ fun Win7OpenDialog(
     when (val s = sheet) {
         is W7Sheet.Rename -> W7NameDialog(
             title = if (s.file.isDirectory) "Ubah nama folder" else "Ubah nama berkas",
-            initial = s.file.name, selectEnd = w7StemEnd(s.file.name, s.file.isDirectory), okLabel = "OK",
+            initial = s.file.name, selectEnd = FileNames.stemEnd(s.file.name, s.file.isDirectory), okLabel = "OK",
             onCancel = { sheet = null }
         ) { name ->
             sheet = null
