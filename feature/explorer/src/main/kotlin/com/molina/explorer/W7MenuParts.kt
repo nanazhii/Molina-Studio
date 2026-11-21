@@ -24,6 +24,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import kotlin.math.PI
@@ -118,6 +121,16 @@ fun W7MenuItem(ico: W7Ico, label: String, enabled: Boolean, danger: Boolean = fa
             overflow = TextOverflow.Ellipsis
         )
     }
+}
+
+/**
+ * [TOOLS-MODERN] Bentuk kunci inggris pada kisi 24 (rahang terbuka di kanan atas, gagang diagonal membulat).
+ * Mengacu pada ikon "wrench" Feather/Lucide (lisensi MIT/ISC); digambar dengan Path, tanpa aset gambar.
+ */
+private val W7WrenchPath: Path by lazy {
+    PathParser().parsePathString(
+        "M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"
+    ).toPath()
 }
 
 /** Ikon garis 16dp bergaya Aero untuk menu Alat (digambar di Canvas, tanpa aset). */
@@ -264,10 +277,10 @@ fun W7MenuIcon(ico: W7Ico, enabled: Boolean, sz: androidx.compose.ui.unit.Dp = 1
                     topLeft = Offset(5f * u, 2.5f * u), size = Size(6f * u, 6f * u), style = st)
                 drawCircle(c, radius = 0.9f * u, center = Offset(8f * u, 10.5f * u))
             }
-            W7Ico.TOOLS -> { // [DOCK-V3] kunci inggris: gagang diagonal + rahang terbuka
-                line(3f, 13f, 8.6f, 7.4f)
-                drawArc(c, startAngle = 35f, sweepAngle = 285f, useCenter = false,
-                    topLeft = Offset(7.6f * u, 1.6f * u), size = Size(6.8f * u, 6.8f * u), style = st)
+            W7Ico.TOOLS -> { // [TOOLS-MODERN] kunci inggris kontur membulat (kisi 24, garis 2, ujung dan sambungan bulat)
+                scale(scale = size.width / 24f, pivot = Offset.Zero) {
+                    drawPath(W7WrenchPath, c, style = Stroke(width = 2f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                }
             }
             W7Ico.TERMINAL -> { // [DOCK-V3] jendela dengan prompt >_
                 box(1.5f, 2.5f, 13f, 11f)
