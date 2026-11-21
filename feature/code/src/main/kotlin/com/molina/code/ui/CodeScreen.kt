@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip // [CODE-TITLE-FRAME2]
 import androidx.compose.foundation.text.BasicText
@@ -286,32 +288,27 @@ private fun PathHeader(session: CodeSession, onExit: (() -> Unit)? = null) {
     Hairline()
 }
 
-/** Status isi tab: titik emas + "Diubah" bila beda dari yang tersimpan; "Tersimpan" bila sama; "Baru" bila belum punya berkas. */
+/**
+ * [CODE-STATUS-DOT] Status isi tab berupa titik saja (hemat ruang): hijau = tersimpan, biru = diubah,
+ * merah = basi (berkas di disk berubah), abu = baru/belum punya berkas, abu redup = memuat.
+ * Label teks tetap tersedia lewat aksesibilitas.
+ */
 @Composable
 private fun StatusChip(tab: EditorTab) {
     val label: String
     val color: androidx.compose.ui.graphics.Color
     when {
-        tab.loading -> { label = "Memuat"; color = Win7Code.InkDim }
+        tab.loading -> { label = "Memuat"; color = CodeColors.IconDim.copy(alpha = 0.5f) }
         tab.staleDisk -> { label = "Basi"; color = CodeColors.Danger } // [CODE-GUARD]
         tab.dirty -> { label = "Diubah"; color = CodeColors.Modified }
-        tab.file != null -> { label = "Tersimpan"; color = Win7Code.InkDim }
-        else -> { label = "Baru"; color = Win7Code.InkDim }
+        tab.file != null -> { label = "Tersimpan"; color = CodeColors.Clean }
+        else -> { label = "Baru"; color = CodeColors.IconDim }
     }
-    Row(Modifier.padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (!tab.loading) {
-            Box(
-                Modifier.size(CodeDimens.DirtyDot)
-                    .background(if (tab.dirty) CodeColors.Modified else CodeColors.Clean, CircleShape)
-            )
-            Spacer(Modifier.width(4.dp))
-        }
-        BasicText(
-            text = label,
-            maxLines = 1,
-            style = TextStyle(color = color, fontSize = CodeDimens.StatusTextSize)
-        )
-    }
+    Box(
+        Modifier.padding(horizontal = 6.dp).size(8.dp)
+            .background(color, CircleShape)
+            .semantics { contentDescription = label }
+    )
 }
 
 @Composable
