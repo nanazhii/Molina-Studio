@@ -2908,7 +2908,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         } else {
             forcedAudioOnly = false
             val pick = if (q == CoreQuality.AUTO) null
-                else vs.filter { it.height <= q.maxHeight }.maxByOrNull { it.height } ?: vs.minByOrNull { it.height }
+                else VariantPicker.pick(vs, q.maxHeight) // [E-3c-1]
             if (pick != null) mpvPost { player.vid = pick.mpvId } else mpvPost { MPVLib.setPropertyString("vid", "auto") }
         }
         updateMetadataDisplay()
@@ -2949,7 +2949,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                 val vs = snap.variants
                 if (q == CoreQuality.AUTO) mpvPost { MPVLib.setPropertyString("vid", "auto") }
                 else if (vs.size > 1) {
-                    val pick = vs.filter { it.height <= q.maxHeight }.maxByOrNull { it.height } ?: vs.minByOrNull { it.height }
+                    val pick = VariantPicker.pick(vs, q.maxHeight) // [E-3c-1]
                     if (pick != null) mpvPost { player.vid = pick.mpvId }
                 } else showToast(getString(R.string.quality_next_video, q.label), true)
             }
