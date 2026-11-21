@@ -1,60 +1,56 @@
 package com.molina.core.json
 
-/** JSON kecil tanpa dependensi untuk keluaran alat luar (yt-dlp). Hanya objek; rusak -> null. */
+/**
+ * Cara membaca angka. AUTO: bilangan bulat menjadi Long bila muat, selain itu Double.
+ * ALWAYS_DOUBLE: semua angka Double (kontrak lama LSP dan shellcheck).
+ */
+enum class JsonNumbers { AUTO, ALWAYS_DOUBLE }
+
+/** Galat baca JSON. Pesan stabil: "JSON rusak", "sisa teks", "terlalu besar". */
+class JsonException(message: String) : RuntimeException(message)
+
+/** Batas dan mode baca. [maxDepth] = tingkat sarang wadah ({} atau []) tertinggi yang diterima. */
+class JsonLimits(val maxChars: Int, val maxDepth: Int, val numbers: JsonNumbers) {
+    companion object {
+        /** Keluaran yt-dlp: ukuran dibatasi, bilangan bulat tetap Long. */
+        val YTDLP = JsonLimits(4_000_000, 32, JsonNumbers.AUTO)
+
+        /** Keluaran alat luar dan pesan LSP: angka selalu Double. */
+        val TOOL = JsonLimits(Int.MAX_VALUE, 64, JsonNumbers.ALWAYS_DOUBLE)
+
+        /** Berkas JSON milik pengguna (validasi sintaks). */
+        val EDITOR = JsonLimits(Int.MAX_VALUE, 200, JsonNumbers.AUTO)
+    }
+}
+
+/**
+ * Satu-satunya pembaca JSON Molina (RFC 8259 ketat, tanpa dependensi, JVM murni).
+ * Tanpa komentar, koma menggantung, kutip tunggal, NaN/Infinity, angka berawalan nol, atau karakter kontrol mentah dalam string.
+ */
 object MiniJson {
-    private const val MAX = 4_000_000
-    private const val DEPTH = 32
+    /** Nilai tingkat-atas apa pun: Map, List, String, Boolean, angka, atau null. Rusak -> [JsonException]. */
+    fun parseValue(text: String, limits: JsonLimits = JsonLimits.TOOL): Any? {
+        if (text.length > limits.maxChars) throw JsonException("terlalu besar")
+        return JsonCursor(text, limits, true).readDocument()
+    }
 
-    fun parseObject(t: String): Map<String, Any?>? {
-        if (t.length > MAX) return null
+    /** Hanya objek tingkat-atas; rusak, terlalu besar, atau bukan objek -> null. */
+    fun parseObject(text: String, limits: JsonLimits = JsonLimits.YTDLP): Map<String, Any?>? = try {
+        @Suppress("UNCHECKED_CAST")
+        parseValue(text, limits) as? Map<String, Any?>
+    } catch (e: JsonException) {
+        null
+    }
+
+    /** Pemeriksa sintaks saja (tanpa membangun pohon). BOM di awal dibuang; angka di luar jangkauan Double tetap sah. */
+    fun isValid(text: String, limits: JsonLimits = JsonLimits.EDITOR): Boolean {
+        val s = text.removePrefix("\uFEFF")
+        if (s.length > limits.maxChars) return false
         return try {
-            val p = JsonCursor(t)
-            p.ws()
-            if (p.c() != '{') return null
-            @Suppress("UNCHECKED_CAST")
-            val v = value(p, 0) as Map<String, Any?>
-            p.ws()
-            if (p.atEnd) v else null
-        } catch (e: RuntimeException) {
-            null
+            JsonCursor(s, limits, false).readDocument()
+            true
+        } catch (e: JsonException) {
+            false
         }
-    }
-
-    private fun value(p: JsonCursor, d: Int): Any? {
-        if (d > DEPTH) p.f()
-        p.ws()
-        return when (p.c()) {
-            '{' -> obj(p, d)
-            '[' -> arr(p, d)
-            '"' -> p.str()
-            't' -> p.lit("true", true)
-            'f' -> p.lit("false", false)
-            'n' -> p.lit("null", null)
-            else -> p.num()
-        }
-    }
-
-    private fun obj(p: JsonCursor, d: Int): Any {
-        p.i++
-        val m = LinkedHashMap<String, Any?>()
-        if (p.end('}')) return m
-        do {
-            p.ws()
-            if (p.c() != '"') p.f()
-            val k = p.str()
-            p.ws()
-            if (p.c() != ':') p.f()
-            p.i++
-            m[k] = value(p, d + 1)
-        } while (p.more('}'))
-        return m
-    }
-
-    private fun arr(p: JsonCursor, d: Int): Any {
-        p.i++
-        val l = ArrayList<Any?>()
-        if (p.end(']')) return l
-        do { l.add(value(p, d + 1)) } while (p.more(']'))
-        return l
     }
 }

@@ -1,8 +1,8 @@
 package com.molina.code.lsp
 
-import com.molina.code.check.CheckException
-import com.molina.code.check.MiniJson
 import java.io.ByteArrayOutputStream
+import com.molina.core.json.JsonException
+import com.molina.core.json.MiniJson
 
 // [CODE-LSP1] Lapisan protokol LSP murni (tanpa Android, tanpa proses): framing Content-Length, penulis/pembaca JSON,
 // URI berkas. Diuji di JVM: scripts/code-tests/run_lsp.sh. Dipakai LspClient; transport (proses Debian) menyusul di tahap 2.
@@ -21,8 +21,8 @@ object LspJson {
     }
 
     fun parse(s: String): Any? = try {
-        MiniJson.parse(s)
-    } catch (e: CheckException) {
+        MiniJson.parseValue(s)
+    } catch (e: JsonException) {
         throw LspException("JSON rusak: " + e.message)
     }
 

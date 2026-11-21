@@ -4,6 +4,8 @@ import com.molina.code.format.FormatException
 import com.molina.code.format.JsonFormatter
 import com.molina.code.format.XmlFormatter
 import com.molina.code.preview.RunPlans
+import com.molina.core.json.JsonException
+import com.molina.core.json.MiniJson
 
 // [CODE-CHECK] Diagnostik sekali jalan (langkah 6a Cosmic). Kotlin murni (tanpa Android) agar bisa diuji di JVM:
 // scripts/code-tests/run_check.sh. Tidak ada proses yang menetap: pemeriksa dijalankan sekali lalu selesai.
@@ -144,8 +146,8 @@ object Parsers {
         if (exitCode != 0 && exitCode != 1) throw CheckException("shellcheck: " + firstLine(stderr, stdout))
         if (stdout.isBlank()) return emptyList()
         val root = try {
-            MiniJson.parse(stdout)
-        } catch (e: CheckException) {
+            MiniJson.parseValue(stdout)
+        } catch (e: JsonException) {
             throw CheckException("shellcheck: keluaran tidak terbaca")
         }
         val arr = (root as? List<*>) ?: ((root as? Map<*, *>)?.get("comments") as? List<*>)
@@ -190,117 +192,6 @@ object Parsers {
         return (l ?: "gagal (tanpa pesan)").take(160)
     }
 }
-
-/** Pengurai JSON kecil (objek -> Map, larik -> List, angka -> Double). Cukup untuk keluaran shellcheck; kedalaman dibatasi. */
-internal object MiniJson {
-    private const val MAX_DEPTH = 64
-
-    fun parse(s: String): Any? {
-        val p = P(s)
-        p.ws()
-        val v = p.value(0)
-        p.ws()
-        if (p.i != s.length) throw CheckException("sisa teks")
-        return v
-    }
-
-    private class P(val s: String) {
-        var i = 0
-        fun ws() { while (i < s.length && s[i].isWhitespace()) i++ }
-        fun fail(): Nothing = throw CheckException("JSON rusak")
-
-        fun value(d: Int): Any? {
-            if (d > MAX_DEPTH) fail()
-            if (i >= s.length) fail()
-            return when (val c = s[i]) {
-                '{' -> obj(d)
-                '[' -> arr(d)
-                '"' -> str()
-                't' -> lit("true", true)
-                'f' -> lit("false", false)
-                'n' -> lit("null", null)
-                else -> if (c == '-' || c.isDigit()) num() else fail()
-            }
-        }
-
-        fun lit(w: String, v: Any?): Any? {
-            if (!s.startsWith(w, i)) fail()
-            i += w.length
-            return v
-        }
-
-        fun num(): Double {
-            val st = i
-            if (s[i] == '-') i++
-            while (i < s.length && (s[i].isDigit() || s[i] in ".eE+-")) i++
-            return s.substring(st, i).toDoubleOrNull() ?: fail()
-        }
-
-        fun str(): String {
-            i++
-            val sb = StringBuilder()
-            while (true) {
-                if (i >= s.length) fail()
-                val c = s[i++]
-                when (c) {
-                    '"' -> return sb.toString()
-                    '\\' -> {
-                        if (i >= s.length) fail()
-                        when (val e = s[i++]) {
-                            '"', '\\', '/' -> sb.append(e)
-                            'b' -> sb.append('\b')
-                            'f' -> sb.append('\u000C')
-                            'n' -> sb.append('\n')
-                            'r' -> sb.append('\r')
-                            't' -> sb.append('\t')
-                            'u' -> {
-                                if (i + 4 > s.length) fail()
-                                sb.append((s.substring(i, i + 4).toIntOrNull(16) ?: fail()).toChar())
-                                i += 4
-                            }
-                            else -> fail()
-                        }
-                    }
-                    else -> sb.append(c)
-                }
-            }
-        }
-
-        fun arr(d: Int): List<Any?> {
-            i++
-            val out = ArrayList<Any?>()
-            ws()
-            if (i < s.length && s[i] == ']') { i++; return out }
-            while (true) {
-                ws()
-                out.add(value(d + 1))
-                ws()
-                if (i >= s.length) fail()
-                when (s[i++]) { ',' -> continue; ']' -> return out; else -> fail() }
-            }
-        }
-
-        fun obj(d: Int): Map<String, Any?> {
-            i++
-            val out = LinkedHashMap<String, Any?>()
-            ws()
-            if (i < s.length && s[i] == '}') { i++; return out }
-            while (true) {
-                ws()
-                if (i >= s.length || s[i] != '"') fail()
-                val k = str()
-                ws()
-                if (i >= s.length || s[i++] != ':') fail()
-                ws()
-                out[k] = value(d + 1)
-                ws()
-                if (i >= s.length) fail()
-                when (s[i++]) { ',' -> continue; '}' -> return out; else -> fail() }
-            }
-        }
-    }
-}
-
 /** Menaruh diagnostik ke posisi karakter. Murni: [text] = isi editor. Mengembalikan (mulai, akhir, diagnostik) siap pakai. */
 object CheckRange {
     class Span(val start: Int, val end: Int, val d: Diagnostic)

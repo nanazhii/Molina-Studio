@@ -1,4 +1,4 @@
-import com.molina.code.guard.MiniJson
+import com.molina.core.json.MiniJson
 import com.molina.code.guard.ProjectMarker
 import com.molina.code.guard.RunReport
 import java.io.File
@@ -16,7 +16,7 @@ fun main() {
     check("baru: CREATED", ProjectMarker.create(d, 1_700_000_000_000L) == ProjectMarker.Result.CREATED)
     val pj = File(d, ".molina/project.json")
     check("project.json ada", pj.isFile)
-    check("project.json JSON valid", MiniJson.valid(pj.readText()))
+    check("project.json JSON valid", MiniJson.isValid(pj.readText()))
     check("project.json memuat nama folder", pj.readText().contains("\"name\": \"" + d.name + "\""))
     check("project.json memuat tanggal UTC", pj.readText().contains("\"created\": \"2023-11-14\""))
     check("project.json memuat versi format", pj.readText().contains("\"format\": 1"))
@@ -39,7 +39,7 @@ fun main() {
     check("'.molina' berupa berkas: ALREADY (tidak ditimpa)", ProjectMarker.create(blocked, 1L) == ProjectMarker.Result.ALREADY && File(blocked, ".molina").isFile)
 
     val q = File(tmp(), "ab\"c\\d"); q.mkdirs()
-    check("nama dengan kutip dan backslash: JSON tetap valid", ProjectMarker.create(q, 1L) == ProjectMarker.Result.CREATED && MiniJson.valid(File(q, ".molina/project.json").readText()))
+    check("nama dengan kutip dan backslash: JSON tetap valid", ProjectMarker.create(q, 1L) == ProjectMarker.Result.CREATED && MiniJson.isValid(File(q, ".molina/project.json").readText()))
 
     val deep = File(d, "a/b/c"); deep.mkdirs()
     val ri = RunReport.findRootInfo(deep)

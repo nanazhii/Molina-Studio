@@ -1,49 +1,158 @@
 package com.molina.core.json
 
-/** Kursor baca JSON untuk [MiniJson]: pemindai skalar. Galat -> IllegalStateException. */
-internal class JsonCursor(private val s: String) {
-    var i = 0
-    val atEnd get() = i == s.length
-    fun c() = if (i < s.length) s[i] else '\u0000'
-    fun f(): Nothing = throw IllegalStateException()
-    fun ws() { while (c() == ' ' || c() == '\n' || c() == '\r' || c() == '\t') i++ }
-    fun end(q: Char): Boolean { ws(); if (c() != q) return false; i++; return true }
-    fun more(q: Char): Boolean {
+/**
+ * Kursor baca JSON ketat untuk [MiniJson]. [build] = false: hanya memeriksa sintaks (tanpa Map/List, tanpa konversi angka).
+ * Kedalaman dibatasi [JsonLimits.maxDepth], jadi rekursi aman. Galat -> [JsonException].
+ */
+internal class JsonCursor(private val s: String, private val lim: JsonLimits, private val build: Boolean) {
+    private var i = 0
+
+    fun readDocument(): Any? {
         ws()
-        val x = c()
-        i++
-        return if (x == ',') true else if (x == q) false else f()
+        val v = value(0)
+        ws()
+        if (i != s.length) throw JsonException("sisa teks")
+        return v
     }
 
-    fun lit(w: String, r: Any?): Any? {
-        if (!s.startsWith(w, i)) f()
+    private fun bad(): Nothing = throw JsonException("JSON rusak")
+
+    private fun c(): Char = if (i < s.length) s[i] else '\u0000'
+
+    private fun ws() {
+        while (c() == ' ' || c() == '\n' || c() == '\r' || c() == '\t') i++
+    }
+
+    private fun value(depth: Int): Any? {
+        if (i >= s.length) bad()
+        return when (s[i]) {
+            '{' -> obj(depth + 1)
+            '[' -> arr(depth + 1)
+            '"' -> str()
+            't' -> lit("true", true)
+            'f' -> lit("false", false)
+            'n' -> lit("null", null)
+            else -> num()
+        }
+    }
+
+    private fun lit(w: String, r: Any?): Any? {
+        if (!s.startsWith(w, i)) bad()
         i += w.length
         return r
     }
 
-    fun num(): Any {
-        val a = i
-        while (c() in '0'..'9' || c() in "+-.eE") i++
-        val t = s.substring(a, i)
-        return t.toLongOrNull() ?: t.toDoubleOrNull()?.takeIf { it.isFinite() } ?: f()
+    private fun obj(d: Int): Any? {
+        if (d > lim.maxDepth) bad()
+        i++
+        val m = if (build) LinkedHashMap<String, Any?>() else null
+        ws()
+        if (c() == '}') { i++; return m }
+        while (true) {
+            ws()
+            if (c() != '"') bad()
+            val k = str()
+            ws()
+            if (c() != ':') bad()
+            i++
+            ws()
+            val v = value(d)
+            m?.put(k, v)
+            ws()
+            when (c()) {
+                ',' -> i++
+                '}' -> { i++; return m }
+                else -> bad()
+            }
+        }
     }
 
-    fun str(): String {
+    private fun arr(d: Int): Any? {
+        if (d > lim.maxDepth) bad()
+        i++
+        val l = if (build) ArrayList<Any?>() else null
+        ws()
+        if (c() == ']') { i++; return l }
+        while (true) {
+            ws()
+            val v = value(d)
+            l?.add(v)
+            ws()
+            when (c()) {
+                ',' -> i++
+                ']' -> { i++; return l }
+                else -> bad()
+            }
+        }
+    }
+
+    private fun digits() {
+        if (c() !in '0'..'9') bad()
+        while (c() in '0'..'9') i++
+    }
+
+    /** Tata bahasa angka RFC 8259: -?(0|[1-9][0-9]*)(.[0-9]+)?([eE][+-]?[0-9]+)? */
+    private fun num(): Any? {
+        val a = i
+        if (c() == '-') i++
+        when (c()) {
+            '0' -> i++
+            in '1'..'9' -> while (c() in '0'..'9') i++
+            else -> bad()
+        }
+        var integral = true
+        if (c() == '.') { integral = false; i++; digits() }
+        if (c() == 'e' || c() == 'E') {
+            integral = false
+            i++
+            if (c() == '+' || c() == '-') i++
+            digits()
+        }
+        if (!build) return null
+        val t = s.substring(a, i)
+        if (integral && lim.numbers == JsonNumbers.AUTO) t.toLongOrNull()?.let { return it }
+        val d = t.toDouble()
+        if (!d.isFinite()) bad()
+        return d
+    }
+
+    private fun hex(ch: Char): Int = when (ch) {
+        in '0'..'9' -> ch - '0'
+        in 'a'..'f' -> ch - 'a' + 10
+        in 'A'..'F' -> ch - 'A' + 10
+        else -> -1
+    }
+
+    private fun str(): String {
         i++
         val b = StringBuilder()
         while (true) {
-            val x = if (i < s.length) s[i++] else f()
+            if (i >= s.length) bad()
+            val x = s[i++]
             if (x == '"') return b.toString()
-            if (x < ' ') f()
+            if (x < ' ') bad()
             if (x != '\\') { b.append(x); continue }
-            val e = if (i < s.length) s[i++] else f()
-            val k = "\"\\/bfnrt".indexOf(e)
-            if (k >= 0) { b.append("\"\\/\b\u000c\n\r\t"[k]); continue }
-            if (e != 'u' || i + 4 > s.length) f()
-            val h = s.substring(i, i + 4)
-            if (h.any { Character.digit(it, 16) < 0 }) f()
-            b.append(h.toInt(16).toChar())
-            i += 4
+            if (i >= s.length) bad()
+            when (val e = s[i++]) {
+                '"', '\\', '/' -> b.append(e)
+                'b' -> b.append('\b')
+                'f' -> b.append('\u000C')
+                'n' -> b.append('\n')
+                'r' -> b.append('\r')
+                't' -> b.append('\t')
+                'u' -> {
+                    if (i + 4 > s.length) bad()
+                    var code = 0
+                    for (k in 0 until 4) {
+                        val h = hex(s[i + k])
+                        if (h < 0) bad()
+                        code = code * 16 + h
+                    }
+                    b.append(code.toChar())
+                    i += 4
+                }
+                else -> bad()
+            }
         }
     }
 }

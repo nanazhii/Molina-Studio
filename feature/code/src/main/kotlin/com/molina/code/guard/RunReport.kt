@@ -6,6 +6,7 @@ import java.nio.ByteBuffer
 import java.nio.charset.CharacterCodingException
 import java.nio.charset.CodingErrorAction
 import java.security.MessageDigest
+import com.molina.core.json.MiniJson
 
 // [CODE-RUNREPORT] Laporan perubahan setelah skrip jalan. Kotlin murni (tanpa Android) agar bisa diuji di JVM:
 // scripts/code-tests/run_runreport.sh. Alur: capture() sebelum skrip, compare() sesudahnya, undo() bila pengguna
@@ -161,7 +162,7 @@ object RunReport {
             }
             if (curText != null) {
                 val ext = p.substringAfterLast('.', "").lowercase()
-                if (ext == "json" && !MiniJson.valid(curText)) issues.add(Issue.BAD_JSON)
+                if (ext == "json" && !MiniJson.isValid(curText)) issues.add(Issue.BAD_JSON)
                 if ((ext == "xml" || ext == "svg") && !MiniXml.valid(curText)) issues.add(Issue.BAD_XML)
             }
         }
@@ -282,134 +283,6 @@ object RunReport {
         }
     }
 }
-
-/** Pemeriksa sintaks JSON ringan (RFC 8259, tanpa komentar). */
-object MiniJson {
-    fun valid(text: String): Boolean {
-        val s = text.removePrefix("\uFEFF")
-        val p = P(s)
-        p.ws()
-        if (!p.value()) return false
-        p.ws()
-        return p.i == s.length
-    }
-
-    private class P(val s: String) {
-        var i = 0
-        private var depth = 0
-
-        fun ws() {
-            while (i < s.length && (s[i] == ' ' || s[i] == '\n' || s[i] == '\r' || s[i] == '\t')) i++
-        }
-
-        fun value(): Boolean {
-            if (i >= s.length || ++depth > 200) return false
-            val ok = when (s[i]) {
-                '{' -> obj()
-                '[' -> arr()
-                '"' -> str()
-                't' -> lit("true")
-                'f' -> lit("false")
-                'n' -> lit("null")
-                else -> num()
-            }
-            depth--
-            return ok
-        }
-
-        private fun lit(w: String): Boolean {
-            if (!s.startsWith(w, i)) return false
-            i += w.length
-            return true
-        }
-
-        private fun obj(): Boolean {
-            i++
-            ws()
-            if (s.getOrNull(i) == '}') { i++; return true }
-            while (true) {
-                ws()
-                if (s.getOrNull(i) != '"' || !str()) return false
-                ws()
-                if (s.getOrNull(i) != ':') return false
-                i++
-                ws()
-                if (!value()) return false
-                ws()
-                when (s.getOrNull(i)) {
-                    ',' -> i++
-                    '}' -> { i++; return true }
-                    else -> return false
-                }
-            }
-        }
-
-        private fun arr(): Boolean {
-            i++
-            ws()
-            if (s.getOrNull(i) == ']') { i++; return true }
-            while (true) {
-                ws()
-                if (!value()) return false
-                ws()
-                when (s.getOrNull(i)) {
-                    ',' -> i++
-                    ']' -> { i++; return true }
-                    else -> return false
-                }
-            }
-        }
-
-        private fun str(): Boolean {
-            i++
-            while (i < s.length) {
-                val c = s[i]
-                when {
-                    c == '"' -> { i++; return true }
-                    c == '\\' -> {
-                        i++
-                        val e = s.getOrNull(i) ?: return false
-                        if (e == 'u') {
-                            for (k in 1..4) {
-                                val h = s.getOrNull(i + k) ?: return false
-                                if (!(h in '0'..'9' || h in 'a'..'f' || h in 'A'..'F')) return false
-                            }
-                            i += 4
-                        } else if (e !in "\"\\/bfnrt") return false
-                        i++
-                    }
-                    c < ' ' -> return false
-                    else -> i++
-                }
-            }
-            return false
-        }
-
-        private fun digits(): Boolean {
-            val st = i
-            while (i < s.length && s[i] in '0'..'9') i++
-            return i > st
-        }
-
-        private fun num(): Boolean {
-            val st = i
-            if (s.getOrNull(i) == '-') i++
-            when (s.getOrNull(i)) {
-                '0' -> i++
-                in '1'..'9' -> digits()
-                else -> return false
-            }
-            if (s.getOrNull(i) == '.') { i++; if (!digits()) return false }
-            if (s.getOrNull(i) == 'e' || s.getOrNull(i) == 'E') {
-                i++
-                if (s.getOrNull(i) == '+' || s.getOrNull(i) == '-') i++
-                if (!digits()) return false
-            }
-            return i > st
-        }
-    }
-}
-
 /** Pemeriksa kerapian tag XML ringan: tag berpasangan, satu elemen akar, kutip atribut tertutup. */
 object MiniXml {
     fun valid(text: String): Boolean {

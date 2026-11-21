@@ -6,7 +6,7 @@ KC="${KOTLINC:-kotlinc}"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 F=feature/code/src/main/kotlin/com/molina/code
-"$KC" -nowarn -d "$OUT" \
+"$KC" -nowarn -d "$OUT" core/json/src/main/kotlin/com/molina/core/json/*.kt \
   $F/check/Checkers.kt $F/format/JsonFormatter.kt $F/format/XmlFormatter.kt core/exec/src/main/kotlin/com/molina/code/preview/RunPlan.kt \
   scripts/code-tests/CheckTests.kt
 java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" CheckTestsKt

@@ -22,6 +22,7 @@ dependencies {
     implementation(project(":core:preview")) // [CORE-PREVIEW]
     implementation(project(":core:exec")) // [CORE-EXEC]
     implementation(project(":core:files")) // [FILE-CONTRACT]
+    implementation(project(":core:json")) // [CORE-JSON] parser JSON bersama
     implementation(project(":core:ui")) // [MINT-ICONS] ikon tree bersama
     implementation(platform("androidx.compose:compose-bom:2024.12.01"))
     implementation("androidx.compose.ui:ui")

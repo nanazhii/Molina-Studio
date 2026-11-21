@@ -1,4 +1,4 @@
-import com.molina.code.guard.MiniJson
+import com.molina.core.json.MiniJson
 import com.molina.code.guard.MiniXml
 import com.molina.code.guard.RunReport
 import com.molina.code.guard.RunReport.Issue
@@ -24,15 +24,15 @@ private fun File.putBytes(rel: String, b: ByteArray): File {
 
 fun main() {
     // ---- MiniJson
-    check("json: objek bersarang sah", MiniJson.valid("{\"a\":[1,2.5,-3e2,true,null,\"x\\n\\u00e9\"],\"b\":{}}"))
-    check("json: BOM dan spasi", MiniJson.valid("\uFEFF  [ ]\n"))
-    check("json: koma menggantung", !MiniJson.valid("{\"a\":1,}"))
-    check("json: kutip tunggal", !MiniJson.valid("{'a':1}"))
-    check("json: terpotong", !MiniJson.valid("{\"a\":[1,2"))
-    check("json: sisa setelah nilai", !MiniJson.valid("{} x"))
-    check("json: angka berawalan nol", !MiniJson.valid("[01]"))
-    check("json: escape salah", !MiniJson.valid("[\"\\q\"]"))
-    check("json: kosong", !MiniJson.valid(""))
+    check("json: objek bersarang sah", MiniJson.isValid("{\"a\":[1,2.5,-3e2,true,null,\"x\\n\\u00e9\"],\"b\":{}}"))
+    check("json: BOM dan spasi", MiniJson.isValid("\uFEFF  [ ]\n"))
+    check("json: koma menggantung", !MiniJson.isValid("{\"a\":1,}"))
+    check("json: kutip tunggal", !MiniJson.isValid("{'a':1}"))
+    check("json: terpotong", !MiniJson.isValid("{\"a\":[1,2"))
+    check("json: sisa setelah nilai", !MiniJson.isValid("{} x"))
+    check("json: angka berawalan nol", !MiniJson.isValid("[01]"))
+    check("json: escape salah", !MiniJson.isValid("[\"\\q\"]"))
+    check("json: kosong", !MiniJson.isValid(""))
 
     // ---- MiniXml
     check("xml: manifest sah", MiniXml.valid("<?xml version=\"1.0\"?>\n<!-- c -->\n<manifest a=\"1>2\"><app/><x>t</x></manifest>\n"))
