@@ -49,6 +49,7 @@ import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 import com.molina.core.ui.Win7
 import com.molina.core.ui.Win7Button
+import com.molina.core.fileops.FileOpOutcome
 import com.molina.core.fileops.FileOps
 import com.molina.explorer.W7Panel
 
@@ -116,7 +117,7 @@ internal class TvOps(
     private fun run(op: (FileOps.Ctl) -> String, onDone: () -> Unit = {}) {
         if (busy) return
         if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            finish("Izin tulis penyimpanan belum diberikan. Aktifkan izin Penyimpanan di Setelan Android.", false)
+            finish(FileOpOutcome.NO_WRITE_PERMISSION, false)
             return
         }
         busy = true
@@ -132,9 +133,9 @@ internal class TvOps(
             progress = null
             r.onSuccess { onDone(); finish(it, true) }
                 .onFailure {
-                    finish(it.message ?: ("Operasi gagal (" + it.javaClass.simpleName + ")"), false)
-                    if (it.message != "Dibatalkan") {
-                        LogBus.log("penjelajah", LogLevel.Error, "FileOps", android.util.Log.getStackTraceString(it))
+                    finish(FileOpOutcome.failureText(it), false)
+                    if (FileOpOutcome.shouldLog(it)) {
+                        LogBus.log("penjelajah", LogLevel.Error, "FileOps", FileOpOutcome.trace(it))
                     }
                 }
             onChanged()
