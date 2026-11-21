@@ -28,9 +28,10 @@ SKIP_CONTENT_EXT = (".so", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".jar", ".z
                     ".ttf", ".otf", ".woff", ".woff2", ".ico", ".pem")
 # Fixture uji palsu (bukan rahasia asli) yang sudah terlanjur ada di riwayat commit: (berkas, jenis temuan).
 HISTORY_FIXTURE_ALLOW = {("scripts/app-tests/run_git_cred_guard.sh", "kredensial di URL git")}
-# Commit lama yang terlanjur memuat progres.md (satu baris catatan progres, tanpa rahasia; sudah dilepas di 2876d7b).
+# Commit lama yang terlanjur memuat progres.md (catatan progres, tanpa rahasia; dilepas di 2876d7b dan 0ef0d11).
+# 5030c88: progres.md 36 baris sempat dilacak, sudah diperiksa manual tanpa token/kunci.
 # Daftar tetap: commit baru yang memuat berkas terlarang tetap menggagalkan gerbang.
-HISTORY_PATH_ALLOW = {("progres.md", s) for s in ("1496c40", "90d308f", "9178c79", "b09ac4a", "bdd7253")}
+HISTORY_PATH_ALLOW = {("progres.md", s) for s in ("1496c40", "90d308f", "9178c79", "b09ac4a", "bdd7253", "5030c88")}
 ENV_SECRETISH = re.compile(r"(PASSWORD|TOKEN|SECRET|PRIVATE)", re.I)
 
 def git(*a):
