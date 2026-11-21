@@ -40,7 +40,7 @@ object MpvLifecycle {
     fun installExitHook() {
         ExitHooks.register("mpv") {
             val t = Thread({
-                try { destroyIfAlive() } catch (e: Throwable) {}
+                try { destroyIfAlive() } catch (e: Throwable) { MpvLog.e(TAG, "destroy mpv saat keluar gagal", e) } // [DIAG-EXC]
             }, "molina-mpv-exit")
             t.isDaemon = true
             t.start()

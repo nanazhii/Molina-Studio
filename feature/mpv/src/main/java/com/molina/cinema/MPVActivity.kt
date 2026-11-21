@@ -100,7 +100,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun mpvPost(label: String = "", block: () -> Unit) { // [ANR-LOG]
         streamScope.launch(mpvDispatcher) {
             val t0 = android.os.SystemClock.elapsedRealtime()
-            try { block() } catch (e: Exception) { MpvLog.w(TAG, "mpvPost gagal: ${e.message}") }
+            try { block() } catch (e: Exception) { MpvLog.e(TAG, "[mpv-call] ${label.ifEmpty { "panggilan" }} gagal: ${e.javaClass.simpleName}", e) } // [DIAG-EXC]
             val dt = android.os.SystemClock.elapsedRealtime() - t0
             // bukti di logcat: panggilan ini dulu berjalan di main thread dan menjadi penyebab ANR
             if (dt >= 300L) MpvLog.w(TAG, "[mpv-call] ${label.ifEmpty { "panggilan" }} lambat $dt ms (di thread molina-mpv-call, UI tetap responsif)")
@@ -117,7 +117,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         tracksJob = streamScope.launch {
             delay(150L)
             withContext(mpvDispatcher) {
-                try { player.loadTracks() } catch (e: Exception) { MpvLog.w(TAG, "loadTracks gagal: ${e.message}") }
+                try { player.loadTracks() } catch (e: Exception) { MpvLog.e(TAG, "loadTracks gagal", e) } // [DIAG-EXC]
             }
         }
     }
@@ -2896,6 +2896,13 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun effectiveQuality(): CoreQuality =
         if (forcedAudioOnly || useAudioUI) CoreQuality.AUDIO else com.molina.core.stream.StreamQuality.current // [QUALITY-SYNC4-C] cermin keadaan nyata, bukan hanya kunci
 
+    /** [DIAG-QUALITY] Pilih varian lewat VariantPicker dan catat keputusannya (batas, kandidat, hasil, alasan) di tab Log. */
+    private fun pickVariantLogged(q: CoreQuality, vs: List<VideoVariant>, via: String): VideoVariant? {
+        val d = VariantPicker.decide(vs, q.maxHeight)
+        MpvLog.i(TAG, "[quality] kunci=${q.name} via=$via " + VariantPicker.describe(vs, q.maxHeight, d))
+        return d.variant
+    }
+
     /**
      * [LIVE-SWITCH] Siaran live (HLS) selalu memakai URL yang sama untuk semua kualitas, jadi resolve ulang hanya
      * memulai ulang siaran tanpa mengubah apa pun. Bila stream sudah memuat beberapa varian video, cukup pindah
@@ -2908,7 +2915,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         } else {
             forcedAudioOnly = false
             val pick = if (q == CoreQuality.AUTO) null
-                else VariantPicker.pick(vs, q.maxHeight) // [E-3c-1]
+                else pickVariantLogged(q, vs, "live-switch") // [E-3c-1]
             if (pick != null) mpvPost { player.vid = pick.mpvId } else mpvPost { MPVLib.setPropertyString("vid", "auto") }
         }
         updateMetadataDisplay()
@@ -2949,9 +2956,12 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                 val vs = snap.variants
                 if (q == CoreQuality.AUTO) mpvPost { MPVLib.setPropertyString("vid", "auto") }
                 else if (vs.size > 1) {
-                    val pick = VariantPicker.pick(vs, q.maxHeight) // [E-3c-1]
+                    val pick = pickVariantLogged(q, vs, "sumber-lokal") // [E-3c-1]
                     if (pick != null) mpvPost { player.vid = pick.mpvId }
-                } else showToast(getString(R.string.quality_next_video, q.label), true)
+                } else {
+                    MpvLog.i(TAG, "[quality] kunci=${q.name} via=sumber-lokal tidak ada pilihan varian (varian=${vs.size}); berlaku pada video berikutnya") // [DIAG-QUALITY]
+                    showToast(getString(R.string.quality_next_video, q.label), true)
+                }
             }
             return
         }

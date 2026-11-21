@@ -58,7 +58,7 @@ object MPVLib {
     fun eventProperty(property: String, value: Long) {
         run {
             for (o in observers)
-                o.eventProperty(property, value)
+                guarded(o, { "eventProperty($property)" }) { o.eventProperty(property, value) }
         }
     }
 
@@ -66,7 +66,7 @@ object MPVLib {
     fun eventProperty(property: String, value: Boolean) {
         run {
             for (o in observers)
-                o.eventProperty(property, value)
+                guarded(o, { "eventProperty($property)" }) { o.eventProperty(property, value) }
         }
     }
 
@@ -74,7 +74,7 @@ object MPVLib {
     fun eventProperty(property: String, value: Double) {
         run {
             for (o in observers)
-                o.eventProperty(property, value)
+                guarded(o, { "eventProperty($property)" }) { o.eventProperty(property, value) }
         }
     }
 
@@ -82,7 +82,7 @@ object MPVLib {
     fun eventProperty(property: String, value: String) {
         run {
             for (o in observers)
-                o.eventProperty(property, value)
+                guarded(o, { "eventProperty($property)" }) { o.eventProperty(property, value) }
         }
     }
 
@@ -90,7 +90,7 @@ object MPVLib {
     fun eventProperty(property: String) {
         run {
             for (o in observers)
-                o.eventProperty(property)
+                guarded(o, { "eventProperty($property)" }) { o.eventProperty(property) }
         }
     }
 
@@ -98,7 +98,7 @@ object MPVLib {
     fun event(eventId: Int) {
         run {
             for (o in observers)
-                o.event(eventId)
+                guarded(o, { "event($eventId)" }) { o.event(eventId) }
         }
     }
 
@@ -122,7 +122,21 @@ object MPVLib {
     fun logMessage(prefix: String, level: Int, text: String) {
         run {
             for (o in log_observers)
-                o.logMessage(prefix, level, text)
+                guarded(o, { "logMessage($prefix)" }) { o.logMessage(prefix, level, text) }
+        }
+    }
+
+    /**
+     * [DIAG-EXC] Observer yang melempar exception di thread event mpv sebelumnya langsung menembus ke JNI dan baru
+     * tampak sebagai crash native tanpa penyebab. Kini dicatat lebih dulu (observer, peristiwa, stack) lalu dilempar ulang:
+     * perilaku tidak berubah. Lambda [what] hanya dievaluasi saat gagal, jadi jalur ramai (time-pos) tidak mengalokasi.
+     */
+    private inline fun guarded(o: Any, what: () -> String, block: () -> Unit) {
+        try {
+            block()
+        } catch (t: Throwable) {
+            MpvLog.e("event", "observer ${o.javaClass.name} melempar saat ${what()}", t)
+            throw t
         }
     }
 

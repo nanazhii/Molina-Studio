@@ -10,9 +10,15 @@ mutants=(
   's/it.height <= maxHeight/it.height < maxHeight/'
   's/it.height <= maxHeight/it.height >= maxHeight/'
   's/maxByOrNull { it.height }/minByOrNull { it.height }/'
-  's/variants.minByOrNull { it.height }/variants.maxByOrNull { it.height }/'
-  's/variants.minByOrNull { it.height }/variants.firstOrNull()/'
-  's/            ?: variants.minByOrNull { it.height }//'
+  's/val lowest = variants.minByOrNull { it.height }/val lowest = variants.maxByOrNull { it.height }/'
+  's/val lowest = variants.minByOrNull { it.height }/val lowest = variants.firstOrNull()/'
+  's/val lowest = variants.minByOrNull { it.height }/val lowest: VideoVariant? = null/'
+  's/Decision(within, Reason.WITHIN_CAP)/Decision(within, Reason.FALLBACK_LOWEST)/'
+  's/if (lowest == null) Reason.NO_VARIANT else Reason.FALLBACK_LOWEST/Reason.FALLBACK_LOWEST/'
+  's/Reason.FALLBACK_LOWEST -> "semua di atas batas, ambil terendah"/Reason.FALLBACK_LOWEST -> "tertinggi <= batas"/'
+  's/variants.take(12)/variants.take(13)/'
+  's/else "?p"/else "0p"/'
+  's/batas=\${maxHeight}p/batas=${maxHeight}/'
 )
 killed=0; total=${#mutants[@]}
 for i in "${!mutants[@]}"; do
