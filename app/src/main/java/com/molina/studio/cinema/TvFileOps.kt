@@ -33,6 +33,7 @@ import androidx.core.content.ContextCompat
 import com.molina.core.library.ChannelTidy
 import com.molina.core.api.LogLevel
 import com.molina.core.library.ResumeMark
+import com.molina.core.library.StorageVolumes
 import com.molina.core.library.TrashBin
 import com.molina.core.library.TrashItem
 import com.molina.core.library.TvGuide
@@ -52,13 +53,7 @@ import com.molina.core.fileops.FileOps
 import com.molina.explorer.W7Panel
 
 /** Volume penyimpanan (internal + kartu SD/OTG) untuk Recycle Bin; sama dengan daftar drive penjelajah Win7. */
-internal fun tvVolumes(): List<File> {
-    val out = mutableListOf(Environment.getExternalStorageDirectory())
-    File("/storage").listFiles()?.forEach {
-        if (it.isDirectory && it.canRead() && it.name != "emulated" && it.name != "self") out.add(it)
-    }
-    return out
-}
+internal fun tvVolumes(): List<File> = StorageVolumes.list(Environment.getExternalStorageDirectory()) // [SSOT] core:library
 
 internal sealed class TvSheet {
     class Rename(val file: File) : TvSheet()

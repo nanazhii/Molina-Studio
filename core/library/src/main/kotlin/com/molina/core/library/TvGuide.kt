@@ -154,18 +154,10 @@ object TvGuide {
      * Jalur absolut yang tidak boleh dihapus/diubah namanya/dipindah dari Mode TV: akar volume, folder
      * Recycle Bin tiap volume, akar data aplikasi, dan folder saluran itu sendiri (isinya tetap boleh diubah).
      */
-    fun guard(volumes: List<File>, appRoot: File, channelDirs: List<File>): Set<String> {
-        val out = HashSet<String>()
-        for (v in volumes) {
-            out.add(v.absolutePath)
-            out.add(File(v, TrashBin.DIR).absolutePath)
-        }
-        out.add(appRoot.absolutePath)
-        for (c in channelDirs) out.add(c.absolutePath)
-        return out
-    }
+    fun guard(volumes: List<File>, appRoot: File, channelDirs: List<File>): Set<String> =
+        ProtectedPaths.of(volumes, appRoot, channelDirs) // [SSOT] aturan ada di ProtectedPaths
 
-    fun canModify(file: File, guard: Set<String>): Boolean = file.absolutePath !in guard
+    fun canModify(file: File, guard: Set<String>): Boolean = ProtectedPaths.canModify(file, guard)
 
     /**
      * Folder tujuan salin/pindah yang ditawarkan: folder saluran. Untuk pindah, folder tempat berkas sudah

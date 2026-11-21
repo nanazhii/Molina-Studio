@@ -100,6 +100,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import com.molina.studio.ui.MolinaTheme
+import com.molina.core.library.ProtectedPaths
+import com.molina.core.library.StorageVolumes
 import com.molina.core.library.TrashBin
 import com.molina.core.library.TrashItem
 import java.text.SimpleDateFormat
@@ -137,13 +139,8 @@ private fun w7DebianPlaces(env: ExplorerEnv, browse: Boolean): List<W7Place> {
     return if (home.isDirectory) listOf(W7Place("Debian", home)) else emptyList()
 }
 
-private fun w7Drives(): List<W7Place> {
-    val out = mutableListOf(W7Place("Internal", Environment.getExternalStorageDirectory()))
-    File("/storage").listFiles()?.forEach {
-        if (it.isDirectory && it.canRead() && it.name != "emulated" && it.name != "self") out.add(W7Place(it.name, it))
-    }
-    return out
-}
+private fun w7Drives(): List<W7Place> =
+    StorageVolumes.list(Environment.getExternalStorageDirectory()).mapIndexed { i, d -> W7Place(if (i == 0) "Internal" else d.name, d) } // [SSOT] core:library
 
 /** Isi folder lewat [ExplorerList]; pasangan hasil = (daftar, terpotong?) atau null bila folder tak terbaca. */
 private fun w7Load(dir: File, query: String, o: ExplorerList.Opts, cancelled: () -> Boolean): Pair<List<W7Entry>, Boolean>? {
@@ -240,8 +237,7 @@ fun Win7OpenDialog(
     var progress by remember { mutableStateOf<Float?>(null) }
     val cancelFlag = remember { AtomicBoolean(false) }
     val guard = remember {
-        vols.map { File(it.dir, TrashBin.DIR).absolutePath }.toSet() + vols.map { it.dir.absolutePath }.toSet() +
-            File(Environment.getExternalStorageDirectory(), com.molina.core.system.MolinaPaths.APP_FOLDER).absolutePath
+        ProtectedPaths.of(vols.map { it.dir }, File(Environment.getExternalStorageDirectory(), com.molina.core.system.MolinaPaths.APP_FOLDER)) // [SSOT] core:library
     }
     fun say(text: String, ok: Boolean = false) { message = text; messageOk = ok }
     fun targets(): List<File> = if (multi) picked.map { File(it) } else listOfNotNull(selected?.file)

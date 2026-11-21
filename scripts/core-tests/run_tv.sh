@@ -8,6 +8,6 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 LIB=core/library/src/main/kotlin/com/molina/core/library
 "$KC" -nowarn -d "$OUT" \
-  core/json/src/main/kotlin/com/molina/core/json/MiniJson.kt core/json/src/main/kotlin/com/molina/core/json/JsonCursor.kt $LIB/MediaSidecar.kt core/json/src/main/kotlin/com/molina/core/json/InfoJsonKeys.kt $LIB/ShelfCard.kt $LIB/ResumeMark.kt $LIB/ShelfScan.kt $LIB/TrashBin.kt $LIB/TvGuide.kt \
+  core/json/src/main/kotlin/com/molina/core/json/MiniJson.kt core/json/src/main/kotlin/com/molina/core/json/JsonCursor.kt $LIB/MediaSidecar.kt core/json/src/main/kotlin/com/molina/core/json/InfoJsonKeys.kt $LIB/ShelfCard.kt $LIB/ResumeMark.kt $LIB/ShelfScan.kt $LIB/TrashBin.kt $LIB/StorageGuard.kt $LIB/TvGuide.kt \
   scripts/core-tests/TvGuideTests.kt
 java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" TvGuideTestsKt

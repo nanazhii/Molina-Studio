@@ -33,7 +33,7 @@ jobs:
       - name: Gerbang split package (satu paket = satu modul)
         run: python3 scripts/split_package_gate.py
       - name: Siklus paket app (ratchet, turunkan angkanya seiring ekstraksi)
-        run: python3 scripts/pkg_graph.py --max-cycles 12
+        run: python3 scripts/pkg_graph.py --max-cycles 11
       - name: Duplikasi lintas modul (ratchet SSOT, turunkan angkanya seiring pemusatan)
         run: python3 scripts/dup_gate.py --max-blocks 6 --max-literals 90
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
