@@ -1,5 +1,7 @@
 import com.molina.core.policy.IntentExtras
 import com.molina.core.policy.PlaybackSourcePolicy
+import com.molina.core.policy.SourceKind
+import com.molina.core.policy.SourceScheme
 import java.io.File
 import java.nio.file.Files
 
@@ -80,6 +82,14 @@ fun main() {
     check("header: berpasangan, elemen ganjil terakhir dibuang", IntentExtras.pairHeaders(arrayOf("A", "1", "B", "2", "C")) == mapOf("A" to "1", "B" to "2"))
     check("header: null jadi string kosong, duplikat terakhir menang", IntentExtras.pairHeaders(arrayOf(null, "x", "K", null, "K", "v")) == mapOf("" to "x", "K" to "v"))
     check("header: maksimal 64 elemen (32 pasangan)", IntentExtras.pairHeaders(Array(100) { "e$it" }).size == 32 && IntentExtras.pairHeaders(emptyArray<String?>()).isEmpty())
+
+    // ---- E-3b-3a: klasifikasi skema URI (SourceScheme)
+    check("E-3b-3a: file -> LOCAL_FILE, content -> CONTENT", SourceScheme.classify("file") == SourceKind.LOCAL_FILE && SourceScheme.classify("content") == SourceKind.CONTENT)
+    check("E-3b-3a: http/https/rtmp/rtmps/rtsp -> NETWORK", listOf("http", "https", "rtmp", "rtmps", "rtsp").all { SourceScheme.classify(it) == SourceKind.NETWORK })
+    check("E-3b-3a: data/tcp/udp/ftp/mms/rtp/memory ditolak", listOf("data", "tcp", "udp", "ftp", "mms", "rtp", "memory").all { SourceScheme.classify(it) == SourceKind.REJECTED })
+    check("E-3b-3a: null dan kosong ditolak", SourceScheme.classify(null) == SourceKind.REJECTED && SourceScheme.classify("") == SourceKind.REJECTED)
+    check("E-3b-3a: huruf besar ditolak (perilaku lama dipertahankan)", SourceScheme.classify("HTTP") == SourceKind.REJECTED && SourceScheme.classify("File") == SourceKind.REJECTED)
+    check("E-3b-3a: ALLOWED_SCHEMES = NETWORK + content + file (satu sumber kebenaran)", PlaybackSourcePolicy.ALLOWED_SCHEMES == SourceScheme.NETWORK_SCHEMES + setOf("content", "file"))
 
     base.deleteRecursively()
     println(if (fails == 0) "SEMUA LULUS" else "$fails GAGAL")

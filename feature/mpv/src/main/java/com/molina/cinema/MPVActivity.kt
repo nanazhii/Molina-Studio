@@ -15,6 +15,8 @@ import com.molina.core.policy.ExternalIntentGate
 import com.molina.core.net.UrlPolicy
 import com.molina.core.policy.IntentExtras
 import com.molina.core.policy.PlaybackSourcePolicy
+import com.molina.core.policy.SourceKind
+import com.molina.core.policy.SourceScheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
@@ -1638,12 +1640,12 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun isOutsidePrivateData(path: String?): Boolean = sourcePolicy.isOutsidePrivateData(path)
 
     private fun resolveUri(data: Uri): String? {
-        val filepath = when (data.scheme) {
-            "file" -> data.path?.takeIf { isOutsidePrivateData(it) }
-            "content" -> translateContentUri(data)
-            // Skema lain (data, tcp, udp, ftp, mms, rtp) ditolak: tidak lolos UrlPolicy dan tidak dipakai.
-            "http", "https", "rtmp", "rtmps", "rtsp" -> data.toString()
-            else -> null
+        // [E-3b-3a] Klasifikasi skema ada di :core:policy (SourceScheme); di sini hanya mengeksekusi hasilnya.
+        val filepath = when (SourceScheme.classify(data.scheme)) {
+            SourceKind.LOCAL_FILE -> data.path?.takeIf { isOutsidePrivateData(it) }
+            SourceKind.CONTENT -> translateContentUri(data)
+            SourceKind.NETWORK -> data.toString()
+            SourceKind.REJECTED -> null
         }
 
         if (filepath == null)

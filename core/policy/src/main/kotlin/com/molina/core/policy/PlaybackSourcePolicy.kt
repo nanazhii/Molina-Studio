@@ -66,6 +66,6 @@ class PlaybackSourcePolicy(
         private val SCHEME_PREFIX = Regex("^[A-Za-z][A-Za-z0-9+.\\-]*:")
 
         /** Hanya skema yang juga diizinkan UrlPolicy. */
-        val ALLOWED_SCHEMES: Set<String> = setOf("http", "https", "rtmp", "rtmps", "rtsp", "content", "file")
+        val ALLOWED_SCHEMES: Set<String> = SourceScheme.NETWORK_SCHEMES + setOf("content", "file")
     }
 }
