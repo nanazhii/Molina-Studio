@@ -42,6 +42,9 @@ class PlaybackSourcePolicy(
             if (scheme == "file") return isOutsidePrivateData(fileUriPath(path))
             return urlAllowed(path)
         }
+        // Skema tanpa "//" (data:..., file:/..., http:host) bukan path lokal: ffmpeg/mpv tetap mengenalinya sebagai protokol.
+        // Path absolut diawali "/", jadi tidak terpengaruh.
+        if (!path.startsWith("/") && SCHEME_PREFIX.containsMatchIn(path)) return false
         return isOutsidePrivateData(path)
     }
 
@@ -59,6 +62,8 @@ class PlaybackSourcePolicy(
 
     companion object {
         const val MAX_MEMORY_PLAYLIST_ENTRIES = 1000
+
+        private val SCHEME_PREFIX = Regex("^[A-Za-z][A-Za-z0-9+.\\-]*:")
 
         /** Hanya skema yang juga diizinkan UrlPolicy. */
         val ALLOWED_SCHEMES: Set<String> = setOf("http", "https", "rtmp", "rtmps", "rtsp", "content", "file")

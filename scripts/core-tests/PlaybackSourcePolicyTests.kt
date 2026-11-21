@@ -50,6 +50,13 @@ fun main() {
     val pNull = PlaybackSourcePolicy(data.path, { true }, { null })
     check("file:// tanpa path terbaca ditolak", !pNull.isAllowedCustomPath("file://x"))
 
+    // ---- E-3b-2: skema tanpa "//" bukan path lokal
+    val scheme1 = listOf("data:text/plain,x", "DATA:text/plain;base64,AAAA", "file:" + File(data, "secret.txt").path, "http:host/v.mp4", "rtsp:x", "ftp:x", "a+b.c-d:x")
+    check("E-3b-2: skema tanpa // ditolak sebagai path lokal", scheme1.none { p.isAllowedCustomPath(it) })
+    check("E-3b-2: path absolut bertitik dua tetap diterima", p.isAllowedCustomPath(File(outside, "a: b.mp3").path) && p.isAllowedCustomPath(File(outside, "x:y").path))
+    check("E-3b-2: entri memory:// bergaya data: menolak seluruh playlist", !p.isAllowedCustomPath("memory://#EXTM3U\n" + File(outside, "1.mp4").path + "\ndata:text/plain,x"))
+    check("E-3b-2: path relatif tanpa skema tetap sama seperti sebelumnya", p.isAllowedCustomPath("relatif/a.mp4") && p.isAllowedCustomPath("a.mp4"))
+
     // ---- playlist memory://
     val ok1 = File(outside, "1.mp4").path
     val ok2 = File(outside, "2.mp4").path
