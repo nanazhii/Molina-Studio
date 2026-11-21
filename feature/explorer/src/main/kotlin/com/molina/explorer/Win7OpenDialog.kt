@@ -86,7 +86,6 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.IntOffset
 import androidx.core.content.ContextCompat
-import com.molina.core.files.NanoName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -111,9 +110,7 @@ import com.molina.core.ui.Win7BackOrb
 import com.molina.core.ui.Win7Button
 import com.molina.core.ui.Win7Close
 import com.molina.core.ui.Win7Drive
-import com.molina.core.fileops.FileNames
 import com.molina.core.fileops.FileOps
-import com.molina.core.fileops.CompressNames
 import com.molina.core.fileops.ArchiveRoute
 import com.molina.core.fileops.ExplorerList
 
@@ -331,130 +328,16 @@ fun Win7OpenDialog(
     }
 
     if (showBin) W7BinDialog(volDirs, { showBin = false }) { tick++ }
-    when (val s = sheet) {
-        is W7Sheet.Rename -> W7NameDialog(
-            title = if (s.file.isDirectory) "Ubah nama folder" else "Ubah nama berkas",
-            initial = s.file.name, selectEnd = FileNames.stemEnd(s.file.name, s.file.isDirectory), okLabel = "OK",
-            onCancel = { sheet = null }
-        ) { name ->
-            sheet = null
-            runOp(op = { "Nama diubah: " + FileOps.rename(s.file, name).name })
-        }
-        W7Sheet.NewDir -> W7NameDialog(
-            title = "Folder baru", initial = "Folder baru", selectEnd = "Folder baru".length, okLabel = "Buat",
-            onCancel = { sheet = null }
-        ) { name ->
-            sheet = null
-            val d = dir
-            runOp(op = { "Folder dibuat: " + FileOps.mkdir(d, name).name })
-        }
-        W7Sheet.NewText -> {
-        val nanoInit = remember { (selected?.file?.takeIf { it.isFile }?.name ?: ExplorerRecent.lastFileName(ctx)) ?: "catatan.txt" } // [NANO-EXT]
-        W7NameDialog( // [NANO-NEW]
-            title = "Berkas teks baru (nano)", initial = nanoInit, selectEnd = NanoName.split(nanoInit).first.length, okLabel = "Buka", // [NANO-EXT]
-            hint = "Folder: " + dir.path,
-            onCancel = { sheet = null }
-        ) { name ->
-            sheet = null
-            val d = dir
-            onNewTextInTerminal?.invoke(d, name)
-        }
-        }
-        is W7Sheet.OpenWith -> W7OpenWithDialog( // [NANO-OPENWITH]
-            file = s.file,
-            canCode = onOpenInCode != null,
-            canNano = onEditInTerminal != null,
-            canOther = onOpenWith != null,
-            onCancel = { sheet = null },
-            onPick = { which ->
-                sheet = null
-                when (which) {
-                    W7OpenWith.CODE -> onOpenInCode?.invoke(listOf(s.file))
-                    W7OpenWith.NANO -> onEditInTerminal?.invoke(s.file)
-                    W7OpenWith.OTHER -> onOpenWith?.invoke(s.file)
-                }
-            }
+    W7SheetHost(
+        sheet, { sheet = it },
+        W7SheetEnv(
+            ctx = ctx, dir = dir, selected = selected, env = env, actions = actions,
+            clipFiles = { clip?.files ?: emptyList() }, openFile = { smartOpen(it) },
+            isVisibleInDebian = isVisibleInDebian, onNewTextInTerminal = onNewTextInTerminal,
+            onOpenInCode = onOpenInCode, onEditInTerminal = onEditInTerminal,
+            onOpenWith = onOpenWith, onOpenTerminal = onOpenTerminal
         )
-        is W7Sheet.Delete -> W7ConfirmDialog(s.files, s.permanent, onCancel = { sheet = null }) {
-            sheet = null
-            actions.delete(s.files, s.permanent)
-        }
-        is W7Sheet.Info -> W7InfoDialog(s.files, if (s.files.size == 1) isVisibleInDebian?.invoke(s.files[0]) else null) { sheet = null }
-        is W7Sheet.Compress -> ArchiveCompressDialog( // [ARCHIVE2]
-            s.files, dir.name, onClose = { sheet = null }
-        ) { opt ->
-            sheet = null
-            val d = dir
-            val items = s.files
-            runOp(op = { ctl ->
-                val made = ArchiveOps.compress(env, items, d, opt, ctl) // [ARCHIVE6] 7z bersandi lewat Debian
-                "Arsip dibuat: " + made.name + " (" + CompressNames.sizeText(made.length()) + (if (!opt.password.isNullOrEmpty()) ", bersandi" else "") + ")"
-            })
-        }
-        is W7Sheet.Zip -> W7PasswordDialog(
-            title = "Kompres ZIP berkata sandi", okLabel = "Kompres", confirmField = true,
-            note = "Enkripsi AES-256. Simpan kata sandinya: ZIP tidak bisa dibuka tanpa itu.",
-            onCancel = { sheet = null }
-        ) { pw ->
-            sheet = null
-            val d = dir
-            val items = s.files
-            runOp(op = { ctl -> "ZIP terenkripsi dibuat: " + FileOps.zipAll(items, d, ctl, pw).name })
-        }
-        is W7Sheet.Password -> W7PasswordDialog(
-            title = "Ekstrak ZIP", okLabel = "Ekstrak", confirmField = false,
-            note = if (s.wrong) "Kata sandi salah. Coba lagi." else "ZIP ini dilindungi kata sandi.",
-            onCancel = { sheet = null }
-        ) { pw ->
-            sheet = null
-            val d = dir
-            val z = s.zip
-            runOp(
-                op = { ctl -> "Diekstrak ke: " + FileOps.unzip(z, d, ctl, pw).name },
-                onFail = { if (it is FileOps.WrongPassword) sheet = W7Sheet.Password(z, true) }
-            )
-        }
-        is W7Sheet.ZipView -> W7ZipDialog(
-            s.zip, onClose = { sheet = null }, onOpenFile = { smartOpen(it) },
-            clipFiles = { clip?.files ?: emptyList() }, // [ZIP-EDIT]
-            onOpenTerminal = if (onOpenTerminal != null) ({ f: File ->
-                if (isVisibleInDebian?.invoke(f) != false) { onOpenTerminal.invoke(f.parentFile ?: f); true } else false
-            }) else null
-        ) {
-            sheet = null
-            val z = s.zip
-            val d = z.parentFile?.takeIf { it.isDirectory } ?: dir
-            runOp(
-                op = { ctl -> "Diekstrak ke: " + FileOps.unzip(z, d, ctl).name },
-                onFail = { if (it is FileOps.NeedPassword) { say(""); sheet = W7Sheet.Password(z, false) } }
-            )
-        }
-        is W7Sheet.Archive -> ArchiveExtractDialog( // [ARCHIVE]
-            s.file, s.pw, env,
-            onNeedPassword = { wrong -> sheet = W7Sheet.ArchivePw(s.file, wrong) },
-            onClose = { sheet = null }
-        ) { exTarget, exOnly ->
-            sheet = null
-            val a = s.file
-            val apw = s.pw
-            val d = a.parentFile?.takeIf { it.isDirectory && it.canWrite() } ?: dir
-            runOp(
-                op = { ctl -> ArchiveOps.extract(env, a, d, exTarget, ctl, apw, exOnly).describe() },
-                onFail = {
-                    if (it is FileOps.NeedPassword) { say(""); sheet = W7Sheet.ArchivePw(a, false) }
-                    else if (it is FileOps.WrongPassword) { say(""); sheet = W7Sheet.ArchivePw(a, true) }
-                }
-            )
-        }
-        is W7Sheet.ArchivePw -> W7PasswordDialog( // [ARCHIVE]
-            title = "Buka arsip", okLabel = "Buka", confirmField = false,
-            note = if (s.wrong) "Kata sandi salah. Coba lagi." else "Arsip ini dilindungi kata sandi.",
-            onCancel = { sheet = null }
-        ) { pw ->
-            sheet = W7Sheet.Archive(s.file, pw)
-        }
-        null -> Unit
-    }
+    )
 
     val frame = RoundedCornerShape(8.dp)
     // Keterangan hasil operasi melayang di atas daftar dan hilang sendiri (tidak menyita tinggi panel bawah)
