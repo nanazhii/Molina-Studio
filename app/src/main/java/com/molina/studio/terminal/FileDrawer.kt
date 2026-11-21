@@ -1,6 +1,7 @@
 package com.molina.studio.terminal
 
 import android.content.Context
+import com.molina.core.exec.DrawerRun
 import android.os.Environment
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -302,6 +303,12 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
                                 DropdownMenuItem(text = { Text("Folder baru di sini") }, onClick = { menuFor = null; sheet = Sheet.NewDir(f) }) // [FILE-DRAWER3]
                             } else {
                                 DropdownMenuItem(text = { Text("Edit di nano") }, onClick = { menuFor = null; if (MolinaExplorer.editInTerminal(ctx, f)) onClose() })
+                                if (DrawerRun.supports(f.name)) { // [DRAWER-RUN] beda dari Edit di nano: langsung dijalankan, editor tidak dibuka
+                                    DropdownMenuItem(
+                                        text = { Text("\u25B6  Jalankan", color = Brand) },
+                                        onClick = { menuFor = null; if (MolinaExplorer.runInTerminal(ctx, f)) onClose() }
+                                    )
+                                }
                             }
                             DropdownMenuItem(text = { Text("Ganti nama") }, onClick = { menuFor = null; sheet = Sheet.Rename(f) })
                             DropdownMenuItem(text = { Text("Salin path") }, onClick = { menuFor = null; MolinaExplorer.copyPath(ctx, f) })

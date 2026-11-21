@@ -139,6 +139,53 @@ internal object MolinaExplorer {
         return launchNano(ctx, path)
     }
 
+    /** [DRAWER-RUN] Berkas yang baru dikirim (jalur, waktu) agar ketukan ganda tidak menjalankan skrip dua kali. */
+    @Volatile private var lastRun: Pair<String, Long>? = null
+    private const val RUN_DEBOUNCE_MS = 2000L
+
+    private fun firstLineOf(f: File): String? =
+        runCatching { f.bufferedReader(Charsets.UTF_8).use { it.readLine()?.take(200) } }.getOrNull()
+
+    /**
+     * [DRAWER-RUN] Jalankan berkas langsung di sesi terminal aktif dengan interpreter menurut jenisnya (.sh bash, .py python3),
+     * lalu pindah ke tab Terminal. Tidak membuka nano. Menolak jenis tak didukung, lokasi yang tak terlihat di Debian,
+     * sesi yang tak ada, dan terminal yang sedang menjalankan program layar penuh (mis. nano), agar baris tidak terketik ke program itu.
+     */
+    fun runInTerminal(ctx: Context, f: File): Boolean {
+        if (!f.isFile) return false
+        if (!com.molina.core.exec.DrawerRun.supports(f.name)) {
+            Toast.makeText(ctx, "Jenis berkas ini belum didukung untuk Jalankan (.sh, .bash, .py, .kts).", Toast.LENGTH_SHORT).show()
+            return false
+        }
+        if (!visibleInDebian(f)) {
+            Toast.makeText(ctx, "Berkas ini tidak terlihat di Debian. Aktifkan \"Akses penyimpanan penuh\" di Setelan Terminal, atau pindahkan ke folder Molina.", Toast.LENGTH_LONG).show()
+            return false
+        }
+        val path = debianPath(f)
+        val dir = debianPath(f.parentFile ?: return false)
+        val line = com.molina.core.exec.DrawerRun.commandLine(f.name, firstLineOf(f), dir, path)
+        if (line == null) {
+            Toast.makeText(ctx, "Nama berkas mengandung karakter kontrol; jalankan lewat terminal.", Toast.LENGTH_LONG).show()
+            return false
+        }
+        val gw = MolinaServices.terminal
+        if (!gw.hasActiveSession()) {
+            Toast.makeText(ctx, "Belum ada sesi terminal aktif. Buka Terminal terlebih dahulu.", Toast.LENGTH_LONG).show()
+            return false
+        }
+        if (gw.isFullscreenProgramActive()) {
+            Toast.makeText(ctx, "Terminal sedang menjalankan program layar penuh. Keluar dulu, atau buka sesi baru.", Toast.LENGTH_LONG).show()
+            return false
+        }
+        val now = android.os.SystemClock.elapsedRealtime()
+        val prev = lastRun
+        if (prev != null && prev.first == path && now - prev.second < RUN_DEBOUNCE_MS) return false
+        lastRun = path to now
+        gw.send(line)
+        ScriptNav.openTerminal = true
+        return true
+    }
+
     /** [NANO-NEW] Jalankan nano pada [path] (path Debian) di sesi aktif, lalu pindah ke tab Terminal. */
     private fun launchNano(ctx: Context, path: String): Boolean {
         val gw = MolinaServices.terminal
