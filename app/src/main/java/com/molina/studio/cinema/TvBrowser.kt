@@ -81,6 +81,8 @@ import java.io.File
 import com.molina.core.diag.CrashContext
 import com.molina.core.api.LogLevel
 import com.molina.core.log.LogBus
+import com.molina.core.ui.Win7
+import com.molina.core.ui.Win7BackOrb
 
 private val TvBg = Color(0xFF0E0B10)
 private val TileShape = RoundedCornerShape(6.dp)

@@ -38,9 +38,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.molina.studio.cinema.CinemaActions
-import com.molina.studio.cinema.Win7
-import com.molina.studio.cinema.Win7Button
-import com.molina.studio.settings.Win7GlassWindow
+import com.molina.core.ui.Win7
+import com.molina.core.ui.Win7Button
+import com.molina.core.ui.Win7GlassWindow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

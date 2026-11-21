@@ -7,7 +7,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import com.molina.studio.cinema.drawMintFolder
+import com.molina.core.ui.drawMintFolder
 
 /** Ikon tombol header panel direktori dan header layar. Digambar di kisi 24 satuan. */
 internal enum class DirIcon { Up, NewFile, NewFolder, Close, Folder }

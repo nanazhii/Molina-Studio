@@ -39,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.io.File
 import com.molina.studio.ui.MolinaTheme
+import com.molina.core.ui.Win7
+import com.molina.core.ui.Win7Button
 
 /** [ARCHIVE2] Tombol pilihan format: terpilih = warna seleksi Win7. */
 @Composable

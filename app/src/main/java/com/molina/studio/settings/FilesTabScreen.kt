@@ -18,7 +18,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.molina.studio.cinema.Win7Folder
+import com.molina.core.ui.Win7Folder
 import com.molina.studio.cinema.Win7OpenDialog
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts

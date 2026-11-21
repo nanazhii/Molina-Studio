@@ -1,4 +1,4 @@
-package com.molina.studio.settings
+package com.molina.core.ui
 
 import android.content.Context
 import androidx.compose.animation.core.LinearEasing
@@ -47,7 +47,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.molina.studio.cinema.Win7
 import com.molina.studio.ui.MolinaTheme
 import kotlin.math.hypot
 

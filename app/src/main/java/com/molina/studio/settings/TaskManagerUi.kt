@@ -43,8 +43,8 @@ import com.molina.core.system.TaskGroup
 import com.molina.core.system.TaskRow
 import com.molina.core.system.TaskSort
 import com.molina.core.system.TaskTable
-import com.molina.studio.cinema.Win7
-import com.molina.studio.cinema.Win7Button
+import com.molina.core.ui.Win7
+import com.molina.core.ui.Win7Button
 import com.molina.studio.system.TaskActions
 import com.molina.studio.system.TaskMonitor
 import com.molina.studio.ui.MolinaTheme
@@ -54,6 +54,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.molina.core.ui.RgbFrame
+import com.molina.core.ui.RgbSpot
+import com.molina.core.ui.Win7GlassWindow
 
 /** [TASK-MANAGER] Pengelola Tugas ala Task Manager desktop (Windows 7): tab Aplikasi, Proses, Kinerja. */
 

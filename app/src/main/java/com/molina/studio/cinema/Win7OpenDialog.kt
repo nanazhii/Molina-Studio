@@ -106,6 +106,14 @@ import com.molina.core.library.TrashItem
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.molina.core.ui.MintFileIcon
+import com.molina.core.ui.MintFolder
+import com.molina.core.ui.MintFolderTint
+import com.molina.core.ui.Win7
+import com.molina.core.ui.Win7BackOrb
+import com.molina.core.ui.Win7Button
+import com.molina.core.ui.Win7Close
+import com.molina.core.ui.Win7Drive
 
 internal class W7Entry(val file: File, val isDir: Boolean, val size: Long, val modified: Long, val rel: String? = null) {
     val name: String get() = file.name

@@ -45,8 +45,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.molina.studio.cinema.Win7
-import com.molina.studio.cinema.Win7BackOrb
+import com.molina.core.ui.Win7
+import com.molina.core.ui.Win7BackOrb
 import com.molina.studio.ui.MolinaTheme
 
 private val W7LinkColor = MolinaTheme.Link // [TOKEN-PUSAT]

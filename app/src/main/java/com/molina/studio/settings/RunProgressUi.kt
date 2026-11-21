@@ -16,8 +16,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.molina.studio.cinema.Win7
+import com.molina.core.ui.Win7
 import com.molina.studio.ui.MolinaTheme
+import com.molina.core.ui.GlossBar
+import com.molina.core.ui.win7Card
 
 internal enum class RunState { Running, Ok, Failed, Stopped }
 

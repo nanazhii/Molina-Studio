@@ -27,13 +27,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.molina.studio.cinema.Win7
+import com.molina.core.ui.Win7
 import com.molina.studio.terminal.StatsSnapshot
 import com.molina.studio.terminal.SystemStats
 import java.util.Locale
 import kotlin.math.ln
 import com.molina.studio.terminal.Level as LoadLevel
 import com.molina.studio.ui.MolinaTheme
+import com.molina.core.ui.GlassPrefs
+import com.molina.core.ui.GlossBar
+import com.molina.core.ui.RgbFrame
+import com.molina.core.ui.RgbSpot
+import com.molina.core.ui.Sparkline
+import com.molina.core.ui.Win7GlassWindow
 
 private val MonLocale: Locale = Locale("id", "ID")
 private const val HISTORY_POINTS = 60

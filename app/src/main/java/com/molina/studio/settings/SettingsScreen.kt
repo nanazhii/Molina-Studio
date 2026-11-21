@@ -57,6 +57,7 @@ import com.molina.studio.terminal.TerminalLook
 import com.molina.studio.terminal.TerminalPrefs
 import java.io.File
 import kotlin.math.roundToInt
+import com.molina.core.ui.W7IconDownloadBig
 
 /** Permintaan navigasi dari luar Settings (mis. tombol ⚙ di drawer sesi terminal). */
 object SettingsNav {

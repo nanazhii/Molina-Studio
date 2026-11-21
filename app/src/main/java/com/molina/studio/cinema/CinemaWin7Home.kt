@@ -41,13 +41,16 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.molina.studio.settings.GlossBar
-import com.molina.studio.settings.RgbFrame
-import com.molina.studio.settings.RgbSpot
-import com.molina.studio.settings.Win7GlassWindow
+import com.molina.core.ui.GlossBar
+import com.molina.core.ui.RgbFrame
+import com.molina.core.ui.RgbSpot
+import com.molina.core.ui.Win7GlassWindow
 import androidx.compose.ui.res.painterResource
 import com.molina.studio.R
 import com.molina.studio.ui.MolinaTheme
+import com.molina.core.ui.Win7
+import com.molina.core.ui.Win7Button
+import com.molina.core.ui.Win7File
 
 private val OrbTop = Color(0xFF8FC4EE)
 private val OrbBottom = Color(0xFF2D6DB5)

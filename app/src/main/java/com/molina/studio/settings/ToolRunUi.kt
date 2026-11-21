@@ -44,10 +44,11 @@ import com.molina.code.run.RunHandle
 import com.molina.code.run.RunListener
 import com.molina.code.run.RunRequest
 import com.molina.code.run.RunResult
-import com.molina.studio.cinema.Win7
+import com.molina.core.ui.Win7
 import com.molina.studio.code.ProotScriptExecutor
 import com.molina.studio.ui.MolinaTheme
 import kotlinx.coroutines.delay
+import com.molina.core.ui.GlossBar
 
 /** Satu skrip yang dijalankan di Debian PRoot lewat dialog keluaran. [confirm] = minta persetujuan dulu. */
 internal class ToolRun(

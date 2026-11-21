@@ -39,8 +39,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.molina.studio.cinema.drawMintFolder
-import com.molina.studio.cinema.drawMintFile
+import com.molina.core.ui.drawMintFolder
+import com.molina.core.ui.drawMintFile
 
 /**
  * Panel direktori (F4, blueprint bagian 5): laci dari kiri selebar 72% layar (maks 320dp) dengan

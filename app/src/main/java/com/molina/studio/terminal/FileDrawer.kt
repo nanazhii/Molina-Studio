@@ -66,11 +66,11 @@ import com.molina.core.library.TrashBin
 import com.molina.studio.cinema.ExplorerRecent
 import com.molina.studio.cinema.FileOps
 import com.molina.studio.cinema.W7ConfirmDialog
-import com.molina.studio.cinema.MintFileIcon
+import com.molina.core.ui.MintFileIcon
 import com.molina.studio.cinema.W7InfoDialog
 import com.molina.studio.cinema.W7NameDialog
-import com.molina.studio.cinema.Win7BackOrb
-import com.molina.studio.cinema.MintFolder
+import com.molina.core.ui.Win7BackOrb
+import com.molina.core.ui.MintFolder
 import com.molina.studio.settings.MolinaExplorer
 import com.molina.studio.ui.MolinaTheme
 import com.molina.studio.ui.SwipeDirection
@@ -79,7 +79,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import com.molina.studio.cinema.MintFolderTint
+import com.molina.core.ui.MintFolderTint
 
 private val Brand = MolinaTheme.Brand
 // [DRAWER-HAMBURGER] lebar drawer: porsi layar, dijepit ke rentang ini (header butuh sekitar 200dp)

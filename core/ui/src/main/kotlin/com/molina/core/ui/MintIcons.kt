@@ -1,4 +1,4 @@
-package com.molina.studio.cinema
+package com.molina.core.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box

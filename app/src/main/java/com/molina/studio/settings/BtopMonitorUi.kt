@@ -46,8 +46,8 @@ import com.molina.core.system.BtopProbe
 import com.molina.core.system.BtopRow
 import com.molina.core.system.BtopSort
 import com.molina.core.system.TaskGroup
-import com.molina.studio.cinema.Win7
-import com.molina.studio.cinema.Win7Button
+import com.molina.core.ui.Win7
+import com.molina.core.ui.Win7Button
 import com.molina.studio.system.BtopMonitor
 import com.molina.studio.system.BtopSnapshot
 import com.molina.studio.system.TaskActions
@@ -58,6 +58,8 @@ import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.molina.core.ui.RgbFrame
+import com.molina.core.ui.RgbSpot
 
 /** [BTOP-MONITOR] Tab "btop" di Monitor Sistem: CPU per inti, RAM/swap, jaringan, dan tabel proses detail. */
 

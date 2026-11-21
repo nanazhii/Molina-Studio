@@ -26,7 +26,7 @@ import com.molina.core.download.DownloadHistoryEntry
 import com.molina.core.diag.LogRedact
 import com.molina.studio.ui.MolinaTheme
 import com.molina.studio.settings.W7D
-import com.molina.studio.settings.win7Card
+import com.molina.core.ui.win7Card
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

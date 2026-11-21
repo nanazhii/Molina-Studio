@@ -58,8 +58,8 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import java.io.File
-import com.molina.studio.cinema.drawMintFolder
-import com.molina.studio.cinema.drawMintFile
+import com.molina.core.ui.drawMintFolder
+import com.molina.core.ui.drawMintFile
 
 internal enum class PickMode { Folder, File }
 

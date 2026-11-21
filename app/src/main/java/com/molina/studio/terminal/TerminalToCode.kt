@@ -15,10 +15,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.molina.studio.cinema.Win7
-import com.molina.studio.cinema.Win7Button
+import com.molina.core.ui.Win7
+import com.molina.core.ui.Win7Button
 import com.molina.studio.code.CodeInbox
-import com.molina.studio.settings.Win7GlassWindow
+import com.molina.core.ui.Win7GlassWindow
 
 /** Dialog "Sisip ke Code": pilih jumlah keluaran Terminal yang disisipkan di posisi kursor tab Code aktif. */
 @Composable

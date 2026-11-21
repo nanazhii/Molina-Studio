@@ -12,6 +12,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.io.File
+import com.molina.core.ui.Win7
+import com.molina.core.ui.Win7Button
 
 /** [NANO-OPENWITH] Pilihan editor untuk berkas teks di Penjelajah. */
 internal enum class W7OpenWith { CODE, NANO, OTHER }

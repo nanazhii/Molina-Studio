@@ -30,6 +30,7 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 import com.molina.studio.ui.MolinaTheme
+import com.molina.core.ui.Win7
 
 // [SPLIT-MENUPARTS] Komponen menu Penjelajah yang dipakai bersama, dipecah dari Win7OpenDialog.kt:
 // ikon (W7Ico, W7MenuIcon), item menu (W7MenuItem, W7ChoiceItem), bilah ikon (W7IconCmd),
