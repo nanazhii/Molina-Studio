@@ -1,6 +1,7 @@
 package com.molina.core.ui
 
 import androidx.compose.runtime.Composable
+import com.molina.core.files.FolderBadges
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -22,5 +23,5 @@ fun FileTreeIcon(
     box: Dp = FileTreeIconSize.Icon,
     tint: MintFolderTint = MintFolderTint.Mint
 ) {
-    if (isDir) MintFolder(box, open = open, tint = tint) else MintFileIcon(name.substringAfterLast('.', ""), box)
+    if (isDir) MintFolder(box, badge = FolderBadges.of(name), open = open, tint = tint) /* [FOLDER-BADGE] */ else MintFileIcon(name.substringAfterLast('.', ""), box)
 }

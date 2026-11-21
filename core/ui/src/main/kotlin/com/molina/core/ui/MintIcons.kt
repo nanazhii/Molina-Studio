@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
+import com.molina.core.files.FolderBadge
 import com.molina.core.files.FolderKind
 import com.molina.core.files.FolderKinds
 import com.molina.studio.ui.MolinaTheme
@@ -75,10 +76,10 @@ private fun mintFold(w: Float, h: Float) = Path().apply {
 
 /**
  * [MINT-ICONS] Satu-satunya gambar folder Mint (semi-flat): tab kiri atas, badan bergradasi, sorot tipis.
- * [open] = muka depan miring (folder yang di-expand di tree). [star] = penanda folder akar Molina.
+ * [open] = muka depan miring (folder yang di-expand di tree). [badge] = lencana (bintang Molina, panah Download, putar Movies; [FOLDER-BADGE] doc).
  * Dipakai komposabel [MintFolder] dan Canvas modul lain (mis. tree editor Code).
  */
-fun DrawScope.drawMintFolder(open: Boolean = false, star: Boolean = false, tint: MintFolderTint = MintFolderTint.Mint) {
+fun DrawScope.drawMintFolder(open: Boolean = false, badge: FolderBadge = FolderBadge.NONE, tint: MintFolderTint = MintFolderTint.Mint) {
     val w = size.width
     val h = size.height
     drawRoundRect(tint.back, Offset(w * 0.06f, h * 0.18f), Size(w * 0.38f, h * 0.20f), CornerRadius(w * 0.06f))
@@ -94,7 +95,7 @@ fun DrawScope.drawMintFolder(open: Boolean = false, star: Boolean = false, tint:
         drawRoundRect(Color.White.copy(alpha = 0.45f), Offset(w * 0.10f, h * 0.385f), Size(w * 0.80f, h * 0.035f), CornerRadius(w * 0.02f))
         drawRoundRect(tint.shade.copy(alpha = 0.55f), Offset(w * 0.06f, h * 0.82f), Size(w * 0.88f, h * 0.04f), CornerRadius(w * 0.02f))
     }
-    if (star) {
+    if (badge == FolderBadge.STAR) { // [FOLDER-BADGE] gambar
         val sp = Path()
         for (i in 0 until 10) {
             val rad = if (i % 2 == 0) w * 0.17f else w * 0.075f
@@ -105,6 +106,17 @@ fun DrawScope.drawMintFolder(open: Boolean = false, star: Boolean = false, tint:
         }
         sp.close()
         drawPath(sp, MintPalette.Star)
+    }
+    if (badge == FolderBadge.DOWNLOAD) { // [FOLDER-BADGE] panah turun
+        val ar = Path().apply {
+            moveTo(w * 0.46f, h * 0.46f); lineTo(w * 0.54f, h * 0.46f); lineTo(w * 0.54f, h * 0.60f); lineTo(w * 0.66f, h * 0.60f)
+            lineTo(w * 0.50f, h * 0.77f); lineTo(w * 0.34f, h * 0.60f); lineTo(w * 0.46f, h * 0.60f); close()
+        }
+        drawPath(ar, MintPalette.Star)
+    }
+    if (badge == FolderBadge.PLAY) { // [FOLDER-BADGE] putar
+        val pl = Path().apply { moveTo(w * 0.42f, h * 0.48f); lineTo(w * 0.42f, h * 0.76f); lineTo(w * 0.64f, h * 0.62f); close() }
+        drawPath(pl, MintPalette.Star)
     }
 }
 
@@ -123,8 +135,8 @@ fun DrawScope.drawMintFile(stripe: Color) {
 }
 
 @Composable
-fun MintFolder(box: Dp, star: Boolean = false, open: Boolean = false, tint: MintFolderTint = MintFolderTint.Mint) {
-    Canvas(Modifier.size(box)) { drawMintFolder(open, star, tint) }
+fun MintFolder(box: Dp, badge: FolderBadge = FolderBadge.NONE, open: Boolean = false, tint: MintFolderTint = MintFolderTint.Mint) {
+    Canvas(Modifier.size(box)) { drawMintFolder(open, badge, tint) }
 }
 
 /** [MINT-ICONS] Berkas gaya Mint-Y: halaman terang bersudut lipat, simbol per jenis, pita warna + label untuk dokumen/kode. */

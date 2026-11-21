@@ -103,6 +103,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.molina.core.ui.MintFileIcon
+import com.molina.core.files.FolderBadge
+import com.molina.core.files.FolderBadges
 import com.molina.core.ui.MintFolder
 // [FOLDER-UNIFORM] impor MintFolderTint dihapus (tidak dipakai lagi)
 import com.molina.core.ui.Win7
@@ -739,7 +741,7 @@ private fun W7Cmd(label: String, enabled: Boolean, onClick: () -> Unit) {
 private fun W7NavPane(favs: List<W7Place>, vols: List<W7Place>, dir: File, modifier: Modifier, onBin: (() -> Unit)? = null, recents: List<File> = emptyList(), onGo: (File) -> Unit) {
     Column(modifier.background(Win7.NavBg).verticalScroll(rememberScrollState()).padding(vertical = 6.dp)) {
         W7NavHeader("Favorit", true)
-        favs.forEach { p -> W7NavItem(p.label, dir == p.dir, { if (p.molina) MintFolder(16.dp, star = true) else MintFolder(16.dp) /* [FOLDER-UNIFORM] sidebar */ }) { onGo(p.dir) } }
+        favs.forEach { p -> W7NavItem(p.label, dir == p.dir, { if (p.molina) MintFolder(16.dp, FolderBadge.STAR) else MintFolder(16.dp, FolderBadges.of(p.dir.name)) /* [FOLDER-BADGE] sidebar */ }) { onGo(p.dir) } }
         if (recents.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))
             W7NavHeader("Terakhir", false)
@@ -933,7 +935,7 @@ private fun W7EntryRow(
             Spacer(Modifier.width(6.dp))
         }
         val iconSz = if (wide) 22.dp else 28.dp // [MINT-ICONS] lebih kecil, seimbang dengan teks
-        if (e.isDir) MintFolder(iconSz) /* [FOLDER-UNIFORM] daftar: semua folder mint, sama dengan drawer dan Code */ else if (W7Thumb.hasThumb(e.file)) { // [LIST-THUMB] frame video / cover audio lewat W7Thumb (cache LRU, dekode di IO)
+        if (e.isDir) MintFolder(iconSz, FolderBadges.of(e.name)) /* [FOLDER-BADGE] daftar: mint seragam, lencana untuk folder penting */ else if (W7Thumb.hasThumb(e.file)) { // [LIST-THUMB] frame video / cover audio lewat W7Thumb (cache LRU, dekode di IO)
             val thumb by produceState<ImageBitmap?>(null, e.file.path) {
                 kotlinx.coroutines.delay(250) // debounce: gulir cepat membatalkan sebelum dekode dimulai
                 value = W7Thumb.load(e.file)?.asImageBitmap()

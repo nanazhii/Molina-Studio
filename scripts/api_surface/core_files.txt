@@ -10,6 +10,8 @@ com.molina.core.files.FileTypes: val AUDIO: Set<String>
 com.molina.core.files.FileTypes: val LISTS: Set<String>
 com.molina.core.files.FileTypes: val MEDIA: Set<String>
 com.molina.core.files.FileTypes: val VIDEO: Set<String>
+com.molina.core.files.FolderBadge: enum entries NONE, STAR, DOWNLOAD, PLAY
+com.molina.core.files.FolderBadges: fun of(name: String): FolderBadge
 com.molina.core.files.FolderKind: enum entries DEFAULT, DOWNLOAD, VIDEO, MUSIC, PICTURES, DOCS
 com.molina.core.files.FolderKinds: fun of(name: String): FolderKind
 com.molina.core.files.NanoName: const val NONE
@@ -25,9 +27,11 @@ com.molina.core.files.PathCrumbs: class Tail(val truncated: Boolean, val crumbs:
 com.molina.core.files.PathCrumbs: const val INTERNAL
 com.molina.core.files.PathCrumbs: const val SEP
 com.molina.core.files.PathCrumbs: fun tail(path: String, keep: Int = 2): Tail
+com.molina.core.files: enum class FolderBadge
 com.molina.core.files: enum class FolderKind
 com.molina.core.files: object DirOrder
 com.molina.core.files: object FileTypes
+com.molina.core.files: object FolderBadges
 com.molina.core.files: object FolderKinds
 com.molina.core.files: object NanoName
 com.molina.core.files: object NaturalOrder
