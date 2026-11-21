@@ -11,6 +11,7 @@ import com.molina.core.stream.VideoQuality as CoreQuality // [QUALITY-SHEET]
 import com.molina.core.stream.StreamSearchItem
 import com.molina.core.net.ShieldProxy
 import com.molina.core.net.ShieldStats
+import com.molina.core.library.StallTracker
 import com.molina.core.policy.ExternalIntentGate
 import com.molina.core.net.UrlPolicy
 import com.molina.core.policy.IntentExtras
@@ -108,7 +109,6 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     private class QualitySnap(val path: String?, val variants: List<VideoVariant>, val pos: Double, val idx: Int)
 
-    @Volatile private var tierShiftBusy = false
     private var tracksJob: Job? = null
 
     /** [ANR-FIX2] track-list berubah berkali-kali saat ganti varian: debounce, baca di thread khusus. */
@@ -2703,24 +2703,19 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     // [AUTO-NET-2] Turun satu tier otomatis saat macet berulang (3x/60 dtk atau sekali >= 8 dtk). Hanya mode AUTO:
     // kunci eksplisit tidak pernah ditimpa. Naik lagi hanya pada video berikutnya (memuat ulang memutus buffer).
-    private val stallTimes = kotlin.collections.ArrayDeque<Long>()
-    private var lastTierShiftAt = 0L
+    // [E-3b-3b] Aturan hitung macet, jeda, dan penjagaan ada di StallTracker (:core:library); di sini hanya efeknya.
+    private val stallTracker = StallTracker()
     private val tierLongStall = Runnable { autoDownshift() }
 
     private fun noteStall() {
         if (isFinishing || isDestroyed || effectiveQuality() != CoreQuality.AUTO) return
         // [ANR-FIX2] pemeriksaan seeking & time-pos < 5 dtk (buffering awal bukan tanda jaringan buruk) dipindah ke pemanggil
-        val now = android.os.SystemClock.elapsedRealtime()
-        stallTimes.addLast(now)
-        while (stallTimes.isNotEmpty() && now - stallTimes.first() > 60_000L) stallTimes.removeFirst()
-        if (stallTimes.size >= 3) autoDownshift()
+        if (stallTracker.recordStall(android.os.SystemClock.elapsedRealtime())) autoDownshift()
     }
 
     private fun autoDownshift() {
-        val now = android.os.SystemClock.elapsedRealtime()
-        if (isFinishing || isDestroyed || now - lastTierShiftAt < 30_000L) return
-        if (effectiveQuality() != CoreQuality.AUTO || tierShiftBusy) return // [ANR-FIX2]
-        tierShiftBusy = true
+        if (isFinishing || isDestroyed || effectiveQuality() != CoreQuality.AUTO) return
+        if (!stallTracker.tryBeginShift(android.os.SystemClock.elapsedRealtime())) return // [ANR-FIX2]
         streamScope.launch {
             val snap = withContext(mpvDispatcher) {
                 if (MPVLib.getPropertyBoolean("seeking") == true) return@withContext null
@@ -2730,12 +2725,10 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             }
             val page = snap?.path?.let { streamSources[it] }
             if (snap == null || page == null || !StreamLoader.isWebUrl(page) || !com.molina.core.library.AdaptiveTier.downshift(page)) {
-                tierShiftBusy = false
+                stallTracker.abortShift()
                 return@launch
             }
-            lastTierShiftAt = now
-            stallTimes.clear()
-            tierShiftBusy = false
+            stallTracker.commitShift()
             showToast(getString(R.string.tier_down), true)
             val pos = snap.pos
             val idx = snap.idx
@@ -2756,7 +2749,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         bufferingHandler.removeCallbacks(bufferingHint)
         bufferingHandler.removeCallbacks(tierLongStall) // [AUTO-NET-2]
         if (on) {
-            bufferingHandler.postDelayed(tierLongStall, 8000L) // [AUTO-NET-2]
+            bufferingHandler.postDelayed(tierLongStall, StallTracker.LONG_STALL_MS) // [AUTO-NET-2]
             streamScope.launch { // [ANR-FIX2] baca seeking/time-pos di thread khusus
                 val skip = withContext(mpvDispatcher) {
                     MPVLib.getPropertyBoolean("seeking") == true || (MPVLib.getPropertyDouble("time-pos") ?: 0.0) < 5.0
