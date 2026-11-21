@@ -150,6 +150,7 @@ internal object CinemaActions {
     private fun start(ctx: Context, i: Intent): Boolean =
         try {
             // [EXT-CONFIRM] intent internal ke pemutar membawa token; tanpa token, MPVActivity meminta konfirmasi untuk URL jaringan
+            if (ctx !is android.app.Activity) i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) // [MEDIA-GW] konteks aplikasi (kontrak) butuh task baru
             if (i.component?.className == PLAYER) i.putExtra(ExternalIntentGate.EXTRA, ShortcutToken.get(ctx))
             ctx.startActivity(i); true
         } catch (e: Exception) { false }

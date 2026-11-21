@@ -37,12 +37,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.molina.studio.cinema.CinemaActions
 import com.molina.core.ui.Win7
 import com.molina.core.ui.Win7Button
 import com.molina.core.ui.Win7GlassWindow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.molina.core.api.MolinaServices
 
 /**
  * Dialog "Tautan di layar": daftar URL dari transkrip Terminal (terbaru di atas), masing-masing bisa
@@ -94,8 +94,7 @@ private fun LinkRow(ctx: Context, url: String, onDismiss: () -> Unit) {
         )
         Row(Modifier.fillMaxWidth().padding(top = 3.dp), horizontalArrangement = Arrangement.End) {
             LinkBtn("Putar") {
-                val input = CinemaActions.classify(url)
-                val ok = input is CinemaActions.Input.Direct && CinemaActions.play(ctx, input.uri)
+                val ok = MolinaServices.media.playUrl(url)
                 if (ok) onDismiss() else toast(ctx, "Molina Cinema tidak dapat memutar tautan ini")
             }
             if (isWeb) LinkBtn("Buka") {

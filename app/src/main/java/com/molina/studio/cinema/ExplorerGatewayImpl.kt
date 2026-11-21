@@ -1,5 +1,6 @@
 package com.molina.studio.cinema
 
+import android.content.Context
 import com.molina.core.api.ExplorerGateway
 import com.molina.core.api.ExplorerPickKind
 import com.molina.core.api.ExplorerRequest
@@ -12,7 +13,8 @@ import java.io.File
 import java.util.concurrent.atomic.AtomicLong
 
 /** [EXPLORER-GW] Implementasi kontrak [ExplorerGateway]: menyimpan satu permintaan aktif untuk dirender [ExplorerHost]. */
-class ExplorerGatewayImpl : ExplorerGateway {
+class ExplorerGatewayImpl(context: Context) : ExplorerGateway {
+    private val app = context.applicationContext
     private val state = MutableStateFlow<ExplorerRequest?>(null)
     private val seq = AtomicLong(0)
 
@@ -24,6 +26,8 @@ class ExplorerGatewayImpl : ExplorerGateway {
         replaced?.onResult?.invoke(null)
         return id
     }
+
+    override fun lastFolder(): File? = ExplorerRecent.last(app)
 
     override fun complete(id: Long, result: File?) {
         var done: ExplorerRequest? = null

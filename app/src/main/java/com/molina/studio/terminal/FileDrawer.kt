@@ -63,7 +63,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.molina.core.system.MolinaPaths
 import com.molina.core.library.TrashBin
-import com.molina.studio.cinema.ExplorerRecent
 import com.molina.studio.cinema.FileOps
 import com.molina.studio.cinema.W7ConfirmDialog
 import com.molina.core.ui.MintFileIcon
@@ -80,6 +79,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import com.molina.core.ui.MintFolderTint
+import com.molina.core.api.MolinaServices
 
 private val Brand = MolinaTheme.Brand
 // [DRAWER-HAMBURGER] lebar drawer: porsi layar, dijepit ke rentang ini (header butuh sekitar 200dp)
@@ -161,7 +161,7 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
     val storageRoot = remember { Environment.getExternalStorageDirectory() }
     val vols = remember { volumeDirs() } // [FILE-DRAWER3] internal + kartu SD, dibaca setiap drawer dibuka
     val st = FileTreeStore
-    val initialRoot = remember { ExplorerRecent.last(ctx) ?: storageRoot }
+    val initialRoot = remember { MolinaServices.explorer.lastFolder() ?: storageRoot }
     val root: File = st.root ?: initialRoot
     var menuFor by remember { mutableStateOf<String?>(null) }
     var sheet by remember { mutableStateOf<Sheet?>(null) }

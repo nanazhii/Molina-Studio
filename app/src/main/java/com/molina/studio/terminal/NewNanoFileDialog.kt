@@ -46,12 +46,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
 import com.molina.studio.ui.MolinaTheme
 import androidx.compose.runtime.rememberCoroutineScope
-import com.molina.studio.cinema.ExplorerRecent
 import com.molina.studio.cinema.FileOps
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.molina.studio.settings.MolinaExplorer
+import com.molina.core.api.MolinaServices
 
 /** [NANO-EXT] Pecah/gabung nama berkas + daftar ekstensi umum. Dotfile (.bashrc) dianggap tanpa ekstensi. */
 internal object NanoName {
@@ -90,7 +90,7 @@ internal fun NewNanoFileDialog(
 ) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope() // [DRAWER-BOTTOM]
-    val dir = remember { baseDir ?: ExplorerRecent.last(ctx) ?: Environment.getExternalStorageDirectory() } // [FILE-DRAWER3] folder aktif drawer
+    val dir = remember { baseDir ?: MolinaServices.explorer.lastFolder() ?: Environment.getExternalStorageDirectory() } // [FILE-DRAWER3] folder aktif drawer
     val init = remember { NanoName.initial(null) } // [NANO-TEMPLATE] selalu template, bukan nama berkas terakhir
     var stem by remember { mutableStateOf(init.first) }
     var ext by remember { mutableStateOf(init.second) }

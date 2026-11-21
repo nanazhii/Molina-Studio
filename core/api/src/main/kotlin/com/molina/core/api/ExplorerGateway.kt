@@ -25,4 +25,7 @@ interface ExplorerGateway {
     fun complete(id: Long, result: File?)
 
     fun cancel(id: Long) = complete(id, null)
+
+    /** Folder terakhir yang dibuka di Penjelajah (masih ada), atau null bila belum ada. */
+    fun lastFolder(): File? = null
 }

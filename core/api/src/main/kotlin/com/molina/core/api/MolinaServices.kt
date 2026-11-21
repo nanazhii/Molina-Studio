@@ -13,4 +13,10 @@ object MolinaServices {
     var explorer: ExplorerGateway
         get() = checkNotNull(explorerImpl) { "ExplorerGateway belum didaftarkan (MolinaApp.onCreate)" }
         set(v) { explorerImpl = v }
+
+    @Volatile private var mediaImpl: MediaGateway? = null
+
+    var media: MediaGateway
+        get() = checkNotNull(mediaImpl) { "MediaGateway belum didaftarkan (MolinaApp.onCreate)" }
+        set(v) { mediaImpl = v }
 }
