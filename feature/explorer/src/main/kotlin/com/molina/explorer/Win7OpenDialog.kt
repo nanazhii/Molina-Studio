@@ -272,32 +272,29 @@ fun Win7OpenDialog(
     val roots = vols.map { it.dir.path }
     val canUp = dir.path !in roots && dir.parentFile != null
     // [NAV-HISTORY] riwayat Mundur/Maju antar folder (maks. 50); tombol bulat di kiri atas = Mundur, bila kosong = Naik
-    val backStack = remember { mutableStateListOf<String>() }
-    val fwdStack = remember { mutableStateListOf<String>() }
+    val hist = remember { NavHistory(50) }
+    var histTick by remember { mutableStateOf(0) } // NavHistory bukan state Compose: naikkan saat riwayat berubah supaya tombol Mundur ikut tersegarkan
     fun go(to: File) {
-        if (to.path != dir.path) {
-            backStack.add(dir.path)
-            if (backStack.size > 50) backStack.removeAt(0)
-            fwdStack.clear()
-        }
+        hist.visit(dir.path, to.path)
+        histTick++
         dir = to; selected = null; fileName = ""; actions.resetFeedback(); query = ""; if (browse) ExplorerRecent.push(ctx, to)
     } // [PICK-PERSIST] picked bertahan lintas folder
     fun jump(to: File) {
         dir = to; selected = null; fileName = ""; actions.resetFeedback(); query = ""; if (browse) ExplorerRecent.push(ctx, to)
     }
     fun goBack(): Boolean {
-        while (backStack.isNotEmpty()) {
-            val p = File(backStack.removeAt(backStack.size - 1))
-            if (p.isDirectory) { fwdStack.add(dir.path); jump(p); return true }
-        }
-        return false
+        val p = hist.back(dir.path) { File(it).isDirectory }
+        histTick++
+        if (p == null) return false
+        jump(File(p))
+        return true
     }
     fun goForward(): Boolean {
-        while (fwdStack.isNotEmpty()) {
-            val p = File(fwdStack.removeAt(fwdStack.size - 1))
-            if (p.isDirectory) { backStack.add(dir.path); jump(p); return true }
-        }
-        return false
+        val p = hist.forward(dir.path) { File(it).isDirectory }
+        histTick++
+        if (p == null) return false
+        jump(File(p))
+        return true
     }
     fun goUp(): Boolean {
         val parent = dir.parentFile
@@ -501,7 +498,7 @@ fun Win7OpenDialog(
             }
             Column(Modifier.weight(1f).fillMaxWidth().border(1.dp, Win7.FrameLine).background(Win7.Face)) {
                 Row(Modifier.fillMaxWidth().padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Win7BackOrb(canUp || backStack.isNotEmpty()) { if (!goBack()) goUp() }
+                    Win7BackOrb(canUp || (histTick >= 0 && hist.canBack)) { if (!goBack()) goUp() }
                     if (portrait && !browse) W7Cmd("\u2630", true) { navOpen = !navOpen } // [DROP-HAMBURGER] mode jelajah: lihat menu drop-up
                     val showBox = !portrait || searchOpen || query.isNotBlank()
                     val showCrumbs = !portrait || !showBox
