@@ -25,6 +25,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +45,7 @@ import androidx.compose.ui.unit.sp
 import com.molina.core.ui.ExpanderIcon // [EXPANDER-ICON]
 import com.molina.core.ui.FileTreeIcon
 import com.molina.core.ui.MoreDotsIcon // [DRAWER-DOTS]
+import com.molina.core.ui.Win7BackOrb // [DRAWER-HEADER-SAMA]
 
 /**
  * Panel direktori (F4, blueprint bagian 5): laci dari kiri selebar 72% layar (maks 320dp) dengan
@@ -117,42 +121,35 @@ internal fun DirectoryPanel(session: CodeSession, modifier: Modifier = Modifier)
     }
 }
 
-/** Header panel: naik satu level, nama + path folder utama (ketuk = ganti folder), file baru, folder baru, tutup. */
+/**
+ * [DRAWER-HEADER-SAMA] Header panel: sama dengan drawer Terminal. Bulatan kembali (naik satu level), bilah path
+ * berbingkai (segmen bisa diketuk), dan titik tiga (File baru, Folder baru, Pilih folder utama, Tutup panel).
+ */
 @Composable
 private fun DrawerHeader(session: CodeSession) {
     val dir = session.dir
+    var menuOpen by remember { mutableStateOf(false) }
+    val canUp = dir.root.path != FileStore.STORAGE_ROOT
     Row(
-        Modifier
-            .fillMaxWidth()
-            .height(CodeDimens.DrawerHeaderHeight)
-            .padding(horizontal = 4.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        DirIconButton(DirIcon.Up, enabled = dir.root.path != FileStore.STORAGE_ROOT) { dir.up() }
-        Column(
-            Modifier
-                .weight(1f)
-                .clickable {
-                    session.picker = PickerRequest(PickMode.Folder, dir.root, "Pilih folder utama") { dir.changeRoot(it) }
-                }
-                .padding(horizontal = 4.dp)
-        ) {
-            BasicText(
-                text = dir.root.name.ifEmpty { "/" },
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = TextStyle(color = CodeColors.TextPrimary, fontSize = 14.sp)
-            )
-            BasicText(
-                text = dir.root.path,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = TextStyle(color = CodeColors.SecondaryNeutral, fontSize = 10.sp)
-            )
+        Box(Modifier.size(44.dp).clickable(enabled = canUp) { dir.up() }, contentAlignment = Alignment.Center) {
+            Win7BackOrb(canUp)
         }
-        DirIconButton(DirIcon.NewFile) { session.fileDialog = FileDialog.NewFile(dir.root) }
-        DirIconButton(DirIcon.NewFolder) { session.fileDialog = FileDialog.NewFolder(dir.root) }
-        DirIconButton(DirIcon.Close, tint = CodeColors.Danger) { dir.closePanel() }
+        DrawerPathBar(
+            dir.root.path,
+            canGo = { d -> d.path == FileStore.STORAGE_ROOT || d.path.startsWith(FileStore.STORAGE_ROOT + "/") },
+            onGo = { dir.changeRoot(it) },
+            modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
+        )
+        Box(
+            Modifier.width(CodeDimens.TreeMenuButtonWidth).height(44.dp).clickable { menuOpen = true },
+            contentAlignment = Alignment.Center
+        ) {
+            MoreDotsIcon(CodeColors.IconDim)
+            if (menuOpen) DrawerHeaderMenu(session) { menuOpen = false }
+        }
     }
 }
 

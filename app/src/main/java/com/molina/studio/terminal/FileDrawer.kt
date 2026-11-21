@@ -97,7 +97,7 @@ private val DrawerShape = androidx.compose.foundation.shape.RoundedCornerShape(t
 private val MenuShape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp) // [DRAWER-DOTS] menu konteks: sudut 14dp, latar gelap
 private val MenuColor = MolinaTheme.CardBg
 private val DotsWidth = 36.dp // lebar kotak titik tiga per baris dan header
-private val DrawerFrameColor = Color(0xFF00E676).copy(alpha = 0.6f) // [DRAWER-GREEN] hijau transparan (60%)
+private val DrawerFrameColor = Color.White // [DRAWER-WHITE] bingkai putih (dulu hijau transparan)
 
 /** [FILE-DRAWER2] Keadaan tree dipegang di sini (bukan remember) agar folder utama dan folder terbuka bertahan lintas pembukaan drawer. */
 private object FileTreeStore {
@@ -306,7 +306,7 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 f.name, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                color = if (isDir) Brand else MaterialTheme.colorScheme.onSurface,
+                                color = if (isDir) Color.White else MaterialTheme.colorScheme.onSurface, // [DRAWER-WHITE] nama folder putih
                                 fontFamily = FontFamily.Monospace, fontSize = 13.sp
                             )
                         }

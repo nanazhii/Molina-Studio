@@ -289,6 +289,32 @@ internal fun TreeActionMenu(session: CodeSession, file: File) {
     }
 }
 
+/** [DRAWER-HEADER-SAMA] Menu titik tiga header panel direktori (menempel di titik tiga, rata kanan). */
+@Composable
+internal fun DrawerHeaderMenu(session: CodeSession, onDismiss: () -> Unit) {
+    val density = LocalDensity.current
+    val provider = remember(density) {
+        AnchoredMenuPositionProvider(with(density) { 2.dp.roundToPx() }, with(density) { 8.dp.roundToPx() })
+    }
+    val dir = session.dir
+    val items = listOf(
+        ActionItem("File baru", icon = MenuIcon.New) { onDismiss(); session.fileDialog = FileDialog.NewFile(dir.root) },
+        ActionItem("Folder baru", icon = MenuIcon.NewFolder) { onDismiss(); session.fileDialog = FileDialog.NewFolder(dir.root) },
+        ActionItem("Pilih folder utama", icon = MenuIcon.Open) {
+            onDismiss()
+            session.picker = PickerRequest(PickMode.Folder, dir.root, "Pilih folder utama") { dir.changeRoot(it) }
+        },
+        ActionItem("Tutup panel", separatorBefore = true, icon = MenuIcon.Back) { onDismiss(); dir.closePanel() }
+    )
+    Popup(
+        popupPositionProvider = provider,
+        onDismissRequest = onDismiss,
+        properties = PopupProperties(focusable = true)
+    ) {
+        CompactActionMenu(dir.root.name.ifEmpty { "/" }, items)
+    }
+}
+
 /** Dropdown ringkas kanan atas untuk "Aksi file" dari menu titik tiga header. */
 @Composable
 private fun HeaderActionMenu(session: CodeSession, file: File) {
