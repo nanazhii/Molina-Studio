@@ -12,5 +12,5 @@ FX="$(mktemp -d)"
 trap 'rm -rf "$OUT" "$FX"' EXIT
 python3 scripts/app-tests/make_archive_fixtures.py "$FX"
 C=app/src/main/java/com/molina/studio/cinema
-"$KC" -nowarn -cp "$ARCHIVE_DEPS" -d "$OUT" core/fileops/src/main/kotlin/com/molina/core/fileops/FileOps.kt core/fileops/src/main/kotlin/com/molina/core/fileops/ArchiveNames.kt core/fileops/src/main/kotlin/com/molina/core/fileops/ArchiveEngine.kt scripts/app-tests/ArchiveEngineTests.kt
+"$KC" -nowarn -cp "$ARCHIVE_DEPS" -d "$OUT" core/fileops/src/main/kotlin/com/molina/core/fileops/FileOpOutcome.kt core/fileops/src/main/kotlin/com/molina/core/fileops/FileOps.kt core/fileops/src/main/kotlin/com/molina/core/fileops/ArchiveNames.kt core/fileops/src/main/kotlin/com/molina/core/fileops/ArchiveEngine.kt scripts/app-tests/ArchiveEngineTests.kt
 java -cp "$OUT:$ARCHIVE_DEPS:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" ArchiveEngineTestsKt "$FX"

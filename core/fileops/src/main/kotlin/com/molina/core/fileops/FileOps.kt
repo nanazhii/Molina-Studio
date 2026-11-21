@@ -59,10 +59,10 @@ object FileOps {
     }
 
     /** [ZIP-AES] ZIP berkata sandi tetapi sandi belum diberikan. */
-    class NeedPassword : IOException("Arsip ini dilindungi kata sandi")
+    class NeedPassword : IOException("Arsip ini dilindungi kata sandi"), ExpectedFailure
 
     /** [ZIP-AES] Kata sandi ZIP salah. */
-    class WrongPassword : IOException("Kata sandi salah")
+    class WrongPassword : IOException("Kata sandi salah"), ExpectedFailure
 
     private fun isLink(f: File): Boolean = try { Files.isSymbolicLink(f.toPath()) } catch (e: Exception) { false }
     private fun present(f: File): Boolean = f.exists() || isLink(f)

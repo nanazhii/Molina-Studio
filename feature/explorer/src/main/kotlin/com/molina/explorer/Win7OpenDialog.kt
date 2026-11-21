@@ -56,8 +56,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.molina.core.api.LogLevel
-import com.molina.core.log.LogBus
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -76,7 +74,6 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.DialogWindowProvider
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -103,7 +100,6 @@ import com.molina.studio.ui.MolinaTheme
 import com.molina.core.library.ProtectedPaths
 import com.molina.core.library.StorageVolumes
 import com.molina.core.library.TrashBin
-import com.molina.core.library.TrashItem
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -218,8 +214,6 @@ fun Win7OpenDialog(
     var entries by remember { mutableStateOf<List<W7Entry>?>(emptyList()) }
     var selected by remember { mutableStateOf<W7Entry?>(null) }
     var fileName by remember { mutableStateOf("") }
-    var message by remember { mutableStateOf("") }
-    var undo by remember { mutableStateOf<List<TrashItem>?>(null) }
     var showBin by remember { mutableStateOf(false) }
     var comboOpen by remember { mutableStateOf(false) }
     // [FILEOPS-2] alat berkas Penjelajah: pilih banyak, salin, pindah, tempel, hapus, folder baru, ZIP/ekstrak, ubah nama, favorit, properti
@@ -228,46 +222,24 @@ fun Win7OpenDialog(
     var clip by remember { mutableStateOf<W7Clip?>(null) }
     var toolsOpen by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) } // [DROP-MENU]
-    var busy by remember { mutableStateOf(false) }
     var sheet by remember { mutableStateOf<W7Sheet?>(null) }
-    var messageOk by remember { mutableStateOf(false) }
     var multi by remember { mutableStateOf(false) }
     var showSelectHelp by remember { mutableStateOf(false) } // [HELP-PANEL]
     var picked by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var progress by remember { mutableStateOf<Float?>(null) }
-    val cancelFlag = remember { AtomicBoolean(false) }
     val guard = remember {
         ProtectedPaths.of(vols.map { it.dir }, File(Environment.getExternalStorageDirectory(), com.molina.core.system.MolinaPaths.APP_FOLDER)) // [SSOT] core:library
     }
-    fun say(text: String, ok: Boolean = false) { message = text; messageOk = ok }
-    fun targets(): List<File> = if (multi) picked.map { File(it) } else listOfNotNull(selected?.file)
-    fun runOp(op: (FileOps.Ctl) -> String, onDone: () -> Unit = {}, onFail: (Throwable) -> Unit = {}) {
-        if (busy) return
-        if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            say("Izin tulis penyimpanan belum diberikan. Aktifkan izin Penyimpanan di Setelan Android.")
-            return
-        }
-        busy = true
-        progress = null
-        cancelFlag.set(false)
-        undo = null
-        say("Memproses\u2026", true)
-        scope.launch {
-            val ctl = FileOps.Ctl(cancelFlag) { p -> progress = p }
-            val r = withContext(Dispatchers.IO) { runCatching { op(ctl) } }
-            busy = false
-            progress = null
-            r.onSuccess { say(it, true); onDone(); selected = null; picked = emptySet(); fileName = ""; tick++ }
-                .onFailure {
-                    say(it.message ?: ("Operasi gagal (" + it.javaClass.simpleName + ")"))
-                    if (it !is FileOps.NeedPassword && it !is FileOps.WrongPassword && it.message != "Dibatalkan") {
-                        LogBus.log("penjelajah", LogLevel.Error, "FileOps", w7Trace(it))
-                    }
-                    tick++
-                    onFail(it)
-                }
-        }
+    // [EXPLORER-ACTIONS] mesin operasi berkas dipisah dari composable; UI hanya menyajikan state dan memberi hook
+    val actions = remember {
+        ExplorerActions(
+            ctx, scope, volDirs, guard,
+            onClearSelection = { selected = null; picked = emptySet(); fileName = "" },
+            onReload = { tick++ }
+        )
     }
+    fun say(text: String, ok: Boolean = false) = actions.say(text, ok)
+    fun targets(): List<File> = if (multi) picked.map { File(it) } else listOfNotNull(selected?.file)
+    fun runOp(op: (FileOps.Ctl) -> String, onDone: () -> Unit = {}, onFail: (Throwable) -> Unit = {}) = actions.runOp(op, onDone, onFail)
 
     LaunchedEffect(Unit) { if (!granted) ask.launch(Manifest.permission.READ_EXTERNAL_STORAGE) }
     LaunchedEffect(Unit) { if (browse) withContext(Dispatchers.IO) { runCatching { TrashBin.autoPurge(volDirs) } } }
@@ -281,7 +253,7 @@ fun Win7OpenDialog(
         val deep = deepSearch && query.isNotBlank()
         if (deep) say("Mencari sampai subfolder\u2026", true)
         val r = withContext(Dispatchers.IO) { w7Load(dir, query, opts) { !isActive } }
-        if (deep && message.startsWith("Mencari")) say("")
+        if (deep && actions.message.startsWith("Mencari")) say("")
         entries = r?.first
         if (r != null && r.second) say("Hasil dibatasi " + ExplorerList.MAX_RESULTS + " teratas. Persempit kata kunci.")
     }
@@ -310,10 +282,10 @@ fun Win7OpenDialog(
             if (backStack.size > 50) backStack.removeAt(0)
             fwdStack.clear()
         }
-        dir = to; selected = null; fileName = ""; message = ""; query = ""; undo = null; if (browse) ExplorerRecent.push(ctx, to)
+        dir = to; selected = null; fileName = ""; actions.resetFeedback(); query = ""; if (browse) ExplorerRecent.push(ctx, to)
     } // [PICK-PERSIST] picked bertahan lintas folder
     fun jump(to: File) {
-        dir = to; selected = null; fileName = ""; message = ""; query = ""; undo = null; if (browse) ExplorerRecent.push(ctx, to)
+        dir = to; selected = null; fileName = ""; actions.resetFeedback(); query = ""; if (browse) ExplorerRecent.push(ctx, to)
     }
     fun goBack(): Boolean {
         while (backStack.isNotEmpty()) {
@@ -410,19 +382,7 @@ fun Win7OpenDialog(
         )
         is W7Sheet.Delete -> W7ConfirmDialog(s.files, s.permanent, onCancel = { sheet = null }) {
             sheet = null
-            if (s.permanent) {
-                runOp(op = { ctl -> "Dihapus permanen: " + FileOps.deleteAll(s.files, guard, ctl) + " item" })
-            } else {
-                val moved = arrayOfNulls<List<TrashItem>>(1)
-                runOp(
-                    op = { _ ->
-                        val r = TrashBin.trash(s.files, volDirs, guard)
-                        moved[0] = r
-                        "Dipindahkan ke Recycle Bin: " + r.size + " item"
-                    },
-                    onDone = { undo = moved[0] }
-                )
-            }
+            actions.delete(s.files, s.permanent)
         }
         is W7Sheet.Info -> W7InfoDialog(s.files, if (s.files.size == 1) isVisibleInDebian?.invoke(s.files[0]) else null) { sheet = null }
         is W7Sheet.Compress -> ArchiveCompressDialog( // [ARCHIVE2]
@@ -503,10 +463,10 @@ fun Win7OpenDialog(
 
     val frame = RoundedCornerShape(8.dp)
     // Keterangan hasil operasi melayang di atas daftar dan hilang sendiri (tidak menyita tinggi panel bawah)
-    LaunchedEffect(message) {
-        if (message.isNotBlank()) {
-            delay(if (undo != null) 9000L else (3500L + message.length * 30L).coerceAtMost(9000L))
-            message = ""
+    LaunchedEffect(actions.message) {
+        if (actions.message.isNotBlank()) {
+            delay(if (actions.undo != null) 9000L else (3500L + actions.message.length * 30L).coerceAtMost(9000L))
+            actions.dismissMessage()
         }
     }
     val backAction: () -> Unit = { if (multi) { multi = false; picked = emptySet() } else if (!goUp()) onDismiss() }
@@ -663,7 +623,7 @@ fun Win7OpenDialog(
                             else if (e.isDir) go(e.file)
                             else if (pickFolder) Unit
                             else if (selected?.file == e.file) { if (browse) smartOpen(e.file) else onPick(e.file) }
-                            else { selected = e; fileName = e.name; message = ""; if (browse && e.file.isFile) ExplorerRecent.pushFile(ctx, e.file) } // [NANO-EXT]
+                            else { selected = e; fileName = e.name; actions.dismissMessage(); if (browse && e.file.isFile) ExplorerRecent.pushFile(ctx, e.file) } // [NANO-EXT]
                         },
                         onEnter = { e -> go(e.file) },
                         onSwipeRight = if (browse) ({ e: W7Entry ->
@@ -705,18 +665,11 @@ fun Win7OpenDialog(
                         "Selesai" to "Pilih Selesai memilih di menu ikon kisi atau tekan tombol Kembali untuk keluar dari Mode Pilih."
                     )
                 ) { showSelectHelp = false } // [HELP-PANEL]
-                if (message.isNotBlank()) W7Toast(
-                    message, messageOk,
-                    actionLabel = if (undo != null && !busy) "Urungkan" else null,
-                    onAction = {
-                        val undoItems = undo
-                        if (undoItems != null) {
-                            undo = null
-                            message = ""
-                            runOp(op = { _ -> "Dipulihkan: " + TrashBin.restore(undoItems, volDirs).size + " item" })
-                        }
-                    },
-                    onDismiss = { message = "" },
+                if (actions.message.isNotBlank()) W7Toast(
+                    actions.message, actions.messageOk,
+                    actionLabel = if (actions.undo != null && !actions.busy) "Urungkan" else null,
+                    onAction = { actions.undoDelete() },
+                    onDismiss = { actions.dismissMessage() },
                     modifier = Modifier.align(Alignment.BottomCenter)
                 )
                 }
@@ -731,7 +684,7 @@ fun Win7OpenDialog(
                         val dkArc = !dkMedia && !dkText && !dkZip && dkFiles.size == 1 && dkFiles[0].isFile && ArchiveRoute.supports(dkFiles[0].name) // [ARCHIVE]
                         W7BrowseDock(
                             quickLabel = if (dkMedia) "Putar" else if (dkText) "Edit" else if (dkZip) "Buka ZIP" else if (dkArc) "Buka arsip" else null, // [DOCK-V3] Properti ada di menu Alat
-                            toolsEnabled = !busy,
+                            toolsEnabled = !actions.busy,
                             terminalEnabled = onCdTerminal != null || onOpenTerminal != null,
                             onQuick = {
                                 if (dkMedia) {
@@ -778,16 +731,16 @@ fun Win7OpenDialog(
                                             W7MenuItem(W7Ico.REFRESH, "Segarkan", true) { menuOpen = false; tick++ }
                                             W7MenuItem(W7Ico.SORT, "Urut\u2026", true) { menuOpen = false; sortOpen = true }
                                             W7MenuDivider() // [DROP-DIVIDER]
-                                            W7MenuItem(W7Ico.SELECT, if (multi) "Selesai memilih" else "Pilih", !busy) {
+                                            W7MenuItem(W7Ico.SELECT, if (multi) "Selesai memilih" else "Pilih", !actions.busy) {
                                                 menuOpen = false
                                                 multi = !multi; picked = emptySet(); selected = null; fileName = ""
                                             }
-                                            if (multi) W7MenuItem(W7Ico.SELECT_ALL, "Pilih semua", !busy) {
+                                            if (multi) W7MenuItem(W7Ico.SELECT_ALL, "Pilih semua", !actions.busy) {
                                                 menuOpen = false
                                                 val here = (entries ?: emptyList()).map { it.file.path }.toSet()
                                                 picked = if (here.isNotEmpty() && picked.containsAll(here)) picked - here else picked + here
                                             }
-                                            if (picked.isNotEmpty()) W7MenuItem(W7Ico.CLEAR, "Kosongkan pilihan", !busy) { menuOpen = false; picked = emptySet() }
+                                            if (picked.isNotEmpty()) W7MenuItem(W7Ico.CLEAR, "Kosongkan pilihan", !actions.busy) { menuOpen = false; picked = emptySet() }
                                         }
                                     }
                                     sortPopup(true)
@@ -805,7 +758,7 @@ fun Win7OpenDialog(
                         Text("Nama file:", color = Win7.Ink, fontSize = 12.sp, modifier = Modifier.width(66.dp))
                         BasicTextField(
                             value = fileName,
-                            onValueChange = { fileName = it; message = "" },
+                            onValueChange = { fileName = it; actions.dismissMessage() },
                             singleLine = true,
                             textStyle = TextStyle(color = Win7.Ink, fontSize = 13.sp),
                             cursorBrush = SolidColor(Win7.Ink),
@@ -845,14 +798,14 @@ fun Win7OpenDialog(
                     }
                     Spacer(Modifier.height(8.dp))
                     }
-                    if (busy) Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (actions.busy) Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.weight(1f).height(6.dp).background(Win7.Hairline)) {
-                            val p = progress
+                            val p = actions.progress
                             Box(Modifier.fillMaxHeight().fillMaxWidth(p?.coerceIn(0f, 1f) ?: 0.25f).background(Win7.DefaultLine))
                         }
                         Text(
                             "Hentikan", color = Win7.NavHeader, fontSize = 12.sp,
-                            modifier = Modifier.clickable { cancelFlag.set(true) }.padding(start = 10.dp, top = 4.dp, bottom = 4.dp)
+                            modifier = Modifier.clickable { actions.cancel() }.padding(start = 10.dp, top = 4.dp, bottom = 4.dp)
                         )
                     }
                     if (!browse) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -1171,10 +1124,6 @@ private fun W7SearchBox(value: String, onChange: (String) -> Unit, modifier: Mod
         }
     }
 }
-
-/** Jenis error + 8 baris tumpukan pertama, untuk Settings > Log (membantu mendiagnosis kegagalan di perangkat). */
-private fun w7Trace(t: Throwable): String =
-    t.javaClass.name + ": " + (t.message ?: "-") + "\n" + t.stackTrace.take(8).joinToString("\n") { "  at " + it }
 
 private fun w7Norm(p: String): String =
     if (p.startsWith("/sdcard/")) "/storage/emulated/0/" + p.removePrefix("/sdcard/") else p
