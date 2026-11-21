@@ -1,10 +1,10 @@
-package com.molina.studio.cinema
+package com.molina.explorer
 
 import android.content.Context
 import com.molina.core.fileops.ExplorerList
 
 /** Setelan sortir Penjelajah (SharedPreferences molina_explorer): diingat antar pembukaan. */
-internal object ExplorerPrefs {
+object ExplorerPrefs {
     private const val PREFS = "molina_explorer"
 
     class Data(

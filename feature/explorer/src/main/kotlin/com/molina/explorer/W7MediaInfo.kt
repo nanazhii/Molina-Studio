@@ -1,4 +1,4 @@
-package com.molina.studio.cinema
+package com.molina.explorer
 
 import android.media.MediaMetadataRetriever
 import com.molina.core.library.MediaSidecar
@@ -11,7 +11,7 @@ import java.io.File
  * [FILES-MEDIAINFO] Detail media untuk dialog Properti: durasi, resolusi, bitrate, format, judul/artis/album.
  * Dibaca di Dispatchers.IO lewat MediaMetadataRetriever; berkas yang tidak terbaca menghasilkan daftar kosong.
  */
-internal object W7MediaInfo {
+object W7MediaInfo {
     suspend fun read(f: File): List<Pair<String, String>> = withContext(Dispatchers.IO) { extract(f) }
 
     /** Baris tambahan dari `.info.json` sidecar (`molina_dl --sidecar`); kosong bila tidak ada atau rusak. */

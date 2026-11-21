@@ -1,4 +1,4 @@
-package com.molina.studio.cinema
+package com.molina.explorer
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -16,14 +16,14 @@ import com.molina.core.ui.Win7
 import com.molina.core.ui.Win7Button
 
 /** [NANO-OPENWITH] Pilihan editor untuk berkas teks di Penjelajah. */
-internal enum class W7OpenWith { CODE, NANO, OTHER }
+enum class W7OpenWith { CODE, NANO, OTHER }
 
 /**
  * [NANO-OPENWITH] Dialog "Buka dengan": Molina Code, nano di Terminal, atau aplikasi lain (pemilih sistem Android).
  * Dua editor Molina tampil berdampingan supaya terasa seperti satu fitur.
  */
 @Composable
-internal fun W7OpenWithDialog(
+fun W7OpenWithDialog(
     file: File, canCode: Boolean, canNano: Boolean, canOther: Boolean,
     onCancel: () -> Unit, onPick: (W7OpenWith) -> Unit
 ) {

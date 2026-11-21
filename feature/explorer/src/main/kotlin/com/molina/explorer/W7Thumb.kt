@@ -1,4 +1,4 @@
-package com.molina.studio.cinema
+package com.molina.explorer
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -18,7 +18,7 @@ import com.molina.core.fileops.FileOps
  * Dekode selalu di Dispatchers.IO, hasil disimpan di LruCache (32 entri, maks. 160x90 / 120x120)
  * sehingga thread utama tidak terblokir. Kegagalan dicatat agar tidak dicoba berulang.
  */
-internal object W7Thumb {
+object W7Thumb {
     private val VIDEO = com.molina.core.files.FileTypes.VIDEO // [FILE-CONTRACT]
     private val AUDIO = com.molina.core.files.FileTypes.AUDIO
     private const val MAX_W = 160

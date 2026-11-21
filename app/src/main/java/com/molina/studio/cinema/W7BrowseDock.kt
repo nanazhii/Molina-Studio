@@ -41,6 +41,9 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import com.molina.studio.ui.MolinaTheme
 import com.molina.core.ui.Win7
+import com.molina.explorer.W7HelpIcon
+import com.molina.explorer.W7Ico
+import com.molina.explorer.W7MenuIcon
 
 /**
  * [FILES-DOCK] Panel bawah Penjelajah (mode jelajah): satu baris [aksi cepat kontekstual] [Alat] [Terminal] [pil melayang].

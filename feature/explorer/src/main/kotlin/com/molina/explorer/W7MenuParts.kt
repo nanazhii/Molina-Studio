@@ -1,4 +1,4 @@
-package com.molina.studio.cinema
+package com.molina.explorer
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -36,13 +36,13 @@ import com.molina.core.ui.Win7
 // ikon (W7Ico, W7MenuIcon), item menu (W7MenuItem, W7ChoiceItem), bilah ikon (W7IconCmd),
 // tombol kisi drop-up (W7DropButton), pemisah (W7MenuDivider), dan batas tinggi popup (w7PopupMaxHeight).
 
-internal enum class W7Ico { PLAY, CODE, SCRIPT, COPY, CUT, PASTE, RENAME, ZIP, UNZIP, DELETE, NEWDIR, STAR, STAR_OUT, INFO, SHARE, OPEN_WITH,
+enum class W7Ico { PLAY, CODE, SCRIPT, COPY, CUT, PASTE, RENAME, ZIP, UNZIP, DELETE, NEWDIR, STAR, STAR_OUT, INFO, SHARE, OPEN_WITH,
     REFRESH, SORT, SELECT, SELECT_ALL, CLEAR, MORE, SEARCH, NAV, LOCK, EDIT,
     TOOLS, TERMINAL } // [W7-COMPACT-PORTRAIT] [DOCK-V3] TOOLS/TERMINAL untuk tombol dock berupa ikon
 
 /** [W7-COMPACT-PORTRAIT] Perintah bilah berupa ikon (tanpa teks) agar hemat lebar di ponsel potret. */
 @Composable
-internal fun W7IconCmd(
+fun W7IconCmd(
     ico: W7Ico, label: String, enabled: Boolean, active: Boolean = false, badge: String? = null, onClick: () -> Unit
 ) {
     Row(
@@ -64,7 +64,7 @@ internal fun W7IconCmd(
 
 /** [DROP-MENU] Tombol ikon kisi 4 kotak (senada Mode TV) di kanan bawah Penjelajah; membuka menu drop-up. */
 @Composable
-internal fun W7DropButton(active: Boolean, onClick: () -> Unit) {
+fun W7DropButton(active: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(4.dp)
     Box(
         Modifier.size(width = 44.dp, height = 36.dp).clip(shape)
@@ -90,15 +90,15 @@ internal fun W7DropButton(active: Boolean, onClick: () -> Unit) {
 }
 
 /** [POPUP-MAXH] Satu sumber batas tinggi popup Penjelajah: 70% tinggi layar (opsional dibatasi cap), agar tidak keluar layar pendek/landscape. */
-internal const val W7_POPUP_MAX_FRACTION = 0.7f
+const val W7_POPUP_MAX_FRACTION = 0.7f
 
 @Composable
-internal fun w7PopupMaxHeight(cap: androidx.compose.ui.unit.Dp = androidx.compose.ui.unit.Dp.Infinity): androidx.compose.ui.unit.Dp =
+fun w7PopupMaxHeight(cap: androidx.compose.ui.unit.Dp = androidx.compose.ui.unit.Dp.Infinity): androidx.compose.ui.unit.Dp =
     minOf(cap, (LocalConfiguration.current.screenHeightDp * W7_POPUP_MAX_FRACTION).dp)
 
 /** [DROP-DIVIDER] Garis pemisah emas tipis antar kelompok item di menu drop-up Penjelajah. */
 @Composable
-internal fun W7MenuDivider() {
+fun W7MenuDivider() {
     Box(
         Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 3.dp).height(1.dp)
             .background(MolinaTheme.Brand.copy(alpha = 0.4f))
@@ -106,7 +106,7 @@ internal fun W7MenuDivider() {
 }
 
 @Composable
-internal fun W7MenuItem(ico: W7Ico, label: String, enabled: Boolean, danger: Boolean = false, onClick: () -> Unit) { // [DANGER-ITEM]
+fun W7MenuItem(ico: W7Ico, label: String, enabled: Boolean, danger: Boolean = false, onClick: () -> Unit) { // [DANGER-ITEM]
     Row(
         Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick).padding(horizontal = 12.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -122,7 +122,7 @@ internal fun W7MenuItem(ico: W7Ico, label: String, enabled: Boolean, danger: Boo
 
 /** Ikon garis 16dp bergaya Aero untuk menu Alat (digambar di Canvas, tanpa aset). */
 @Composable
-internal fun W7MenuIcon(ico: W7Ico, enabled: Boolean, sz: androidx.compose.ui.unit.Dp = 16.dp) {
+fun W7MenuIcon(ico: W7Ico, enabled: Boolean, sz: androidx.compose.ui.unit.Dp = 16.dp) {
     val c = if (!enabled) Win7.Line else when (ico) {
         W7Ico.DELETE -> Color(0xFFE57373)
         W7Ico.STAR, W7Ico.STAR_OUT, W7Ico.LOCK -> Color(0xFFE0A800)
@@ -283,7 +283,7 @@ internal fun W7MenuIcon(ico: W7Ico, enabled: Boolean, sz: androidx.compose.ui.un
 }
 
 @Composable
-internal fun W7ChoiceItem(mark: String, label: String, onClick: () -> Unit) {
+fun W7ChoiceItem(mark: String, label: String, onClick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically

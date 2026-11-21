@@ -118,6 +118,24 @@ import com.molina.core.fileops.FileOps
 import com.molina.core.fileops.CompressNames
 import com.molina.core.fileops.ArchiveRoute
 import com.molina.core.fileops.ExplorerList
+import com.molina.explorer.ExplorerFavorites
+import com.molina.explorer.ExplorerPrefs
+import com.molina.explorer.ExplorerRecent
+import com.molina.explorer.W7ChoiceItem
+import com.molina.explorer.W7DropButton
+import com.molina.explorer.W7HelpPanel
+import com.molina.explorer.W7Ico
+import com.molina.explorer.W7IconCmd
+import com.molina.explorer.W7MenuDivider
+import com.molina.explorer.W7MenuItem
+import com.molina.explorer.W7OpenWith
+import com.molina.explorer.W7OpenWithDialog
+import com.molina.explorer.W7Thumb
+import com.molina.explorer.W7_ID
+import com.molina.explorer.W7_MEDIA
+import com.molina.explorer.w7Date
+import com.molina.explorer.w7Names
+import com.molina.explorer.w7PopupMaxHeight
 
 internal class W7Entry(val file: File, val isDir: Boolean, val size: Long, val modified: Long, val rel: String? = null) {
     val name: String get() = file.name
@@ -141,14 +159,10 @@ internal sealed class W7Sheet {
     class OpenWith(val file: File) : W7Sheet() // [NANO-OPENWITH]
 }
 
-internal fun w7Names(l: List<File>): String = if (l.size == 1) l[0].name else l.size.toString() + " item"
 private fun w7StemEnd(name: String, dir: Boolean): Int =
     if (dir) name.length else name.lastIndexOf('.').let { if (it > 0) it else name.length }
 
-internal val W7_ID = Locale("id", "ID")
-internal val W7_LISTS = com.molina.core.files.FileTypes.LISTS // [FILE-CONTRACT]
 private val W7_AUDIO = com.molina.core.files.FileTypes.AUDIO
-internal val W7_MEDIA = com.molina.core.files.FileTypes.MEDIA
 
 private fun w7HasStorage(ctx: Context) =
     ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
@@ -183,19 +197,6 @@ private fun w7Load(dir: File, query: String, o: ExplorerList.Opts, cancelled: ()
 }
 
 private fun w7Size(b: Long) = String.format(W7_ID, "%,d KB", maxOf(1L, (b + 1023) / 1024))
-internal fun w7Date(ms: Long) = SimpleDateFormat("dd/MM/yyyy HH.mm", W7_ID).format(Date(ms))
-
-private fun w7Crumbs(dir: File, drives: List<W7Place>): List<Pair<String, File>> {
-    val base = drives.filter { dir.path == it.dir.path || dir.path.startsWith(it.dir.path + "/") }
-        .maxByOrNull { it.dir.path.length } ?: W7Place(dir.name.ifEmpty { "/" }, dir)
-    val out = mutableListOf(Pair(base.label, base.dir))
-    var cur = base.dir
-    dir.path.removePrefix(base.dir.path).split('/').filter { it.isNotEmpty() }.forEach {
-        cur = File(cur, it)
-        out.add(Pair(it, cur))
-    }
-    return out
-}
 
 /** Pemilih file lokal bergaya Windows 7 (Aero). Mengembalikan File yang dipilih lewat [onPick]. */
 @Composable
@@ -950,45 +951,6 @@ private fun W7Toast(
     }
 }
 
-/** [HELP-PANEL] Tombol info ringkas: lingkaran biru tebal berisi "i" (hemat tempat di bilah alat). */
-private val W7_HELP_BLUE = MolinaTheme.Link // biru tautan #6CB4FF, sama dengan tombol aksi Paket
-
-@Composable
-internal fun W7HelpIcon(onClick: () -> Unit) {
-    Box(Modifier.clickable(onClick = onClick).padding(horizontal = 6.dp, vertical = 5.dp)) {
-        Box(
-            Modifier.size(17.dp).border(2.dp, W7_HELP_BLUE, RoundedCornerShape(9.dp)),
-            Alignment.Center
-        ) { Text("i", color = W7_HELP_BLUE, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold) }
-    }
-}
-
-/** [HELP-PANEL] Layar bantuan: judul, ringkasan, lalu daftar istilah-penjelasan yang bisa digulir. */
-@Composable
-internal fun W7HelpPanel(
-    title: String, summary: String, items: List<Pair<String, String>>, onDismiss: () -> Unit
-) {
-    W7Panel(title, onDismiss) {
-        Text(summary, color = Win7.TextDim, fontSize = 12.sp)
-        Spacer(Modifier.height(10.dp))
-        Column(Modifier.fillMaxWidth().heightIn(max = 320.dp).verticalScroll(rememberScrollState())) {
-            items.forEach { (term, desc) ->
-                Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                    Text(
-                        term, color = MolinaTheme.Brand, fontSize = 12.sp, fontWeight = FontWeight.Bold,
-                        modifier = Modifier.width(84.dp)
-                    )
-                    Text(desc, color = Win7.Ink, fontSize = 12.sp, modifier = Modifier.weight(1f))
-                }
-            }
-        }
-        Spacer(Modifier.height(10.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            Win7Button("Tutup", isDefault = true) { onDismiss() }
-        }
-    }
-}
-
 @Composable
 private fun W7Cmd(label: String, enabled: Boolean, onClick: () -> Unit) {
     Text(
@@ -1226,22 +1188,6 @@ private fun W7EntryRow(
                 Modifier.width(40.dp).heightIn(min = 32.dp).clickable { onEnter(e) },
                 contentAlignment = Alignment.Center
             ) { Text("\u203A", color = MolinaTheme.Explorer.PickInk, fontSize = 22.sp) } // [PICK-RED]
-        }
-    }
-}
-
-@Composable
-internal fun W7Panel(title: String, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    val shape = RoundedCornerShape(8.dp)
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            Modifier.fillMaxWidth().clip(shape)
-                .background(Brush.verticalGradient(listOf(Win7.FrameTop, Win7.FrameBottom)), shape)
-                .border(1.dp, Win7.FrameLine, shape).padding(14.dp)
-        ) {
-            Text(title, color = Win7.Ink, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(10.dp))
-            content()
         }
     }
 }

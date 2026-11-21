@@ -44,6 +44,7 @@ import com.molina.core.ui.Win7Button
 import com.molina.core.fileops.CompressFormat
 import com.molina.core.fileops.CompressOptions
 import com.molina.core.fileops.CompressNames
+import com.molina.explorer.W7Panel
 
 /** [ARCHIVE2] Tombol pilihan format: terpilih = warna seleksi Win7. */
 @Composable

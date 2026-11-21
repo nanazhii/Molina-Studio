@@ -1,11 +1,11 @@
-package com.molina.studio.cinema
+package com.molina.explorer
 
 import android.content.Context
 import org.json.JSONArray
 import java.io.File
 
 /** Favorit buatan pengguna di panel kiri Penjelajah (SharedPreferences, daftar jalur dalam JSON). */
-internal object ExplorerFavorites {
+object ExplorerFavorites {
     private const val PREFS = "molina_explorer"
     private const val KEY = "favorites_v1"
 

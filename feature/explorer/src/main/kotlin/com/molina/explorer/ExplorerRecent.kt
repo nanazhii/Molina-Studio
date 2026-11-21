@@ -1,11 +1,11 @@
-package com.molina.studio.cinema
+package com.molina.explorer
 
 import android.content.Context
 import org.json.JSONArray
 import java.io.File
 
 /** Riwayat folder terakhir Penjelajah (maks. 5, terbaru di depan) dan folder terakhir yang dibuka. */
-internal object ExplorerRecent {
+object ExplorerRecent {
     private const val PREFS = "molina_explorer"
     private const val KEY = "recent_v1"
     private const val MAX = 5

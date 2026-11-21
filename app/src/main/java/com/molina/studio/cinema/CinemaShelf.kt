@@ -38,6 +38,7 @@ import com.molina.core.library.ShelfCard
 import com.molina.studio.ui.MolinaTheme
 import java.io.File
 import com.molina.core.ui.Win7
+import com.molina.explorer.W7Thumb
 
 private val CardW = 104.dp
 private val PosterShape = RoundedCornerShape(6.dp)

@@ -18,7 +18,8 @@ FORBIDDEN_PROJECTS = [":core:library", ":core:system", ":core:policy", ":core:di
 CINEMA = "app/src/main/java/com/molina/studio/cinema/"
 EXPLORER_GLOBS = [CINEMA + g for g in (
     "Explorer*.kt", "W7*.kt", "Win7*.kt", "TvFileOps.kt", "TvBrowser.kt",
-    "Archive*.kt", "DebianArchive*.kt")]
+    "Archive*.kt", "DebianArchive*.kt")] + [
+    "feature/explorer/src/main/kotlin/com/molina/explorer/*.kt"]  # [FEATURE-EXPLORER]
 APP_NET_REFS = r"\b(ShieldProxy|IptvFetch|SearchThumbs|IptvSources|UpdateChecker|OriginalTitles|DownloadService)\b"
 
 # Zona Jaringan (Paket, Unduhan) boleh berjaringan, tetapi tidak boleh mengimpor kelas UI/data Code atau
@@ -28,6 +29,7 @@ ZONE_DIRS = ["app/src/main/java/com/molina/studio/packages", "app/src/main/java/
 ZONE_FORBIDDEN_IMPORT = (
     r"^\s*import\s+(com\.molina\.code\.(ui|history|guard|lsp|format|check|nav)\b"
     r"|com\.molina\.core\.fileops\b"
+    r"|com\.molina\.explorer\.Explorer\w*"
     r"|com\.molina\.studio\.cinema\.(Explorer\w*|FileOps|TvFileOps|TvBrowser|Archive\w*|DebianArchive\w*)\b)"
 )
 

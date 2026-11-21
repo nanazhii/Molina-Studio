@@ -1,7 +1,7 @@
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.StubMedia
-import com.molina.studio.cinema.W7Thumb
+import com.molina.explorer.W7Thumb
 import java.awt.image.BufferedImage
 import java.io.File
 import java.io.RandomAccessFile

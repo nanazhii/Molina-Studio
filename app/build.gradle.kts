@@ -70,6 +70,7 @@ dependencies {
     implementation(project(":terminal-view"))
     implementation(project(":feature:mpv"))
     implementation(project(":feature:code"))
+    implementation(project(":feature:explorer")) // [FEATURE-EXPLORER]
     implementation(project(":core:exec")) // [CORE-EXEC]
     implementation(project(":feature:preview")) // [NANO-PREVIEW]
     implementation(project(":engine:newpipe"))

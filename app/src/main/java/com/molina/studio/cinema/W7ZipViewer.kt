@@ -47,6 +47,8 @@ import androidx.compose.ui.window.DialogWindowProvider
 import com.molina.core.ui.MintFileIcon
 import com.molina.core.ui.MintFolder
 import com.molina.core.fileops.FileOps
+import com.molina.explorer.W7HelpPanel
+import com.molina.explorer.W7Thumb
 
 // [SPLIT-ZIP] Penampil ZIP Penjelajah (W7ZipDialog dan pendukungnya), dipecah dari Win7OpenDialog.kt.
 

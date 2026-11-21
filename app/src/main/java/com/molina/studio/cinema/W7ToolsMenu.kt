@@ -24,6 +24,13 @@ import com.molina.core.fileops.FileOps
 import com.molina.core.fileops.ExtractTarget
 import com.molina.core.fileops.ArchiveRoute
 import com.molina.core.fileops.ExplorerList
+import com.molina.explorer.ExplorerFavorites
+import com.molina.explorer.W7Ico
+import com.molina.explorer.W7MenuItem
+import com.molina.explorer.W7_LISTS
+import com.molina.explorer.W7_MEDIA
+import com.molina.explorer.w7Names
+import com.molina.explorer.w7PopupMaxHeight
 
 /**
  * [SPLIT-TOOLS] Menu Alat Penjelajah (popup drop-up): diangkat dari Win7OpenDialog.kt menjadi composable tersendiri.
