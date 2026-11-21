@@ -30,6 +30,7 @@ import com.molina.studio.ui.MolinaTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.molina.explorer.Win7OpenDialog
 
 private const val HINT = "Tempel tautan atau ketik judul di kolom atas, lalu tekan Putar. Ketuk Saluran untuk daftar TV (M3U)."
 private const val FAIL = "Pemutar gagal dibuka."
@@ -173,7 +174,8 @@ fun CinemaHome(modifier: Modifier = Modifier) {
         onPick = { f ->
             openLocal = false
             if (!CinemaActions.playPath(ctx, f.absolutePath)) info = FAIL
-        }
+        },
+        env = rememberAppExplorerEnv()
     )
     if (openChooser) CinemaOpenChooser(
         onFile = { openChooser = false; openLocal = true },
@@ -205,7 +207,8 @@ fun CinemaHome(modifier: Modifier = Modifier) {
                     }
                 }
             }
-        }
+        },
+        env = rememberAppExplorerEnv()
     )
     if (iptvFolderOpen) {
         remember { MolinaExplorer.attach(ctx) }
@@ -219,8 +222,9 @@ fun CinemaHome(modifier: Modifier = Modifier) {
             isVisibleInDebian = { f -> MolinaExplorer.visibleInDebian(f) },
             onPlay = { files -> MolinaExplorer.play(ctx, files) },
             onOpenInCode = { files -> iptvFolderOpen = false; channelsOpen = false; MolinaExplorer.openInCode(ctx, files) },
-            onEditInTerminal = { f -> if (MolinaExplorer.editInTerminal(ctx, f)) { iptvFolderOpen = false; channelsOpen = false } }, // [NANO-EDIT]
-        )
+            onEditInTerminal = { f -> if (MolinaExplorer.editInTerminal(ctx, f)) { iptvFolderOpen = false; channelsOpen = false } }, // [NANO-EDIT],
+        env = rememberAppExplorerEnv()
+    )
     }
     if (showResults) SearchResultsDialog(
         results = results,

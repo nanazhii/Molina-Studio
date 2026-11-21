@@ -22,5 +22,19 @@ interface PreviewLauncher {
     fun open(file: File)
 }
 
+/**
+ * [FEATURE-EXPLORER] Riwayat putar (domain Cinema) untuk chip "sudah diputar". Hanya baca.
+ * [version] harus dibaca di dalam komposisi (state Compose) agar chip tersegarkan saat riwayat berubah.
+ */
+interface PlayedHistory {
+    val version: Int
+    fun refs(): List<String>
+}
+
 /** Semua hal yang harus disuntik ke Penjelajah dari luar modul. Sengaja kecil: tambah hanya jika ada kebutuhan nyata. */
-class ExplorerEnv(val debianArchive: DebianArchiveRunner, val preview: PreviewLauncher)
+class ExplorerEnv(
+    val debianArchive: DebianArchiveRunner,
+    val preview: PreviewLauncher,
+    val played: PlayedHistory,
+    val rootfsDir: () -> File,
+)

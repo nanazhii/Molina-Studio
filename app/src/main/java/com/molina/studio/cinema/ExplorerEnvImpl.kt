@@ -1,12 +1,17 @@
 package com.molina.studio.cinema
 
 import android.content.Context
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import com.molina.core.api.MolinaServices
 import com.molina.core.fileops.CompressOptions
 import com.molina.core.fileops.ExtractResult
 import com.molina.core.fileops.ExtractTarget
 import com.molina.core.fileops.FileOps
 import com.molina.explorer.DebianArchiveRunner
 import com.molina.explorer.ExplorerEnv
+import com.molina.explorer.PlayedHistory
 import com.molina.explorer.PreviewLauncher
 import java.io.File
 
@@ -26,6 +31,18 @@ internal fun appExplorerEnv(ctx: Context): ExplorerEnv {
         preview = object : PreviewLauncher {
             override fun canPreview(file: File): Boolean = com.molina.studio.preview.ExplorerPreview.canPreview(file)
             override fun open(file: File) { com.molina.studio.preview.PreviewNav.pending = file }
-        }
+        },
+        played = object : PlayedHistory {
+            override val version: Int get() = CinemaRecent.version
+            override fun refs(): List<String> = CinemaRecent.load(app).map { it.ref }
+        },
+        rootfsDir = { MolinaServices.terminal.rootfsDir() },
     )
+}
+
+/** [FEATURE-EXPLORER] ExplorerEnv untuk pemanggil Compose di :app. */
+@Composable
+internal fun rememberAppExplorerEnv(): ExplorerEnv {
+    val ctx = LocalContext.current
+    return remember(ctx) { appExplorerEnv(ctx) }
 }

@@ -19,12 +19,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.molina.core.ui.Win7Folder
-import com.molina.studio.cinema.Win7OpenDialog
+import com.molina.explorer.Win7OpenDialog
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import java.io.File
+import com.molina.studio.cinema.rememberAppExplorerEnv
 
 /**
  * Isi tab Berkas (nav bawah). Penjelajah Molina dibuka otomatis saat tab dipilih; bila ditutup,
@@ -82,7 +83,8 @@ fun FilesTabScreen(modifier: Modifier = Modifier, onExit: () -> Unit = {}, onOpe
                     }
                 }
             }
-        }
+        },
+        env = rememberAppExplorerEnv()
     )
 }
 

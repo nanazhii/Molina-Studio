@@ -1,4 +1,4 @@
-package com.molina.studio.cinema
+package com.molina.explorer
 
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -89,7 +89,6 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.IntOffset
 import androidx.core.content.ContextCompat
-import com.molina.studio.terminal.RootfsManager
 import com.molina.core.files.NanoName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -118,44 +117,6 @@ import com.molina.core.fileops.FileOps
 import com.molina.core.fileops.CompressNames
 import com.molina.core.fileops.ArchiveRoute
 import com.molina.core.fileops.ExplorerList
-import com.molina.explorer.ExplorerFavorites
-import com.molina.explorer.ExplorerPrefs
-import com.molina.explorer.ExplorerRecent
-import com.molina.explorer.W7ChoiceItem
-import com.molina.explorer.W7DropButton
-import com.molina.explorer.W7HelpPanel
-import com.molina.explorer.W7Ico
-import com.molina.explorer.W7IconCmd
-import com.molina.explorer.W7MenuDivider
-import com.molina.explorer.W7MenuItem
-import com.molina.explorer.W7OpenWith
-import com.molina.explorer.W7OpenWithDialog
-import com.molina.explorer.w7Crumbs
-import com.molina.explorer.W7Place
-import com.molina.explorer.W7Thumb
-import com.molina.explorer.W7_ID
-import com.molina.explorer.W7_MEDIA
-import com.molina.explorer.w7Date
-import com.molina.explorer.w7Names
-import com.molina.explorer.w7PopupMaxHeight
-import com.molina.explorer.W7Entry
-import com.molina.explorer.ArchiveCompressDialog
-import com.molina.explorer.ArchiveExtractDialog
-import com.molina.explorer.ArchiveOps
-import com.molina.explorer.W7BinDialog
-import com.molina.explorer.W7BrowseDock
-import com.molina.explorer.W7BrowseFloat
-import com.molina.explorer.W7Clip
-import com.molina.explorer.W7ConfirmDialog
-import com.molina.explorer.W7InfoDialog
-import com.molina.explorer.W7NameDialog
-import com.molina.explorer.W7PasswordDialog
-import com.molina.explorer.W7Sheet
-import com.molina.explorer.W7ToolsMenu
-import com.molina.explorer.W7ZipDialog
-import com.molina.explorer.Win7BinIcon
-import com.molina.explorer.tapToFocus
-import com.molina.explorer.w7Favorites
 
 
 private enum class W7Kind(val label: String) { MEDIA("Media (video dan audio)"), ALL("Semua file") }
@@ -170,9 +131,9 @@ private fun w7HasStorage(ctx: Context) =
 
 
 /** Beranda Debian (/root di rootfs) sebagai akar tambahan agar berkas Debian bisa dikelola dari Penjelajah. */
-private fun w7DebianPlaces(ctx: Context, browse: Boolean): List<W7Place> {
+private fun w7DebianPlaces(env: ExplorerEnv, browse: Boolean): List<W7Place> {
     if (!browse) return emptyList()
-    val home = File(RootfsManager.rootfsDir(ctx), "root")
+    val home = File(env.rootfsDir(), "root")
     return if (home.isDirectory) listOf(W7Place("Debian", home)) else emptyList()
 }
 
@@ -218,7 +179,8 @@ fun Win7OpenDialog(
     onSendToScripts: ((File) -> Pair<Boolean, String>)? = null,
     // MOLINA-H13-BRIDGE: (berkas, selesai(daftar asli yang boleh dihapus, pesan)); daftar kosong = jangan hapus apa pun
     onSaveToVault: ((List<File>, (List<File>, String) -> Unit) -> Unit)? = null,
-    startDir: File? = null
+    startDir: File? = null,
+    env: ExplorerEnv
 ) {
     val ctx = LocalContext.current
     var favTick by remember { mutableStateOf(0) } // [FILEOPS-1]
@@ -227,11 +189,11 @@ fun Win7OpenDialog(
         val mine = if (browse) ExplorerFavorites.load(ctx).filter { f -> base.none { it.dir.path == f.path } } else emptyList()
         base + mine.map { W7Place(it.name.ifEmpty { it.path }, it) }
     }
-    val vols = remember { w7Drives() + w7DebianPlaces(ctx, browse) }
+    val vols = remember { w7Drives() + w7DebianPlaces(env, browse) }
     val volDirs = remember(vols) { vols.map { it.dir } }
     var granted by remember { mutableStateOf(w7HasStorage(ctx)) }
     // [FILES-PLAYED] riwayat putar Cinema (terbaru di indeks 0) untuk chip di daftar; ikut tersegarkan lewat version
-    val playedRefs = remember(CinemaRecent.version) { CinemaRecent.load(ctx).map { w7Norm(it.ref) } }
+    val playedRefs = remember(env.played.version) { env.played.refs().map { w7Norm(it) } }
     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
     // Mode jelajah: tanpa startDir, mulai dari folder terakhir yang dibuka (bila masih ada), bukan selalu dari akar
     var dir by remember { mutableStateOf(startDir?.takeIf { it.isDirectory } ?: (if (browse) ExplorerRecent.last(ctx) else null) ?: vols.first().dir) }
@@ -474,7 +436,7 @@ fun Win7OpenDialog(
             val d = dir
             val items = s.files
             runOp(op = { ctl ->
-                val made = ArchiveOps.compress(appExplorerEnv(ctx), items, d, opt, ctl) // [ARCHIVE6] 7z bersandi lewat Debian
+                val made = ArchiveOps.compress(env, items, d, opt, ctl) // [ARCHIVE6] 7z bersandi lewat Debian
                 "Arsip dibuat: " + made.name + " (" + CompressNames.sizeText(made.length()) + (if (!opt.password.isNullOrEmpty()) ", bersandi" else "") + ")"
             })
         }
@@ -517,7 +479,7 @@ fun Win7OpenDialog(
             )
         }
         is W7Sheet.Archive -> ArchiveExtractDialog( // [ARCHIVE]
-            s.file, s.pw, appExplorerEnv(ctx),
+            s.file, s.pw, env,
             onNeedPassword = { wrong -> sheet = W7Sheet.ArchivePw(s.file, wrong) },
             onClose = { sheet = null }
         ) { exTarget, exOnly ->
@@ -526,7 +488,7 @@ fun Win7OpenDialog(
             val apw = s.pw
             val d = a.parentFile?.takeIf { it.isDirectory && it.canWrite() } ?: dir
             runOp(
-                op = { ctl -> ArchiveOps.extract(appExplorerEnv(ctx), a, d, exTarget, ctl, apw, exOnly).describe() },
+                op = { ctl -> ArchiveOps.extract(env, a, d, exTarget, ctl, apw, exOnly).describe() },
                 onFail = {
                     if (it is FileOps.NeedPassword) { say(""); sheet = W7Sheet.ArchivePw(a, false) }
                     else if (it is FileOps.WrongPassword) { say(""); sheet = W7Sheet.ArchivePw(a, true) }
@@ -653,7 +615,7 @@ fun Win7OpenDialog(
                 }
                 val toolsPopup: @Composable () -> Unit = {
                     if (toolsOpen) W7ToolsMenu( // [SPLIT-TOOLS] isi menu ada di W7ToolsMenu.kt
-                        env = remember(ctx) { appExplorerEnv(ctx) }, targets = targets(), dir = dir, browse = browse, clip = clip,
+                        env = env, targets = targets(), dir = dir, browse = browse, clip = clip,
                         playedFirst = playedFirst, playedRefs = playedRefs, shown = shown,
                         onPlay = onPlay, onOpenInCode = onOpenInCode, onEditInTerminal = onEditInTerminal, newTextEnabled = onNewTextInTerminal != null, onSendToScripts = onSendToScripts,
                         onOpenWith = onOpenWith, onShare = onShare, onCopyPath = onCopyPath,

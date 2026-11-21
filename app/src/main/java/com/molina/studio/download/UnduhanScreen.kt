@@ -62,7 +62,7 @@ import com.molina.core.diag.LogRedact
 import com.molina.core.download.MaintenanceKind
 import com.molina.core.download.MaintenanceTone
 import com.molina.studio.cinema.CinemaActions
-import com.molina.studio.cinema.Win7OpenDialog
+import com.molina.explorer.Win7OpenDialog
 import com.molina.studio.settings.W7D
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.CircleShape
@@ -83,6 +83,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.Locale
+import com.molina.studio.cinema.rememberAppExplorerEnv
 
 /**
  * Tab Unduhan: tempel URL (satu ketukan dari clipboard), pilih mode video/audio, pantau progres per item
@@ -171,7 +172,8 @@ fun UnduhanScreen(modifier: Modifier = Modifier) {
             onInsertPaths = { fs -> MolinaExplorer.insertPaths(ctx, fs) },
             isVisibleInDebian = { f -> MolinaExplorer.visibleInDebian(f) },
             onPlay = { files -> MolinaExplorer.play(ctx, files) },
-        )
+        env = rememberAppExplorerEnv()
+    )
     }
 
     if (confirmClear) {
