@@ -67,6 +67,7 @@ import com.molina.core.library.TrashBin
 import com.molina.core.fileops.FileNames
 import com.molina.core.fileops.FileOps
 import com.molina.explorer.W7ConfirmDialog
+import com.molina.core.ui.ExpanderIcon // [EXPANDER-ICON]
 import com.molina.core.ui.FileTreeIcon
 import com.molina.core.ui.MoreDotsIcon // [DRAWER-DOTS]
 import com.molina.core.ui.FileTreeIconSize
@@ -298,10 +299,9 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
                                 .padding(start = (6 + depth * 14).dp, end = DotsWidth), // [DRAWER-DOTS] ruang untuk kotak titik tiga
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                if (isDir) { if (isOpen) "\u25BE" else "\u25B8" } else "",
-                                color = Brand, fontSize = 12.sp, modifier = Modifier.width(14.dp)
-                            )
+                            Box(Modifier.width(14.dp), contentAlignment = Alignment.Center) { // [EXPANDER-ICON] segitiga berputar, satu sumber dengan Code
+                                if (isDir) ExpanderIcon(isOpen, Brand)
+                            }
                             FileTreeIcon(isDir, f.name, open = isOpen) // [TREE-ICON] ikon: satu sumber dengan tree Code
                             Spacer(Modifier.width(8.dp))
                             Text(

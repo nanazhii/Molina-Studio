@@ -76,25 +76,3 @@ private fun DrawScope.drawFolderOutline(color: Color) {
     }
     drawPath(p, color, style = Stroke(1.6f * k))
 }
-
-/** Segitiga expander gaya Win7: kerangka abu saat tertutup, terisi saat terbuka. */
-internal fun DrawScope.drawExpander(expanded: Boolean) {
-    val k = size.minDimension / 10f
-    if (expanded) {
-        val p = Path().apply {
-            moveTo(8f * k, 2f * k)
-            lineTo(8f * k, 8f * k)
-            lineTo(2f * k, 8f * k)
-            close()
-        }
-        drawPath(p, CodeColors.IconDefault)
-    } else {
-        val p = Path().apply {
-            moveTo(3f * k, 1f * k)
-            lineTo(8f * k, 5f * k)
-            lineTo(3f * k, 9f * k)
-            close()
-        }
-        drawPath(p, CodeColors.IconDim, style = Stroke(1f * k))
-    }
-}

@@ -39,6 +39,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.molina.core.ui.ExpanderIcon // [EXPANDER-ICON]
 import com.molina.core.ui.FileTreeIcon
 import com.molina.core.ui.MoreDotsIcon // [DRAWER-DOTS]
 
@@ -189,7 +190,7 @@ private fun TreeRow(row: DirRow, session: CodeSession, selected: Boolean, onTap:
         ) {
             Spacer(Modifier.width(CodeDimens.TreeIndent * row.depth))
             if (entry.isDir) {
-                Canvas(Modifier.size(CodeDimens.TreeExpanderSize)) { drawExpander(row.expanded) }
+                ExpanderIcon(row.expanded, CodeColors.IconDim, CodeColors.IconDefault, CodeDimens.TreeExpanderSize) // [EXPANDER-ICON] tree
             } else {
                 Spacer(Modifier.size(CodeDimens.TreeExpanderSize))
             }

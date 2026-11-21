@@ -105,6 +105,7 @@ import java.util.Locale
 import com.molina.core.ui.MintFileIcon
 import com.molina.core.files.FolderBadge
 import com.molina.core.files.FolderBadges
+import com.molina.core.ui.FileTreeIconSize
 import com.molina.core.ui.MintFolder
 // [FOLDER-UNIFORM] impor MintFolderTint dihapus (tidak dipakai lagi)
 import com.molina.core.ui.Win7
@@ -915,7 +916,7 @@ private fun W7EntryRow(
                     )
                 } else Modifier
             )
-            .heightIn(min = if (wide) 30.dp else 44.dp) // [MINT-ICONS]
+            .heightIn(min = if (wide) 30.dp else FileTreeIconSize.RowHeight) // [TREE-ICON] tinggi picker: sama dengan drawer/Code
             .padding(horizontal = 6.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -934,7 +935,7 @@ private fun W7EntryRow(
             )
             Spacer(Modifier.width(6.dp))
         }
-        val iconSz = if (wide) 22.dp else 28.dp // [MINT-ICONS] lebih kecil, seimbang dengan teks
+        val iconSz = if (wide) 22.dp else FileTreeIconSize.Icon // [TREE-ICON] ikon picker: mode sempit = ukuran baku drawer/Code
         if (e.isDir) MintFolder(iconSz, FolderBadges.of(e.name)) /* [FOLDER-BADGE] daftar: mint seragam, lencana untuk folder penting */ else if (W7Thumb.hasThumb(e.file)) { // [LIST-THUMB] frame video / cover audio lewat W7Thumb (cache LRU, dekode di IO)
             val thumb by produceState<ImageBitmap?>(null, e.file.path) {
                 kotlinx.coroutines.delay(250) // debounce: gulir cepat membatalkan sebelum dekode dimulai
