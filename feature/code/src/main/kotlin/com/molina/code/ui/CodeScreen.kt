@@ -19,6 +19,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -291,24 +295,51 @@ private fun PathHeader(session: CodeSession, onExit: (() -> Unit)? = null) {
 /**
  * [CODE-STATUS-DOT] Status isi tab berupa titik saja (hemat ruang): hijau = tersimpan, biru = diubah,
  * merah = basi (berkas di disk berubah), abu = baru/belum punya berkas, abu redup = memuat.
- * Label teks tetap tersedia lewat aksesibilitas.
+ * Label teks tersedia lewat aksesibilitas, dan muncul sebentar saat titik diketuk [CODE-STATUS-TIP].
  */
 @Composable
 private fun StatusChip(tab: EditorTab) {
     val label: String
+    val hint: String
     val color: androidx.compose.ui.graphics.Color
     when {
-        tab.loading -> { label = "Memuat"; color = CodeColors.IconDim.copy(alpha = 0.5f) }
-        tab.staleDisk -> { label = "Basi"; color = CodeColors.Danger } // [CODE-GUARD]
-        tab.dirty -> { label = "Diubah"; color = CodeColors.Modified }
-        tab.file != null -> { label = "Tersimpan"; color = CodeColors.Clean }
-        else -> { label = "Baru"; color = CodeColors.IconDim }
+        tab.loading -> { label = "Memuat"; hint = "Memuat berkas"; color = CodeColors.IconDim.copy(alpha = 0.5f) }
+        tab.staleDisk -> { label = "Basi"; hint = "Basi: berkas di disk berubah"; color = CodeColors.Danger } // [CODE-GUARD]
+        tab.dirty -> { label = "Diubah"; hint = "Diubah: belum disimpan"; color = CodeColors.Modified }
+        tab.file != null -> { label = "Tersimpan"; hint = "Tersimpan"; color = CodeColors.Clean }
+        else -> { label = "Baru"; hint = "Baru: belum punya berkas"; color = CodeColors.IconDim }
     }
+    // [CODE-STATUS-TIP] Ketuk titik = label muncul sebentar (hilang sendiri setelah 1,6 detik). Area ketuk 28dp agar mudah.
+    var tip by remember { mutableStateOf(false) }
+    LaunchedEffect(tip) { if (tip) { delay(1600); tip = false } }
+    val gapPx = with(LocalDensity.current) { 4.dp.roundToPx() }
     Box(
-        Modifier.padding(horizontal = 6.dp).size(8.dp)
-            .background(color, CircleShape)
-            .semantics { contentDescription = label }
-    )
+        Modifier.width(28.dp).fillMaxHeight().clickable { tip = true },
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            Modifier.size(8.dp)
+                .background(color, CircleShape)
+                .semantics { contentDescription = label }
+        )
+        if (tip) {
+            Popup(
+                alignment = Alignment.BottomCenter,
+                offset = IntOffset(0, gapPx),
+                onDismissRequest = { tip = false },
+                properties = PopupProperties(focusable = false)
+            ) {
+                val shape = RoundedCornerShape(8.dp)
+                Box(
+                    Modifier.background(CodeColors.SurfaceMenu, shape)
+                        .border(1.dp, CodeColors.Hairline, shape)
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    BasicText(hint, maxLines = 1, style = TextStyle(color = color.copy(alpha = 1f), fontSize = 12.sp))
+                }
+            }
+        }
+    }
 }
 
 @Composable
