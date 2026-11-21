@@ -181,7 +181,7 @@ fun Win7OpenDialog(
     val volDirs = remember(vols) { vols.map { it.dir } }
     var granted by remember { mutableStateOf(w7HasStorage(ctx)) }
     // [FILES-PLAYED] riwayat putar Cinema (terbaru di indeks 0) untuk chip di daftar; ikut tersegarkan lewat version
-    val playedRefs = remember(env.played.version) { env.played.refs().map { w7Norm(it) } }
+    val playedRefs = remember(env.played.version) { env.played.refs().map { PlayedOrder.norm(it) } }
     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
     // Mode jelajah: tanpa startDir, mulai dari folder terakhir yang dibuka (bila masih ada), bukan selalu dari akar
     var dir by remember { mutableStateOf(startDir?.takeIf { it.isDirectory } ?: (if (browse) ExplorerRecent.last(ctx) else null) ?: vols.first().dir) }
@@ -256,14 +256,7 @@ fun Win7OpenDialog(
     // [FILES-QUEUE] urutan tampil; opsi "terakhir diputar dulu" bersifat stabil (folder tetap di atas, sisanya urutan asal)
     val shown = remember(entries, playedFirst, playedRefs) {
         val es = entries
-        if (es == null || !playedFirst) es
-        else {
-            // [PERF-PLAYED] peta jalur -> peringkat sekali jalan (sebelumnya indexOf linear di setiap perbandingan sortir)
-            val rank = HashMap<String, Int>(playedRefs.size * 2)
-            playedRefs.forEachIndexed { i, r -> rank.putIfAbsent(r, i) }
-            val rankOf = es.associateWith { if (it.isDir) 0 else (rank[w7Norm(it.file.path)] ?: 99) }
-            es.sortedWith(compareBy<W7Entry>({ if (it.isDir) 0 else 1 }, { rankOf.getValue(it) }))
-        }
+        if (es == null || !playedFirst) es else PlayedOrder.sort(es, playedRefs) // [PERF-PLAYED] aturannya di PlayedOrder (diuji JVM)
     }
 
     val roots = vols.map { it.dir.path }
@@ -841,7 +834,7 @@ private fun W7FileArea(
                         val on = e.file.path in picked
                         W7EntryRow(
                             e, if (multi) on else e == selected, wide, onOpen, if (multi) on else null, if (multi) onEnter else null,
-                            played = if (e.isDir) -1 else recentRefs.indexOf(w7Norm(e.file.path)),
+                            played = if (e.isDir) -1 else recentRefs.indexOf(PlayedOrder.norm(e.file.path)),
                             onSwipeRight = onSwipeRight, onSwipeLeft = onSwipeLeft
                         )
                     }
@@ -1002,9 +995,6 @@ private fun W7SearchBox(value: String, onChange: (String) -> Unit, modifier: Mod
         }
     }
 }
-
-private fun w7Norm(p: String): String =
-    if (p.startsWith("/sdcard/")) "/storage/emulated/0/" + p.removePrefix("/sdcard/") else p
 
 /** Chip riwayat putar: 0 = "Terakhir diputar" (aksen Cinema), lainnya = "Diputar" (redup). */
 @Composable
