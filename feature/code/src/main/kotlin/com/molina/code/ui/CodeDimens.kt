@@ -35,10 +35,10 @@ object CodeDimens {
     val DrawerMaxWidth = 320.dp
     val DrawerHeaderHeight = 48.dp
     val DrawerHeaderIcon = 20.dp
-    val TreeRowHeight = 32.dp
+    val TreeRowHeight = com.molina.core.ui.FileTreeIconSize.RowHeight // [TREE-ICON] sama dengan drawer Terminal
     val TreeIndent = 14.dp
     val TreeExpanderSize = 10.dp
-    val TreeFolderIcon = 18.dp
+    val TreeFolderIcon = com.molina.core.ui.FileTreeIconSize.Icon
     val TreeTextSize = 13.sp
     val TreeSelectCorner = 3.dp
     val TreeSelectBorder = 1.dp

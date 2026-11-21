@@ -67,6 +67,8 @@ import com.molina.core.library.TrashBin
 import com.molina.core.fileops.FileNames
 import com.molina.core.fileops.FileOps
 import com.molina.explorer.W7ConfirmDialog
+import com.molina.core.ui.FileTreeIcon
+import com.molina.core.ui.FileTreeIconSize
 import com.molina.core.ui.MintFileIcon
 import com.molina.explorer.W7InfoDialog
 import com.molina.explorer.W7NameDialog
@@ -270,7 +272,7 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
                     val isOpen = f.path in st.expanded
                     Box {
                         Row(
-                            Modifier.fillMaxWidth().height(36.dp)
+                            Modifier.fillMaxWidth().height(FileTreeIconSize.RowHeight) // [TREE-ICON]
                                 .alpha(if (f.name.startsWith(".")) 0.6f else 1f)
                                 .combinedClickable(
                                     onClick = {
@@ -288,7 +290,7 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
                                 if (isDir) { if (isOpen) "\u25BE" else "\u25B8" } else "",
                                 color = Brand, fontSize = 12.sp, modifier = Modifier.width(14.dp)
                             )
-                            if (isDir) MintFolder(20.dp, open = isOpen, tint = MintFolderTint.of(f.name)) else MintFileIcon(f.extension, 20.dp) // ikon Molina, sama dengan Penjelajah
+                            FileTreeIcon(isDir, f.name, open = isOpen) // [TREE-ICON] ikon: satu sumber dengan tree Code
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 f.name, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,

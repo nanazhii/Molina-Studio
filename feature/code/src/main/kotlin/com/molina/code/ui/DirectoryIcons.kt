@@ -12,16 +12,7 @@ import com.molina.core.ui.drawMintFolder
 /** Ikon tombol header panel direktori dan header layar. Digambar di kisi 24 satuan. */
 internal enum class DirIcon { Up, NewFile, NewFolder, Close, Folder }
 
-/** Warna garis ikon berkas menurut ekstensi. */
-internal fun extColor(name: String) = when (name.substringAfterLast('.', "").lowercase()) {
-    "kt", "kts" -> CodeColors.ExtKotlin
-    "py" -> CodeColors.ExtPython
-    "md", "markdown" -> CodeColors.ExtMarkdown
-    "json" -> CodeColors.ExtJson
-    "xml", "html" -> CodeColors.ExtXml
-    "sh", "bash" -> CodeColors.ExtShell
-    else -> CodeColors.ExtDefault
-}
+// [TREE-ICON] Warna ikon berkas per ekstensi kini satu sumber: W7Glyph di :core:ui (lewat FileTreeIcon).
 
 private fun DrawScope.u(): Float = size.minDimension / 24f
 

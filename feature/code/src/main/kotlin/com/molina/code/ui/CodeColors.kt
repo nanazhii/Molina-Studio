@@ -55,14 +55,7 @@ object CodeColors {
     val TextSecondary = Color(0xFF9AA0A6)
     val ButtonBrown = Color(0xFF1F8A4C)   // tombol panel direktori (dulu cokelat), kini hijau tua
 
-    // Garis penanda ikon berkas per ekstensi di panel direktori (blueprint bagian 5.3)
-    val ExtKotlin = Color(0xFFB07CFF)
-    val ExtPython = Color(0xFF4FA3E0)
-    val ExtMarkdown = Color(0xFF7BC8A4)
-    val ExtJson = com.molina.studio.ui.MolinaTheme.FolderYellow // [MINT-ICONS] satu sumber warna di :core:ui
-    val ExtXml = Color(0xFFE08A4F)
-    val ExtShell = Color(0xFF8BD35C)
-    val ExtDefault = IconDim
+    // [TREE-ICON] Warna ikon berkas per ekstensi: satu sumber W7Glyph di :core:ui.
 
     // Turunan beralfa (nilai alfa dari blueprint)
     val Ripple = Brand.copy(alpha = 0.16f)
