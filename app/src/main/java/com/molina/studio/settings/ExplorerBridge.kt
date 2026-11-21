@@ -123,7 +123,7 @@ internal object MolinaExplorer {
      * Menolak berkas non-teks, lokasi yang tak terlihat di Debian, dan terminal yang sedang menjalankan program layar penuh.
      */
     fun editInTerminal(ctx: Context, f: File): Boolean {
-        if (!com.molina.studio.cinema.ExplorerList.looksText(f)) {
+        if (!com.molina.core.fileops.ExplorerList.looksText(f)) {
             Toast.makeText(ctx, "Hanya berkas teks (maks 5 MB) yang bisa diedit di nano.", Toast.LENGTH_SHORT).show()
             return false
         }

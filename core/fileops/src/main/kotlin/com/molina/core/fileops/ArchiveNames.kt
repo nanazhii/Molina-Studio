@@ -1,4 +1,4 @@
-package com.molina.studio.cinema
+package com.molina.core.fileops
 
 import java.io.File
 import java.nio.file.Files
@@ -6,7 +6,7 @@ import java.nio.file.LinkOption
 import java.util.Locale
 
 /** [ARCHIVE] Format arsip yang dikenali Penjelajah Molina. */
-internal enum class ArchiveFormat(val label: String) {
+enum class ArchiveFormat(val label: String) {
     ZIP("ZIP"), SEVEN_Z("7Z"), TAR("TAR"), TAR_GZ("TAR.GZ"), TAR_BZ2("TAR.BZ2"), TAR_XZ("TAR.XZ"),
     GZ("GZ"), BZ2("BZ2"), XZ("XZ");
 
@@ -18,13 +18,13 @@ internal enum class ArchiveFormat(val label: String) {
 }
 
 /** [ARCHIVE] Tujuan ekstrak: langsung ke folder tujuan, atau ke subfolder bernama sama dengan arsip. */
-internal enum class ExtractTarget { HERE, NAMED_FOLDER }
+enum class ExtractTarget { HERE, NAMED_FOLDER }
 
 /**
  * [ARCHIVE] Logika nama/jalur murni (tanpa Android, tanpa pustaka arsip) supaya bisa diuji di JVM.
  * Semua nama entri dari arsip dianggap tidak tepercaya: [cleanEntry] menolak ".." dan [safeTarget] memeriksa jalur kanonik.
  */
-internal object ArchiveNames {
+object ArchiveNames {
     /** Urutan penting: sufiks majemuk (.tar.gz) harus dicek sebelum sufiks tunggal (.gz). */
     private val SUFFIXES: List<Pair<String, ArchiveFormat>> = listOf(
         ".tar.gz" to ArchiveFormat.TAR_GZ, ".tgz" to ArchiveFormat.TAR_GZ,
@@ -109,7 +109,7 @@ internal object ArchiveNames {
  * [ARCHIVE2] Format keluaran dialog Kompres. Level dibatasi demi RAM Android: xz/7z (LZMA2) maksimal 6 (kamus 8 MB,
  * sekitar 100 MB memori enkoder); preset 7-9 butuh 190-670 MB sehingga tidak ditawarkan.
  */
-internal enum class CompressFormat(
+enum class CompressFormat(
     val label: String, val ext: String, val minLevel: Int, val maxLevel: Int, val defaultLevel: Int,
     val hasPassword: Boolean, val note: String
 ) {
@@ -132,13 +132,13 @@ internal enum class CompressFormat(
  * [ARCHIVE2] Pilihan Kompres: [baseName] tanpa ekstensi (mentah dari pengguna; divalidasi [CompressNames]).
  * [ARCHIVE6] [encryptNames] (khusus 7z bersandi): true = isi DAN nama berkas dienkripsi, false = isi saja.
  */
-internal class CompressOptions(
+class CompressOptions(
     val format: CompressFormat, val level: Int, val baseName: String, val password: String?,
     val encryptNames: Boolean = false,
 )
 
 /** [ARCHIVE2] Logika nama/level murni untuk Kompres (diuji JVM tanpa pustaka arsip). */
-internal object CompressNames {
+object CompressNames {
     const val MAX_NAME_BYTES = 255
 
     /** Nama dasar: dipangkas, dan ekstensi format yang sama di belakangnya dibuang ("a.zip" + ZIP -> "a"). */

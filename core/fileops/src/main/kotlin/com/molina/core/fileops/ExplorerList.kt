@@ -1,4 +1,4 @@
-package com.molina.studio.cinema
+package com.molina.core.fileops
 
 import java.io.File
 import java.nio.file.Files
@@ -8,7 +8,7 @@ import java.util.Locale
  * Daftar isi folder untuk Penjelajah: pencarian nama (satu folder atau sampai subfolder) dan sortir.
  * Murni JVM (tanpa Android/Compose). Semua fungsi blocking: panggil dari Dispatchers.IO.
  */
-internal object ExplorerList {
+object ExplorerList {
     enum class Key { NAME, DATE, SIZE, TYPE }
 
     class Opts(

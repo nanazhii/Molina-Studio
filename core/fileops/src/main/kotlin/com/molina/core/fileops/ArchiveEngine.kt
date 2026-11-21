@@ -1,4 +1,4 @@
-package com.molina.studio.cinema
+package com.molina.core.fileops
 
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
@@ -32,10 +32,9 @@ import org.apache.commons.compress.compressors.gzip.GzipParameters
 import org.apache.commons.compress.compressors.xz.XZCompressorInputStream
 import org.apache.commons.compress.compressors.xz.XZCompressorOutputStream
 import org.tukaani.xz.LZMA2Options
-import com.molina.core.fileops.FileOps
 
 /** [ARCHIVE] Hasil ekstrak: [dir] tempat hasil, [files] jumlah berkas (-1 = tidak dihitung), [renamed] berkas yang diganti nama karena bentrok. */
-internal class ExtractResult(val dir: File, val files: Int, val renamed: Int) {
+class ExtractResult(val dir: File, val files: Int, val renamed: Int) {
     fun describe(): String {
         val sb = StringBuilder("Diekstrak ke: ").append(dir.name)
         if (files >= 0) sb.append(" (").append(files).append(" berkas)")
@@ -52,7 +51,7 @@ internal class ExtractResult(val dir: File, val files: Int, val renamed: Int) {
  * dilewati. Bila gagal atau dibatalkan, berkas hasil ekstrak dibatalkan (folder bernama dihapus; mode "di sini" hanya
  * menghapus berkas yang dibuat operasi ini). Berkas yang sudah ada TIDAK ditimpa: hasil diberi nama "nama (1).ext".
  */
-internal object ArchiveEngine {
+object ArchiveEngine {
     private const val MIN_FREE = 8L * 1024 * 1024
     private const val SPACE_CHECK_EVERY = 16L * 1024 * 1024
 

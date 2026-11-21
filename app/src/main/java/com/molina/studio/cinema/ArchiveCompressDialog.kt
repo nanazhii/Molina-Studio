@@ -41,6 +41,9 @@ import java.io.File
 import com.molina.studio.ui.MolinaTheme
 import com.molina.core.ui.Win7
 import com.molina.core.ui.Win7Button
+import com.molina.core.fileops.CompressFormat
+import com.molina.core.fileops.CompressOptions
+import com.molina.core.fileops.CompressNames
 
 /** [ARCHIVE2] Tombol pilihan format: terpilih = warna seleksi Win7. */
 @Composable

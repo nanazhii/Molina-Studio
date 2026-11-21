@@ -6,5 +6,5 @@ cd "$(dirname "$0")/../.."
 KC="${KOTLINC:-kotlinc}"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
-"$KC" -nowarn -d "$OUT" app/src/main/java/com/molina/studio/cinema/ArchiveNames.kt scripts/app-tests/ArchiveNamesTests.kt
+"$KC" -nowarn -d "$OUT" core/fileops/src/main/kotlin/com/molina/core/fileops/ArchiveNames.kt scripts/app-tests/ArchiveNamesTests.kt
 java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" ArchiveNamesTestsKt

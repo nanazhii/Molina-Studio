@@ -1,11 +1,11 @@
-package com.molina.studio.cinema
+package com.molina.core.fileops
 
 /**
  * [ARCHIVE5] Keputusan satu pintu: berkas ini arsip? lewat mesin mana? Murni (tanpa Android) supaya bisa diuji JVM.
  * Mesin bawaan ([ArchiveEngine]: ZIP, 7z, tar, gz/bz2/xz) SELALU didahulukan; [DebianFormats] hanya untuk sisanya
  * (RAR, ISO, CAB, multi-bagian, ...). Dengan begitu perilaku format lama tidak berubah sama sekali.
  */
-internal object ArchiveRoute {
+object ArchiveRoute {
     fun supports(name: String): Boolean = ArchiveNames.detect(name) != null || DebianFormats.supports(name)
 
     /** True bila berkas hanya bisa dibuka lewat 7z di Debian. */

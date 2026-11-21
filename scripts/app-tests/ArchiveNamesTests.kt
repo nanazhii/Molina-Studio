@@ -1,5 +1,5 @@
-import com.molina.studio.cinema.ArchiveFormat
-import com.molina.studio.cinema.ArchiveNames
+import com.molina.core.fileops.ArchiveFormat
+import com.molina.core.fileops.ArchiveNames
 import java.io.File
 
 private var fails = 0

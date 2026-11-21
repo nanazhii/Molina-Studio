@@ -7,5 +7,5 @@ KC="${KOTLINC:-kotlinc}"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 C=app/src/main/java/com/molina/studio/cinema
-"$KC" -nowarn -d "$OUT" core/download/src/main/kotlin/com/molina/core/download/SevenZipCommand.kt $C/ArchiveNames.kt $C/DebianArchiveStaging.kt $C/ArchiveRoute.kt scripts/app-tests/DebianArchiveStagingTests.kt 2>&1 | grep -v '^$' || true
+"$KC" -nowarn -d "$OUT" core/download/src/main/kotlin/com/molina/core/download/SevenZipCommand.kt core/fileops/src/main/kotlin/com/molina/core/fileops/ArchiveNames.kt $C/DebianArchiveStaging.kt core/fileops/src/main/kotlin/com/molina/core/fileops/ArchiveRoute.kt core/fileops/src/main/kotlin/com/molina/core/fileops/DebianFormats.kt scripts/app-tests/DebianArchiveStagingTests.kt 2>&1 | grep -v '^$' || true
 java -cp "$OUT:$(dirname "$(command -v "$KC")")/../lib/kotlin-stdlib.jar" com.molina.studio.cinema.DebianArchiveStagingTestsKt

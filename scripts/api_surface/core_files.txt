@@ -12,9 +12,16 @@ com.molina.core.files.FileTypes: val MEDIA: Set<String>
 com.molina.core.files.FileTypes: val VIDEO: Set<String>
 com.molina.core.files.FolderKind: enum entries DEFAULT, DOWNLOAD, VIDEO, MUSIC, PICTURES, DOCS
 com.molina.core.files.FolderKinds: fun of(name: String): FolderKind
+com.molina.core.files.NanoName: const val NONE
+com.molina.core.files.NanoName: const val TEMPLATE
+com.molina.core.files.NanoName: fun initial(last: String?): Pair<String, String>
+com.molina.core.files.NanoName: fun join(stem: String, ext: String): String
+com.molina.core.files.NanoName: fun split(name: String): Pair<String, String>
+com.molina.core.files.NanoName: val EXTENSIONS
 com.molina.core.files.NaturalOrder: fun compare(a: String, b: String): Int
 com.molina.core.files: enum class FolderKind
 com.molina.core.files: object DirOrder
 com.molina.core.files: object FileTypes
 com.molina.core.files: object FolderKinds
+com.molina.core.files: object NanoName
 com.molina.core.files: object NaturalOrder

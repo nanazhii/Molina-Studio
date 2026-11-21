@@ -1,6 +1,7 @@
 package com.molina.studio.cinema
 
 import android.content.Context
+import com.molina.core.fileops.ExplorerList
 
 /** Setelan sortir Penjelajah (SharedPreferences molina_explorer): diingat antar pembukaan. */
 internal object ExplorerPrefs {

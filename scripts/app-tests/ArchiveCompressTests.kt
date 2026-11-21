@@ -1,8 +1,8 @@
-import com.molina.studio.cinema.ArchiveEngine
-import com.molina.studio.cinema.CompressFormat
-import com.molina.studio.cinema.CompressNames
-import com.molina.studio.cinema.CompressOptions
-import com.molina.studio.cinema.ExtractTarget
+import com.molina.core.fileops.ArchiveEngine
+import com.molina.core.fileops.CompressFormat
+import com.molina.core.fileops.CompressNames
+import com.molina.core.fileops.CompressOptions
+import com.molina.core.fileops.ExtractTarget
 import com.molina.core.fileops.FileOps
 import java.io.File
 import java.io.IOException

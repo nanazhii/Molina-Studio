@@ -19,6 +19,12 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import com.molina.core.exec.ProotHostEnv
 import com.molina.core.fileops.FileOps
+import com.molina.core.fileops.ExtractResult
+import com.molina.core.fileops.ExtractTarget
+import com.molina.core.fileops.CompressFormat
+import com.molina.core.fileops.CompressOptions
+import com.molina.core.fileops.CompressNames
+import com.molina.core.fileops.DebianFormats
 
 /**
  * [ARCHIVE4] Membuka arsip yang tidak dikuasai [ArchiveEngine] (RAR, ISO, CAB, multi-bagian, ...) lewat `7z` di Debian

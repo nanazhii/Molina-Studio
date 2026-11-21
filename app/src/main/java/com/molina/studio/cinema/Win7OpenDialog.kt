@@ -90,7 +90,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.IntOffset
 import androidx.core.content.ContextCompat
 import com.molina.studio.terminal.RootfsManager
-import com.molina.studio.terminal.NanoName
+import com.molina.core.files.NanoName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -115,6 +115,9 @@ import com.molina.core.ui.Win7Button
 import com.molina.core.ui.Win7Close
 import com.molina.core.ui.Win7Drive
 import com.molina.core.fileops.FileOps
+import com.molina.core.fileops.CompressNames
+import com.molina.core.fileops.ArchiveRoute
+import com.molina.core.fileops.ExplorerList
 
 internal class W7Entry(val file: File, val isDir: Boolean, val size: Long, val modified: Long, val rel: String? = null) {
     val name: String get() = file.name

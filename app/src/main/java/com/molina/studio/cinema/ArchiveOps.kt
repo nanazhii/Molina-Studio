@@ -3,6 +3,11 @@ package com.molina.studio.cinema
 import android.content.Context
 import java.io.File
 import com.molina.core.fileops.FileOps
+import com.molina.core.fileops.ExtractResult
+import com.molina.core.fileops.ArchiveEngine
+import com.molina.core.fileops.ExtractTarget
+import com.molina.core.fileops.CompressOptions
+import com.molina.core.fileops.ArchiveRoute
 
 /**
  * [ARCHIVE5] Penghubung UI -> mesin arsip. Memilih [ArchiveEngine] atau [DebianArchive] lewat [ArchiveRoute];

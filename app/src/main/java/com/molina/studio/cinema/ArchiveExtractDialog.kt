@@ -38,6 +38,9 @@ import com.molina.studio.ui.MolinaTheme
 import com.molina.core.ui.Win7
 import com.molina.core.ui.Win7Button
 import com.molina.core.fileops.FileOps
+import com.molina.core.fileops.ExtractTarget
+import com.molina.core.fileops.ArchiveNames
+import com.molina.core.fileops.ArchiveRoute
 
 /** [ARCHIVE] Satu baris isi arsip pada satu level folder: [key] = kunci seleksi (folder berakhiran "/"). */
 internal class ArcChild(val key: String, val label: String, val isDir: Boolean, val size: Long)

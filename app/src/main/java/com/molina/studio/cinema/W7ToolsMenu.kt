@@ -21,6 +21,9 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import com.molina.core.ui.Win7
 import com.molina.core.fileops.FileOps
+import com.molina.core.fileops.ExtractTarget
+import com.molina.core.fileops.ArchiveRoute
+import com.molina.core.fileops.ExplorerList
 
 /**
  * [SPLIT-TOOLS] Menu Alat Penjelajah (popup drop-up): diangkat dari Win7OpenDialog.kt menjadi composable tersendiri.

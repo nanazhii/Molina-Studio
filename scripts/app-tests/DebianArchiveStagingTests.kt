@@ -4,6 +4,10 @@ import com.molina.core.download.SevenZipCommand
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
+import com.molina.core.fileops.CompressFormat
+import com.molina.core.fileops.CompressOptions
+import com.molina.core.fileops.ArchiveRoute
+import com.molina.core.fileops.DebianFormats
 
 private var fails = 0
 private fun check(name: String, ok: Boolean) { if (ok) println("ok   $name") else { fails++; println("GAGAL $name") } }
