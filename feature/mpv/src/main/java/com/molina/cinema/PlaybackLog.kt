@@ -2,6 +2,7 @@ package com.molina.cinema
 
 import android.os.SystemClock
 import com.molina.core.diag.LogRedact
+import com.molina.core.diag.PlaybackSessions
 import java.util.Locale
 
 /**
@@ -66,6 +67,10 @@ internal object PlaybackLog {
 
     /** MPV_EVENT_START_FILE. */
     fun onStart() {
+        // [DIAG-SESSION] onStart: sesi baru dibuka sebelum baris "Mulai" agar ikut berawalan ID-nya
+        val previous = PlaybackSessions.current()
+        PlaybackSessions.begin()
+        if (previous != null) MpvLog.w(TAG, "Sesi ${previous.label} diganti tanpa END_FILE")
         target = prop("path")?.let { LogRedact.target(it) } ?: "(tidak diketahui)"
         startedAt = SystemClock.elapsedRealtime()
         loaded = false
@@ -126,6 +131,7 @@ internal object PlaybackLog {
     fun onEnd(positionMs: Long, durationMs: Long) {
         // Tanpa START_FILE yang cocok (END_FILE ganda/sisa), jangan mencatat apa pun.
         if (startedAt == 0L) return
+        val sid = PlaybackSessions.current() // [DIAG-SESSION] onEnd: ditutup setelah baris akhir tercatat
         val elapsed = (SystemClock.elapsedRealtime() - startedAt) / 1000
         val wasLoaded = loaded
         val shownTarget = target
@@ -133,19 +139,23 @@ internal object PlaybackLog {
         // Reset dulu agar END_FILE berikutnya tidak tercatat dua kali.
         startedAt = 0L
         loaded = false
-        if (!wasLoaded) {
-            MpvLog.w(
+        try {
+            if (!wasLoaded) { // [DIAG-SESSION] onEnd-tutup-gagal
+                MpvLog.w(
+                    TAG,
+                    "Berakhir sebelum dimuat (kemungkinan gagal dibuka): " +
+                        "$shownTarget setelah ${elapsed}s" +
+                        (if (shownError.isNotEmpty()) " | penyebab $shownError" else "")
+                )
+                return
+            }
+            MpvLog.i(
                 TAG,
-                "Berakhir sebelum dimuat (kemungkinan gagal dibuka): " +
-                    "$shownTarget setelah ${elapsed}s" +
-                    (if (shownError.isNotEmpty()) " | penyebab $shownError" else "")
+                "Selesai: $shownTarget | posisi ${clock(positionMs)} dari ${clock(durationMs)}"
             )
-            return
+        } finally {
+            if (sid != null) PlaybackSessions.end(sid)
         }
-        MpvLog.i(
-            TAG,
-            "Selesai: $shownTarget | posisi ${clock(positionMs)} dari ${clock(durationMs)}"
-        )
     }
 
     private fun prop(name: String): String? =

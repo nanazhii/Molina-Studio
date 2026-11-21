@@ -4,6 +4,7 @@ import android.util.Log
 import com.molina.core.api.AppLog
 import com.molina.core.api.LogLevel
 import com.molina.core.diag.LogRedact
+import com.molina.core.diag.PlaybackSessions
 
 /**
  * Pengganti android.util.Log untuk modul mpv. Pesan disamarkan (URL, token)
@@ -15,8 +16,16 @@ internal object MpvLog {
     /** Tag logcat seragam; tag asal (mis. "playback") jadi awalan pesan. AppLog tetap memakai tag asal. */
     const val LOGCAT_TAG = "Molina/Mpv"
 
-    private fun tagged(tag: String, msg: String) =
-        if (tag.isEmpty() || tag == SOURCE) msg else "[$tag] $msg"
+    /** [DIAG-SESSION] Awalan "[tag sNNN]" memuat ID sesi pemutaran aktif; tanpa sesi bentuk lama dipertahankan. */
+    private fun tagged(tag: String, msg: String): String {
+        val sid = PlaybackSessions.current()?.label
+        val head = when {
+            tag.isEmpty() || tag == SOURCE -> sid
+            sid == null -> tag
+            else -> "$tag $sid"
+        }
+        return if (head == null) msg else "[$head] $msg"
+    }
 
     fun v(tag: String, msg: String, tr: Throwable? = null) =
         emit(Log.VERBOSE, LogLevel.Debug, tag, msg, tr)
@@ -54,6 +63,7 @@ internal object MpvLog {
             listOf(safe, LogRedact.text(tr.toString()))
                 .filter { it.isNotEmpty() }
                 .joinToString(": ")
-        AppLog.log(SOURCE, level, tag, summary)
+        // [DIAG-SESSION] ringkasan: ID sesi ikut ke tab Log (pengelompokan baris identik tetap berlaku per sesi)
+        AppLog.log(SOURCE, level, tag, PlaybackSessions.prefix() + summary)
     }
 }
