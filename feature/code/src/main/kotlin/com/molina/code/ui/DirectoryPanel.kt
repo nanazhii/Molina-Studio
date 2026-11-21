@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.molina.core.ui.FileTreeIcon
+import com.molina.core.ui.MoreDotsIcon // [DRAWER-DOTS]
 
 /**
  * Panel direktori (F4, blueprint bagian 5): laci dari kiri selebar 72% layar (maks 320dp) dengan
@@ -211,7 +212,7 @@ private fun TreeRow(row: DirRow, session: CodeSession, selected: Boolean, onTap:
                 .pointerInput(entry.file.path) { detectTapGestures(onTap = { menu() }) },
             contentAlignment = Alignment.Center
         ) {
-            Canvas(Modifier.size(CodeDimens.TreeMenuDots)) { drawMoreDots(CodeColors.IconDim) }
+            MoreDotsIcon(CodeColors.IconDim, CodeDimens.TreeMenuDots) // [DRAWER-DOTS]
             // Dropdown ringkas menempel di titik tiga baris ini (bukan dialog layar penuh)
             val d = session.fileDialog
             if (d is FileDialog.Menu && d.fromTree && d.file.path == entry.file.path) {

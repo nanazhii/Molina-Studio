@@ -68,6 +68,7 @@ import com.molina.core.fileops.FileNames
 import com.molina.core.fileops.FileOps
 import com.molina.explorer.W7ConfirmDialog
 import com.molina.core.ui.FileTreeIcon
+import com.molina.core.ui.MoreDotsIcon // [DRAWER-DOTS]
 import com.molina.core.ui.FileTreeIconSize
 import com.molina.core.ui.MintFileIcon
 import com.molina.explorer.W7InfoDialog
@@ -92,6 +93,9 @@ private val DrawerMaxWidth = 288.dp // 240 -> 264 -> 288
 private const val DrawerFraction = 0.40f
 private val DrawerCorner = 16.dp // [DRAWER-ROUND] radius sudut kanan drawer
 private val DrawerShape = androidx.compose.foundation.shape.RoundedCornerShape(topEnd = DrawerCorner, bottomEnd = DrawerCorner)
+private val MenuShape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp) // [DRAWER-DOTS] menu konteks: sudut 14dp, latar gelap
+private val MenuColor = MolinaTheme.CardBg
+private val DotsWidth = 36.dp // lebar kotak titik tiga per baris dan header
 private val DrawerFrameColor = Color(0xFF00E676).copy(alpha = 0.6f) // [DRAWER-GREEN] hijau transparan (60%)
 
 /** [FILE-DRAWER2] Keadaan tree dipegang di sini (bukan remember) agar folder utama dan folder terbuka bertahan lintas pembukaan drawer. */
@@ -165,6 +169,7 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
     val initialRoot = remember { MolinaServices.explorer.lastFolder() ?: storageRoot }
     val root: File = st.root ?: initialRoot
     var menuFor by remember { mutableStateOf<String?>(null) }
+    var headerMenu by remember { mutableStateOf(false) } // [DRAWER-CRUMBS]
     var sheet by remember { mutableStateOf<Sheet?>(null) }
     var newFile by remember { mutableStateOf(false) }
     BackHandler(onBack = onClose)
@@ -238,15 +243,22 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
                     },
                     contentAlignment = Alignment.Center
                 ) { Win7BackOrb(canUp) }
-                Column(Modifier.weight(1f).padding(horizontal = 4.dp)) {
-                    Text(
-                        root.name.ifEmpty { "/" }, color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        root.path, color = dim, fontSize = 10.sp, fontFamily = FontFamily.Monospace,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis
-                    )
+                DrawerPathBar( // [DRAWER-CRUMBS] segmen bisa diketuk, berhenti di akar volume (sama dengan tombol kembali)
+                    root.path,
+                    canGo = { d -> vols.any { d.path == it.path || d.path.startsWith(it.path + "/") } },
+                    onGo = { setRoot(it) }, dim = dim, modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
+                )
+                Box(Modifier.width(DotsWidth).height(44.dp).clickable { headerMenu = true }, contentAlignment = Alignment.Center) {
+                    MoreDotsIcon(dim)
+                    DropdownMenu(expanded = headerMenu, onDismissRequest = { headerMenu = false }, shape = MenuShape, containerColor = MenuColor) {
+                        DropdownMenuItem(text = { Text("Muat ulang") }, onClick = {
+                            headerMenu = false
+                            for (p in listOf(root.path) + st.expanded.toList()) load(File(p))
+                        })
+                        if (root.path != storageRoot.path) {
+                            DropdownMenuItem(text = { Text("Ke penyimpanan internal") }, onClick = { headerMenu = false; setRoot(storageRoot) })
+                        }
+                    }
                 }
             }
             if (vols.size > 1) { // [FILE-DRAWER3] chip pilihan volume
@@ -283,7 +295,7 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
                                     },
                                     onLongClick = { menuFor = f.path }
                                 )
-                                .padding(start = (6 + depth * 14).dp, end = 8.dp),
+                                .padding(start = (6 + depth * 14).dp, end = DotsWidth), // [DRAWER-DOTS] ruang untuk kotak titik tiga
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
@@ -298,7 +310,14 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
                                 fontFamily = FontFamily.Monospace, fontSize = 13.sp
                             )
                         }
-                        DropdownMenu(expanded = menuFor == f.path, onDismissRequest = { menuFor = null }) {
+                        Box( // [DRAWER-DOTS] jangkar menu: titik tiga rata kanan baris; tekan lama tetap membuka menu yang sama
+                            Modifier.align(Alignment.CenterEnd).width(DotsWidth).height(FileTreeIconSize.RowHeight)
+                                .clickable { menuFor = f.path }
+                                .semantics { contentDescription = "Menu " + f.name; role = Role.Button },
+                            contentAlignment = Alignment.Center
+                        ) {
+                        MoreDotsIcon(dim)
+                        DropdownMenu(expanded = menuFor == f.path, onDismissRequest = { menuFor = null }, shape = MenuShape, containerColor = MenuColor) {
                             if (isDir) {
                                 DropdownMenuItem(text = { Text("cd ke folder ini") }, onClick = { menuFor = null; if (cdHere(ctx, f)) onClose() })
                                 DropdownMenuItem(text = { Text("Jadikan folder utama") }, onClick = { menuFor = null; setRoot(f) })
@@ -317,6 +336,7 @@ fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
                             DropdownMenuItem(text = { Text("Properti") }, onClick = { menuFor = null; sheet = Sheet.Info(f) })
                             DropdownMenuItem(text = { Text("Hapus", color = MolinaTheme.Bad) }, onClick = { menuFor = null; sheet = Sheet.Delete(f) })
                         }
+                        } // [DRAWER-DOTS] tutup jangkar
                     }
                 }
             }

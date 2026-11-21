@@ -19,9 +19,16 @@ com.molina.core.files.NanoName: fun join(stem: String, ext: String): String
 com.molina.core.files.NanoName: fun split(name: String): Pair<String, String>
 com.molina.core.files.NanoName: val EXTENSIONS
 com.molina.core.files.NaturalOrder: fun compare(a: String, b: String): Int
+com.molina.core.files.PathCrumbs.Tail: val parts: List<String> get()
+com.molina.core.files.PathCrumbs: class Crumb(val label: String, val path: String)
+com.molina.core.files.PathCrumbs: class Tail(val truncated: Boolean, val crumbs: List<Crumb>)
+com.molina.core.files.PathCrumbs: const val INTERNAL
+com.molina.core.files.PathCrumbs: const val SEP
+com.molina.core.files.PathCrumbs: fun tail(path: String, keep: Int = 2): Tail
 com.molina.core.files: enum class FolderKind
 com.molina.core.files: object DirOrder
 com.molina.core.files: object FileTypes
 com.molina.core.files: object FolderKinds
 com.molina.core.files: object NanoName
 com.molina.core.files: object NaturalOrder
+com.molina.core.files: object PathCrumbs

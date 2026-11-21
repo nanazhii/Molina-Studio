@@ -98,12 +98,3 @@ internal fun DrawScope.drawExpander(expanded: Boolean) {
         drawPath(p, CodeColors.IconDim, style = Stroke(1f * k))
     }
 }
-
-/** Titik tiga vertikal: tombol menu per baris tree (menggantikan tekan lama). */
-internal fun DrawScope.drawMoreDots(color: Color) {
-    val r = u() * 2f
-    val cx = size.width / 2f
-    drawCircle(color, r, Offset(cx, u() * 4f))
-    drawCircle(color, r, Offset(cx, u() * 12f))
-    drawCircle(color, r, Offset(cx, u() * 20f))
-}

@@ -51,6 +51,7 @@ import androidx.compose.ui.platform.LocalContext
 import io.github.rosemoe.sora.widget.SelectionMovement
 import kotlinx.coroutines.delay
 import com.molina.core.preview.PreviewKind
+import com.molina.core.files.PathCrumbs // [DRAWER-CRUMBS]
 
 /**
  * Layar tab Code (F2, F3, F4): header path, tab bar, editor, toolbar, dan panel direktori.
