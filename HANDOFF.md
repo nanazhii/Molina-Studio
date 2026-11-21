@@ -7,7 +7,7 @@ Diperbarui: 18 Nov 2026. HEAD remote saat dokumen ditulis: 760ecfd.
 - Path perangkat: /sdcard/Molina-Studio (Molina Terminal), /storage/emulated/0/Molina_Studio (Android). Perangkat uji Android 8.0 (API 26), arm64-only.
 - Build HANYA lewat GitHub Actions CI. Sandbox Claude tidak punya Android SDK/kotlinc/Maven, jadi kode TIDAK bisa dikompilasi lokal; yang bisa dijalankan lokal hanya gerbang Python (module_gate, pkg_graph, dup_gate). Selalu jujur bahwa kompilasi diverifikasi CI.
 - Modifikasi file lewat skrip Python 3 here-doc (python3 << 'PYEOF'), siap-copy, IDEMPOTENT (cek dulu sebelum menulis), dan uji dua kali di klon sebelum diberikan ke pengguna.
-- Commit: Conventional Commits. Perubahan menyentuh Gradle/CI/kode: TANPA [skip ci]. Hanya dokumentasi: [skip ci]. progres.md ada di root repo (dilacak git).
+- Commit: Conventional Commits. Perubahan menyentuh Gradle/CI/kode: TANPA [skip ci]. Hanya dokumentasi: [skip ci]. progres.md hanya lokal (tidak ada di repo).
 - Setiap akhir tugas wajib: (a) pemeriksaan dampak (Gradle, Manifest, JNI mpv), (b) snippet pembaruan progres.md, (c) saran proaktif branding/fungsionalitas bila relevan.
 - Pola kerja per langkah: pull klon, telaah data nyata (grep, pkg_graph, dup_gate), tulis skrip, uji dari keadaan bersih lalu jalan kedua, serahkan skrip + perintah commit, tunggu hasil CI pengguna.
 
