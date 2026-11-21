@@ -13,6 +13,8 @@ import com.molina.core.net.ShieldProxy
 import com.molina.core.net.ShieldStats
 import com.molina.core.policy.ExternalIntentGate
 import com.molina.core.net.UrlPolicy
+import com.molina.core.policy.IntentExtras
+import com.molina.core.policy.PlaybackSourcePolicy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
@@ -1621,50 +1623,19 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         }
     }
 
-    // MPVActivity bersifat exported, jadi aplikasi lain bisa mengirim extra "filepath".
-    // Tolak skema tak dikenal dan path di dalam data privat aplikasi.
-    private fun isAllowedCustomPath(path: String): Boolean {
-        if (path.isBlank()) return false
-        if (path.startsWith("memory://", ignoreCase = true))
-            return isAllowedMemoryPlaylist(path)
-        return isAllowedEntry(path)
+    // [EXT-INTENT] MPVActivity bersifat exported. Kebijakan sumber (skema, playlist memory://, data privat) ada di
+    // :core:policy dan diuji di JVM; di sini hanya perekat Android (dataDir, UrlPolicy, Uri).
+    private val sourcePolicy by lazy {
+        PlaybackSourcePolicy(
+            dataDir = applicationInfo.dataDir,
+            urlAllowed = { UrlPolicy.check(it) is UrlPolicy.Verdict.Allowed },
+            fileUriPath = { Uri.parse(it).path },
+        )
     }
 
-    // Playlist memory:// hanya diterima bila setiap barisnya lolos validasi yang sama
-    // dengan entri tunggal. Skema memory sendiri ditolak di dalam isi (cegah rekursi).
-    private fun isAllowedMemoryPlaylist(uri: String): Boolean {
-        val header = "memory://#EXTM3U"
-        if (!uri.startsWith(header, ignoreCase = true)) return false
-        val entries = uri.substring(header.length)
-            .split('\n')
-            .map { it.trimEnd('\r') }
-            .filter { it.isNotEmpty() && !it.startsWith("#") }
-        if (entries.isEmpty() || entries.size > MAX_MEMORY_PLAYLIST_ENTRIES) return false
-        return entries.all { isAllowedEntry(it) }
-    }
+    private fun isAllowedCustomPath(path: String): Boolean = sourcePolicy.isAllowedCustomPath(path)
 
-    private fun isAllowedEntry(path: String): Boolean {
-        if (path.isBlank()) return false
-        if (path.contains("://")) {
-            val scheme = path.substringBefore("://").lowercase()
-            if (scheme !in ALLOWED_CUSTOM_SCHEMES) return false
-            if (scheme == "file") return isOutsidePrivateData(Uri.parse(path).path)
-            return UrlPolicy.check(path) is UrlPolicy.Verdict.Allowed
-        }
-        return isOutsidePrivateData(path)
-    }
-
-    // Path di dalam data privat aplikasi (termasuk lewat symlink) tidak boleh dibuka dari luar.
-    private fun isOutsidePrivateData(path: String?): Boolean {
-        if (path.isNullOrBlank()) return false
-        return try {
-            val real = File(path).canonicalPath
-            val privateRoot = File(applicationInfo.dataDir).canonicalPath
-            !(real == privateRoot || real.startsWith("$privateRoot/"))
-        } catch (e: Exception) {
-            false
-        }
-    }
+    private fun isOutsidePrivateData(path: String?): Boolean = sourcePolicy.isOutsidePrivateData(path)
 
     private fun resolveUri(data: Uri): String? {
         val filepath = when (data.scheme) {
@@ -1733,14 +1704,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                 onloadCommands.add(arrayOf("sub-add", subfile, flag))
             }
         }
-        extras.getInt("position", 0).let {
-            if (it > 0)
-                pushOption("start", "${it / 1000f}")
-        }
-        extras.getString("title", "").let {
-            if (!it.isNullOrEmpty())
-                pushOption("force-media-title", it.filter { c -> c >= ' ' && c != '\u007f' }.take(200))
-        }
+        IntentExtras.startOption(extras.getInt("position", 0))?.let { pushOption("start", it) }
+        IntentExtras.titleOption(extras.getString("title", ""))?.let { pushOption("force-media-title", it) }
         // `headers` ditangani parseHeadersExtra (opsi loadfile per-entri). `tls_verify` sengaja
         // tidak didukung: extra dari aplikasi lain tidak boleh melemahkan verifikasi TLS.
     }
@@ -1749,12 +1714,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     // (konvensi pemutar Android lain). Disaring StreamHeaders; hanya jumlah yang dicatat, bukan isinya.
     private fun parseHeadersExtra(extras: Bundle?): Map<String, String> {
         val arr = extras?.getStringArray("headers") ?: return emptyMap()
-        val raw = LinkedHashMap<String, String>()
-        var i = 0
-        while (i + 1 < arr.size && i < 64) {
-            raw[arr[i] ?: ""] = arr[i + 1] ?: ""
-            i += 2
-        }
+        val raw = IntentExtras.pairHeaders(arr)
         val clean = StreamHeaders.sanitize(raw)
         MpvLog.i(TAG, "Header dari intent: ${clean.size} dipakai, ${raw.size - clean.size} ditolak")
         return clean
@@ -4210,11 +4170,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     companion object {
         private const val TAG = "mpv"
-        private const val MAX_MEMORY_PLAYLIST_ENTRIES = 1000
-        // Hanya skema yang juga diizinkan UrlPolicy.
-        private val ALLOWED_CUSTOM_SCHEMES = setOf(
-            "http", "https", "rtmp", "rtmps", "rtsp", "content", "file"
-        )
+        // SSOT batas playlist memory:// ada di :core:policy (dipakai juga untuk batas indeks posisi).
+        private const val MAX_MEMORY_PLAYLIST_ENTRIES = PlaybackSourcePolicy.MAX_MEMORY_PLAYLIST_ENTRIES
         // how long should controls be displayed on screen (ms)
         private const val CONTROLS_DISPLAY_TIMEOUT = 1500L
         // how long controls fade to disappear (ms)
