@@ -9,6 +9,7 @@ import com.molina.core.library.ThumbMath
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import com.molina.core.fileops.FileOps
 
 /**
  * [FILES-THUMB] Thumbnail kecil untuk panel Penjelajah: frame video, atau cover art tertanam pada audio.

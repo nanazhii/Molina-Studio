@@ -51,6 +51,7 @@ import com.molina.core.library.TrashBin
 import com.molina.studio.ui.MolinaTheme
 import com.molina.core.ui.Win7
 import com.molina.core.ui.Win7Button
+import com.molina.core.fileops.FileOps
 
 // [SPLIT-DIALOGS] Dialog kecil Penjelajah: nama, kata sandi, konfirmasi hapus, info, plus tapToFocus; dipecah dari Win7OpenDialog.kt.
 

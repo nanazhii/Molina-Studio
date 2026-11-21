@@ -47,6 +47,7 @@ import com.molina.studio.ui.MolinaTheme
 import com.molina.core.ui.MintFolder
 import com.molina.core.ui.Win7
 import com.molina.core.ui.Win7Button
+import com.molina.core.fileops.FileOps
 
 /** Ikon Recycle Bin gaya Win7: tong kaca abu-abu dengan tutup dan celah. */
 @Composable

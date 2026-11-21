@@ -9,7 +9,7 @@ import glob, os, re, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Modul penuh yang terkunci.
-LOCKED = ["feature/code", "feature/preview", "core/exec", "core/preview", "core/files"]
+LOCKED = ["feature/code", "feature/preview", "core/exec", "core/preview", "core/files", "core/fileops"]
 FORBIDDEN_PROJECTS = [":core:library", ":core:system", ":core:policy", ":core:diag", ":core:storage", ":core:net", ":core:stream", ":core:download", ":feature:mpv", ":engine:newpipe",
                       ":terminal-emulator", ":terminal-view", ":app", ":vault"]
 
@@ -17,7 +17,7 @@ FORBIDDEN_PROJECTS = [":core:library", ":core:system", ":core:policy", ":core:di
 # (IPTV, pencarian, thumbnail web). Hanya berkas Penjelajah yang dikunci per berkas.
 CINEMA = "app/src/main/java/com/molina/studio/cinema/"
 EXPLORER_GLOBS = [CINEMA + g for g in (
-    "Explorer*.kt", "W7*.kt", "Win7*.kt", "FileOps.kt", "TvFileOps.kt", "TvBrowser.kt",
+    "Explorer*.kt", "W7*.kt", "Win7*.kt", "TvFileOps.kt", "TvBrowser.kt",
     "Archive*.kt", "DebianArchive*.kt")]
 APP_NET_REFS = r"\b(ShieldProxy|IptvFetch|SearchThumbs|IptvSources|UpdateChecker|OriginalTitles|DownloadService)\b"
 
@@ -27,6 +27,7 @@ APP_NET_REFS = r"\b(ShieldProxy|IptvFetch|SearchThumbs|IptvSources|UpdateChecker
 ZONE_DIRS = ["app/src/main/java/com/molina/studio/packages", "app/src/main/java/com/molina/studio/download"]
 ZONE_FORBIDDEN_IMPORT = (
     r"^\s*import\s+(com\.molina\.code\.(ui|history|guard|lsp|format|check|nav)\b"
+    r"|com\.molina\.core\.fileops\b"
     r"|com\.molina\.studio\.cinema\.(Explorer\w*|FileOps|TvFileOps|TvBrowser|Archive\w*|DebianArchive\w*)\b)"
 )
 

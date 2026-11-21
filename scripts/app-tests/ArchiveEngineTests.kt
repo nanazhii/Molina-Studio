@@ -1,6 +1,6 @@
 import com.molina.studio.cinema.ArchiveEngine
 import com.molina.studio.cinema.ExtractTarget
-import com.molina.studio.cinema.FileOps
+import com.molina.core.fileops.FileOps
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean

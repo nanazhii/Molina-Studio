@@ -1,4 +1,4 @@
-package com.molina.studio.cinema
+package com.molina.core.fileops
 
 import java.io.File
 import java.io.IOException
@@ -27,7 +27,7 @@ import net.lingala.zip4j.progress.ProgressMonitor
  * panggil dari Dispatchers.IO. Kegagalan dilaporkan lewat IOException berpesan bahasa Indonesia.
  * Operasi panjang menerima [Ctl] untuk progres dan pembatalan.
  */
-internal object FileOps {
+object FileOps {
     class Props(
         val file: File,
         val isDir: Boolean,
@@ -105,7 +105,7 @@ internal object FileOps {
         return n
     }
 
-    internal fun pump(i: InputStream, o: OutputStream, ctl: Ctl) {
+    fun pump(i: InputStream, o: OutputStream, ctl: Ctl) {
         val buf = ByteArray(128 * 1024)
         while (true) {
             ctl.check()
@@ -341,7 +341,7 @@ internal object FileOps {
         if (last < 100) ctl.add((100 - last) * weight / 100L)
     }
 
-    internal fun mapZip(e: Exception, fallback: String): IOException =
+    fun mapZip(e: Exception, fallback: String): IOException =
         if (e is Z4jException && e.getType() == Z4jException.Type.WRONG_PASSWORD) WrongPassword() else asIo(e, fallback)
 
     /** [ZIP-AES] True bila [zip] punya entri terenkripsi (butuh kata sandi untuk diekstrak). */

@@ -78,6 +78,7 @@ dependencies {
     implementation(project(":core:policy"))
     implementation(project(":core:system"))
     implementation(project(":core:files")) // [FILE-CONTRACT]
+    implementation(project(":core:fileops")) // [CORE-FILEOPS]
     implementation(project(":core:storage"))
     implementation(project(":core:ui"))
     implementation(project(":core:security"))

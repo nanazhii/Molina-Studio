@@ -3,7 +3,7 @@ import com.molina.studio.cinema.CompressFormat
 import com.molina.studio.cinema.CompressNames
 import com.molina.studio.cinema.CompressOptions
 import com.molina.studio.cinema.ExtractTarget
-import com.molina.studio.cinema.FileOps
+import com.molina.core.fileops.FileOps
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean

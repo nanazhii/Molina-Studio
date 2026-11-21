@@ -46,7 +46,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
 import com.molina.studio.ui.MolinaTheme
 import androidx.compose.runtime.rememberCoroutineScope
-import com.molina.studio.cinema.FileOps
+import com.molina.core.fileops.FileOps
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

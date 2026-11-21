@@ -32,6 +32,7 @@ import org.apache.commons.compress.compressors.gzip.GzipParameters
 import org.apache.commons.compress.compressors.xz.XZCompressorInputStream
 import org.apache.commons.compress.compressors.xz.XZCompressorOutputStream
 import org.tukaani.xz.LZMA2Options
+import com.molina.core.fileops.FileOps
 
 /** [ARCHIVE] Hasil ekstrak: [dir] tempat hasil, [files] jumlah berkas (-1 = tidak dihitung), [renamed] berkas yang diganti nama karena bentrok. */
 internal class ExtractResult(val dir: File, val files: Int, val renamed: Int) {

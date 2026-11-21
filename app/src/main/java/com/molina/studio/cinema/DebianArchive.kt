@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import com.molina.core.exec.ProotHostEnv
+import com.molina.core.fileops.FileOps
 
 /**
  * [ARCHIVE4] Membuka arsip yang tidak dikuasai [ArchiveEngine] (RAR, ISO, CAB, multi-bagian, ...) lewat `7z` di Debian
