@@ -35,7 +35,7 @@ jobs:
       - name: Siklus paket app (ratchet, turunkan angkanya seiring ekstraksi)
         run: python3 scripts/pkg_graph.py --max-cycles 12
       - name: Duplikasi lintas modul (ratchet SSOT, turunkan angkanya seiring pemusatan)
-        run: python3 scripts/dup_gate.py --max-blocks 6 --max-literals 91
+        run: python3 scripts/dup_gate.py --max-blocks 6 --max-literals 90
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin

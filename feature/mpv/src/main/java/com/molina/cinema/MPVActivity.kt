@@ -1099,7 +1099,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private var isPlayingAudio = false
 
     private var useAudioUI = false
-        set(v) { field = v; com.molina.core.stream.StreamQuality.audioOnlyActive.value = v || forcedAudioOnly } // [QUALITY-SYNC4-A] UI audio = keadaan nyata mpv (tanpa trek video)
+        set(v) { field = v; com.molina.core.stream.StreamQuality.audioOnlyActive.value = QualityRule.audioOnlyActive(forcedAudioOnly, v) } // [QUALITY-SYNC4-A] [E-3c-2] UI audio = keadaan nyata mpv (tanpa trek video)
 
     private var lockedUI = false
 
@@ -2894,7 +2894,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     // [QUALITY-SYNC] Mode efektif: audio-only (tombol ♪ / jalur non-web) mengalahkan kunci resolusi tersimpan.
     private fun effectiveQuality(): CoreQuality =
-        if (forcedAudioOnly || useAudioUI) CoreQuality.AUDIO else com.molina.core.stream.StreamQuality.current // [QUALITY-SYNC4-C] cermin keadaan nyata, bukan hanya kunci
+        QualityRule.effective(forcedAudioOnly, useAudioUI, CoreQuality.AUDIO, com.molina.core.stream.StreamQuality.current) // [QUALITY-SYNC4-C] [E-3c-2] cermin keadaan nyata, bukan hanya kunci
 
     /** [DIAG-QUALITY] Pilih varian lewat VariantPicker dan catat keputusannya (batas, kandidat, hasil, alasan) di tab Log. */
     private fun pickVariantLogged(q: CoreQuality, vs: List<VideoVariant>, via: String): VideoVariant? {
