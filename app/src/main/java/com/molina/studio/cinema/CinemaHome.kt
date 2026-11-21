@@ -55,11 +55,11 @@ fun CinemaHome(modifier: Modifier = Modifier) {
     val scope = rememberCoroutineScope()
     var info by rememberSaveable { mutableStateOf("") }
     var channelsOpen by rememberSaveable { mutableStateOf(false) }
-    var input by rememberSaveable { mutableStateOf("") }
+    var input by CinemaSearchState.input // [SEARCH-STATE]
     var searching by remember { mutableStateOf(false) }
-    var results by remember { mutableStateOf<List<StreamSearchItem>>(emptyList()) }
-    var lastQuery by remember { mutableStateOf("") }
-    var showResults by remember { mutableStateOf(false) }
+    var results by CinemaSearchState.results
+    var lastQuery by CinemaSearchState.lastQuery
+    var showResults by CinemaSearchState.showResults
     var openLocal by rememberSaveable { mutableStateOf(false) }
     var openChooser by rememberSaveable { mutableStateOf(false) }
     var openFolder by rememberSaveable { mutableStateOf(false) }
