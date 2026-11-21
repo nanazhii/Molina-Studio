@@ -139,6 +139,23 @@ import com.molina.explorer.w7Date
 import com.molina.explorer.w7Names
 import com.molina.explorer.w7PopupMaxHeight
 import com.molina.explorer.W7Entry
+import com.molina.explorer.ArchiveCompressDialog
+import com.molina.explorer.ArchiveExtractDialog
+import com.molina.explorer.ArchiveOps
+import com.molina.explorer.W7BinDialog
+import com.molina.explorer.W7BrowseDock
+import com.molina.explorer.W7BrowseFloat
+import com.molina.explorer.W7Clip
+import com.molina.explorer.W7ConfirmDialog
+import com.molina.explorer.W7InfoDialog
+import com.molina.explorer.W7NameDialog
+import com.molina.explorer.W7PasswordDialog
+import com.molina.explorer.W7Sheet
+import com.molina.explorer.W7ToolsMenu
+import com.molina.explorer.W7ZipDialog
+import com.molina.explorer.Win7BinIcon
+import com.molina.explorer.tapToFocus
+import com.molina.explorer.w7Favorites
 
 
 private enum class W7Kind(val label: String) { MEDIA("Media (video dan audio)"), ALL("Semua file") }
@@ -1149,7 +1166,8 @@ private fun W7EntryRow(
                 Text(e.name, color = Win7.Ink, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 if (played >= 0) W7PlayedChip(played)
             }
-            if (e.rel != null) Text(e.rel, color = Win7.TextDim, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val relText = e.rel
+            if (relText != null) Text(relText, color = Win7.TextDim, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             else if (!wide) Text(
                 if (e.isDir) w7Date(e.modified) else w7Date(e.modified) + "  \u00B7  " + w7Size(e.size),
                 color = Win7.TextDim, fontSize = 12.sp, maxLines = 1
