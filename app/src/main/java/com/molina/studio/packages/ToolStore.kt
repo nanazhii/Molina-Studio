@@ -49,8 +49,8 @@ object BuiltinTools {
     private val YTDLP_REMOVE = ToolPurge.script(listOf("yt-dlp"), ToolPurge.YTDLP_PATHS, false)
 
     /** [FFMPEG-LITE] Pin rilis ffmpeg-cli; HARUS sama dengan native/ffmpeg-cli.env (dijaga scripts/bundle_gate.py). */
-    private const val FFMPEG_LITE_TAG = "ffmpeg-cli-51994c4-run1"
-    private const val FFMPEG_LITE_SHA256 = "be04fc3494026b3185b92a7374ed5153b9da610734417f4a12307c4e04e460cd"
+    private const val FFMPEG_LITE_TAG = "ffmpeg-cli-9e15687-run1"
+    private const val FFMPEG_LITE_SHA256 = "195b5a96a353705d39c4a05bba76510ac6705090d9208d2bd1ab284e9fa78a18"
 
     /**
      * [FFMPEG-LITE] Dijalankan di Debian: unduh tar.xz rilis (HTTPS), verifikasi SHA-256 terpin, ekstrak HANYA
