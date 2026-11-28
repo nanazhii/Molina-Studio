@@ -166,6 +166,60 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
      * [RADIO-DEAD] fungsi: stream gagal dibuka (berakhir sebelum dimuat + ada galat mpv) saat jaringan tervalidasi: tandai ERR
      * lewat [UnplayableStore] (kedaluwarsa 24 jam atau Muat ulang). Jaringan mati/captive tidak menandai apa pun.
      */
+    private val recoveryTried: MutableSet<String> = java.util.Collections.synchronizedSet(HashSet()) // [RAW-PAGE-RESOLVE]
+
+    /**
+     * [RAW-PAGE-RESOLVE] Entri daftar putar yang gagal dibuka mpv dipulihkan lewat resolver, satu kali per URL sumber:
+     *  - "Failed to recognize file format" pada URL HALAMAN (mis. bilibili ?p=N dari daftar saluran): resolve lalu ganti entri.
+     *  - HTTP 403/410 pada stream hasil resolve (URL CDN kedaluwarsa): resolve ulang dari halaman asal ([streamSources]).
+     * True bila pemulihan dimulai; pemanggil lalu TIDAK menandai saluran ERR dan tidak menawarkan log.
+     * Dipanggil dari thread event mpv; pekerjaan sebenarnya di [streamScope].
+     */
+    private fun recoverFailedEntry(failedPath: String, cause: String): Boolean {
+        if (failedPath.isEmpty() || !StreamLoader.isWebUrl(failedPath)) return false
+        val rawPage = cause.contains("Failed to recognize file format", ignoreCase = true) &&
+            com.molina.core.stream.YtdlUrls.needsYtdl(failedPath) && !streamSources.containsKey(failedPath)
+        val staleCdn = !rawPage && (cause.contains("HTTP error 403") || cause.contains("HTTP error 410"))
+        val raw = when {
+            rawPage -> failedPath
+            staleCdn -> streamSources[failedPath]
+            else -> null
+        } ?: return false
+        if (!recoveryTried.add(raw)) return false // sekali saja: cegah putaran gagal-resolve-gagal
+        streamScope.launch {
+            val p = StreamLoader.prepare(raw)
+            if (p !is Prepared.Ready) {
+                MpvLog.w(TAG, "[RAW-PAGE-RESOLVE] resolve gagal: ${(p as? Prepared.Failed)?.error?.name} target=${com.molina.core.diag.LogRedact.target(raw)}")
+                return@launch
+            }
+            val title = p.title
+            title?.let { streamTitles[p.url] = it }
+            streamSources[p.url] = raw
+            val count = MPVLib.getPropertyInt("playlist-count") ?: 0
+            var idx = -1
+            for (i in 0 until count) {
+                if (MPVLib.getPropertyString("playlist/$i/filename") == failedPath) { idx = i; break }
+            }
+            if (idx < 0) { // entri tunggal / sudah tidak ada di daftar: ganti saja
+                MPVLib.command(MpvLoad.loadfileArgs(p.url, MpvLoad.REPLACE, p.headers, title))
+                MpvLog.i(TAG, "[RAW-PAGE-RESOLVE] dipulihkan (ganti)")
+                return@launch
+            }
+            val args = MpvLoad.loadfileArgs(p.url, "insert-at", p.headers, title, idx)
+            if (args[0] != "loadfile") return@launch // ditolak kebijakan
+            val pos = MPVLib.getPropertyInt("playlist-pos") ?: -1
+            val curFile = if (pos >= 0) MPVLib.getPropertyString("playlist/$pos/filename").orEmpty() else ""
+            val idle = MPVLib.getPropertyBoolean("idle-active") == true
+            val curIsRawPage = StreamLoader.isWebUrl(curFile) && com.molina.core.stream.YtdlUrls.needsYtdl(curFile) &&
+                !streamSources.containsKey(curFile)
+            MPVLib.command(args) // entri lama kini di idx+1
+            if (idle || curIsRawPage || pos == idx + 1 || pos == idx) MPVLib.command(arrayOf("playlist-play-index", idx.toString()))
+            MPVLib.command(arrayOf("playlist-remove", (idx + 1).toString()))
+            MpvLog.i(TAG, "[RAW-PAGE-RESOLVE] dipulihkan entri #${idx + 1}")
+        }
+        return true
+    }
+
     private fun markDeadStream() {
         val url = shieldPath
         if (url.isEmpty() || !networkValidated()) return
@@ -622,7 +676,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     @Volatile private var channelGroups: Map<String, String> = emptyMap() // [GROUP-VIEW]
 
     /** URL stream hasil resolve -> tautan asal yang stabil; kunci Penanda posisi. */
-    private val streamSources = HashMap<String, String>()
+    private val streamSources = java.util.concurrent.ConcurrentHashMap<String, String>() // [RAW-PAGE-RESOLVE] dibaca juga dari thread event mpv
 
     /** Baris "belum siap" di dialog playlist: sisa hasil pencarian yang belum di-resolve. */
     private fun pendingRows(): List<PendingRow> {
@@ -4882,8 +4936,10 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             val failSid = com.molina.core.diag.PlaybackSessions.current()?.label // [MPV-LOG-SHARE] ID sesi diambil sebelum onEnd menutupnya
             PlaybackLog.onEnd(psc.position, psc.duration)
             if (PlaybackLog.takeEndFailed()) { // [RADIO-DEAD] hook
-                markDeadStream()
-                offerLogShare(failSid) // [MPV-LOG-SHARE]
+                if (!recoverFailedEntry(shieldPath, PlaybackLog.failureCause())) { // [RAW-PAGE-RESOLVE]
+                    markDeadStream()
+                    offerLogShare(failSid) // [MPV-LOG-SHARE]
+                }
             }
             recordWatchProgress(shieldPath, psc.position, psc.duration) // [WATCH-PROGRESS]
             psc.eof()
