@@ -49,7 +49,7 @@ object MpvLoad {
             AppLog.log("net", LogLevel.Warn, "policy", "ditolak: shield")
             return arrayOf("show-text", "Diblokir: $it", "5000")
         }
-        val opts = listOfNotNull(headerOption(headers), titleOption(title)) + remoteProtocolOptions(url) + directStreamOptions(url)
+        val opts = headerOptions(headers) + listOfNotNull(titleOption(title)) + remoteProtocolOptions(url) + directStreamOptions(url) // [HDR-UA-REF]
         if (opts.isEmpty()) return if (index >= 0) arrayOf("loadfile", url, flag, index.toString()) else arrayOf("loadfile", url, flag)
         return arrayOf("loadfile", url, flag, index.toString(), opts.joinToString(","))
     }
@@ -104,6 +104,21 @@ object MpvLoad {
         if (clean.isEmpty()) return null
         val list = clean.entries.joinToString(",") { fixed("${it.key}: ${it.value}") }
         return "http-header-fields=" + fixed(list)
+    }
+
+    /**
+     * [HDR-UA-REF] Selain `http-header-fields`, kirim User-Agent dan Referer sebagai opsi mpv per-berkas
+     * (`user-agent`, `referrer`). Opsi ini dihormati semua backend (ffmpeg/curl); CDN bilibili memberi 403
+     * bila UA/Referer hasil yt-dlp tidak sampai ke permintaan HTTP.
+     */
+    fun headerOptions(headers: Map<String, String>): List<String> {
+        val clean = StreamHeaders.sanitize(headers)
+        if (clean.isEmpty()) return emptyList()
+        val out = ArrayList<String>()
+        headerOption(clean)?.let { out.add(it) }
+        clean.entries.firstOrNull { it.key.equals("User-Agent", true) }?.let { out.add("user-agent=" + fixed(it.value)) }
+        clean.entries.firstOrNull { it.key.equals("Referer", true) }?.let { out.add("referrer=" + fixed(it.value)) }
+        return out
     }
 
     fun isMemoryPlaylist(url: String): Boolean = url.startsWith(MEMORY_HEADER, ignoreCase = true)
