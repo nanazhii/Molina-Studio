@@ -8,6 +8,7 @@ import com.molina.core.stream.FailureAction
 import com.molina.core.api.LogLevel
 import com.molina.core.diag.LogRedact
 import com.molina.core.stream.PageMedia // [PAGE-MEDIA]
+import com.molina.core.stream.PlaylistPlan // [PAGE-PLAYLIST]
 import com.molina.core.stream.ResolvedStream
 import com.molina.core.stream.SearchLang
 import com.molina.core.stream.StreamError
@@ -39,7 +40,10 @@ internal class YtdlpStreamResolver(
 
     override fun canResolve(url: String): Boolean = enabled() && YtdlUrls.needsYtdl(url)
 
-    override suspend fun resolve(pageUrl: String): StreamOutcome<ResolvedStream> {
+    override suspend fun resolve(pageUrl: String): StreamOutcome<ResolvedStream> = resolveUrl(pageUrl, noPlaylist = false)
+
+    /** [PAGE-PLAYLIST] [noPlaylist] = true: satu video saja (dipakai untuk me-resolve satu bagian playlist halaman). */
+    private suspend fun resolveUrl(pageUrl: String, noPlaylist: Boolean): StreamOutcome<ResolvedStream> {
         val bin = when (val st = YtdlpLocator.status(ctx)) {
             is YtdlpStatus.Ready -> st.guestBinary
             else -> return unsupported(st.hint(), FailureAction.INSTALL_YTDLP)
@@ -60,7 +64,7 @@ internal class YtdlpStreamResolver(
         val ytUrl = target ?: pageUrl
         for ((i, a) in attempts.withIndex()) {
             note(LogLevel.Info, "percobaan " + (i + 1) + "/" + attempts.size + " tahap=" + stage + " " + a.label + " (" + where + ")")
-            val o = YtdlpFastDir.run(ctx, bin, YtdlpCommand.resolveArgs(ytUrl, a.format), RESOLVE_TIMEOUT_MS)
+            val o = YtdlpFastDir.run(ctx, bin, YtdlpCommand.resolveArgs(ytUrl, a.format, noPlaylist), RESOLVE_TIMEOUT_MS)
             if (o.timedOut) return fail(StreamError.NETWORK, "lewat waktu ${RESOLVE_TIMEOUT_MS / 1000}s ($where)")
             if (o.exit != 0) {
                 val cls = if (o.exit != 126 && o.exit != 127) YtdlpCommand.classify(o.stderr) else null
@@ -94,6 +98,20 @@ internal class YtdlpStreamResolver(
             }
             val parsed = YtdlpParse.resolve(o.stdout)
                 ?: return fail(StreamError.PARSE, "keluaran tidak terbaca ($where)")
+            // [PAGE-PLAYLIST] Video multi-bagian (mis. bilibili ?p=1..N): -J --flat-playlist hanya memberi URL HALAMAN tiap bagian,
+            // dan mpv tidak bisa memutar halaman ("Failed to recognize file format"). Bagian pertama di-resolve sekarang (satu video);
+            // sisanya diserahkan ke antrean bergulir pemutar (di-resolve satu per satu sesaat sebelum diputar).
+            if (!noPlaylist) {
+                val pages = PlaylistPlan.pageEntries(pageUrl, parsed.entries)
+                if (pages != null) {
+                    note(LogLevel.Info, "playlist halaman " + pages.size + " bagian: bagian 1 di-resolve, sisanya menyusul ($where)")
+                    val first = resolveUrl(pages[0].url, noPlaylist = true)
+                    if (first is StreamOutcome.Success) {
+                        return StreamOutcome.Success(first.value.copy(title = first.value.title ?: pages[0].title, entries = pages))
+                    }
+                    return first // galat jujur (geo/privat/format), bukan "Failed to recognize file format" dari mpv
+                }
+            }
             parsed.audioUrl?.let { StreamQuality.rememberAudio(parsed.url, it) } // [YTDLP-ADAPTIVE-REG]
             // [YTDLP-CHIP-REG] Catat penurunan agar pemutar menampilkan chip "Auto-turun ke NNNp" (null = tanpa penurunan).
             StreamQuality.rememberYtdlNote(parsed.url, when {

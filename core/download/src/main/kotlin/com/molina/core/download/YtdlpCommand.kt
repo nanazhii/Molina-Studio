@@ -34,8 +34,8 @@ object YtdlpCommand {
     }
 
     /** Argumen yt-dlp untuk satu video. `--` mencegah URL dibaca sebagai opsi. */
-    fun resolveArgs(url: String, format: String = YtdlpParse.FORMAT): List<String> = listOf( // [YTDLP-RETRY-ARG]
-        YtdlpFlags.IGNORE_CONFIG, "-J", playlistFlag(url), YtdlpFlags.NO_WARNINGS, YtdlpFlags.NO_PROGRESS, YtdlpFlags.NO_CACHE_DIR,
+    fun resolveArgs(url: String, format: String = YtdlpParse.FORMAT, noPlaylist: Boolean = false): List<String> = listOf( // [YTDLP-RETRY-ARG] [PAGE-PLAYLIST] noPlaylist: satu bagian saja
+        YtdlpFlags.IGNORE_CONFIG, "-J", if (noPlaylist) YtdlpFlags.NO_PLAYLIST else playlistFlag(url), YtdlpFlags.NO_WARNINGS, YtdlpFlags.NO_PROGRESS, YtdlpFlags.NO_CACHE_DIR,
         YtdlpFlags.SOCKET_TIMEOUT, "20", YtdlpFlags.RETRIES, "1",
         "-f", format, // [YTDLP-RETRY-ARG2]
         "--", url,

@@ -20,6 +20,39 @@ class PlaylistPlan private constructor(
 
         fun isWatchUrl(url: String): Boolean = WATCH.matches(url)
 
+        /** [PAGE-PLAYLIST] Batas bagian untuk playlist halaman hasil yt-dlp (mis. video multi-bagian bilibili). */
+        const val MAX_PAGE_ITEMS = 200
+        private const val MAX_PAGE_URL = 2048
+
+        /**
+         * [PAGE-PLAYLIST] Entri playlist yt-dlp yang berupa HALAMAN situs yang sama dengan [origin] (bukan media
+         * langsung), jadi tiap bagian harus di-resolve sendiri sesaat sebelum diputar. Hanya dipakai dari resolver
+         * (bukan dari extra Intent; jalur Intent tetap [parse] khusus YouTube). Null bila: kurang dari 2 entri,
+         * lebih dari [MAX_PAGE_ITEMS], skema bukan http(s), host beda dari [origin], URL media langsung, atau duplikat.
+         */
+        fun pageEntries(origin: String, entries: List<StreamEntry>): List<StreamEntry>? {
+            if (entries.size < 2 || entries.size > MAX_PAGE_ITEMS) return null
+            val host = YtdlpFetch.hostOf(origin)?.removePrefix("www.") ?: return null
+            if (!entries.all { isPageOf(host, it.url) }) return null
+            if (entries.map { it.url }.toSet().size != entries.size) return null
+            return entries.map { StreamEntry(it.url, it.title?.take(MAX_TITLE_LENGTH)) }
+        }
+
+        private fun isPageOf(originHost: String, url: String): Boolean {
+            val u = url.trim()
+            if (u.length > MAX_PAGE_URL) return false
+            if (!u.startsWith("https://", ignoreCase = true) && !u.startsWith("http://", ignoreCase = true)) return false
+            if (!YtdlUrls.needsYtdl(u)) return false
+            return YtdlpFetch.hostOf(u)?.removePrefix("www.") == originHost
+        }
+
+        /** [PAGE-PLAYLIST] Playlist halaman -> rencana antrean bergulir; [index] = bagian yang sudah di-resolve pemutar. */
+        fun parsePages(origin: String, entries: List<StreamEntry>, index: Int, currentUrl: String): PlaylistPlan? {
+            val pages = pageEntries(origin, entries) ?: return null
+            if (index < 0 || index >= pages.size || pages[index].url != currentUrl) return null
+            return PlaylistPlan(pages.map { it.url }, pages.map { it.title.orEmpty() }, index)
+        }
+
         /** Null bila ada satu saja aturan yang dilanggar. Judul yang tidak sepadan jadi kosong. */
         fun parse(urls: List<String>?, titles: List<String>?, index: Int, currentUrl: String?): PlaylistPlan? {
             if (urls == null || currentUrl == null) return null

@@ -17,7 +17,11 @@ data class ResolvedStream(
     val durationSec: Long? = null,
     /** Epoch ms perkiraan URL kedaluwarsa; null = tidak diketahui. */
     val expiresAtMs: Long? = null,
-    /** Playlist hasil resolver (mis. daftar channel yt-dlp); kosong = satu stream. Entri pertama = [url]. */
+    /**
+     * Playlist hasil resolver (mis. daftar channel yt-dlp); kosong = satu stream. Entri pertama = [url].
+     * [PAGE-PLAYLIST] Pengecualian: playlist halaman (video multi-bagian) memuat URL HALAMAN tiap bagian; [url] adalah
+     * hasil resolve bagian pertama, dan sisanya di-resolve satu per satu oleh pemutar (lihat PlaylistPlan.pageEntries).
+     */
     val entries: List<StreamEntry> = emptyList(),
     /** [YTDLP-ADAPTIVE] URL audio terpisah bila video-only (DASH, mis. bilibili.tv); digabung mpv lewat audio-add. */
     val audioUrl: String? = null,

@@ -255,7 +255,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                     p.title?.let { streamTitles[p.url] = it }
                     streamSources[p.url] = raw
                     MPVLib.command(MpvLoad.loadfileArgs(p.url, flag, headers + p.headers, p.title))
-                    appendResolved(p, headers)
+                    if (!adoptPagePlaylist(p, raw, flag)) appendResolved(p, headers) // [PAGE-PLAYLIST]
                     onLoaded()
                 }
                 is Prepared.Failed -> {
@@ -474,6 +474,20 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
         dialog.show()
         (firstAction ?: copyBtn).requestFocus() // pengendali jarak jauh / D-pad di TV
+    }
+
+    /**
+     * [PAGE-PLAYLIST] Playlist halaman (mis. video multi-bagian bilibili): resolver sudah me-resolve bagian pertama menjadi
+     * [Prepared.Ready.url], sedangkan bagian lain berupa URL halaman sehingga TIDAK boleh ditambahkan mentah ke mpv.
+     * Jadikan antrean bergulir: [prefetchNext] me-resolve bagian berikutnya sesaat sebelum diputar. True bila diadopsi.
+     */
+    private fun adoptPagePlaylist(p: Prepared.Ready, origin: String, flag: String): Boolean {
+        if (flag != MpvLoad.REPLACE || p.entries.size < 2 || p.entries[0].url == p.url) return false
+        val plan = PlaylistPlan.parsePages(origin, p.entries, 0, p.entries[0].url) ?: return false
+        rolling = RollingQueue(plan)
+        PlaybackLog.onPlaylist(plan.urls.size, 1)
+        MpvLog.i(TAG, "Playlist halaman: ${plan.urls.size} bagian (antrean bergulir)")
+        return true
     }
 
     /** Sisa playlist hasil resolver (mis. daftar channel yt-dlp) ditambahkan setelah item pertama. */
