@@ -175,17 +175,17 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
      * True bila pemulihan dimulai; pemanggil lalu TIDAK menandai saluran ERR dan tidak menawarkan log.
      * Dipanggil dari thread event mpv; pekerjaan sebenarnya di [streamScope].
      */
-    private fun recoverFailedEntry(failedPath: String, cause: String): Boolean {
+    private fun recoverFailedEntry(failedPath: String, cause: String, force: Boolean = false): Boolean { // [RETRY-RESOLVE-BTN] force = aksi manual pengguna
         if (failedPath.isEmpty() || !StreamLoader.isWebUrl(failedPath)) return false
-        val rawPage = cause.contains("Failed to recognize file format", ignoreCase = true) &&
+        val rawPage = (force || cause.contains("Failed to recognize file format", ignoreCase = true)) &&
             com.molina.core.stream.YtdlUrls.needsYtdl(failedPath) && !streamSources.containsKey(failedPath)
-        val staleCdn = !rawPage && (cause.contains("HTTP error 403") || cause.contains("HTTP error 410"))
+        val staleCdn = !rawPage && ((force && streamSources.containsKey(failedPath)) || cause.contains("HTTP error 403") || cause.contains("HTTP error 410"))
         val raw = when {
             rawPage -> failedPath
             staleCdn -> streamSources[failedPath]
             else -> null
         } ?: return false
-        if (!recoveryTried.add(raw)) return false // sekali saja: cegah putaran gagal-resolve-gagal
+        if (!recoveryTried.add(raw) && !force) return false // otomatis sekali saja (cegah putaran gagal-resolve-gagal); manual boleh berulang
         streamScope.launch {
             val p = StreamLoader.prepare(raw)
             if (p !is Prepared.Ready) {
@@ -244,15 +244,21 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         if (count > 1) return
         val cause = PlaybackLog.failureCause()
         val note = "Molina gagal memutar" + (if (sid != null) " (sesi $sid)" else "") + (if (cause.isNotEmpty()) ": $cause" else "")
+        val failedPath = shieldPath // [RETRY-RESOLVE-BTN]
+        val canRetry = StreamLoader.isWebUrl(failedPath) &&
+            (streamSources.containsKey(failedPath) || com.molina.core.stream.YtdlUrls.needsYtdl(failedPath))
         runOnUiThread {
             if (isFinishing || isDestroyed) return@runOnUiThread
             failDialog?.dismiss()
-            failDialog = AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog_Error)
+            val builder = AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog_Error)
                 .setTitle("Gagal memutar")
                 .setMessage("Sumber tidak bisa dibuka." + (if (cause.isNotEmpty()) "\n\n$cause" else "") + (if (sid != null) "\n\nID sesi: $sid" else ""))
                 .setPositiveButton("Bagikan log mpv") { _, _ -> MpvLogHook.share?.invoke(this, note) }
                 .setNegativeButton("Tutup", null)
-                .show()
+            if (canRetry) builder.setNeutralButton("Resolve ulang") { _, _ -> // [RETRY-RESOLVE-BTN]
+                if (!recoverFailedEntry(failedPath, cause, force = true)) showToast("Tidak bisa di-resolve ulang", true)
+            }
+            failDialog = builder.show()
         }
     }
 
