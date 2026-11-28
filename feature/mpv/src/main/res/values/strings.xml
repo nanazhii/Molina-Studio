@@ -239,6 +239,7 @@
     <string name="stream_chip_lowered">Auto-lowered to %1$dp</string>
     <string name="stream_chip_lowered_plain">Auto-lowered</string>
     <string name="res_chip_hint">Video resolution: %1$d\u00D7%2$d</string> <!-- [RES-CHIP] -->
+    <string name="part_chip">Part %1$d/%2$d</string> <!-- [PART-LABEL] -->
     <string name="stream_chip_relaxed">Quality adjusted</string>
     <string name="stream_chip_audio">Audio only</string>
     <string name="stream_chip_hint">The requested quality was not available, so Molina picked the best one that plays.</string>

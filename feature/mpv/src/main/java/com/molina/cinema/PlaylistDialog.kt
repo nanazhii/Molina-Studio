@@ -38,6 +38,8 @@ internal class PlaylistDialog(
     private val pending: () -> List<PendingRow> = { emptyList() },
     /** [GROUP-VIEW] URL stream -> group-title M3U. */
     private val groups: () -> Map<String, String> = { emptyMap() },
+    /** [PART-LABEL] URL stream -> indeks bagian (berbasis nol) bila bagian playlist halaman; null = bukan. */
+    private val partOf: (String) -> Int? = { null },
 ) {
     private lateinit var binding: DialogPlaylistBinding
 
@@ -116,7 +118,8 @@ internal class PlaylistDialog(
         val groupMap = groups() // [GROUP-VIEW]
         val rows = ArrayList<PlaylistRow>(playlist.size + pendingRows.size)
         playlist.forEachIndexed { i, item ->
-            val text = titleMap[item.filename] ?: item.title?.takeIf { it.isNotBlank() } ?: ChannelLabel.fallback(item.filename) // [GROUP-VIEW]
+            val base = titleMap[item.filename] ?: item.title?.takeIf { it.isNotBlank() } ?: ChannelLabel.fallback(item.filename) // [GROUP-VIEW]
+            val text = partOf(item.filename)?.let { com.molina.core.stream.PartLabel.rowText(it, base) } ?: base // [PART-LABEL]
             rows.add(PlaylistRow(i + 1, text, item.index == selectedIndex, item, -1, groupMap[item.filename].orEmpty()))
         }
         pendingRows.forEachIndexed { i, p ->

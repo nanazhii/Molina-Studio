@@ -115,6 +115,9 @@ class RollingQueue(private val plan: PlaylistPlan) {
         return cursor
     }
 
+    /** [PART-LABEL] Jumlah item rencana (untuk chip "Bagian N/M"). */
+    val total: Int get() = plan.urls.size
+
     fun url(i: Int): String = plan.urls[i]
     fun title(i: Int): String = plan.titleAt(i)
 }

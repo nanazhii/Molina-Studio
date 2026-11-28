@@ -201,6 +201,7 @@
     <string name="stream_chip_lowered">Auto-turun ke %1$dp</string>
     <string name="stream_chip_lowered_plain">Auto-turun</string>
     <string name="res_chip_hint">Resolusi video: %1$d\u00D7%2$d</string> <!-- [RES-CHIP] -->
+    <string name="part_chip">Bagian %1$d/%2$d</string> <!-- [PART-LABEL] -->
     <string name="stream_chip_relaxed">Kualitas disesuaikan</string>
     <string name="stream_chip_audio">Hanya audio</string>
     <string name="stream_chip_hint">Kualitas yang diminta tidak tersedia, jadi Molina memilih yang terbaik yang bisa diputar.</string>

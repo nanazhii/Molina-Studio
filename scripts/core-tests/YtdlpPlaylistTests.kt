@@ -1,4 +1,5 @@
 import com.molina.core.download.YtdlpCommand
+import com.molina.core.stream.PartLabel
 import com.molina.core.stream.PlaylistPlan
 import com.molina.core.stream.RollingQueue
 import com.molina.core.stream.StreamEntry
@@ -67,6 +68,14 @@ fun main() {
     check("resolveArgs noPlaylist: --no-playlist", "--no-playlist" in one && "--flat-playlist" !in one)
     check("resolveArgs list= tetap --no-playlist", "--no-playlist" in YtdlpCommand.resolveArgs("https://x.example/v?list=PL1"))
     check("resolveArgs: URL tetap setelah --", one.last() == "$O?p=2" && one[one.size - 2] == "--")
+
+    // [PART-LABEL]
+    check("PartLabel.tag berbasis nol", PartLabel.tag(0) == "P1" && PartLabel.tag(11) == "P12")
+    check("PartLabel.rowText: judul kosong -> penanda saja", PartLabel.rowText(1, null) == "P2" && PartLabel.rowText(1, "  ") == "P2")
+    check("PartLabel.rowText: menambah penanda", PartLabel.rowText(1, "Bab Dua") == "P2 \u00B7 Bab Dua")
+    check("PartLabel.rowText: tidak menggandakan penanda", PartLabel.rowText(1, "P2 Bab Dua") == "P2 Bab Dua" && PartLabel.rowText(1, "p2") == "p2")
+    check("PartLabel.rowText: P20 bukan P2", PartLabel.rowText(1, "P20 Bab") == "P2 \u00B7 P20 Bab")
+    check("RollingQueue.total = jumlah bagian", q.total == 4)
 
     if (fails > 0) { println("$fails GAGAL"); kotlin.system.exitProcess(1) }
     println("semua lulus")

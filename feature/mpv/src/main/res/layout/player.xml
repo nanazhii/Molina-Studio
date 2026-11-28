@@ -223,6 +223,25 @@
                     tools:text="1080p"
                     tools:visibility="visible" />
 
+                <!-- [PART-LABEL] "Bagian 2/4": tampil bila memutar video multi-bagian; ketuk untuk membuka daftar bagian. -->
+                <TextView
+                    android:id="@+id/partChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/bg_wmp_pill"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:minHeight="22dp"
+                    android:paddingLeft="8dp"
+                    android:paddingRight="8dp"
+                    android:textColor="@color/tint_normal"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:visibility="gone"
+                    tools:text="Bagian 2/4"
+                    tools:visibility="visible" />
+
                 <View
                     android:layout_width="0dp"
                     android:layout_height="1dp"

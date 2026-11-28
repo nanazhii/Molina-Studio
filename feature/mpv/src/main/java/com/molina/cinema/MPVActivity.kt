@@ -485,6 +485,10 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         if (flag != MpvLoad.REPLACE || p.entries.size < 2 || p.entries[0].url == p.url) return false
         val plan = PlaylistPlan.parsePages(origin, p.entries, 0, p.entries[0].url) ?: return false
         rolling = RollingQueue(plan)
+        pageQueue = rolling // [PART-LABEL]
+        pageParts.clear()
+        pageParts[p.url] = PagePart(0, plan.urls.size)
+        updatePartChip()
         PlaybackLog.onPlaylist(plan.urls.size, 1)
         MpvLog.i(TAG, "Playlist halaman: ${plan.urls.size} bagian (antrean bergulir)")
         return true
@@ -502,6 +506,17 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     // Playlist hasil pencarian (jendela bergulir): hanya diakses dari main thread.
     private var rolling: RollingQueue? = null
+
+    // [PART-LABEL] Playlist halaman (video multi-bagian): URL stream hasil resolve -> bagian ke-N dari M. Hanya dari thread utama.
+    private class PagePart(val index: Int, val total: Int)
+    private val pageParts = HashMap<String, PagePart>()
+    private var pageQueue: RollingQueue? = null
+    private fun isPageQueue(q: RollingQueue?) = q != null && q === pageQueue
+
+    /** [PART-LABEL] Catat bagian ke-[i] (berbasis nol) untuk stream [streamUrl] bila [q] adalah antrean playlist halaman. */
+    private fun notePart(q: RollingQueue, i: Int, streamUrl: String) {
+        if (isPageQueue(q)) pageParts[streamUrl] = PagePart(i, q.total)
+    }
 
     // [CH-HEADERS] Header HTTP per channel (mis. Referer dens.tv). Hanya dari intent internal bertoken Molina.
     @Volatile private var pendingChannelHeaders: Map<String, Map<String, String>> = emptyMap()
@@ -613,7 +628,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun pendingRows(): List<PendingRow> {
         val q = rolling ?: return emptyList()
         return q.pendingIndices().map { i ->
-            PendingRow(i, q.title(i).ifEmpty { "#${i + 1}" })
+            PendingRow(i, if (isPageQueue(q)) com.molina.core.stream.PartLabel.rowText(i, q.title(i)) else q.title(i).ifEmpty { "#${i + 1}" }) // [PART-LABEL]
         }
     }
 
@@ -645,6 +660,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                         MPVLib.command(MpvLoad.loadfileArgs(p.url, MpvLoad.APPEND, p.headers, title))
                         q.succeeded()
                         PlaybackLog.onPrefetched(i + 1, title.orEmpty())
+                        notePart(q, i, p.url) // [PART-LABEL]
                         target = (MPVLib.getPropertyInt("playlist-count") ?: 0) - 1
                     }
                     is Prepared.Failed -> {
@@ -679,6 +695,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                         MPVLib.command(MpvLoad.loadfileArgs(p.url, MpvLoad.APPEND, p.headers, title))
                         q.succeeded()
                         PlaybackLog.onPrefetched(i + 1, title.orEmpty())
+                        notePart(q, i, p.url) // [PART-LABEL]
                         return@launch
                     }
                     is Prepared.Failed -> {
@@ -840,6 +857,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             perfChip.setOnClickListener { showPerfDialog() } // [PERF-CHIP]
             ytdlChip.setOnClickListener { showToast(getString(R.string.stream_chip_hint), true, true) } // [YTDLP-CHIP-INIT]
             resChip.setOnClickListener { showToast(resChipDetail.ifEmpty { getString(R.string.res_chip_hint, resChipW, resChipH) }, true, true) } // [RES-CHIP] [RES-TIER]
+            partChip.setOnClickListener { openPlaylistMenu(pauseForDialog()) } // [PART-LABEL] ketuk = daftar bagian
             perfChip.visibility = if (PerfTierPolicy.current(this@MPVActivity) == PerfTier.LOW) View.VISIBLE else View.GONE
             topMenuBtn.setOnClickListener { openTopMenu() }
             unlockBtn.setOnClickListener { unlockUI() }
@@ -2370,7 +2388,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     }
 
     private fun openPlaylistMenu(restore: StateRestoreCallback) {
-        val impl = PlaylistDialog(player, { streamTitles }, { pendingRows() }, { channelGroups })
+        val impl = PlaylistDialog(player, { streamTitles }, { pendingRows() }, { channelGroups }, { path -> if (isPageQueue(rolling)) pageParts[path]?.index else null }) // [PART-LABEL]
         lateinit var dialog: AlertDialog
 
         impl.listeners = object : PlaylistDialog.Listeners {
@@ -3784,6 +3802,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         publishMode() // [QUALITY-NOW]
         updatePerfChip() // [PERF-AUDIO] chip ikut berubah saat masuk/keluar audio saja
         updateYtdlChip() // [YTDLP-CHIP-META]
+        updatePartChip() // [PART-LABEL]
         updateResChip() // [RES-CHIP]
         BackgroundPlaybackState.audioOnly = forcedAudioOnly || com.molina.core.stream.StreamQuality.current == com.molina.core.stream.VideoQuality.AUDIO // [AUDIO-TAG-NOTIF]
         BackgroundPlaybackService.refreshRequested?.invoke()
@@ -4380,6 +4399,21 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             addState(intArrayOf(), box(0xFF161616.toInt(), maxOf(1, (strokeDp * d).toInt()), softAccent))
         }
     }
+    // [PART-LABEL] Chip "Bagian 2/4": hanya untuk playlist halaman (video multi-bagian); item lain menyembunyikannya.
+    private var partChipJob: Job? = null
+    private fun updatePartChip() {
+        partChipJob?.cancel()
+        partChipJob = streamScope.launch {
+            val path = withContext(mpvDispatcher) { MPVLib.getPropertyString("path") }
+            val part = if (isPageQueue(rolling)) path?.let { pageParts[it] } else null
+            val chip = binding.partChip
+            if (part == null) { chip.visibility = View.GONE; return@launch }
+            chip.text = getString(R.string.part_chip, part.index + 1, part.total)
+            chip.contentDescription = chip.text
+            chip.visibility = View.VISIBLE
+        }
+    }
+
     // [YTDLP-CHIP] Chip "Auto-turun ke 720p": hanya untuk item yang resolve yt-dlp-nya menurunkan format; item lain menyembunyikannya.
     private var ytdlChipJob: Job? = null
     private fun updateYtdlChip() {
@@ -4889,6 +4923,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             WatchStats.onLoaded()
             PlaybackLog.onLoaded()
             prefetchNext()
+            updatePartChip() // [PART-LABEL]
         }
 
         if (eventId == MpvEvent.MPV_EVENT_START_FILE) {
