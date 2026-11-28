@@ -92,7 +92,7 @@ class T(unittest.TestCase):
         self.reset(); before = self.env()
         cases = {
             "tag salah": ("bukan-tag", GOOD, None),
-            "tag lebih lama": ("native-mpv-aaaaaaa-run1", GOOD, None),
+            "tag lebih lama": ("native-mpv-aaaaaaa-run0", GOOD, None),  # run0 selalu lebih lama dari pin mana pun
             "so wajib hilang": ("native-mpv-ddddddd-run11", GOOD[:-1], None),
             "isi di luar jniLibs": ("native-mpv-ddddddd-run11", GOOD + [("evil.sh", b"x")], None),
             "path traversal": ("native-mpv-ddddddd-run11", GOOD + [("jniLibs/../x.so", b"x")], None),

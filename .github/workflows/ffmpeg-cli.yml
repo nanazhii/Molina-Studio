@@ -1,7 +1,7 @@
 name: ffmpeg-cli
 
 # Build ffmpeg + ffprobe statis arm64 (cakupan Penuh) untuk Debian PRoot. Manual saja.
-# Setelah sukses: isi native/ffmpeg-cli.env (tag + SHA-256) dan catat di progres.md.
+# Setelah sukses: salin perintah dari ringkasan run (scripts/native/bump_ffmpeg.py); jangan menyalin tag/hash manual.
 on:
   workflow_dispatch:
 
@@ -68,4 +68,16 @@ jobs:
             echo '### Release ffmpeg-cli'
             echo "- tag: \`$TAG\`"
             echo "- sha256 tar.xz: \`$SUM\`"
+            echo
+            echo '### Naikkan pin (salin ke Molina Terminal; tag dan hash terisi otomatis)'
+            echo '```bash'
+            echo 'cd /sdcard/Molina-Studio && git pull --ff-only'
+            echo "python3 scripts/native/bump_ffmpeg.py $TAG --dry-run"
+            echo "python3 scripts/native/bump_ffmpeg.py $TAG"
+            echo "# SHA-256 tar.xz di keluaran harus diawali ${SUM:0:16}"
+            echo "# tinjau 'git diff' dulu; baris di bawah baru dijalankan bila sudah benar"
+            echo 'git add native/ffmpeg-cli.env app/src/main/java/com/molina/studio/packages/ToolStore.kt'
+            echo "git commit -m \"chore(ffmpeg): naikkan pin ke $TAG\""
+            echo 'git push'
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"

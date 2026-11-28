@@ -75,4 +75,16 @@ jobs:
             echo '### Release native'
             echo "- tag: \`$TAG\`"
             echo "- sha256 tgz: \`$SUM\`"
+            echo
+            echo '### Naikkan pin (salin ke Molina Terminal; tag dan hash terisi otomatis)'
+            echo '```bash'
+            echo 'cd /sdcard/Molina-Studio && git pull --ff-only'
+            echo "python3 scripts/native/bump_native.py $TAG --dry-run"
+            echo "python3 scripts/native/bump_native.py $TAG"
+            echo "# SHA-256 tgz di keluaran harus diawali ${SUM:0:16}"
+            echo "# tinjau 'git diff' dulu; baris di bawah baru dijalankan bila sudah benar"
+            echo 'git add native/prebuilt.env'
+            echo "git commit -m \"chore(native): naikkan pin ke $TAG\""
+            echo 'git push'
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
