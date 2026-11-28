@@ -17,7 +17,7 @@ import java.security.MessageDigest
  * ditulis berdampingan sebagai `nama.new` agar bisa dibandingkan dan diganti manual.
  */
 internal object BundledScripts {
-    private val NAMES = listOf("molina_dl.py")
+    private val NAMES = listOf("molina_dl.py", "bilibili.py") // [BUNDLE-BILI]
     private const val PREFS = "molina_bundled_scripts"
 
     /** Operasi disk: panggil di luar main thread, setelah izin storage ada. Gagal tidak melempar. */
