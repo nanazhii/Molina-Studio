@@ -1,0 +1,45 @@
+package com.molina.cinema
+
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import androidx.core.app.PendingIntentCompat
+
+class NotificationButtonReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context?, intent: Intent?) {
+        val action = intent?.action ?: return
+        MpvLog.i(TAG, "NotificationButtonReceiver: $action")
+        val pending = goAsync()
+        Thread({
+            try {
+                val t0 = android.os.SystemClock.elapsedRealtime() // [PIP-DIAG]
+                // remember to update AndroidManifest.xml too when adding here
+                when (action) {
+                    "$PREFIX.PLAY_PAUSE" -> MPVLib.command(arrayOf("cycle", "pause"))
+                    "$PREFIX.ACTION_PREV" -> PlaylistNav.prev()
+                    "$PREFIX.ACTION_NEXT" -> PlaylistNav.next()
+                }
+                MpvLog.i("pip", "aksi $action selesai ${android.os.SystemClock.elapsedRealtime() - t0} ms") // [PIP-DIAG]
+            } catch (e: Exception) {
+                MpvLog.w(TAG, "NotificationButtonReceiver gagal: ${e.message}")
+            } finally {
+                pending.finish()
+            }
+        }, "molina-notif-btn").start()
+    }
+
+    companion object {
+        fun createIntent(context: Context, action: String): PendingIntent {
+            val intent = Intent("$PREFIX.$action")
+            // turn into explicit intent
+            intent.component = ComponentName(context, NotificationButtonReceiver::class.java)
+            return PendingIntentCompat.getBroadcast(context, 0, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT, false)!!
+        }
+
+        private const val TAG = "mpv"
+        private const val PREFIX = "com.molina.cinema"
+    }
+}

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- [SHIELD-NOTIF] Ikon status monokrom Molina Shield: perisai dengan centang berlubang (bilah status hanya memakai kanal alfa). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M12,2 L20.5,5.4 L20.5,11.4 C20.5,16.4 17,20.3 12,21.8 C7,20.3 3.5,16.4 3.5,11.4 L3.5,5.4 Z M7.2,12.2 L8.6,10.8 L10.7,12.9 L15.4,8.2 L16.8,9.6 L10.7,15.7 Z" />
+</vector>

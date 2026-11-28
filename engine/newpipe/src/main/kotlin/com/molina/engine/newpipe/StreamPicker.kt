@@ -1,0 +1,214 @@
+package com.molina.engine.newpipe
+
+import com.molina.core.stream.AudioChoice
+import com.molina.core.net.NetSnapshot
+import com.molina.core.stream.StreamAudioLang
+import org.schabi.newpipe.extractor.stream.AudioStream
+import org.schabi.newpipe.extractor.stream.DeliveryMethod
+import org.schabi.newpipe.extractor.stream.StreamInfo
+import org.schabi.newpipe.extractor.stream.StreamType
+import org.schabi.newpipe.extractor.stream.VideoStream
+import java.util.Locale
+
+/** Hasil pemilihan satu URL siap putar dari [StreamInfo]. [kind] hanya untuk log. [audioLang] = bahasa audio terpilih ("" = stream gabungan/asli). */
+internal data class Pick(val url: String, val kind: String, val height: Int = 0, val audioUrl: String? = null, val audioLang: String = "")
+
+/**
+ * Memilih satu URL yang bisa langsung dimuat mpv:
+ * live -> HLS; selain itu video progresif ber-audio tertinggi; lalu audio progresif terbaik;
+ * terakhir HLS bila ada. [AUDIO-LANG] Bila pengguna memilih bahasa audio yang BUKAN trek asli,
+ * dipakai jalur adaptif (video-only + audio bahasa itu, digabung mpv lewat audio-add), karena
+ * stream gabungan YouTube hanya memuat trek asli. Fungsi murni terhadap [StreamInfo], tanpa jaringan.
+ */
+internal object StreamPicker {
+
+    fun pick(
+        info: StreamInfo,
+        quality: com.molina.core.stream.VideoQuality = com.molina.core.stream.VideoQuality.AUTO,
+        audioLang: String = "", // [AUDIO-LANG]
+        net: NetSnapshot = NetSnapshot.UNKNOWN, // [AUTO-NET]
+        tier: Int = 0, // [AUTO-NET-2] penurunan akibat macet; hanya berlaku di AUTO
+    ): Pick? {
+        val hls = info.hlsUrl
+        val live = info.streamType == StreamType.LIVE_STREAM ||
+            info.streamType == StreamType.AUDIO_LIVE_STREAM
+        if (live && !hls.isNullOrBlank()) return Pick(hls, "hls-live")
+
+        val lang = StreamAudioLang.normalize(audioLang)
+        val audios = info.audioStreams.orEmpty()
+
+        val steps = if (quality == com.molina.core.stream.VideoQuality.AUTO) tier.coerceAtLeast(0) else 0 // [AUTO-NET-2]
+        val audioCap = if (steps >= 1) 64 else audioCapKbps(net) // [AUTO-NET]
+        // [AUDIO-ONLY] hanya audio: URL audio terbaik, video tidak diunduh sama sekali
+        if (quality == com.molina.core.stream.VideoQuality.AUDIO) {
+            bestAudio(audios, lang, audioCap)?.let { a -> return Pick(a.content, "audio", audioLang = langKey(a)) }
+        }
+        // [AUTO-NET] AUTO = adaptif (video-only + trek audio terpilih, bahasa terjamin): maks 720p, kecuali Wi-Fi (tertinggi).
+        // Bila adaptif kosong, jatuh ke stream gabungan di bawah.
+        val q = if (quality == com.molina.core.stream.VideoQuality.AUTO && (!net.wifi || net.heightCap in 1..720)) { // [PERF-MODE]
+            com.molina.core.stream.VideoQuality.values().lastOrNull { it.maxHeight in 1..net.heightCap } ?: com.molina.core.stream.VideoQuality.P720 // [PERF-480]
+        } else quality
+        if (q != com.molina.core.stream.VideoQuality.AUDIO) {
+            pickAdaptive(info, q, lang, audioCap, steps, net)?.let { return it } // [QUALITY]
+        }
+
+        bestMuxed(info.videoStreams.orEmpty())?.let { v ->
+            val miss = quality != com.molina.core.stream.VideoQuality.AUTO && quality != com.molina.core.stream.VideoQuality.AUDIO // [QUALITY-LOCK]
+            return Pick(v.content, if (miss) "progresif-fallback" else "progresif", v.height)
+        }
+        bestAudio(audios, lang, audioCap)?.let { a ->
+            return Pick(a.content, "audio", audioLang = langKey(a))
+        }
+        if (!hls.isNullOrBlank()) return Pick(hls, "hls")
+        return null
+    }
+
+    /**
+     * [QUALITY-RETRY] Kunci resolusi eksplisit jatuh ke stream gabungan (-fallback) karena tidak ada stream adaptif.
+     * Extractor menelan galat klien visionOS (satu-satunya sumber adaptif/HLS saat klien Android hanya memberi itag 18),
+     * jadi hasil kosong sering sementara dan layak diulang.
+     */
+    fun shouldRetry(pick: Pick, quality: com.molina.core.stream.VideoQuality): Boolean =
+        quality != com.molina.core.stream.VideoQuality.AUTO &&
+            quality != com.molina.core.stream.VideoQuality.AUDIO &&
+            pick.kind == "progresif-fallback"
+
+    /** [QUALITY] Video-only (H.264 diutamakan, tanpa AV1) <= batas + audio terbaik (bahasa [lang]); audio digabung mpv lewat audio-add. */
+    private fun pickAdaptive(
+        info: StreamInfo, quality: com.molina.core.stream.VideoQuality, lang: String, audioCap: Int = 0,
+        steps: Int = 0, net: NetSnapshot = NetSnapshot.UNKNOWN,
+    ): Pick? {
+        // [AUTO-WIFI] AUTO sampai sini hanya di Wi-Fi: tertinggi dari sumber
+        if (quality == com.molina.core.stream.VideoQuality.AUTO) pickTop(info, net, lang, audioCap, steps)?.let { return it }
+        val cands = info.videoOnlyStreams.orEmpty().filter {
+            it.isUrl() && it.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP &&
+                it.codec?.startsWith("av01", ignoreCase = true) != true
+        }
+        val avc = cands.filter { it.codec?.startsWith("avc", ignoreCase = true) == true }
+        val pool = if (avc.isNotEmpty()) avc else cands
+        val h0 = quality.chooseHeight(pool.map { it.height }) ?: return null
+        val h = stepDown(pool.map { it.height }, h0, steps) // [AUTO-NET-2]
+        val v = pool.filter { it.height == h }.maxByOrNull { it.bitrate } ?: return null
+        val a = bestAudio(info.audioStreams.orEmpty(), lang, audioCap) ?: return null
+        return Pick(v.content, "adaptif", v.height, a.content, langKey(a))
+    }
+
+    /** [AUTO-WIFI] Wi-Fi: resolusi tertinggi yang ada di sumber. VP9/AV1 hanya bila dekoder HARDWARE perangkat sanggup; pada tinggi sama H.264 diutamakan. */
+    private fun pickTop(info: StreamInfo, net: NetSnapshot, lang: String, audioCap: Int, steps: Int): Pick? {
+        val cands = info.videoOnlyStreams.orEmpty().filter {
+            val fam = codecFamily(it)
+            it.isUrl() && it.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP && it.height > 0 &&
+                (fam == "avc" || (fam.isNotEmpty() && (net.hwMaxHeight[fam] ?: 0) >= it.height))
+        }
+        val top = cands.maxOfOrNull { it.height } ?: return null
+        val h = stepDown(cands.map { it.height }, top, steps)
+        val v = cands.filter { it.height == h }
+            .minWithOrNull(compareBy<VideoStream> { codecRank(it) }.thenByDescending { it.bitrate }) ?: return null
+        val a = bestAudio(info.audioStreams.orEmpty(), lang, audioCap) ?: return null
+        return Pick(v.content, "adaptif", v.height, a.content, langKey(a))
+    }
+
+    private fun codecFamily(v: VideoStream): String {
+        val c = v.codec?.lowercase().orEmpty()
+        return when {
+            c.startsWith("avc") -> "avc"
+            c.startsWith("vp09") || c.startsWith("vp9") -> "vp9"
+            c.startsWith("av01") -> "av1"
+            else -> ""
+        }
+    }
+
+    private fun codecRank(v: VideoStream): Int = when (codecFamily(v)) { "avc" -> 0; "vp9" -> 1; "av1" -> 2; else -> 3 }
+
+    /** [AUTO-NET-2] Turun [steps] tinggi dari [h] pada daftar tinggi yang tersedia (terendah bila habis). */
+    private fun stepDown(heights: Collection<Int>, h: Int, steps: Int): Int {
+        if (steps <= 0) return h
+        val d = heights.filter { it > 0 }.distinct().sortedDescending()
+        val i = d.indexOf(h)
+        return if (i < 0) h else d[(i + steps).coerceAtMost(d.lastIndex)]
+    }
+
+    private fun bestMuxed(list: List<VideoStream>): VideoStream? =
+        list.asSequence()
+            .filter { it.isUrl() && !it.isVideoOnly() && it.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP }
+            .maxWithOrNull(compareBy<VideoStream>({ it.height }, { it.bitrate }))
+
+    // ---- [AUDIO-LANG] ----
+
+    private fun isOriginal(a: AudioStream): Boolean = a.audioTrackType?.name == "ORIGINAL"
+
+    /** Kode bahasa trek ("" bila stream tidak punya metadata trek). */
+    internal fun langKey(a: AudioStream): String {
+        val fromLocale = StreamAudioLang.normalize(a.audioLocale?.language)
+        if (fromLocale.isNotEmpty()) return fromLocale
+        return StreamAudioLang.normalize(a.audioTrackId?.substringBefore('.'))
+    }
+
+    private fun usable(list: List<AudioStream>): List<AudioStream> =
+        list.filter { it.isUrl() && it.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP }
+
+    /** Trek asli: bertanda ORIGINAL; bila tidak ada tanda, semua trek tanpa metadata; bila tetap kosong, semuanya. */
+    private fun originals(u: List<AudioStream>): List<AudioStream> =
+        u.filter { isOriginal(it) }
+            .ifEmpty { u.filter { it.audioTrackId.isNullOrEmpty() } }
+            .ifEmpty { u }
+
+    /** True bila [lang] ada di daftar dan bukan trek asli (jadi stream gabungan tidak cukup). */
+    fun needsSeparateAudio(list: List<AudioStream>, lang: String): Boolean {
+        val u = usable(list)
+        val match = u.filter { langKey(it) == lang }
+        if (match.isEmpty()) return false
+        return match.none { isOriginal(it) }
+    }
+
+    /**
+     * Audio terbaik. [lang] kosong atau tidak tersedia -> trek ASLI (bitrate tertinggi di dalamnya),
+     * bukan sekadar bitrate tertinggi di seluruh trek (yang bisa jatuh ke trek dubbing acak).
+     */
+    private fun bestAudio(list: List<AudioStream>, lang: String, capKbps: Int = 0): AudioStream? {
+        val u = usable(list)
+        if (u.isEmpty()) return null
+        val pool = if (lang.isNotEmpty()) u.filter { langKey(it) == lang }.ifEmpty { originals(u) } else originals(u)
+        // [AUTO-NET] batas bitrate audio menurut jaringan (kbps): tertinggi <= batas; bila semuanya di atas, yang terendah
+        if (capKbps > 0) {
+            val known = pool.filter { it.averageBitrate > 0 }
+            if (known.isNotEmpty()) {
+                return known.filter { it.averageBitrate <= capKbps }.maxByOrNull { it.averageBitrate }
+                    ?: known.minByOrNull { it.averageBitrate }
+            }
+        }
+        return pool.maxByOrNull { it.averageBitrate }
+    }
+
+    /** [AUTO-NET] Batas bitrate audio (kbps): Wi-Fi tanpa batas (0); jaringan lemah 64; selain itu 128. */
+    internal fun audioCapKbps(net: NetSnapshot): Int = when {
+        net.wifi -> 0
+        net.downKbps in 1..1999 -> 64
+        else -> 128
+    }
+
+    /** Daftar bahasa yang tersedia untuk UI. Kosong bila video hanya punya satu trek. */
+    fun audioChoices(info: StreamInfo): List<AudioChoice> {
+        val u = usable(info.audioStreams.orEmpty())
+        val groups = u.filter { langKey(it).isNotEmpty() }.groupBy { langKey(it) }
+        if (groups.size < 2) return emptyList()
+        val id = Locale.forLanguageTag("id")
+        return groups.map { (key, list) ->
+            val name = Locale.forLanguageTag(key).getDisplayLanguage(id)
+                .ifBlank { key }.replaceFirstChar { it.uppercase() }
+            AudioChoice(key, if (list.any { isOriginal(it) }) "$name (asli)" else name)
+        }.sortedBy { it.label }
+    }
+
+    /**
+     * Perkiraan kedaluwarsa (epoch ms) dari parameter `expire` (detik) pada query atau segmen
+     * path `/expire/<detik>`. Null bila tidak ditemukan atau tidak masuk akal.
+     */
+    fun expiresAtMs(url: String): Long? {
+        val m = EXPIRE.find(url) ?: return null
+        val sec = (m.groupValues[1].ifEmpty { m.groupValues[2] }).toLongOrNull() ?: return null
+        return if (sec in 1_000_000_000L..99_999_999_999L) sec * 1000 else null
+    }
+
+    private val EXPIRE = Regex("[?&]expire=(\\d{9,11})|/expire/(\\d{9,11})")
+}

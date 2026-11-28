@@ -1,0 +1,14 @@
+#EXTM3U
+
+#EXTINF:-1 tvg-id="ANTV.id@SD" group-title="Nasional",ANTV
+#EXTVLCOPT:http-user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36
+http://103.58.160.157:8278/720-ANTV/playlist.m3u8
+
+#EXTINF:-1 tvg-id="SCTV.id@SD" group-title="Nasional",SCTV
+http://202.150.172.59/SCTV/tracks-v1a1/mono.m3u8
+
+#EXTINF:-1 tvg-id="Indosiar.id@HD" group-title="Nasional",Indosiar
+http://202.150.172.59/Indosiar/index.m3u8
+
+#EXTINF:-1 tvg-id="TVRISport.id@SD" group-title="Nasional",TVRI Sport
+http://202.150.172.59/TVRISport/index.m3u8

@@ -1,0 +1,5033 @@
+package com.molina.cinema
+
+import com.molina.core.stream.PlaylistExtras
+import com.molina.core.stream.PlaylistPlan
+import com.molina.core.stream.RollingQueue
+import com.molina.core.net.StreamHeaders
+import com.molina.core.net.StreamPin
+import com.molina.core.stream.StreamOutcome
+import com.molina.core.stream.StreamResolvers
+import com.molina.core.stream.VideoQuality as CoreQuality // [QUALITY-SHEET]
+import com.molina.core.stream.StreamSearchItem
+import com.molina.core.net.ShieldProxy
+import com.molina.core.net.ShieldStats
+import com.molina.core.library.StallTracker
+import com.molina.core.policy.ExternalIntentGate
+import com.molina.core.net.UrlPolicy
+import com.molina.core.policy.IntentExtras
+import com.molina.core.policy.PlaybackSourcePolicy
+import com.molina.core.policy.SourceKind
+import com.molina.core.policy.SourceScheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.delay
+import com.molina.cinema.databinding.PlayerBinding
+import com.molina.cinema.MPVLib.MpvEvent
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.annotation.SuppressLint
+import android.app.ForegroundServiceStartNotAllowedException
+import androidx.appcompat.app.AlertDialog
+import android.app.PictureInPictureParams
+import android.app.RemoteAction
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
+import android.content.res.ColorStateList
+import android.content.res.Configuration
+import android.graphics.drawable.Icon
+import android.media.AudioManager
+import android.net.Uri
+import android.os.*
+import android.support.v4.media.session.MediaSessionCompat
+import android.support.v4.media.session.PlaybackStateCompat
+import android.util.DisplayMetrics
+import android.util.Rational
+import androidx.core.content.ContextCompat
+import android.view.*
+import android.view.ViewGroup.MarginLayoutParams
+import android.widget.ArrayAdapter
+import android.widget.Button
+import android.widget.ListView
+import android.widget.TextView
+import android.widget.SeekBar
+import android.widget.Toast
+import androidx.activity.addCallback
+import androidx.annotation.DrawableRes
+import androidx.annotation.IdRes
+import androidx.annotation.LayoutRes
+import androidx.annotation.RequiresApi
+import androidx.annotation.StringRes
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.IntentCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.doOnNextLayout
+import androidx.core.view.isVisible
+import androidx.core.view.updateLayoutParams
+import androidx.media.AudioAttributesCompat
+import androidx.media.AudioFocusRequestCompat
+import androidx.media.AudioManagerCompat
+import java.io.File
+import java.lang.IllegalArgumentException
+import kotlin.math.roundToInt
+
+typealias StateRestoreCallback = () -> Unit
+
+class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObserver {
+    // Resolusi stream (NewPipe) jalan di sini; dibatalkan di onDestroy.
+    private val streamScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    // [ANR-FIX2] Semua get/set property & command mpv yang sinkron dari jalur UI dijalankan di thread khusus ini,
+    // bukan di main thread. Core mpv bisa sibuk (reinit decoder, buka stream HLS, audio-add via jaringan) dan
+    // JNI sinkron akan memblokir pemanggilnya; bila itu main thread -> kontrol macet -> dialog ANR "Tunggu / Tutup".
+    private val mpvDispatcher = java.util.concurrent.Executors
+        .newSingleThreadExecutor { r -> Thread(r, "molina-mpv-call") }.asCoroutineDispatcher()
+
+    /** [ANR-FIX2] Set property/command tanpa memblokir main thread; urutan antar-pemanggilan terjaga (satu thread). */
+    private fun mpvPost(label: String = "", block: () -> Unit) { // [ANR-LOG]
+        streamScope.launch(mpvDispatcher) {
+            val t0 = android.os.SystemClock.elapsedRealtime()
+            try { block() } catch (e: Exception) { MpvLog.e(TAG, "[mpv-call] ${label.ifEmpty { "panggilan" }} gagal: ${e.javaClass.simpleName}", e) } // [DIAG-EXC]
+            val dt = android.os.SystemClock.elapsedRealtime() - t0
+            // bukti di logcat: panggilan ini dulu berjalan di main thread dan menjadi penyebab ANR
+            if (dt >= 300L) MpvLog.w(TAG, "[mpv-call] ${label.ifEmpty { "panggilan" }} lambat $dt ms (di thread molina-mpv-call, UI tetap responsif)")
+        }
+    }
+
+    // [JUNK-GUARD] manifest DASH/XML yang terbaca sebagai playlist: hapus entri palsunya, lewati channel itu.
+    @Volatile private var junkLastCount = 0
+    @Volatile private var junkSweeping = false
+    @Volatile private var junkResweeps = 0 // [JUNK-RESWEEP]
+    @Volatile private var junkReportedParent: String? = null // [JUNK-ONCE]
+    @Volatile private var junkParentTitle: String? = null
+    @Volatile private var junkParentUrl: String? = null // [UNPLAYABLE-CHIP]
+
+    private fun guardPlaylistJunk(count: Long) {
+        val prev = junkLastCount
+        junkLastCount = count.toInt()
+        if (count <= prev || junkSweeping) return // hanya saat bertambah (ekspansi playlist)
+        junkSweeping = true
+        val parentUrl = junkParentUrl // [UNPLAYABLE-CHIP]
+        val parentTitle = junkParentTitle
+        mpvPost("junk-sweep") {
+            try {
+                val n = MPVLib.getPropertyInt("playlist-count") ?: 0
+                val names = ArrayList<String>(n)
+                for (i in 0 until n) names.add(MPVLib.getPropertyString("playlist/$i/filename") ?: "")
+                val junk = PlaylistJunk.junkIndices(names, parentUrl) // [JUNK-CHILD]
+                if (junk.isEmpty()) return@mpvPost
+                val isHtmlPage = junk.any { i -> names[i].contains("<html", ignoreCase = true) || names[i].contains("<!doctype html", ignoreCase = true) } // [JUNK-KIND]
+                for (i in junk) MPVLib.command(arrayOf("playlist-remove", i.toString()))
+                MpvLog.w(TAG, "[JUNK-GUARD/v3] ${junk.size} entri palsu (${if (isHtmlPage) "halaman HTML" else "manifest/teks"} terbaca sebagai playlist) dihapus")
+                val who = parentTitle
+                val firstReport = parentUrl.isNullOrEmpty() || parentUrl != junkReportedParent // [JUNK-ONCE]
+                if (!parentUrl.isNullOrEmpty() && firstReport) { // [UNPLAYABLE-CHIP]
+                    junkReportedParent = parentUrl
+                    val nth = UnplayableStore.add(applicationContext, parentUrl) // [ERR-COUNT]
+                    PlaybackLog.onMarkedUnplayable(who.orEmpty(), parentUrl, nth) // [ERR-LOG]
+                }
+                if (firstReport) runOnUiThread {
+                    showToast((if (who.isNullOrBlank()) "Stream" else who) + (if (isHtmlPage) " membalas halaman web (HTML), bukan stream. Siaran ini tidak tersedia dari penyedianya, bukan masalah aplikasi. Dilewati." else " membalas data yang tidak terbaca sebagai stream. Sumbernya bermasalah, bukan aplikasi. Dilewati."), true)
+                }
+            } finally {
+                junkSweeping = false
+                // [JUNK-RESWEEP] ekspansi baru saat menyapu (sering pada mode acak) tidak boleh terlewat
+                val now = MPVLib.getPropertyInt("playlist-count") ?: 0
+                var again = false
+                for (i in 0 until now) {
+                    if (PlaylistJunk.isJunk(MPVLib.getPropertyString("playlist/$i/filename") ?: "")) { again = true; break }
+                }
+                if (again && junkResweeps < 3) {
+                    junkResweeps++
+                    junkLastCount = 0
+                    guardPlaylistJunk(now.toLong())
+                } else {
+                    if (!again) junkResweeps = 0
+                    junkLastCount = now
+                }
+            }
+        }
+    }
+
+    /**
+     * [RADIO-DEAD] fungsi: stream gagal dibuka (berakhir sebelum dimuat + ada galat mpv) saat jaringan tervalidasi: tandai ERR
+     * lewat [UnplayableStore] (kedaluwarsa 24 jam atau Muat ulang). Jaringan mati/captive tidak menandai apa pun.
+     */
+    private fun markDeadStream() {
+        val url = shieldPath
+        if (url.isEmpty() || !networkValidated()) return
+        val nth = UnplayableStore.add(applicationContext, url)
+        if (nth > 0) PlaybackLog.onMarkedUnplayable(junkParentTitle.orEmpty(), url, nth)
+    }
+
+    private var failDialog: AlertDialog? = null // [MPV-LOG-SHARE]
+
+    /**
+     * [MPV-LOG-SHARE] Gagal membuka sumber TUNGGAL: dialog gelap beraksen emas dengan tombol "Bagikan log mpv".
+     * Tidak muncul untuk playlist/daftar saluran (pindah otomatis), saat di latar belakang, atau bila penyimpanan
+     * log mpv mati. Dipanggil dari thread event mpv; UI dikerjakan di thread utama.
+     */
+    private fun offerLogShare(sid: String?) {
+        if (!activityIsForeground || !MpvLogHook.canShare()) return
+        val count = runCatching { MPVLib.getPropertyInt("playlist-count") }.getOrNull() ?: return
+        if (count > 1) return
+        val cause = PlaybackLog.failureCause()
+        val note = "Molina gagal memutar" + (if (sid != null) " (sesi $sid)" else "") + (if (cause.isNotEmpty()) ": $cause" else "")
+        runOnUiThread {
+            if (isFinishing || isDestroyed) return@runOnUiThread
+            failDialog?.dismiss()
+            failDialog = AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog_Error)
+                .setTitle("Gagal memutar")
+                .setMessage("Sumber tidak bisa dibuka." + (if (cause.isNotEmpty()) "\n\n$cause" else "") + (if (sid != null) "\n\nID sesi: $sid" else ""))
+                .setPositiveButton("Bagikan log mpv") { _, _ -> MpvLogHook.share?.invoke(this, note) }
+                .setNegativeButton("Tutup", null)
+                .show()
+        }
+    }
+
+    private fun networkValidated(): Boolean = try {
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork)
+        caps != null && caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    } catch (e: Exception) {
+        false
+    }
+
+    private class QualitySnap(val path: String?, val variants: List<VideoVariant>, val pos: Double, val idx: Int)
+
+    private var tracksJob: Job? = null
+
+    /** [ANR-FIX2] track-list berubah berkali-kali saat ganti varian: debounce, baca di thread khusus. */
+    private fun loadTracksAsync() {
+        tracksJob?.cancel()
+        tracksJob = streamScope.launch {
+            delay(150L)
+            withContext(mpvDispatcher) {
+                try { player.loadTracks() } catch (e: Exception) { MpvLog.e(TAG, "loadTracks gagal", e) } // [DIAG-EXC]
+            }
+        }
+    }
+
+    /** Path entri yang sedang diputar, disimpan agar lencana Shield tidak memanggil mpv dari thread UI. */
+    @Volatile private var shieldPath: String = ""
+
+    /**
+     * Muat masukan web: halaman yang dikenali resolver di-resolve dulu (toast saat memuat, toast
+     * galat bila gagal); selain itu langsung ke mpv secara sinkron (urutan antrean terjaga).
+     */
+    private fun loadWeb(raw: String, flag: String, headers: Map<String, String> = emptyMap(),
+                        onLoaded: () -> Unit = {}) {
+        if (MpvLoad.needsResolveCheck(raw)) { // [DNS-CHECK]
+            streamScope.launch {
+                val r = withContext(Dispatchers.IO) { MpvLoad.resolveAndPin(raw) } // [SHIELD-PIN]
+                if (r is StreamPin.Result.Blocked) {
+                    showToast("Diblokir: ${r.verdict.reason.message}", true)
+                    return@launch
+                }
+                val target = (r as? StreamPin.Result.Pinned)?.url ?: raw // rtmp/rtsp dipin ke IP yang lolos DNS
+                MPVLib.command(MpvLoad.loadfileArgs(target, flag, headers))
+                onLoaded()
+            }
+            return
+        }
+        if (!StreamLoader.isWebUrl(raw)) {
+            MPVLib.command(MpvLoad.loadfileArgs(raw, flag, headers))
+            onLoaded()
+            return
+        }
+        streamScope.launch {
+            val p = StreamLoader.prepare(raw) { showToast(getString(R.string.stream_resolving), true) }
+            when (p) {
+                is Prepared.Ready -> {
+                    p.title?.let { streamTitles[p.url] = it }
+                    streamSources[p.url] = raw
+                    MPVLib.command(MpvLoad.loadfileArgs(p.url, flag, headers + p.headers, p.title))
+                    appendResolved(p, headers)
+                    onLoaded()
+                }
+                is Prepared.Failed -> {
+                    MpvLog.w(TAG, "[LOAD-DIAG] resolve gagal: ${p.error.name} target=${com.molina.core.diag.LogRedact.target(raw)}") // [LOAD-DIAG]
+                    reportResolveFailure(p, retry = { loadWeb(raw, flag, headers, onLoaded) }) // [YTDLP-CARD] [YTDLP-RETRY-CALL1]
+                }
+            }
+        }
+    }
+
+    /** [YTDLP-URL-ACTIONS] Buka tautan http/https di peramban sistem; hanya dipanggil untuk URL yang sudah lolos UrlPolicy. */
+    private fun openInBrowser(url: String) {
+        try {
+            startActivity(
+                Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                    .addCategory(Intent.CATEGORY_BROWSABLE)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        } catch (e: Exception) {
+            showToast(getString(R.string.stream_card_no_browser), true)
+        }
+    }
+
+    /** [YTDLP-CARD] Buka Pengaturan > Paket di MainActivity (hanya navigasi); pemutar tetap di tugasnya sendiri. */
+    private fun openPackages() = openMainTab("packages")
+
+    /** [T24] Navigasi ke tab/halaman di MainActivity lewat extra molina_open_tab (hanya navigasi, tanpa efek samping). */
+    private fun openMainTab(tab: String) {
+        val i = Intent().setClassName(packageName, "com.molina.studio.MainActivity")
+            .putExtra("molina_open_tab", tab)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        try {
+            startActivity(i)
+        } catch (e: Exception) {
+            MpvLog.w(TAG, "Pengaturan ($tab) gagal dibuka: ${e.message}")
+        }
+    }
+
+    /**
+     * [YTDLP-CARD] Galat resolve: bila penyebabnya yt-dlp belum siap, tampilkan kartu dengan jalan keluar
+     * (Buka Paket) alih-alih toast singkat. [onClosed] dipanggil setelah kartu ditutup (atau langsung untuk toast).
+     */
+    // retry diletakkan SEBELUM onClosed agar trailing lambda pemanggil lama tetap menjadi onClosed.
+    private fun reportResolveFailure(p: Prepared.Failed, retry: (() -> Unit)? = null, onClosed: () -> Unit = {}) { // [YTDLP-ERRCARD-SIG]
+        if (isFinishing || isDestroyed) { onClosed(); return } // [YTDLP-ERRCARD-BODY]
+        if (p.action != com.molina.core.stream.FailureAction.INSTALL_YTDLP) {
+            showResolveErrorCard(p, retry, onClosed)
+            return
+        }
+        AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog)
+            .setTitle(R.string.ytdlp_missing_title)
+            .setMessage(R.string.ytdlp_missing_msg)
+            .setPositiveButton(R.string.ytdlp_missing_open) { _, _ -> openPackages() }
+            .setNegativeButton(R.string.dialog_cancel, null)
+            .setOnDismissListener { onClosed() }
+            .show()
+    }
+
+    /** [YTDLP-RETRY] Buka awal untuk masukan web; dipisah agar tombol "Coba kualitas lain" bisa mengulanginya. */
+    private fun openWebInitial(raw: String, startHeaders: Map<String, String>) {
+        streamScope.launch {
+            val p = StreamLoader.prepare(raw) { showToast(getString(R.string.stream_resolving), true) }
+            when (p) {
+                is Prepared.Ready -> {
+                    p.title?.let { streamTitles[p.url] = it }
+                    streamSources[p.url] = raw
+                    player.playWhenReady(p.url, startHeaders + p.headers, p.title) { appendResolved(p, startHeaders) }
+                }
+                is Prepared.Failed -> {
+                    MpvLog.w(TAG, "[LOAD-DIAG] resolve gagal (ulang): ${p.error.name}") // [LOAD-DIAG]
+                    reportResolveFailure(p, retry = { openWebInitial(raw, startHeaders) }) { finishWithResult(RESULT_CANCELED) }
+                }
+            }
+        }
+    }
+
+    /**
+     * [YTDLP-ERRCARD] Kartu galat bergaya Home Theater: latar hitam pekat, aksen marun Molina Cinema.
+     * Aksi: Coba kualitas lain (tahap yt-dlp berikutnya) / Salin log / Tutup.
+     */
+    private fun showResolveErrorCard(p: Prepared.Failed, retry: (() -> Unit)?, onClosed: () -> Unit) {
+        val dm = resources.displayMetrics
+        fun dp(v: Int) = (v * dm.density).toInt()
+        val maroon = getColor(R.color.cinema_maroon)
+        val white = android.graphics.Color.WHITE
+        val muted = getColor(R.color.player_dialog_text_secondary)
+        fun shape(fill: Int, stroke: Int = 0, radiusDp: Int = 14) = android.graphics.drawable.GradientDrawable().apply {
+            cornerRadius = dp(radiusDp).toFloat()
+            setColor(fill)
+            if (stroke != 0) setStroke(dp(1), stroke)
+        }
+
+        val stage = com.molina.core.stream.StreamQuality.ytdlStage
+        val retryable = p.error == com.molina.core.stream.StreamError.FORMAT ||
+            p.error == com.molina.core.stream.StreamError.UNKNOWN ||
+            p.error == com.molina.core.stream.StreamError.PARSE ||
+            p.error == com.molina.core.stream.StreamError.NETWORK
+        val canRetry = retry != null && retryable && stage < com.molina.core.stream.StreamQuality.YTDL_STAGE_MAX
+
+        var handled = false
+        lateinit var dialog: AlertDialog
+
+        val root = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(dp(24), dp(24), dp(24), dp(16))
+            background = shape(android.graphics.Color.BLACK, maroon, 20)
+        }
+        root.addView(android.widget.ImageView(this).apply { // [YTDLP-ICON] klaker film Molina Cinema
+            setImageResource(if (p.error == com.molina.core.stream.StreamError.DRM) R.drawable.ic_cinema_drm_lock else R.drawable.ic_cinema_clapper)
+            setPadding(dp(11), dp(11), dp(11), dp(11))
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO // dekoratif; judul di bawahnya yang dibacakan
+            background = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.OVAL
+                setColor(maroon)
+            }
+            layoutParams = android.widget.LinearLayout.LayoutParams(dp(52), dp(52)).apply {
+                gravity = android.view.Gravity.CENTER_HORIZONTAL
+                bottomMargin = dp(14)
+            }
+        })
+        root.addView(TextView(this).apply {
+            text = getString(StreamLoader.messageRes(p.error))
+            setTextColor(white)
+            textSize = 17f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            gravity = android.view.Gravity.CENTER
+        })
+        root.addView(TextView(this).apply {
+            text = getString(when (p.error) { // [YTDLP-URL-ACTIONS] [PAGE-MEDIA]
+                com.molina.core.stream.StreamError.UNSUPPORTED -> R.string.stream_card_hint_unsupported
+                com.molina.core.stream.StreamError.DRM -> R.string.stream_card_hint_drm
+                else -> R.string.stream_card_hint
+            })
+            setTextColor(muted)
+            textSize = 13f
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, dp(8), 0, dp(6))
+        })
+
+        fun action(label: String, fill: Int, stroke: Int, textColor: Int, onClick: () -> Unit): Button = Button(this).apply {
+            text = label
+            isAllCaps = false
+            setTextColor(textColor)
+            textSize = 15f
+            stateListAnimator = null
+            background = shape(fill, stroke)
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT, dp(48)
+            ).apply { topMargin = dp(10) }
+            alpha = 0.85f
+            setOnFocusChangeListener { v, focused ->
+                v.alpha = if (focused) 1f else 0.85f
+                v.scaleX = if (focused) 1.04f else 1f
+                v.scaleY = if (focused) 1.04f else 1f
+            }
+            setOnClickListener { onClick() }
+        }
+
+        var firstAction: Button? = null
+        if (canRetry) {
+            val label = getString(if (stage == 0) R.string.stream_card_retry_quality else R.string.stream_card_retry_audio)
+            firstAction = action(label, maroon, 0, white) {
+                handled = true
+                com.molina.core.stream.StreamQuality.nextYtdlStage()
+                dialog.dismiss()
+                retry?.invoke()
+            }
+            root.addView(firstAction)
+        }
+        val copyBtn = action(getString(R.string.stream_card_copy_log), android.graphics.Color.TRANSPARENT, maroon, white) {
+            val diag = com.molina.core.stream.StreamDiag.dump()
+            val text = "Molina stream error: " + p.error.name + "\n" + (if (diag.isEmpty()) "(tidak ada catatan percobaan)" else diag)
+            val cm = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("Molina stream log", text))
+            showToast(getString(R.string.stream_card_copied), true)
+        }
+        // [YTDLP-URL-ACTIONS] URL sumber: Buka di peramban (hanya http/https yang lolos UrlPolicy) dan Salin URL.
+        val srcUrl = p.url?.takeIf { StreamLoader.isWebUrl(it) }
+        if (srcUrl != null && com.molina.core.net.UrlPolicy.check(srcUrl) is com.molina.core.net.UrlPolicy.Verdict.Allowed) {
+            val primary = firstAction == null
+            val browserBtn = action(
+                getString(R.string.stream_card_open_browser),
+                if (primary) maroon else android.graphics.Color.TRANSPARENT, if (primary) 0 else maroon, white
+            ) { openInBrowser(srcUrl) }
+            root.addView(browserBtn)
+            if (primary) firstAction = browserBtn
+        }
+        if (srcUrl == null) {
+            root.addView(copyBtn)
+        } else {
+            val urlBtn = action(getString(R.string.stream_card_copy_url), android.graphics.Color.TRANSPARENT, maroon, white) {
+                val cm = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                cm.setPrimaryClip(android.content.ClipData.newPlainText("Molina URL", srcUrl))
+                showToast(getString(R.string.stream_card_url_copied), true)
+            }
+            val row = android.widget.LinearLayout(this).apply { orientation = android.widget.LinearLayout.HORIZONTAL }
+            for ((i, b) in listOf(urlBtn, copyBtn).withIndex()) {
+                b.layoutParams = android.widget.LinearLayout.LayoutParams(0, dp(48), 1f).apply {
+                    topMargin = dp(10)
+                    if (i == 1) marginStart = dp(8)
+                }
+                row.addView(b)
+            }
+            root.addView(row)
+        }
+        val closeBtn = action(getString(R.string.stream_card_close), android.graphics.Color.TRANSPARENT, 0, muted) { dialog.dismiss() }
+        root.addView(closeBtn)
+
+        dialog = AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog).setView(root).create()
+        dialog.setOnDismissListener {
+            if (!handled) {
+                com.molina.core.stream.StreamQuality.resetYtdlStage()
+                onClosed()
+            }
+        }
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        dialog.show()
+        (firstAction ?: copyBtn).requestFocus() // pengendali jarak jauh / D-pad di TV
+    }
+
+    /** Sisa playlist hasil resolver (mis. daftar channel yt-dlp) ditambahkan setelah item pertama. */
+    private fun appendResolved(p: Prepared.Ready, headers: Map<String, String>) {
+        if (p.entries.size < 2) return
+        for (e in p.entries.drop(1)) {
+            e.title?.let { streamTitles[e.url] = it }
+            MPVLib.command(MpvLoad.loadfileArgs(e.url, MpvLoad.APPEND, headers + p.headers, e.title))
+        }
+        MpvLog.i(TAG, "Playlist resolver: ${p.entries.size} entri")
+    }
+
+    // Playlist hasil pencarian (jendela bergulir): hanya diakses dari main thread.
+    private var rolling: RollingQueue? = null
+
+    // [CH-HEADERS] Header HTTP per channel (mis. Referer dens.tv). Hanya dari intent internal bertoken Molina.
+    @Volatile private var pendingChannelHeaders: Map<String, Map<String, String>> = emptyMap()
+    @Volatile private var chHeadersBusy = false
+
+    private fun readChannelHeaders(intent: Intent?): Map<String, Map<String, String>> {
+        if (intent == null) return emptyMap()
+        val trusted = try { ExternalIntentGate.isTrusted(intent.getStringExtra(ExternalIntentGate.EXTRA)) } catch (e: Exception) { false }
+        if (!trusted) return emptyMap()
+        return runCatching {
+            com.molina.core.net.ChannelHeaders.decode(
+                intent.getStringArrayListExtra(com.molina.core.net.ChannelHeaders.EXTRA_URLS),
+                intent.getStringArrayListExtra(com.molina.core.net.ChannelHeaders.EXTRA_VALUES),
+            )
+        }.getOrDefault(emptyMap())
+    }
+
+    /** [GROUP-VIEW] group-title per channel dari Cinema (header grup di daftar putar). */
+    private fun readChannelGroups(intent: Intent?): Map<String, String> {
+        if (intent == null) return emptyMap()
+        val trusted = try { ExternalIntentGate.isTrusted(intent.getStringExtra(ExternalIntentGate.EXTRA)) } catch (e: Exception) { false }
+        if (!trusted) return emptyMap()
+        return runCatching {
+            com.molina.core.net.ChannelGroups.decode(
+                intent.getStringArrayListExtra(com.molina.core.net.ChannelGroups.EXTRA_URLS),
+                intent.getStringArrayListExtra(com.molina.core.net.ChannelGroups.EXTRA_VALUES),
+            )
+        }.getOrDefault(emptyMap())
+    }
+
+    /** Setelah memory:// diperluas: pasang ulang entri yang butuh header (insert-at + hapus yang lama). Satu thread dengan penjaga entri palsu. */
+    private fun applyPendingChannelHeaders() {
+        if (chHeadersBusy) return
+        chHeadersBusy = true
+        mpvPost("ch-headers") {
+            try {
+                val map = pendingChannelHeaders
+                if (map.isEmpty()) return@mpvPost
+                val count = MPVLib.getPropertyInt("playlist-count") ?: return@mpvPost
+                val first = MPVLib.getPropertyString("playlist/0/filename") ?: return@mpvPost
+                if (count <= 1 && MpvLoad.isMemoryPlaylist(first)) return@mpvPost // wadah m3u belum diperluas
+                pendingChannelHeaders = emptyMap()
+                var done = 0
+                for (i in 0 until count) {
+                    val url = MPVLib.getPropertyString("playlist/$i/filename") ?: continue
+                    val h = map[url] ?: continue
+                    val title = MPVLib.getPropertyString("playlist/$i/title")
+                    val args = MpvLoad.loadfileArgs(url, "insert-at", h, title, i)
+                    if (args[0] != "loadfile") continue // ditolak kebijakan
+                    MPVLib.command(args)
+                    // entri lama kini di i+1; bila sedang diputar, pindah ke entri baru dulu
+                    if ((MPVLib.getPropertyInt("playlist-pos") ?: -1) == i + 1)
+                        MPVLib.command(arrayOf("playlist-play-index", i.toString()))
+                    MPVLib.command(arrayOf("playlist-remove", (i + 1).toString()))
+                    if (!title.isNullOrBlank()) runOnUiThread { streamTitles[url] = title }
+                    done++
+                }
+                MpvLog.i(TAG, "[CH-HEADERS] $done entri channel dipasang ulang dengan header HTTP sendiri")
+            } finally {
+                chHeadersBusy = false
+            }
+        }
+    }
+
+    /** [ORDER-KEEP] Indeks awal playlist memory:// (urutan asli); -1 = tidak ada. */
+    @Volatile private var pendingStartIndex = -1
+
+    private fun readStartIndex(intent: Intent?): Int {
+        val v = intent?.getIntExtra("start_index", -1) ?: -1
+        return if (v in 0 until MAX_MEMORY_PLAYLIST_ENTRIES) v else -1
+    }
+
+    private fun applyPendingStart() {
+        val want = pendingStartIndex
+        if (want < 0) return
+        val count = MPVLib.getPropertyInt("playlist-count") ?: return
+        if (count <= 1) return // masih memuat wadah m3u
+        pendingStartIndex = -1
+        val pos = MPVLib.getPropertyInt("playlist-pos") ?: want
+        if (want < count && pos != want) MPVLib.setPropertyInt("playlist-pos", want)
+    }
+
+    private var searchJob: kotlinx.coroutines.Job? = null
+
+    /** Antrean dari extra Intent Cinema Home; null bila tidak ada atau tidak valid. */
+    private fun playlistFrom(intent: Intent?, current: String): RollingQueue? {
+        if (intent == null || intent.action != Intent.ACTION_VIEW) return null
+        // runCatching: extra dari aplikasi lain bisa berisi elemen null.
+        val plan = runCatching {
+            PlaylistPlan.parse(
+                intent.getStringArrayListExtra(PlaylistExtras.URLS),
+                intent.getStringArrayListExtra(PlaylistExtras.TITLES),
+                intent.getIntExtra(PlaylistExtras.INDEX, -1),
+                current
+            )
+        }.getOrNull() ?: return null
+        PlaybackLog.onPlaylist(plan.urls.size, plan.index + 1)
+        return RollingQueue(plan)
+    }
+
+    // URL stream -> judul, untuk dialog playlist (nama berkas stream tidak informatif).
+    private val streamTitles = HashMap<String, String>()
+    @Volatile private var channelGroups: Map<String, String> = emptyMap() // [GROUP-VIEW]
+
+    /** URL stream hasil resolve -> tautan asal yang stabil; kunci Penanda posisi. */
+    private val streamSources = HashMap<String, String>()
+
+    /** Baris "belum siap" di dialog playlist: sisa hasil pencarian yang belum di-resolve. */
+    private fun pendingRows(): List<PendingRow> {
+        val q = rolling ?: return emptyList()
+        return q.pendingIndices().map { i ->
+            PendingRow(i, q.title(i).ifEmpty { "#${i + 1}" })
+        }
+    }
+
+    /**
+     * Pengguna mengetuk item yang belum siap: semua item dari kursor sampai item itu di-resolve
+     * berurutan dan ditambahkan (urutan terjaga), lalu pemutaran melompat ke yang terakhir berhasil.
+     */
+    private fun jumpToPending(planIndex: Int) {
+        val q = rolling ?: return
+        if (q.busy) {
+            showToast(getString(R.string.stream_resolving), true)
+            return
+        }
+        streamScope.launch {
+            var target = -1
+            var first = true
+            while (true) {
+                val i = q.beginForced() ?: break
+                val p = StreamLoader.prepare(q.url(i)) {
+                    if (first) showToast(getString(R.string.stream_resolving), true)
+                }
+                first = false
+                if (rolling !== q) return@launch
+                when (p) {
+                    is Prepared.Ready -> {
+                        val title = p.title ?: q.title(i).ifEmpty { null }
+                        title?.let { streamTitles[p.url] = it }
+                        streamSources[p.url] = q.url(i)
+                        MPVLib.command(MpvLoad.loadfileArgs(p.url, MpvLoad.APPEND, p.headers, title))
+                        q.succeeded()
+                        PlaybackLog.onPrefetched(i + 1, title.orEmpty())
+                        target = (MPVLib.getPropertyInt("playlist-count") ?: 0) - 1
+                    }
+                    is Prepared.Failed -> {
+                        PlaybackLog.onPrefetchSkipped(i + 1, p.error.name)
+                        q.failed()
+                    }
+                }
+                if (i >= planIndex) break
+            }
+            if (target >= 0) MPVLib.setPropertyInt("playlist-pos", target)
+        }
+    }
+
+    /**
+     * Dipanggil saat sebuah item selesai dimuat. Bila antrean mpv tak punya item sesudah posisi
+     * kini, item berikutnya di-resolve di latar lalu ditambahkan. Yang gagal dilewati.
+     */
+    private fun prefetchNext() {
+        val q = rolling ?: return
+        streamScope.launch {
+            val count = MPVLib.getPropertyInt("playlist-count") ?: return@launch
+            val pos = MPVLib.getPropertyInt("playlist-pos") ?: return@launch
+            var i = q.begin(count, pos) ?: return@launch
+            while (true) {
+                val p = StreamLoader.prepare(q.url(i))
+                if (rolling !== q) return@launch // playlist diganti saat menunggu
+                when (p) {
+                    is Prepared.Ready -> {
+                        val title = p.title ?: q.title(i).ifEmpty { null }
+                        title?.let { streamTitles[p.url] = it }
+                        streamSources[p.url] = q.url(i)
+                        MPVLib.command(MpvLoad.loadfileArgs(p.url, MpvLoad.APPEND, p.headers, title))
+                        q.succeeded()
+                        PlaybackLog.onPrefetched(i + 1, title.orEmpty())
+                        return@launch
+                    }
+                    is Prepared.Failed -> {
+                        PlaybackLog.onPrefetchSkipped(i + 1, p.error.name)
+                        if (!q.failed()) return@launch
+                        i = q.begin(count, pos) ?: return@launch
+                    }
+                }
+            }
+        }
+    }
+
+    // for calls to eventUi() and eventPropertyUi()
+    private val eventUiHandler = Handler(Looper.getMainLooper())
+    // for use with fadeRunnable1..3
+    private val fadeHandler = Handler(Looper.getMainLooper())
+    // for use with stopServiceRunnable
+    private val stopServiceHandler = Handler(Looper.getMainLooper())
+
+    /**
+     * DO NOT USE THIS
+     */
+    private var activityIsStopped = false
+
+    private var activityIsForeground = true
+    private var didResumeBackgroundPlayback = false
+    private var userIsOperatingSeekbar = false
+
+    private var toast: Toast? = null
+
+    private var audioManager: AudioManager? = null
+    private var audioFocusRequest: AudioFocusRequestCompat? = null
+    private var audioFocusRestore: () -> Unit = {}
+
+    private val psc = Utils.PlaybackStateCache()
+    private var mediaSession: MediaSessionCompat? = null
+
+    private lateinit var binding: PlayerBinding
+    private lateinit var gestures: TouchGestures
+
+    // convenience alias
+    private val player get() = binding.player
+
+    private val seekBarChangeListener = object : SeekBar.OnSeekBarChangeListener {
+        override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+            if (!fromUser)
+                return
+            kickSpectrum() // [SPECTRUM]
+            seekCoalesced(progress.toDouble() / SEEK_BAR_PRECISION, exact = true) // [ANR-FIX4]
+            updateSeekPreview(progress.toDouble() / SEEK_BAR_PRECISION)
+            // Note: don't call updatePlaybackPos() here either
+        }
+
+        override fun onStartTrackingTouch(seekBar: SeekBar) {
+            userIsOperatingSeekbar = true
+            thumbnailer.prepare(localVideoPath())
+        }
+
+        override fun onStopTrackingTouch(seekBar: SeekBar) {
+            userIsOperatingSeekbar = false
+            hideMarkLabel.run()
+            hideSeekPreview()
+            showControls() // re-trigger display timeout
+        }
+    }
+
+    private var becomingNoisyReceiverRegistered = false
+    private val becomingNoisyReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
+                onAudioFocusChange(AudioManager.AUDIOFOCUS_LOSS, "noisy")
+            }
+        }
+    }
+
+    // Fade out controls
+    private val fadeRunnable = object : Runnable {
+        var hasStarted = false
+        private val listener = object : AnimatorListenerAdapter() {
+            override fun onAnimationStart(animation: Animator) { hasStarted = true }
+
+            override fun onAnimationCancel(animation: Animator) { hasStarted = false }
+
+            override fun onAnimationEnd(animation: Animator) {
+                if (hasStarted)
+                    hideControls()
+                hasStarted = false
+            }
+        }
+
+        override fun run() {
+            binding.controls.animate().alpha(0f).setDuration(CONTROLS_FADE_DURATION).setListener(listener)
+        }
+    }
+
+    // Fade out unlock button
+    private val fadeRunnable2 = object : Runnable {
+        private val listener = object : AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
+                binding.unlockBtn.visibility = View.GONE
+            }
+        }
+
+        override fun run() {
+            binding.unlockBtn.animate().alpha(0f).setDuration(CONTROLS_FADE_DURATION).setListener(listener)
+        }
+    }
+
+    // Fade out gesture text
+    private val fadeRunnable3 = object : Runnable {
+        // okay this doesn't actually fade...
+        override fun run() {
+            binding.gestureTextView.visibility = View.GONE
+        }
+    }
+
+    private val stopServiceRunnable = Runnable {
+        val intent = Intent(this, BackgroundPlaybackService::class.java)
+        applicationContext.stopService(intent)
+    }
+
+    /* Settings */
+    private var statsFPS = false
+    private var statsLuaMode = 0 // ==0 disabled, >0 page number
+
+    private var backgroundPlayMode = ""
+    private var bgVideoOff = false // [BG-DATA]
+    private var noUIPauseMode = ""
+
+    private var shouldSavePosition = false
+
+    private var autoRotationMode = ""
+
+    private var controlsAtBottom = true
+    private var showMediaTitle = false
+    private var useTimeRemaining = false
+
+    private var rememberBrightness = false
+    private var lastScreenBrightness = -1
+
+    private var ignoreAudioFocus = false
+    private var playlistExitWarning = true
+    private var newIntentReplace = false
+
+    private var smoothSeekGesture = false
+    /* * */
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun initListeners() {
+        with (binding) {
+            prevBtn.setOnClickListener { playlistPrev() }
+            nextBtn.setOnClickListener { playlistNext() }
+            cycleAudioBtn.setOnClickListener { cycleAudio() }
+            cycleSubsBtn.setOnClickListener { cycleSub() }
+            playBtn.setOnClickListener { player.cyclePause() }
+            cycleDecoderBtn.setOnClickListener { player.cycleHwdec() }
+            cycleSpeedBtn.setOnClickListener { cycleSpeed() }
+            shieldBadge.setOnClickListener { showShieldInfo() }
+            perfChip.setOnClickListener { showPerfDialog() } // [PERF-CHIP]
+            ytdlChip.setOnClickListener { showToast(getString(R.string.stream_chip_hint), true, true) } // [YTDLP-CHIP-INIT]
+            resChip.setOnClickListener { showToast(resChipDetail.ifEmpty { getString(R.string.res_chip_hint, resChipW, resChipH) }, true, true) } // [RES-CHIP] [RES-TIER]
+            perfChip.visibility = if (PerfTierPolicy.current(this@MPVActivity) == PerfTier.LOW) View.VISIBLE else View.GONE
+            topMenuBtn.setOnClickListener { openTopMenu() }
+            unlockBtn.setOnClickListener { unlockUI() }
+            playbackDurationTxt.setOnClickListener {
+                useTimeRemaining = !useTimeRemaining
+                updatePlaybackPos(psc.positionSec)
+                updatePlaybackDuration(psc.durationSec)
+            }
+
+            cycleAudioBtn.setOnLongClickListener { pickAudio(); true }
+            cycleSpeedBtn.setOnLongClickListener { pickSpeed(); true }
+            cycleSubsBtn.setOnLongClickListener { pickSub(); true }
+            prevBtn.setOnLongClickListener { openPlaylistMenu(pauseForDialog()); true }
+            nextBtn.setOnLongClickListener { openPlaylistMenu(pauseForDialog()); true }
+            cycleDecoderBtn.setOnLongClickListener { pickDecoder(); true }
+
+            playbackSeekbar.setOnSeekBarChangeListener(seekBarChangeListener)
+            playbackSeekbar.onMarkTap = { sec -> jumpToMark(sec) }
+        }
+
+        player.setOnTouchListener { _, e ->
+            if (lockedUI) false else gestures.onTouchEvent(e)
+        }
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.outside) { v, windowInsets ->
+            // guidance: https://medium.com/androiddevelopers/gesture-navigation-handling-visual-overlaps-4aed565c134c
+            val insets = windowInsets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            v.updateLayoutParams<MarginLayoutParams> {
+                // avoid system bars and cutout
+                leftMargin = insets.left
+                topMargin = insets.top
+                bottomMargin = insets.bottom
+                rightMargin = insets.right
+            }
+            WindowInsetsCompat.CONSUMED
+        }
+
+        onBackPressedDispatcher.addCallback(this) {
+            onBackPressedImpl()
+        }
+
+        addOnPictureInPictureModeChangedListener { info ->
+            onPiPModeChangedImpl(info.isInPictureInPictureMode)
+        }
+    }
+
+    private var playbackHasStarted = false
+    private var onloadCommands = mutableListOf<Array<String>>()
+
+    // Activity lifetime
+
+    override fun onCreate(icicle: Bundle?) {
+        super.onCreate(icicle)
+
+        MemProbe.start() // [PERF-MEM]
+        // Do these here and not in MainActivity because mpv can be launched from a file browser
+        Utils.copyAssets(this)
+        BackgroundPlaybackService.createNotificationChannel(this)
+
+        binding = PlayerBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        // Init controls to be hidden and view fullscreen
+        hideControls()
+
+        // Initialize listeners for the player view
+        initListeners()
+        streamScope.launch { ShieldStats.blockedCount.collect { updateShieldBadge() } }
+        streamScope.launch { com.molina.core.stream.StreamQuality.chosen.collect { syncPlayerToLock(it) } } // [QUALITY-SYNC3-B]
+
+        gestures = TouchGestures(this)
+
+        // set up initial UI state
+        readSettings()
+        forcedAudioOnly = MpvPrefs.current(applicationContext).audioOnlyVideo // [AUDIO-ONLY] status awal
+        // [AUDIO-HINT] sekali per pemutar dibuka (bukan saat Activity dibuat ulang): jelaskan kenapa tanpa gambar
+        if (forcedAudioOnly && icicle == null) showToast(getString(R.string.audio_only_pref_hint), false, true)
+        if (forcedAudioOnly) updatePerfChip() // [AUDIO-CHIP] chip ♪ tampil sejak awal di semua tier
+        BackgroundPlaybackState.applyQuality = applyQualityHook // [QUALITY-NOW]
+        // [PREF-AUDIO] vid=no sudah dipasang mpv dari pengaturan ini. Tanpa penyelarasan, kunci 480/720 memilih video-only
+        // (adaptif) yang gagal dibuka ("No video or audio streams selected") atau stream gabungan yang tampil tanpa gambar.
+        // Penimpaan sementara (bukan set()): kunci tersimpan tidak berubah dan dipulihkan saat keluar lewat audioReloadPrev.
+        if (forcedAudioOnly && com.molina.core.stream.StreamQuality.current != com.molina.core.stream.VideoQuality.AUDIO) {
+            audioReloadPrev = com.molina.core.stream.StreamQuality.current
+            com.molina.core.stream.StreamQuality.current = com.molina.core.stream.VideoQuality.AUDIO
+        }
+        val onArtRelayout = View.OnLayoutChangeListener { _, l, t, r, b, ol, ot, orr, ob -> // [BANNER-FIT]
+            if (b - t != ob - ot || r - l != orr - ol) binding.root.post { relayoutArt() }
+        }
+        binding.controls.addOnLayoutChangeListener(onArtRelayout)
+        binding.nowPlayingArt.addOnLayoutChangeListener(onArtRelayout)
+        onConfigurationChanged(resources.configuration)
+        run {
+            // edge-to-edge & immersive mode
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+            val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+            insetsController.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+
+        if (showMediaTitle)
+            binding.controlsTitleGroup.visibility = View.VISIBLE
+
+        updateOrientation(true)
+
+        // Parse the intent
+        val filepath = runCatching { parsePathFromIntent(intent) }.getOrNull()
+        if (intent.action == Intent.ACTION_VIEW) {
+            // Extra dari aplikasi lain bisa memuat Parcelable rusak: jangan crash
+            runCatching {
+                parseIntentExtras(intent.extras)
+                intentHeaders = parseHeadersExtra(intent.extras)
+            }
+        }
+
+        if (filepath == null) {
+            MpvLog.e(TAG, "No file given, exiting")
+            showToast(getString(R.string.error_no_file))
+            finishWithResult(RESULT_CANCELED)
+            return
+        }
+
+        PlaybackLog.attach()
+        WatchStats.attach(applicationContext)
+        player.addObserver(this)
+        rolling = playlistFrom(intent, filepath)
+        pendingStartIndex = readStartIndex(intent) // [ORDER-KEEP]
+        pendingChannelHeaders = readChannelHeaders(intent) // [CH-HEADERS]
+        channelGroups = readChannelGroups(intent) // [GROUP-VIEW]
+        player.initialize(filesDir.path, cacheDir.path)
+        MpvVersionNote.record(applicationContext)
+        // Folder jadi playlist: dari pemilih lama (extra) atau dari Cinema Home (ACTION_VIEW)
+        val beginPlayback: () -> Unit = {
+            val folder = resolveFolderPlaylist(intent, filepath)
+            if (folder != null) {
+                MpvLog.i(TAG, "Playlist folder: ${folder.first.size} berkas")
+                showToast("Playlist folder: ${folder.first.size} berkas", true)
+                player.playFolder(folder.first, folder.second)
+            } else if (StreamLoader.isWebUrl(filepath)) {
+                val startHeaders = intentHeaders
+                streamScope.launch {
+                    val p = StreamLoader.prepare(filepath) { showToast(getString(R.string.stream_resolving), true) }
+                    when (p) {
+                        is Prepared.Ready -> {
+                            p.title?.let { streamTitles[p.url] = it }
+                            streamSources[p.url] = filepath
+                            player.playWhenReady(p.url, startHeaders + p.headers, p.title) { appendResolved(p, startHeaders) }
+                        }
+                        is Prepared.Failed -> {
+                            MpvLog.w(TAG, "[LOAD-DIAG] resolve gagal (buka awal): ${p.error.name}") // [LOAD-DIAG]
+                            reportResolveFailure(p, retry = { openWebInitial(filepath, startHeaders) }) { finishWithResult(RESULT_CANCELED) } // [YTDLP-CARD] [YTDLP-RETRY-CALL2]
+                        }
+                    }
+                }
+            } else {
+                player.playFile(filepath, intentHeaders)
+            }
+        }
+        if (needsExternalConfirm(intent, filepath)) {
+            confirmExternalPlay(intent, filepath, beginPlayback) { finishWithResult(RESULT_CANCELED) }
+        } else beginPlayback()
+
+        mediaSession = initMediaSession()
+        updateMediaSession()
+        with (BackgroundPlaybackService) {
+            mediaToken = mediaSession?.sessionToken
+            thumbnailChanged = {
+                updateMediaSession()
+            }
+        }
+
+        updateScreenBrightness()
+
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val audioSessionId = audioManager!!.generateAudioSessionId()
+        if (audioSessionId != AudioManager.ERROR)
+            player.setAudioSessionId(audioSessionId)
+        else
+            MpvLog.w(TAG, "AudioManager.generateAudioSessionId() returned error")
+
+        volumeControlStream = STREAM_TYPE
+    }
+
+    private fun finishWithResult(code: Int, includeTimePos: Boolean = false) {
+        // Refer to http://mpv-android.github.io/mpv-android/intent.html
+        // FIXME: should track end-file events to accurately report OK vs CANCELED
+        if (isFinishing) // only count first call
+            return
+        val result = Intent(RESULT_INTENT)
+        result.data = if (intent.data?.scheme == "file") null else intent.data
+        if (includeTimePos) {
+            result.putExtra("position", psc.position.toInt())
+            result.putExtra("duration", psc.duration.toInt())
+        }
+        setResult(code, result)
+        finish()
+    }
+
+    // [PERF-TRIM] saat sistem kehabisan memori, buang buffer mundur demuxer agar proses tidak dimatikan
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
+            mpvPost("trim-memory") { // [ANR-FIX5]
+                MPVLib.setPropertyString("demuxer-max-back-bytes", "0")
+                MpvLog.w("perf", "trim level=$level: buffer mundur demuxer dikosongkan")
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        MainThreadWatchdog.stop() // [JNI-MAIN]
+        bufferingHandler.removeCallbacks(bufferingHint) // [QUALITY-SUGGEST]
+        bufferingHandler.removeCallbacks(tierLongStall) // [AUTO-NET-2]
+        if (BackgroundPlaybackState.applyQuality === applyQualityHook) BackgroundPlaybackState.applyQuality = null // [QUALITY-NOW]
+        dismissQualitySnack() // [QUALITY-SNACK]
+        failDialog?.dismiss() // [MPV-LOG-SHARE]
+        MemProbe.stop() // [PERF-MEM]
+        unregisterNetCallback() // [NET-CAP]
+        thumbnailer.release()
+        MpvLog.v(TAG, "Exiting.")
+        // [AUDIO-ONLY-BTN] [QUALITY-SYNC2] pulihkan hanya bila mode masih AUDIO; jika pengguna sudah memilih resolusi di Pengaturan, jangan ditimpa
+        audioReloadPrev?.let { if (com.molina.core.stream.StreamQuality.current == com.molina.core.stream.VideoQuality.AUDIO) com.molina.core.stream.StreamQuality.current = it }
+        com.molina.core.stream.StreamQuality.audioOnlyActive.value = false // [QUALITY-SYNC3-D]
+
+        // Suppress any further callbacks
+        activityIsForeground = false
+        // Stop events from the mpv thread first (MPVLib.event holds the observer lock, so no
+        // callback is in flight once this returns). Otherwise handleAudioFocus() could
+        // register the noisy receiver again right after it is unregistered below.
+        player.removeObserver(this)
+        PlaybackLog.detach()
+        WatchStats.flush()
+        streamScope.cancel()
+        tracksJob = null
+        (mpvDispatcher as? java.io.Closeable)?.close() // [ANR-FIX2]
+        // [SPECTRUM-LEAK] hentikan analisis spektrum (MediaCodec/MediaExtractor) agar tidak jalan setelah Activity hancur
+        spectrumAnalyzer?.cancel()
+        spectrumAnalyzer = null
+        eventUiHandler.removeCallbacksAndMessages(null)
+        fadeHandler.removeCallbacksAndMessages(null)
+        sleepTimer.cancel()
+        stopServiceHandler.removeCallbacksAndMessages(null)
+
+        if (becomingNoisyReceiverRegistered) {
+            unregisterReceiver(becomingNoisyReceiver)
+            becomingNoisyReceiverRegistered = false
+        }
+
+        with (BackgroundPlaybackService) {
+            mediaToken = null
+            thumbnailChanged = null
+        }
+        mediaSession?.let {
+            it.isActive = false
+            it.release()
+        }
+        mediaSession = null
+
+        audioFocusRequest?.let {
+            AudioManagerCompat.abandonAudioFocusRequest(audioManager!!, it)
+        }
+        audioFocusRequest = null
+
+        // take the background service with us
+        stopServiceRunnable.run()
+
+        externalDialog?.dismiss()
+        player.destroy()
+        super.onDestroy()
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        MpvLog.v(TAG, "onNewIntent($intent)")
+        super.onNewIntent(intent)
+
+        // Happens when mpv is still running (not necessarily playing) and the user selects a new
+        // file to be played from another app
+        val filepath = intent?.let { runCatching { parsePathFromIntent(it) }.getOrNull() }
+        if (filepath == null) {
+            return
+        }
+        PlaybackLog.onRequest(filepath)
+        val headers = if (intent?.action == Intent.ACTION_VIEW)
+            runCatching { parseHeadersExtra(intent?.extras) }.getOrDefault(emptyMap()) else emptyMap()
+
+        val applyIntent: () -> Unit = {
+            // Folder dari Cinema selalu mengganti playlist; jalur "tambah di akhir" hanya untuk berkas tunggal
+            val folderRequest = intent?.getBooleanExtra("folder_playlist", false) == true
+            // [SEARCH-REPLACE] Ketukan di Cinema (hasil pencarian, Terbaru, dll.) membawa token Molina: selalu putar sekarang.
+            // Hanya intent dari aplikasi lain yang tunduk pada sakelar "Putar berkas baru langsung" (bawaan: tambah di akhir).
+            val fromMolina = try { ExternalIntentGate.isTrusted(intent?.getStringExtra(ExternalIntentGate.EXTRA)) } catch (e: Exception) { false }
+            if (!activityIsForeground && didResumeBackgroundPlayback && !folderRequest && !fromMolina) {
+                if (this.newIntentReplace) {
+                    loadReplacing(intent, filepath, headers)
+                    showToast(getString(R.string.notice_file_play))
+                } else {
+                    loadWeb(filepath, MpvLoad.APPEND, headers) {
+                        showToast(getString(R.string.notice_file_appended))
+                    }
+                }
+                moveTaskToBack(true)
+            } else {
+                loadReplacing(intent, filepath, headers)
+            }
+        }
+        if (intent != null && needsExternalConfirm(intent, filepath)) {
+            confirmExternalPlay(intent, filepath, applyIntent) { }
+        } else applyIntent()
+    }
+
+    // [EXT-CONFIRM] MPVActivity exported + BROWSABLE: intent tanpa token Molina yang meminta jaringan (URL utama,
+    // playlist extra, atau subtitle) harus dikonfirmasi dulu. Berkas lokal dari aplikasi lain tidak terpengaruh.
+    private var externalDialog: AlertDialog? = null
+
+    private fun externalEntries(i: Intent, filepath: String): List<String?> = try {
+        val subs = i.extras?.let { x -> Utils.getParcelableArray<Uri>(x, "subs").map { it.toString() } }.orEmpty()
+        listOf(filepath) + i.getStringArrayListExtra(PlaylistExtras.URLS).orEmpty() + subs
+    } catch (e: Exception) {
+        listOf("tidak-terbaca://") // extra rusak dari luar: anggap jaringan, minta konfirmasi
+    }
+
+    private fun needsExternalConfirm(i: Intent, filepath: String): Boolean {
+        val trusted = try { ExternalIntentGate.isTrusted(i.getStringExtra(ExternalIntentGate.EXTRA)) } catch (e: Exception) { false }
+        return !trusted && ExternalIntentGate.requestsNetwork(externalEntries(i, filepath))
+    }
+
+    private fun confirmExternalPlay(i: Intent, filepath: String, onAllow: () -> Unit, onDeny: () -> Unit) {
+        val first = ExternalIntentGate.firstRemote(externalEntries(i, filepath))
+        val host = ExternalIntentGate.displayHost(first)
+        val warn = if (first != null && UrlPolicy.isCleartext(first)) "\n\nPeringatan: sambungan ini TIDAK terenkripsi." else ""
+        MpvLog.i(TAG, "Intent luar meminta jaringan${if (host.isEmpty()) "" else ": $host"}, menunggu konfirmasi")
+        externalDialog?.dismiss()
+        externalDialog = AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog)
+            .setTitle("Putar dari aplikasi lain?")
+            .setMessage("Aplikasi lain meminta Molina memuat media dari jaringan" +
+                (if (host.isEmpty()) "" else ": $host") + "." + warn)
+            .setPositiveButton("Putar") { _, _ -> onAllow() }
+            .setNegativeButton("Batal") { _, _ -> onDeny() }
+            .setOnCancelListener { onDeny() }
+            .show()
+    }
+
+    /** Folder jadi playlist untuk [filepath] bila diminta (extra folder_playlist, atau ACTION_VIEW + sakelar). */
+    private fun resolveFolderPlaylist(intent: Intent?, filepath: String): Pair<List<String>, Int>? {
+        val wantFolder = intent?.getBooleanExtra("folder_playlist", false) == true ||
+            (intent?.action == Intent.ACTION_VIEW && MpvPrefs.current(this).playFolder)
+        if (!wantFolder) return null
+        val folder = if (isAllowedCustomPath(filepath)) Utils.folderPlaylist(filepath) else null
+        if (folder == null)
+            MpvLog.i(TAG, "Playlist folder tidak dipakai (bukan berkas lokal atau folder hanya 1 media)")
+        return folder
+    }
+
+    /** Ganti isi playlist: seluruh folder bila berlaku, kalau tidak berkas/URL tunggal. */
+    private fun loadReplacing(intent: Intent?, filepath: String, headers: Map<String, String>) {
+        rolling = playlistFrom(intent, filepath)
+        pendingStartIndex = readStartIndex(intent) // [ORDER-KEEP] baru
+        pendingChannelHeaders = readChannelHeaders(intent) // [CH-HEADERS]
+        channelGroups = readChannelGroups(intent) // [GROUP-VIEW]
+        streamTitles.clear()
+        val folder = resolveFolderPlaylist(intent, filepath)
+        if (folder != null) {
+            MpvLog.i(TAG, "Playlist folder: ${folder.first.size} berkas")
+            showToast("Playlist folder: ${folder.first.size} berkas", true)
+            player.loadFolder(folder.first, folder.second)
+        } else {
+            loadWeb(filepath, MpvLoad.REPLACE, headers)
+        }
+    }
+
+    private fun updateAudioPresence() {
+        val haveAudio = MPVLib.getPropertyBoolean("current-tracks/audio/selected")
+        if (haveAudio == null) {
+            // If we *don't know* if there's an active audio track then don't update to avoid
+            // spurious UI changes. The property will become available again later.
+            return
+        }
+        isPlayingAudio = (haveAudio && MPVLib.getPropertyBoolean("mute") != true)
+    }
+
+    // [ANR-FIX5] Cache properti video dari event mpv (diisi di thread event). Dibaca dari main thread tanpa JNI.
+    @Volatile private var videoImageProp: String? = null
+    @Volatile private var videoAspectRaw: Double? = null
+    @Volatile private var videoRotate: Int = 0
+
+    /** Setara MPVView.getVideoAspect() tetapi dari cache event. null = belum ada info video / tanpa trek video. */
+    private fun cachedVideoAspect(): Double? {
+        val a = videoAspectRaw ?: return null
+        if (a < 0.001) return 0.0
+        return if (videoRotate % 180 == 90) 1.0 / a else a
+    }
+
+    private fun isPlayingAudioOnly(): Boolean {
+        if (bgVidDropped) return false // [BG-DATA] trek video dimatikan sementara di latar; ini bukan file audio sungguhan
+        if (!isPlayingAudio)
+            return false
+        val image = videoImageProp // [ANR-FIX5] sebelumnya JNI sinkron (dipanggil tiap onPause/dialog/updateAudioUI)
+        return image.isNullOrEmpty() || image == "yes"
+    }
+
+    private fun shouldBackground(): Boolean {
+        if (isFinishing) // about to exit?
+            return false
+        return when (backgroundPlayMode) {
+            "always" -> true
+            "audio-only" -> isPlayingAudioOnly()
+            else -> false // "never"
+        }
+    }
+
+    override fun onPause() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            if (isInMultiWindowMode || isInPictureInPictureMode) {
+                MpvLog.v(TAG, "Going into multi-window mode")
+                super.onPause()
+                return
+            }
+        }
+
+        onPauseImpl()
+    }
+
+    private fun tryStartForegroundService(intent: Intent): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try {
+                ContextCompat.startForegroundService(this, intent)
+            } catch (e: ForegroundServiceStartNotAllowedException) {
+                MpvLog.w(TAG, e)
+                return false
+            }
+        } else {
+            ContextCompat.startForegroundService(this, intent)
+        }
+        return true
+    }
+
+    // [BG-DATA] Hemat data: saat pemutaran lanjut di latar, trek video dimatikan (vid=no) agar stream video tidak ikut dimuat/didekode.
+    // Hanya untuk video sungguhan (bukan file audio/sampul) dan hanya bila opsi aktif. Semua JNI lewat mpvPost (thread molina-mpv-call).
+    @Volatile private var bgVidDropped = false
+    @Volatile private var bgVidPrev: String? = null
+    @Volatile private var bgPosPrev: String? = null
+
+    private fun dropVideoInBackground() {
+        if (!bgVideoOff || forcedAudioOnly || useAudioUI || isPlayingAudioOnly()) return
+        bgVidDropped = true
+        mpvPost("bg-vid-no") {
+            val prev = MPVLib.getPropertyString("vid")
+            if (prev.isNullOrEmpty() || prev == "no") { bgVidDropped = false; return@mpvPost }
+            bgVidPrev = prev
+            bgPosPrev = MPVLib.getPropertyString("playlist-pos")
+            MPVLib.setPropertyString("vid", "no")
+            MpvLog.i(TAG, "[BG-DATA] video dimatikan di latar (vid=$prev -> no)")
+        }
+    }
+
+    private fun restoreVideoFromBackground() {
+        if (!bgVidDropped) return
+        bgVidDropped = false // segera: isPlayingAudioOnly() kembali menilai keadaan nyata
+        mpvPost("bg-vid-restore") {
+            val prev = bgVidPrev ?: return@mpvPost
+            bgVidPrev = null
+            if (forcedAudioOnly) return@mpvPost // audio saja dipilih pengguna: jangan hidupkan video
+            val samePos = MPVLib.getPropertyString("playlist-pos") == bgPosPrev
+            // item sudah berganti selama di latar: id trek lama tidak berlaku, pakai auto
+            MPVLib.setPropertyString("vid", if (samePos) prev else "auto")
+            MpvLog.i(TAG, "[BG-DATA] video dihidupkan lagi (vid=${if (samePos) prev else "auto"})")
+        }
+    }
+
+    private fun onPauseImpl() {
+        val shouldBackground = shouldBackground()
+
+        activityIsForeground = false
+        updateMarqueePulse() // [MARQUEE-PULSE]
+        eventUiHandler.removeCallbacksAndMessages(null)
+        if (isFinishing) {
+            savePosition()
+            recordWatchProgress(shieldPath, psc.position, psc.duration) // [WATCH-PROGRESS]
+            // tell mpv to shut down so that any other property changes or such are ignored,
+            // preventing useless busywork
+            MPVLib.command(arrayOf("stop"))
+        } else if (!shouldBackground) {
+            mpvPost("pause-onpause") { player.paused = true } // [ANR-FIX5]
+            // clear any old thumbnails
+            BackgroundPlaybackService.thumbnail = null
+            updateMediaSession()
+        }
+        writeSettings()
+        super.onPause()
+
+        didResumeBackgroundPlayback = shouldBackground
+        if (shouldBackground) {
+            MpvLog.i(TAG, "Pemutaran dilanjutkan di latar belakang (mode=$backgroundPlayMode)")
+            stopServiceHandler.removeCallbacks(stopServiceRunnable)
+            val serviceIntent = Intent(this, BackgroundPlaybackService::class.java)
+            if (!tryStartForegroundService(serviceIntent)) {
+                MpvLog.w(TAG, "Layanan pemutaran latar tidak dapat dimulai; pemutaran dijeda")
+                didResumeBackgroundPlayback = false
+                mpvPost("pause-nofgs") { player.paused = true } // [ANR-FIX5]
+            } else dropVideoInBackground() // [BG-DATA]
+        }
+    }
+
+    private fun readSettings() {
+        val cfg = MpvPrefs.current(applicationContext)
+
+        gestures.syncSettings(cfg)
+
+        val statsMode = cfg.statsMode
+        this.statsFPS = statsMode == "native_fps"
+        this.statsLuaMode = if (statsMode.startsWith("lua"))
+            statsMode.removePrefix("lua").toIntOrNull() ?: 0
+        else
+            0
+        this.backgroundPlayMode = cfg.backgroundPlay
+        this.bgVideoOff = cfg.bgVideoOff // [BG-DATA]
+        this.noUIPauseMode = cfg.noUiPause
+        this.shouldSavePosition = cfg.savePosition
+        if (this.autoRotationMode != "manual") // don't reset
+            this.autoRotationMode = cfg.autoRotation
+        this.controlsAtBottom = cfg.bottomControls
+        this.showMediaTitle = cfg.displayMediaTitle
+        this.useTimeRemaining = cfg.useTimeRemaining
+        this.rememberBrightness = cfg.rememberBrightness
+        this.lastScreenBrightness = if (this.rememberBrightness)
+            cfg.lastScreenBrightness
+        else
+            -1
+        this.ignoreAudioFocus = cfg.ignoreAudioFocus
+        this.playlistExitWarning = cfg.playlistExitWarning
+        this.newIntentReplace = cfg.newIntentReplace
+        this.smoothSeekGesture = cfg.seekGestureSmooth
+    }
+
+    private fun writeSettings() {
+        MpvPrefs.saveUiState(
+            applicationContext, useTimeRemaining, rememberBrightness, lastScreenBrightness
+        )
+    }
+
+    override fun onStart() {
+        super.onStart()
+        activityIsStopped = false
+        registerNetCallback() // [NET-CAP]
+    }
+
+    override fun onStop() {
+        super.onStop()
+        activityIsStopped = true
+        MpvLog.i("pip", "onStop inPiP=${Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode} finishing=$isFinishing") // [PIP-DIAG]
+    }
+
+    override fun onResume() {
+        val resumeT0 = android.os.SystemClock.elapsedRealtime() // [ANR-FIX6]
+        MainThreadWatchdog.start() // [JNI-MAIN] aktif hanya bila berkas /storage/emulated/0/Molina/debug-watchdog ada
+        com.molina.core.diag.CrashContext.host = com.molina.core.diag.CrashContext.HOST_PLAYER
+        // If we weren't actually in the background (e.g. multi window mode), don't reinitialize stuff
+        if (activityIsForeground) {
+            super.onResume()
+            return
+        }
+
+        restoreVideoFromBackground() // [BG-DATA]
+        syncAudioOnlyWithLock() // [QUALITY-SYNC2]
+        if (lockedUI) { // precaution
+            MpvLog.w(TAG, "resumed with locked UI, unlocking")
+            unlockUI()
+        }
+
+        // Init controls to be hidden and view fullscreen
+        hideControls()
+        readSettings()
+
+        activityIsForeground = true
+        updateMarqueePulse() // [MARQUEE-PULSE]
+        // stop background service with a delay
+        stopServiceHandler.removeCallbacks(stopServiceRunnable)
+        stopServiceHandler.postDelayed(stopServiceRunnable, 1000L)
+
+        refreshUi()
+
+        super.onResume()
+        val resumeMs = android.os.SystemClock.elapsedRealtime() - resumeT0
+        if (resumeMs >= 100L) MpvLog.w(TAG, "[ui-lambat] onResume $resumeMs ms") // [ANR-FIX6]
+    }
+
+    /** [WATCH-PROGRESS] Catat persentase tontonan video YouTube (kunci = tautan asal) untuk garis progres di hasil pencarian. */
+    private fun recordWatchProgress(path: String, positionMs: Long, durationMs: Long) {
+        val ctx = applicationContext
+        runOnUiThread { WatchProgressStore.record(ctx, streamSources[path] ?: path, positionMs, durationMs) }
+    }
+
+    private fun savePosition() {
+        if (!shouldSavePosition)
+            return
+        if (MPVLib.getPropertyBoolean("eof-reached") ?: true) {
+            MpvLog.d(TAG, "player indicates EOF, not saving watch-later config")
+            return
+        }
+        MPVLib.command(arrayOf("write-watch-later-config"))
+    }
+
+    /**
+     * Requests or abandons audio focus and noisy receiver depending on the playback state.
+     * @warning Call from event thread, not UI thread
+     */
+    private fun handleAudioFocus() {
+        if ((psc.pause && !psc.cachePause) || !isPlayingAudio) {
+            if (becomingNoisyReceiverRegistered)
+                unregisterReceiver(becomingNoisyReceiver)
+            becomingNoisyReceiverRegistered = false
+            // TODO: could abandon audio focus after a timeout
+        } else {
+            if (!becomingNoisyReceiverRegistered)
+                registerReceiver(
+                    becomingNoisyReceiver,
+                    IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
+                )
+            becomingNoisyReceiverRegistered = true
+            // (re-)request audio focus
+            // Note that this will actually request focus every time the user unpauses, refer to discussion in #1066
+            if (requestAudioFocus()) {
+                onAudioFocusChange(AudioManager.AUDIOFOCUS_GAIN, "request")
+            } else {
+                onAudioFocusChange(AudioManager.AUDIOFOCUS_LOSS, "request")
+            }
+        }
+    }
+
+    private fun requestAudioFocus(): Boolean {
+        val manager = audioManager ?: return false
+        val req = audioFocusRequest ?:
+            with(AudioFocusRequestCompat.Builder(AudioManagerCompat.AUDIOFOCUS_GAIN)) {
+            setAudioAttributes(with(AudioAttributesCompat.Builder()) {
+                // N.B.: libmpv may use different values in ao_audiotrack, but here we always pretend to be music.
+                setUsage(AudioAttributesCompat.USAGE_MEDIA)
+                setContentType(AudioAttributesCompat.CONTENT_TYPE_MUSIC)
+                build()
+            })
+            setOnAudioFocusChangeListener {
+                onAudioFocusChange(it, "callback")
+            }
+            build()
+        }
+        val res = AudioManagerCompat.requestAudioFocus(manager, req)
+        if (res == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            audioFocusRequest = req
+            return true
+        }
+        return false
+    }
+
+    // This handles both "real" audio focus changes by the callbacks, which aren't
+    // really used anymore after Android 12 (except for AUDIOFOCUS_LOSS),
+    // as well as actions equivalent to a focus change that we make up ourselves.
+    private fun onAudioFocusChange(type: Int, source: String) {
+        AudioLog.focus(type, source, ignoreAudioFocus || isFinishing)
+        if (ignoreAudioFocus || isFinishing)
+            return
+        when (type) {
+            AudioManager.AUDIOFOCUS_LOSS,
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                // loss can occur in addition to ducking, so remember the old callback
+                val oldRestore = audioFocusRestore
+                val wasPlayerPaused = psc.pause // [ANR-FIX5] cache event, bukan JNI sinkron
+                mpvPost("focus-pause") { player.paused = true }
+                audioFocusRestore = {
+                    oldRestore()
+                    if (!wasPlayerPaused) mpvPost("focus-resume") { player.paused = false }
+                }
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                mpvPost("focus-duck") { MPVLib.command(arrayOf("multiply", "volume", AUDIO_FOCUS_DUCKING.toString())) } // [ANR-FIX5]
+                audioFocusRestore = {
+                    val inv = 1f / AUDIO_FOCUS_DUCKING
+                    mpvPost("focus-unduck") { MPVLib.command(arrayOf("multiply", "volume", inv.toString())) }
+                }
+            }
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                audioFocusRestore()
+                audioFocusRestore = {}
+            }
+        }
+    }
+
+    // UI
+
+    /** dpad navigation */
+    private var btnSelected = -1
+
+    private var mightWantToToggleControls = false
+
+    /** true if we're actually outputting any audio (includes the mute state, but not pausing) */
+    private var isPlayingAudio = false
+
+    private var useAudioUI = false
+        set(v) { field = v; com.molina.core.stream.StreamQuality.audioOnlyActive.value = QualityRule.audioOnlyActive(forcedAudioOnly, v) } // [QUALITY-SYNC4-A] [E-3c-2] UI audio = keadaan nyata mpv (tanpa trek video)
+
+    private var lockedUI = false
+
+    private fun pauseForDialog(): StateRestoreCallback {
+        val useKeepOpen = when (noUIPauseMode) {
+            "always" -> true
+            "audio-only" -> isPlayingAudioOnly()
+            else -> false // "never"
+        }
+        if (useKeepOpen) {
+            // don't pause but set keep-open so mpv doesn't exit while the user is doing stuff
+            // [ANR-FIX5] nilai lama dibaca & diganti di thread khusus; pemulihan antre di thread yang sama (urutan terjaga)
+            val oldValue = java.util.concurrent.atomic.AtomicReference<String?>(null)
+            mpvPost("keep-open") {
+                oldValue.set(MPVLib.getPropertyString("keep-open"))
+                MPVLib.setPropertyBoolean("keep-open", true)
+            }
+            return {
+                mpvPost("keep-open-restore") { oldValue.get()?.also { MPVLib.setPropertyString("keep-open", it) } }
+            }
+        }
+
+        // Pause playback during UI dialogs
+        val wasPlayerPaused = psc.pause // [ANR-FIX5] cache event, bukan JNI sinkron
+        mpvPost("pause-dialog") { player.paused = true }
+        return {
+            if (!wasPlayerPaused)
+                mpvPost("resume-dialog") { player.paused = false }
+        }
+    }
+
+    private fun updateStats() {
+        if (!statsFPS)
+            return
+        streamScope.launch { // [ANR-FIX4] baca fps di thread khusus
+            val fps = withContext(mpvDispatcher) { player.estimatedVfFps }
+            if (statsFPS && !isFinishing && !isDestroyed) binding.statsTextView.text = getString(R.string.ui_fps, fps)
+        }
+    }
+
+    private fun controlsShouldBeVisible(): Boolean {
+        if (lockedUI)
+            return false
+        // [SPECTRUM] UI audio: potret = kontrol selalu tampil; landscape = auto-hide seperti video
+        // [LAND-2COL] landscape dua kolom juga selalu tampil (tidak menimpa sampul)
+        return (useAudioUI && (!isLandscapeNow() || twoColumnAudio())) || btnSelected != -1 || userIsOperatingSeekbar
+    }
+
+    private fun isLandscapeNow() = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    /**
+     * [LAND-2COL] Landscape + UI audio di layar lebar: sampul/banner/spektrum di kolom kiri, judul + kontrol di kolom kanan.
+     * Tidak ada tumpang tindih, jadi kontrol tetap tampil (tanpa auto-hide) seperti mode potret.
+     */
+    private fun twoColumnAudio(): Boolean =
+        useAudioUI && isLandscapeNow() && resources.configuration.screenWidthDp >= TWO_COL_MIN_DP
+
+    private fun artColumnWidth(): Int = (resources.displayMetrics.widthPixels * 0.44f).toInt()
+
+    /** [LAND-2COL] Margin bilah kontrol: potret/video = seperti semula; dua kolom = kontrol dimulai di kolom kanan. */
+    private fun applyControlMargins(isLandscape: Boolean = isLandscapeNow()) {
+        val two = twoColumnAudio()
+        val bottom = if (!controlsAtBottom) Utils.convertDp(this, 60f) else 0
+        val side = if (!controlsAtBottom) Utils.convertDp(this, if (isLandscape) 60f else 24f) else 0
+        val gap = if (controlsAtBottom) 0 else Utils.convertDp(this, 8f)
+        val edge = if (controlsAtBottom) 0 else Utils.convertDp(this, 24f)
+        binding.controls.updateLayoutParams<MarginLayoutParams> {
+            bottomMargin = bottom
+            leftMargin = if (two) artColumnWidth() + gap else side
+            rightMargin = if (two) edge else side
+        }
+        // [LAND-FIX] rule: layout_centerHorizontal memusatkan ulang kontrol sehingga
+        // margin kiri kolom tidak berlaku. Dua kolom: lepas rule itu.
+        (binding.controls.layoutParams as? android.widget.RelativeLayout.LayoutParams)?.let { lp ->
+            if (two) lp.removeRule(android.widget.RelativeLayout.CENTER_HORIZONTAL)
+            else lp.addRule(android.widget.RelativeLayout.CENTER_HORIZONTAL)
+            binding.controls.layoutParams = lp
+        }
+    }
+
+    /** [LAND-2COL] Padding (kiri, atas, kanan, bawah) area sampul/banner. Dua kolom: dibatasi kolom kiri, tanpa cadangan kontrol. */
+    private fun artPadding(reserved: Int): IntArray {
+        val d = resources.displayMetrics.density
+        val side = (32 * d).toInt()
+        val top = (24 * d).toInt()
+        val spectrumSpace = if (spectrumReserve) (SPECTRUM_HEIGHT_DP * d).toInt() else 0 // [SPECTRUM]
+        if (twoColumnAudio()) {
+            val right = resources.displayMetrics.widthPixels - artColumnWidth() + (16 * d).toInt()
+            val bottom = (12 * d).toInt() // [LAND-SPEC-RIGHT] bawah: spektrum ke kolom kanan
+            return intArrayOf(side, top, right, bottom)
+        }
+        val bottom = reserved + spectrumSpace + (if (spectrumReserve) topBarReserve() else 0) + (12 * d).toInt()
+        return intArrayOf(side, top, side, bottom)
+    }
+
+    private var layoutControlsShown: Boolean? = null
+
+    private var artLayoutKey = 0L
+
+    /**
+     * [BANNER-FIT] Ruang kontrol dihitung sekali saat kontrol tampil; bila judul berganti (1 vs 2 baris) atau layar
+     * diputar, tinggi berubah dan sampul/banner tertutup. Dipanggil dari OnLayoutChangeListener controls dan nowPlayingArt.
+     */
+    private fun relayoutArt() {
+        if (!useAudioUI) return
+        val key = (((controlsReserved() + topBarReserve()).toLong() shl 32) or binding.nowPlayingArt.height.toLong()) xor
+            (if (twoColumnAudio()) 1L shl 62 else 0L) // [LAND-2COL]
+        if (key == artLayoutKey) return
+        artLayoutKey = key
+        showNowPlayingArt(lastCover)
+        if (marqueeUrl != null) layoutMarquee()
+    }
+
+    /** [SPECTRUM] Selaraskan sampul dan spektrum dengan status tampil/sembunyi kontrol (spektrum turun saat kontrol hilang). */
+    private fun syncAudioLayout() {
+        if (!useAudioUI) { layoutControlsShown = null; return }
+        val shown = binding.controls.visibility == View.VISIBLE
+        if (layoutControlsShown == shown) return
+        layoutControlsShown = shown
+        showNowPlayingArt(lastCover)
+    }
+
+    /** Make controls visible, also controls the timeout until they fade. */
+    private fun showControls() {
+        if (lockedUI) {
+            MpvLog.w(TAG, "cannot show UI in locked mode")
+            return
+        }
+
+        // remove all callbacks that were to be run for fading
+        fadeHandler.removeCallbacks(fadeRunnable)
+        binding.controls.animate().cancel()
+
+        // reset controls alpha to be visible
+        binding.controls.alpha = 1f
+
+        if (binding.controls.visibility != View.VISIBLE) {
+            binding.controls.visibility = View.VISIBLE
+            binding.controls.doOnNextLayout { syncAudioLayout() } // [SPECTRUM] tinggi kontrol baru valid setelah layout
+
+            if (this.statsFPS) {
+                updateStats()
+                binding.statsTextView.visibility = View.VISIBLE
+            }
+
+            val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+            insetsController.show(WindowInsetsCompat.Type.navigationBars())
+        }
+
+        // add a new callback to hide the controls once again
+        if (!controlsShouldBeVisible())
+            fadeHandler.postDelayed(fadeRunnable, CONTROLS_DISPLAY_TIMEOUT)
+    }
+
+    /** Hide controls instantly */
+    fun hideControls() {
+        if (controlsShouldBeVisible())
+            return
+        // use GONE here instead of INVISIBLE (which makes more sense) because of Android bug with surface views
+        // see http://stackoverflow.com/a/12655713/2606891
+        binding.controls.visibility = View.GONE
+        binding.statsTextView.visibility = View.GONE
+
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.hide(WindowInsetsCompat.Type.systemBars())
+        syncAudioLayout() // [SPECTRUM]
+    }
+
+    /** Start fading out the controls */
+    private fun hideControlsFade() {
+        fadeHandler.removeCallbacks(fadeRunnable)
+        fadeHandler.post(fadeRunnable)
+    }
+
+    /**
+     * Toggle visibility of controls (if allowed)
+     * @return future visibility state
+     */
+    private fun toggleControls(): Boolean {
+        if (lockedUI)
+            return false
+        if (controlsShouldBeVisible())
+            return true
+        return if (binding.controls.visibility == View.VISIBLE && !fadeRunnable.hasStarted) {
+            hideControlsFade()
+            false
+        } else {
+            showControls()
+            true
+        }
+    }
+
+    private fun showUnlockControls() {
+        fadeHandler.removeCallbacks(fadeRunnable2)
+        binding.unlockBtn.animate().setListener(null).cancel()
+
+        binding.unlockBtn.alpha = 1f
+        binding.unlockBtn.visibility = View.VISIBLE
+
+        fadeHandler.postDelayed(fadeRunnable2, CONTROLS_DISPLAY_TIMEOUT)
+    }
+
+    override fun dispatchKeyEvent(ev: KeyEvent): Boolean {
+        if (lockedUI) {
+            showUnlockControls()
+            return super.dispatchKeyEvent(ev)
+        }
+
+        // try built-in event handler first, forward all other events to libmpv
+        val handled = interceptDpad(ev) ||
+                (ev.action == KeyEvent.ACTION_DOWN && interceptKeyDown(ev)) ||
+                player.onKey(ev)
+        if (handled) {
+            return true
+        }
+        return super.dispatchKeyEvent(ev)
+    }
+
+    override fun dispatchGenericMotionEvent(ev: MotionEvent?): Boolean {
+        if (lockedUI)
+            return super.dispatchGenericMotionEvent(ev)
+
+        if (ev != null && ev.isFromSource(InputDevice.SOURCE_CLASS_POINTER)) {
+            if (player.onPointerEvent(ev))
+                return true
+            // keep controls visible when mouse moves
+            if (ev.actionMasked == MotionEvent.ACTION_HOVER_MOVE)
+                showControls()
+        }
+        return super.dispatchGenericMotionEvent(ev)
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (lockedUI) {
+            if (ev.action == MotionEvent.ACTION_UP || ev.action == MotionEvent.ACTION_DOWN)
+                showUnlockControls()
+            return super.dispatchTouchEvent(ev)
+        }
+
+        if (super.dispatchTouchEvent(ev)) {
+            // reset delay if the event has been handled
+            // ideally we'd want to know if the event was delivered to controls, but we can't
+            if (binding.controls.visibility == View.VISIBLE && !fadeRunnable.hasStarted)
+                showControls()
+            if (ev.action == MotionEvent.ACTION_UP) {
+                // [SPECTRUM] mode audio landscape: ketukan non-gestur tetap memunculkan kontrol
+                if (useAudioUI && mightWantToToggleControls && binding.controls.visibility != View.VISIBLE)
+                    showControls()
+                return true
+            }
+        }
+        if (ev.action == MotionEvent.ACTION_DOWN)
+            mightWantToToggleControls = true
+        if (ev.action == MotionEvent.ACTION_UP && mightWantToToggleControls) {
+            toggleControls()
+        }
+        return true
+    }
+
+    /**
+     * Returns views eligible for dpad button navigation
+     */
+    private fun dpadButtons(): Sequence<View> {
+        val groups = arrayOf(binding.controlsButtonGroup)
+        return sequence {
+            for (g in groups) {
+                for (i in 0 until g.childCount) {
+                    val view = g.getChildAt(i)
+                    if (view.isEnabled && view.isVisible && view.isFocusable)
+                        yield(view)
+                }
+            }
+        }
+    }
+
+    private fun interceptDpad(ev: KeyEvent): Boolean {
+        if (btnSelected == -1) { // UP and DOWN are always grabbed and overridden
+            when (ev.keyCode) {
+                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    if (ev.action == KeyEvent.ACTION_DOWN) { // activate dpad navigation
+                        btnSelected = 0
+                        updateSelectedDpadButton()
+                        showControls()
+                    }
+                    return true
+                }
+            }
+            return false
+        }
+
+        // this runs when dpad navigation is active:
+        when (ev.keyCode) {
+            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
+                if (ev.action == KeyEvent.ACTION_DOWN) { // deactivate dpad navigation
+                    btnSelected = -1
+                    updateSelectedDpadButton()
+                    hideControlsFade()
+                }
+                return true
+            }
+            KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                if (ev.action == KeyEvent.ACTION_DOWN) {
+                    btnSelected = (btnSelected + 1) % dpadButtons().count()
+                    updateSelectedDpadButton()
+                }
+                return true
+            }
+            KeyEvent.KEYCODE_DPAD_LEFT -> {
+                if (ev.action == KeyEvent.ACTION_DOWN) {
+                    val count = dpadButtons().count()
+                    btnSelected = (count + btnSelected - 1) % count
+                    updateSelectedDpadButton()
+                }
+                return true
+            }
+            KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_DPAD_CENTER -> {
+                if (ev.action == KeyEvent.ACTION_UP) {
+                    val view = dpadButtons().elementAtOrNull(btnSelected)
+                    // 500ms appears to be the standard
+                    if (ev.eventTime - ev.downTime > 500L)
+                        view?.performLongClick()
+                    else
+                        view?.performClick()
+                }
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun updateSelectedDpadButton() {
+        val colorFocused = ContextCompat.getColor(this, R.color.tint_btn_bg_focused)
+        val colorNoFocus = ContextCompat.getColor(this, R.color.tint_btn_bg_nofocus)
+
+        dpadButtons().forEachIndexed { i, child ->
+            if (i == btnSelected)
+                child.setBackgroundColor(colorFocused)
+            else
+                child.setBackgroundColor(colorNoFocus)
+        }
+    }
+
+    private fun interceptKeyDown(event: KeyEvent): Boolean {
+        // intercept some keys to provide functionality "native" to
+        // mpv-android even if libmpv already implements these
+        var unhandled = 0
+
+        when (event.unicodeChar.toChar()) {
+            // (overrides a default binding)
+            'j' -> cycleSub()
+            '#' -> cycleAudio()
+
+            else -> unhandled++
+        }
+        // Note: dpad center is bound according to how Android TV apps should generally behave,
+        // see <https://developer.android.com/docs/quality-guidelines/tv-app-quality>.
+        // Due to implementation inconsistencies enter and numpad enter need to perform the same
+        // function (issue #963).
+        when (event.keyCode) {
+            // (no default binding)
+            KeyEvent.KEYCODE_CAPTIONS -> cycleSub()
+            KeyEvent.KEYCODE_MEDIA_AUDIO_TRACK -> cycleAudio()
+            KeyEvent.KEYCODE_INFO -> toggleControls()
+            KeyEvent.KEYCODE_MENU -> openTopMenu()
+            KeyEvent.KEYCODE_GUIDE -> openTopMenu()
+            KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.KEYCODE_DPAD_CENTER -> player.cyclePause()
+
+            // (overrides a default binding)
+            KeyEvent.KEYCODE_ENTER -> player.cyclePause()
+
+            else -> unhandled++
+        }
+
+        return unhandled < 2
+    }
+
+    private fun onBackPressedImpl() {
+        if (lockedUI)
+            return showUnlockControls()
+
+        val notYetPlayed = psc.playlistCount - psc.playlistPos - 1
+        if (notYetPlayed <= 0 || !playlistExitWarning) {
+            finishWithResult(RESULT_OK, true)
+            return
+        }
+
+        val restore = pauseForDialog()
+        with (AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog)) {
+            setMessage(getString(R.string.exit_warning_playlist, notYetPlayed))
+            setPositiveButton(R.string.dialog_yes) { dialog, _ ->
+                dialog.dismiss()
+                finishWithResult(RESULT_OK, true)
+            }
+            setNegativeButton(R.string.dialog_no) { dialog, _ ->
+                dialog.dismiss()
+                restore()
+            }
+            create().show()
+        }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        val isLandscape = newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val wm = windowManager.currentWindowMetrics
+            gestures.setMetrics(wm.bounds.width().toFloat(), wm.bounds.height().toFloat())
+        } else @Suppress("DEPRECATION") {
+            val dm = DisplayMetrics()
+            windowManager.defaultDisplay.getRealMetrics(dm)
+            gestures.setMetrics(dm.widthPixels.toFloat(), dm.heightPixels.toFloat())
+        }
+
+        // Adjust control margins ([LAND-2COL] mode dua kolom ditangani di applyControlMargins)
+        applyControlMargins(isLandscape)
+
+        if (useAudioUI) { // [SPECTRUM] rotasi: tampilkan kontrol sebentar (landscape lalu auto-hide) dan hitung ulang tata letak
+            showControls()
+            binding.controls.doOnNextLayout { layoutControlsShown = null; syncAudioLayout() }
+        }
+    }
+
+    private fun onPiPModeChangedImpl(state: Boolean) {
+        MpvLog.v(TAG, "onPiPModeChanged($state)")
+        MpvLog.i("pip", "mode=$state stopped=$activityIsStopped finishing=$isFinishing foreground=$activityIsForeground locked=$lockedUI") // [PIP-DIAG]
+        if (state) {
+            lockedUI = true
+            hideControls()
+            return
+        }
+
+        unlockUI()
+        // For whatever stupid reason Android provides no good detection for when PiP is exited
+        // so we have to do this shit <https://stackoverflow.com/questions/43174507/#answer-56127742>
+        // If we don't exit the activity here it will stick around and not be retrievable from the
+        // recents screen, or react to onNewIntent().
+        if (activityIsStopped) {
+            // Note: On Android 12 or older there's another bug with this: the result will not
+            // be delivered to the calling activity and is instead instantly returned the next
+            // time, which makes it looks like the file picker is broken.
+            finishWithResult(RESULT_OK, true)
+        }
+    }
+
+    private fun playlistPrev() = PlaylistNav.prev() // [PLAYLIST-WRAP]
+    private fun playlistNext() = PlaylistNav.next()
+
+    /** Lencana Molina Shield: gembok (https), peringatan (http/rtmp/rtsp), perisai (lokal) + jumlah blokir. */
+    private fun updateShieldBadge() {
+        val p = shieldPath
+        val icon = when {
+            UrlPolicy.scheme(p) == "https" -> "\uD83D\uDD12"
+            UrlPolicy.isCleartext(p) -> "\u26A0"
+            else -> "\uD83D\uDEE1"
+        }
+        val n = ShieldStats.blockedCount.value
+        binding.shieldBadge.text = if (n > 0) "$icon $n" else icon
+    }
+
+    private fun showShieldInfo() {
+        val p = shieldPath
+        val line = when {
+            UrlPolicy.scheme(p) == "https" -> "Terenkripsi (https)."
+            UrlPolicy.isCleartext(p) -> "TIDAK terenkripsi: isinya bisa dibaca atau diubah di jaringan."
+            else -> "Sumber lokal."
+        }
+        val shield = if (ShieldProxy.proxyUrl() != null) "Molina Shield aktif" else "Molina Shield mati"
+        showToast("$line $shield. Diblokir: ${ShieldStats.blockedCount.value}", true)
+    }
+
+    private fun showToast(msg: String, cancel: Boolean = false, long: Boolean = false) { // [AUDIO-HINT] long
+        if (cancel)
+            toast?.cancel()
+        toast = Toast.makeText(this, msg, if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).apply {
+            setGravity(Gravity.TOP or Gravity.CENTER_HORIZONTAL, 0, 0)
+            show()
+        }
+    }
+
+    // Intent/Uri parsing
+
+    private fun parsePathFromIntent(intent: Intent): String? {
+        fun safeResolveUri(u: Uri?): String? {
+            if (u == null) return null
+            if (!u.isHierarchical || u.isRelative) {
+                MpvLog.rejected("share: URI tidak hierarkis atau relatif, skema=${SourceScheme.safeLabel(u.scheme)}")
+                return null
+            }
+            return resolveUri(u)
+        }
+
+        return when (intent.action) {
+            Intent.ACTION_VIEW -> {
+                // Normal file open or URL view
+                intent.data?.let { resolveUri(it) }
+            }
+
+            Intent.ACTION_SEND -> {
+                // Handle single shared file or text link
+                var parsed = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
+                if (parsed == null) {
+                    parsed = intent.getStringExtra(Intent.EXTRA_TEXT)?.let {
+                        Uri.parse(it.trim())
+                    }
+                }
+
+                safeResolveUri(parsed)
+            }
+
+            Intent.ACTION_SEND_MULTIPLE -> {
+                // Multiple shared files
+                val uris = IntentCompat.getParcelableArrayListExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
+                if (!uris.isNullOrEmpty()) {
+                    val paths = uris.mapNotNull { uri ->
+                        safeResolveUri(uri)
+                    }
+                    if (paths.size == 1) {
+                        return paths[0]
+                    } else if (!paths.isEmpty()) {
+                        // Use a memory playlist
+                        val memoryUri = Utils.makeMemoryPlaylist(paths)
+                        MpvLog.v(TAG, "Created memory playlist URI (${paths.size})")
+                        return memoryUri
+                    }
+                }
+                return null
+            }
+
+            else -> {
+                // Intent kustom dari Molina Cinema (extra filepath)
+                intent.getStringExtra("filepath")?.let { raw ->
+                    // [E-3b-3c] MPVActivity exported: catat alasan penolakan (tanpa isi path) agar aplikasi yang mencoba celah terlihat di tab Log.
+                    val reason = sourcePolicy.denyReason(raw)
+                    if (reason == null) raw else { MpvLog.rejected("filepath: $reason"); null }
+                }
+            }
+        }
+    }
+
+    // [EXT-INTENT] MPVActivity bersifat exported. Kebijakan sumber (skema, playlist memory://, data privat) ada di
+    // :core:policy dan diuji di JVM; di sini hanya perekat Android (dataDir, UrlPolicy, Uri).
+    private val sourcePolicy by lazy {
+        PlaybackSourcePolicy(
+            dataDir = applicationInfo.dataDir,
+            urlAllowed = { UrlPolicy.check(it) is UrlPolicy.Verdict.Allowed },
+            fileUriPath = { Uri.parse(it).path },
+        )
+    }
+
+    private fun isAllowedCustomPath(path: String): Boolean = sourcePolicy.isAllowedCustomPath(path)
+
+    private fun isOutsidePrivateData(path: String?): Boolean = sourcePolicy.isOutsidePrivateData(path)
+
+    private fun resolveUri(data: Uri): String? {
+        // [E-3b-3a] Klasifikasi skema ada di :core:policy (SourceScheme); di sini hanya mengeksekusi hasilnya.
+        val kind = SourceScheme.classify(data.scheme)
+        val filepath = when (kind) {
+            SourceKind.LOCAL_FILE -> data.path?.takeIf { isOutsidePrivateData(it) }
+            SourceKind.CONTENT -> translateContentUri(data)
+            SourceKind.NETWORK -> data.toString()
+            SourceKind.REJECTED -> null
+        }
+
+        if (filepath == null)
+            MpvLog.rejected(if (kind == SourceKind.REJECTED) "skema=${SourceScheme.safeLabel(data.scheme)}" else "file di data privat atau tanpa path")
+        return filepath
+    }
+
+    private fun translateContentUri(uri: Uri): String {
+        val resolver = applicationContext.contentResolver
+        MpvLog.v(TAG, "Resolving content URI: $uri")
+        try {
+            resolver.openFileDescriptor(uri, "r")?.use { pfd ->
+                // See if we can skip the indirection and read the real file directly
+                val path = Utils.findRealPath(pfd.fd)
+                // [EXT-CONFIRM] path nyata di data privat Molina tidak boleh dibuka langsung (sama seperti file://)
+                if (path != null && isOutsidePrivateData(path)) {
+                    MpvLog.v(TAG, "Found real file path: $path")
+                    return path
+                }
+            }
+        } catch(e: Exception) {
+            MpvLog.e(TAG, "Failed to open content fd: $e")
+        }
+
+        // Otherwise, just let mpv open the content URI directly via ffmpeg
+        return uri.toString()
+    }
+
+    private fun parseIntentExtras(extras: Bundle?) {
+        onloadCommands.clear()
+        if (extras == null)
+            return
+
+        fun pushOption(key: String, value: String) {
+            onloadCommands.add(arrayOf("set", "file-local-options/${key}", value))
+        }
+
+        // Refer to http://mpv-android.github.io/mpv-android/intent.html
+        // Note: these only apply to the first file, it's not clear what the semantics for a
+        // playlist should be.
+
+        if (extras.getByte("decode_mode") == 2.toByte())
+            pushOption("hwdec", "no")
+        if (extras.containsKey("subs")) {
+            val subList = Utils.getParcelableArray<Uri>(extras, "subs")
+            val subsToEnable = Utils.getParcelableArray<Uri>(extras, "subs.enable")
+
+            for (suburi in subList) {
+                val subfile = resolveUri(suburi) ?: continue
+                // MPVActivity exported: URL subtitle dari aplikasi lain tidak boleh melewati kebijakan URL.
+                if (UrlPolicy.check(subfile) is UrlPolicy.Verdict.Blocked) {
+                    MpvLog.i(TAG, "Subtitle dari intent ditolak kebijakan URL")
+                    continue
+                }
+                val flag = if (subsToEnable.any { it == suburi }) "select" else "auto"
+
+                MpvLog.v(TAG, "Adding subtitles from intent extras: $subfile")
+                onloadCommands.add(arrayOf("sub-add", subfile, flag))
+            }
+        }
+        IntentExtras.startOption(extras.getInt("position", 0))?.let { pushOption("start", it) }
+        IntentExtras.titleOption(extras.getString("title", ""))?.let { pushOption("force-media-title", it) }
+        // `headers` ditangani parseHeadersExtra (opsi loadfile per-entri). `tls_verify` sengaja
+        // tidak didukung: extra dari aplikasi lain tidak boleh melemahkan verifikasi TLS.
+    }
+
+    // Header HTTP dari extra intent: String[] berpasangan [nama1, nilai1, nama2, nilai2, ...]
+    // (konvensi pemutar Android lain). Disaring StreamHeaders; hanya jumlah yang dicatat, bukan isinya.
+    private fun parseHeadersExtra(extras: Bundle?): Map<String, String> {
+        val arr = extras?.getStringArray("headers") ?: return emptyMap()
+        val raw = IntentExtras.pairHeaders(arr)
+        val clean = StreamHeaders.sanitize(raw)
+        MpvLog.i(TAG, "Header dari intent: ${clean.size} dipakai, ${raw.size - clean.size} ditolak")
+        return clean
+    }
+
+    // UI (Part 2)
+
+    data class TrackData(val trackId: Int, val trackType: String)
+    private fun trackSwitchNotification(f: () -> TrackData) {
+        val (track_id, track_type) = f()
+        val trackPrefix = when (track_type) {
+            "audio" -> getString(R.string.track_audio)
+            "sub"   -> getString(R.string.track_subs)
+            "video" -> "Video"
+            else    -> "???"
+        }
+
+        val msg = if (track_id == -1) {
+            "$trackPrefix ${getString(R.string.track_off)}"
+        } else {
+            val trackName = player.tracks[track_type]?.firstOrNull{ it.mpvId == track_id }?.name ?: "???"
+            "$trackPrefix $trackName"
+        }
+        showToast(msg, true)
+    }
+
+    private fun cycleAudio() = trackSwitchNotification {
+        player.cycleAudio(); TrackData(player.aid, "audio")
+    }
+    private fun cycleSub() = trackSwitchNotification {
+        player.cycleSub(); TrackData(player.sid, "sub")
+    }
+
+    private fun selectTrack(type: String, get: () -> Int, set: (Int) -> Unit) {
+        val tracks = player.tracks.getValue(type)
+        val selectedMpvId = get()
+        val selectedIndex = tracks.indexOfFirst { it.mpvId == selectedMpvId }
+        val restore = pauseForDialog()
+
+        with (AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog)) {
+            setSingleChoiceItems(tracks.map { it.name }.toTypedArray(), selectedIndex) { dialog, item ->
+                val trackId = tracks[item].mpvId
+
+                set(trackId)
+                dialog.dismiss()
+                trackSwitchNotification { TrackData(trackId, type) }
+            }
+            setOnDismissListener { restore() }
+            create().show()
+        }
+    }
+
+    private fun pickAudio() = selectTrack("audio", { player.aid }, { player.aid = it })
+
+    private fun pickSub() {
+        val restore = pauseForDialog()
+        val impl = SubTrackDialog(player)
+        lateinit var dialog: AlertDialog
+        impl.listener = { it, secondary ->
+            if (secondary)
+                player.secondarySid = it.mpvId
+            else
+                player.sid = it.mpvId
+            dialog.dismiss()
+            trackSwitchNotification { TrackData(it.mpvId, SubTrackDialog.TRACK_TYPE) }
+        }
+
+        dialog = with (AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog_Playlist)) { // [MOLINA-PANEL]
+            val inflater = LayoutInflater.from(context)
+            setView(impl.buildView(inflater))
+            setOnDismissListener { restore() }
+            create()
+        }
+        dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        dialog.show()
+        dialog.dockTo(android.view.Gravity.END or android.view.Gravity.CENTER_VERTICAL, 380, 8)
+    }
+
+    /** Ikon cari/URL di player: putar sekarang (replace) atau tambah ke antrean (append), tanpa keluar dari player. */
+    private fun openSearchUrl() {
+        val restoreState = pauseForDialog()
+        var playNow = false
+        val helper = Utils.OpenUrlDialog(this, R.style.AppTheme_PlayerDialog, allowQuery = true)
+        with (helper) {
+            builder.setPositiveButton(R.string.search_url_play) { _, _ ->
+                if (StreamLoader.isQuery(helper.text)) {
+                    searchAndShow(helper.text, append = false)
+                } else {
+                    playNow = true
+                    PlaybackLog.onRequest(helper.text)
+                    loadWeb(helper.text, MpvLoad.REPLACE)
+                }
+            }
+            builder.setNeutralButton(R.string.search_url_queue) { _, _ ->
+                if (StreamLoader.isQuery(helper.text)) {
+                    searchAndShow(helper.text, append = true)
+                } else {
+                    PlaybackLog.onRequest(helper.text)
+                    loadWeb(helper.text, MpvLoad.APPEND) {
+                        showToast(getString(R.string.notice_file_appended), true)
+                    }
+                }
+            }
+            builder.setNegativeButton(R.string.dialog_cancel) { dialog, _ -> dialog.cancel() }
+            builder.setOnDismissListener {
+                restoreState()
+                if (playNow)
+                    player.paused = false
+            }
+            create().show()
+        }
+    }
+
+    /** Cari judul lewat resolver (sampai [PlaylistPlan.MAX_ITEMS] hasil) lalu tampilkan daftar pilihan. */
+    private fun searchAndShow(query: String, append: Boolean) {
+        searchJob?.cancel()
+        showToast(getString(R.string.search_searching), true)
+        searchJob = streamScope.launch {
+            val outcome = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                StreamResolvers.get()?.search(query, PlaylistPlan.MAX_ITEMS)
+            }
+            when (outcome) {
+                null -> showToast(getString(R.string.search_unavailable), true)
+                is StreamOutcome.Failure -> showToast(getString(StreamLoader.messageRes(outcome.error)), true)
+                is StreamOutcome.Success ->
+                    if (outcome.value.isEmpty()) showToast(getString(R.string.search_no_results, query), true)
+                    else showSearchResults(outcome.value, append)
+            }
+        }
+    }
+
+    private fun searchMeta(item: StreamSearchItem): String {
+        val parts = ArrayList<String>(2)
+        item.uploader?.let { parts.add(it) }
+        item.durationSec?.let { s ->
+            val h = s / 3600
+            val m = (s % 3600) / 60
+            val sec = s % 60
+            parts.add(
+                if (h > 0) String.format(java.util.Locale.ROOT, "%d:%02d:%02d", h, m, sec)
+                else String.format(java.util.Locale.ROOT, "%d:%02d", m, sec)
+            )
+        }
+        com.molina.core.stream.RelativeTime.label(item)?.let { parts.add(it) }
+        return parts.joinToString(" \u00B7 ")
+    }
+
+    /**
+     * Daftar hasil (maks. 50). Mode putar: ketuk = putar sekarang dan hasil lain jadi antrean bergulir
+     * (sama seperti Cinema Home). Mode antrean: ketuk = tambahkan satu item, daftar tetap terbuka.
+     */
+    private fun showSearchResults(items: List<StreamSearchItem>, append: Boolean) {
+        val restore = pauseForDialog()
+        var chosen = false
+        lateinit var dialog: AlertDialog
+        val impl = SearchResultsDialog(items, { searchMeta(it) }, onPick = { pos ->
+            val picked = items[pos]
+            if (append) {
+                PlaybackLog.onRequest(picked.pageUrl)
+                loadWeb(picked.pageUrl, MpvLoad.APPEND) {
+                    showToast(getString(R.string.search_added, picked.title), true)
+                }
+            } else {
+                chosen = true
+                dialog.dismiss()
+                playSearchResult(items, pos)
+            }
+        }, onClose = { dialog.dismiss() })
+        val builder = AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog)
+        builder.setView(impl.buildView(LayoutInflater.from(builder.context)))
+        builder.setOnDismissListener {
+            restore()
+            if (chosen) player.paused = false
+        }
+        dialog = builder.create()
+        dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        dialog.show()
+    }
+
+    /** Putar hasil yang diketuk; hasil tonton YouTube lainnya (maks. 50) menjadi antrean bergulir. */
+    private fun playSearchResult(items: List<StreamSearchItem>, pos: Int) {
+        val picked = items[pos]
+        val valid = items.filter { PlaylistPlan.isWatchUrl(it.pageUrl) }
+            .distinctBy { it.pageUrl }
+            .take(PlaylistPlan.MAX_ITEMS)
+        val idx = valid.indexOfFirst { it.pageUrl == picked.pageUrl }
+        val plan = if (idx >= 0) {
+            runCatching {
+                PlaylistPlan.parse(valid.map { it.pageUrl }, valid.map { it.title }, idx, picked.pageUrl)
+            }.getOrNull()
+        } else null
+        rolling = plan?.let { RollingQueue(it) }
+        plan?.let { PlaybackLog.onPlaylist(it.urls.size, it.index + 1) }
+        PlaybackLog.onRequest(picked.pageUrl)
+        loadWeb(picked.pageUrl, MpvLoad.REPLACE)
+    }
+
+    private fun openPlaylistMenu(restore: StateRestoreCallback) {
+        val impl = PlaylistDialog(player, { streamTitles }, { pendingRows() }, { channelGroups })
+        lateinit var dialog: AlertDialog
+
+        impl.listeners = object : PlaylistDialog.Listeners {
+            override fun openUrl() {
+                val helper = Utils.OpenUrlDialog(this@MPVActivity)
+                with (helper) {
+                    builder.setPositiveButton(R.string.dialog_ok) { _, _ ->
+                        loadWeb(helper.text, MpvLoad.APPEND) { impl.refresh() }
+                    }
+                    builder.setNegativeButton(R.string.dialog_cancel) { dialog, _ -> dialog.cancel() }
+                    create().show()
+                }
+            }
+
+            override fun onItemPicked(item: MPVView.PlaylistItem) {
+                MPVLib.setPropertyInt("playlist-pos", item.index)
+                dialog.dismiss()
+            }
+
+            override fun onPendingPicked(planIndex: Int) {
+                dialog.dismiss()
+                jumpToPending(planIndex)
+            }
+
+            override fun onExit() = dialog.dismiss()
+
+            override fun onMenu() {
+                dialog.dismiss()
+                openTopMenu()
+            }
+        }
+
+        dialog = with (AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog)) {
+            val inflater = LayoutInflater.from(context)
+            setView(impl.buildView(inflater))
+            setOnDismissListener { restore() }
+            create()
+        }
+        dialog.show()
+    }
+
+    private fun pickDecoder() {
+        val restore = pauseForDialog()
+
+        val items = mutableListOf(
+            Pair("HW (mediacodec-copy)", "mediacodec-copy"),
+            Pair("SW", "no")
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            items.add(0, Pair("HW+ (mediacodec)", "mediacodec"))
+        val hwdecActive = player.hwdecActive
+        val selectedIndex = items.indexOfFirst { it.second == hwdecActive }
+        with (AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog)) {
+            setSingleChoiceItems(items.map { it.first }.toTypedArray(), selectedIndex ) { dialog, idx ->
+                MPVLib.setPropertyString("hwdec", items[idx].second)
+                dialog.dismiss()
+            }
+            setOnDismissListener { restore() }
+            create().show()
+        }
+    }
+
+    private fun cycleSpeed() {
+        player.cycleSpeed()
+    }
+
+    /** Loop A-B bawaan mpv: perintah ab-loop berputar A, B, mati. */
+    private fun cycleAbLoop() {
+        MPVLib.command(arrayOf("ab-loop"))
+        updateAbLoopButton(announce = true)
+    }
+
+    /** Label: tanpa titik = A-B putih, hanya A = "A-", keduanya = A-B emas. */
+    private fun updateAbLoopButton(announce: Boolean = false) {
+        val a = MPVLib.getPropertyString("ab-loop-a")
+        val b = MPVLib.getPropertyString("ab-loop-b")
+        val hasA = a != null && a != "no"
+        val hasB = b != null && b != "no"
+        if (announce) {
+            showToast(when {
+                hasA && hasB -> "Loop A-B aktif"
+                hasA -> "Titik A ditandai"
+                else -> "Loop A-B dimatikan"
+            }, cancel = true)
+        }
+    }
+
+    /** [CTRL-LAYOUT] Label item A-B di menu lanjutan; status loop ikut terlihat. */
+    private fun abLoopLabel(): String {
+        val a = MPVLib.getPropertyString("ab-loop-a")
+        val b = MPVLib.getPropertyString("ab-loop-b")
+        val hasA = a != null && a != "no"
+        val hasB = b != null && b != "no"
+        val base = getString(R.string.ab_loop_btn)
+        return when {
+            hasA && hasB -> "$base  \u2713"
+            hasA -> "$base  (A)"
+            else -> base
+        }
+    }
+
+    private fun pickSpeed() {
+        // TODO: replace this with SliderPickerDialog
+        val picker = SpeedPickerDialog()
+
+        val restore = pauseForDialog()
+        genericPickerDialog(picker, R.string.title_speed_dialog, "speed") {
+            restore()
+        }
+    }
+
+    private fun goIntoPiP() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N)
+            return
+        updatePiPParams(true)
+        MpvLog.i("pip", "goIntoPiP: memanggil enterPictureInPictureMode()") // [PIP-DIAG]
+        enterPictureInPictureMode()
+    }
+
+    private fun lockUI() {
+        lockedUI = true
+        hideControlsFade()
+    }
+
+    private fun unlockUI() {
+        binding.unlockBtn.visibility = View.GONE
+        lockedUI = false
+        showControls()
+    }
+
+    data class MenuItem(@IdRes val idRes: Int, val handler: () -> Boolean)
+    /**
+     * Tempelkan dialog ke sisi layar dengan lebar tetap (dp), tanpa lebar minimum tema.
+     * Gravity.END = tepi kanan, Gravity.BOTTOM = bawah; margin kecil dari tepi.
+     */
+    private fun AlertDialog.dockTo(gravity: Int, widthDp: Int, marginDp: Int = 8) {
+        val w = window ?: return
+        val dm = resources.displayMetrics
+        val px = (widthDp * dm.density).toInt().coerceAtMost((dm.widthPixels * 0.92f).toInt())
+        val margin = (marginDp * dm.density).toInt()
+        w.setGravity(gravity)
+        w.setLayout(px, android.view.WindowManager.LayoutParams.WRAP_CONTENT)
+        val lp = w.attributes
+        lp.x = margin
+        lp.y = margin
+        w.attributes = lp
+    }
+
+    private fun genericMenu(
+            @LayoutRes layoutRes: Int, buttons: List<MenuItem>, hiddenButtons: Set<Int>,
+            restoreState: StateRestoreCallback, docked: Boolean = false, maxHeightDp: Int = 0, // [MENU-SCROLL]
+            onViewReady: (View) -> Unit = {}) {
+        lateinit var dialog: AlertDialog
+
+        val builder = AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog_Menu) // [MOLINA-PANEL]
+        val dialogView = LayoutInflater.from(builder.context).inflate(layoutRes, null)
+        onViewReady(dialogView)
+
+        for (button in buttons) {
+            val buttonView = dialogView.findViewById<View>(button.idRes)
+            buttonView.setOnClickListener {
+                val ret = button.handler()
+                if (ret) // restore state immediately
+                    restoreState()
+                dialog.dismiss()
+            }
+        }
+
+        hiddenButtons.forEach { dialogView.findViewById<View>(it).isVisible = false }
+
+        if (Utils.visibleChildren(dialogView) == 0) {
+            MpvLog.w(TAG, "Not showing menu because it would be empty")
+            restoreState()
+            return
+        }
+
+        Utils.handleInsetsAsPadding(dialogView)
+
+        with (builder) {
+            setView(dialogView)
+            setOnCancelListener { restoreState() }
+            dialog = create()
+        }
+        dialog.show()
+        if (docked) dialog.dockTo(android.view.Gravity.BOTTOM or android.view.Gravity.END, 72, 12)
+        if (docked && maxHeightDp > 0) dialogView.post { // [MENU-SCROLL] batasi tinggi strip; sisanya di-scroll (tepi pudar = petunjuk)
+            val dm = resources.displayMetrics
+            val cap = minOf((maxHeightDp * dm.density).toInt(), (dm.heightPixels * 0.7f).toInt())
+            val w = dialog.window
+            if (w != null && w.decorView.height > cap) w.setLayout(w.attributes.width, cap)
+        }
+    }
+
+    /** Kunci penanda: berkas lokal atau tautan asal; null untuk stream hasil resolve tanpa tautan asal yang stabil. */
+    private fun bookmarkKey(): String? {
+        val path = MPVLib.getPropertyString("path") ?: return null
+        streamSources[path]?.let { return it }
+        if (path.startsWith("http", ignoreCase = true) && path.contains("googlevideo.com")) return null
+        return path
+    }
+
+    /** Dialog Penanda posisi: ketuk = lompat, tekan lama = hapus, tombol Tandai = simpan posisi sekarang. */
+    private fun openBookmarks(restoreStateOrig: StateRestoreCallback) {
+        val restoreState: StateRestoreCallback = { refreshSeekMarks(); restoreStateOrig() }
+        val key = bookmarkKey()
+        if (key == null) {
+            showToast(getString(R.string.bookmark_unavailable), true)
+            restoreState()
+            return
+        }
+        val now = MPVLib.getPropertyDouble("time-pos") ?: 0.0
+        val marks = VideoBookmarks.list(this, key)
+        val labels = marks.map { m ->
+            val t = Utils.prettyTime(m.sec.roundToInt())
+            if (m.name.isBlank()) t else "$t  \u00B7  ${m.name}"
+        }.toTypedArray()
+        val builder = AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog)
+        builder.setTitle(R.string.bookmark_title)
+        if (labels.isEmpty()) {
+            builder.setMessage(R.string.bookmark_empty)
+        } else {
+            builder.setItems(labels) { d, i ->
+                MPVLib.command(arrayOf("seek", marks[i].sec.toString(), "absolute"))
+                d.dismiss()
+            }
+            builder.setNeutralButton(R.string.bookmark_clear) { _, _ ->
+                VideoBookmarks.clear(this, key)
+                showToast(getString(R.string.bookmark_cleared), true)
+            }
+        }
+        builder.setPositiveButton(getString(R.string.bookmark_add, Utils.prettyTime(now.roundToInt()))) { _, _ ->
+            val added = VideoBookmarks.add(this, key, now)
+            showToast(
+                if (added) getString(R.string.bookmark_added, Utils.prettyTime(now.roundToInt()))
+                else getString(R.string.bookmark_exists), true
+            )
+        }
+        var handoff = false
+        builder.setNegativeButton(R.string.bookmark_backup) { _, _ ->
+            handoff = true
+            AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog)
+                .setTitle(R.string.bookmark_backup_title)
+                .setItems(arrayOf(getString(R.string.bookmark_export), getString(R.string.bookmark_import))) { _, which ->
+                    val msg = if (which == 0) VideoBookmarks.exportNow(this) else VideoBookmarks.importFromFile(this)
+                    showToast(msg, true)
+                }
+                .setOnDismissListener { refreshSeekMarks(); restoreState() }
+                .show()
+        }
+        builder.setOnDismissListener { if (!handoff) restoreState() }
+        val dialog = builder.create()
+        dialog.show()
+        dialog.listView?.setOnItemLongClickListener { _, _, i, _ ->
+            handoff = true
+            dialog.dismiss()
+            val acts = arrayOf(getString(R.string.bookmark_rename), getString(R.string.bookmark_delete))
+            AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog)
+                .setItems(acts) { _, which ->
+                    if (which == 0) {
+                        val input = android.widget.EditText(this)
+                        input.setText(marks[i].name)
+                        input.setSelection(input.text.length)
+                        input.hint = getString(R.string.bookmark_name_hint)
+                        input.maxLines = 1
+                        input.inputType = android.text.InputType.TYPE_CLASS_TEXT
+                        AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog)
+                            .setTitle(R.string.bookmark_rename_title)
+                            .setView(input)
+                            .setPositiveButton(android.R.string.ok) { _, _ ->
+                                VideoBookmarks.rename(this, key, i, input.text.toString())
+                                showToast(getString(R.string.bookmark_renamed), true)
+                            }
+                            .setNegativeButton(android.R.string.cancel, null)
+                            .setOnDismissListener { restoreState() }
+                            .show()
+                    } else {
+                        VideoBookmarks.removeAt(this, key, i)
+                        showToast(getString(R.string.bookmark_removed), true)
+                        restoreState()
+                    }
+                }
+                .setOnCancelListener { restoreState() }
+                .show()
+            true
+        }
+    }
+
+    /** Headset: pemutaran lanjut di latar, layar kembali ke Home Molina (tab Cinema). Player hidup di task sendiri. */
+    private fun openCinemaHome() {
+        val home = Intent().setClassName(packageName, "com.molina.studio.MainActivity")
+            .putExtra("molina_open_tab", "cinema")
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        try {
+            startActivity(home)
+        } catch (e: Exception) {
+            MpvLog.w(TAG, "Home Molina gagal dibuka, pakai moveTaskToBack: ${e.message}")
+            moveTaskToBack(true)
+        }
+    }
+
+    private fun openTopMenu() {
+        val restoreState = pauseForDialog()
+
+        /******/
+        val hiddenButtons = mutableSetOf<Int>()
+        val buttons: MutableList<MenuItem> = mutableListOf(
+                MenuItem(R.id.playlistBtn) {
+                    openPlaylistMenu(restoreState); false
+                },
+                MenuItem(R.id.bookmarkBtn) {
+                    openBookmarks(restoreState); false
+                },
+                MenuItem(R.id.menuSearchBtn) { restoreState(); openSearchUrl(); false }, // [MENU-SCROLL]
+                MenuItem(R.id.backgroundBtn) {
+                    // restoring state may (un)pause so do that first
+                    restoreState()
+                    backgroundPlayMode = "always"
+                    player.paused = false
+                    openCinemaHome()
+                    false
+                },
+                MenuItem(R.id.audioLangBtn) { restoreState(); showAudioLangSheet(); false }, // [AUDIO-LANG]
+                MenuItem(R.id.chapterBtn) {
+                    val chapters = player.loadChapters()
+                    if (chapters.isEmpty())
+                        return@MenuItem true
+                    val chapterArray = chapters.map {
+                        val timecode = Utils.prettyTime(it.time.roundToInt())
+                        if (!it.title.isNullOrEmpty())
+                            getString(R.string.ui_chapter, it.title, timecode)
+                        else
+                            getString(R.string.ui_chapter_fallback, it.index+1, timecode)
+                    }.toTypedArray()
+                    val selectedIndex = MPVLib.getPropertyInt("chapter") ?: 0
+                    with (AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog)) {
+                        setSingleChoiceItems(chapterArray, selectedIndex) { dialog, item ->
+                            MPVLib.setPropertyInt("chapter", chapters[item].index)
+                            dialog.dismiss()
+                        }
+                        setOnDismissListener { restoreState() }
+                        create().show()
+                    }; false
+                },
+                MenuItem(R.id.chapterPrev) {
+                    MPVLib.command(arrayOf("add", "chapter", "-1")); true
+                },
+                MenuItem(R.id.chapterNext) {
+                    MPVLib.command(arrayOf("add", "chapter", "1")); true
+                },
+                MenuItem(R.id.menuLockBtn) { restoreState(); lockUI(); false }, // [MENU-SCROLL]
+                MenuItem(R.id.menuPipBtn) { restoreState(); goIntoPiP(); false },
+                MenuItem(R.id.advancedBtn) { openAdvancedMenu(restoreState); false },
+                MenuItem(R.id.orientationBtn) {
+                    autoRotationMode = "manual"
+                    cycleOrientation()
+                    true
+                }
+        )
+
+        if (!isPlayingAudio)
+            hiddenButtons.add(R.id.backgroundBtn)
+        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) hiddenButtons.add(R.id.menuPipBtn) // [MENU-SCROLL]
+        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN)) hiddenButtons.add(R.id.menuLockBtn)
+        run { // [AUDIO-LANG] tampil hanya untuk stream web dengan >= 2 trek bahasa
+            val pg = MPVLib.getPropertyString("path")?.let { streamSources[it] }
+            if (pg == null || !StreamLoader.isWebUrl(pg) || com.molina.core.stream.StreamAudioLang.lastTracks.size < 2)
+                hiddenButtons.add(R.id.audioLangBtn)
+        }
+        if ((MPVLib.getPropertyInt("chapter-list/count") ?: 0) == 0)
+            hiddenButtons.add(R.id.rowChapter)
+        /******/
+
+        genericMenu(R.layout.dialog_top_menu, buttons, hiddenButtons, restoreState, docked = true, maxHeightDp = 264) { v ->
+            v.findViewById<android.widget.ImageButton>(R.id.audioLangBtn)?.apply { // [AUDIO-LANG] tint merek = bahasa dipilih
+                imageTintList = ColorStateList.valueOf(ContextCompat.getColor(context,
+                    if (com.molina.core.stream.StreamAudioLang.preferred.isNotEmpty()) R.color.molina_brand else R.color.player_dialog_text))
+            }
+        }
+    }
+
+    private fun genericPickerDialog(
+        picker: PickerDialog, @StringRes titleRes: Int, property: String,
+        restoreState: StateRestoreCallback
+    ) {
+        val dialog = with(AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog)) {
+            setTitle(titleRes)
+            val inflater = LayoutInflater.from(context)
+            setView(picker.buildView(inflater))
+            setPositiveButton(R.string.dialog_ok) { _, _ ->
+                picker.number?.let {
+                    if (picker.isInteger())
+                        MPVLib.setPropertyInt(property, it.toInt())
+                    else
+                        MPVLib.setPropertyDouble(property, it)
+                }
+            }
+            setNegativeButton(R.string.dialog_cancel) { dialog, _ -> dialog.cancel() }
+            setOnDismissListener { restoreState() }
+            create()
+        }
+
+        picker.number = MPVLib.getPropertyDouble(property)
+        dialog.show()
+    }
+
+    private fun openAdvancedMenu(restoreState: StateRestoreCallback) {
+        /******/
+        val hiddenButtons = mutableSetOf<Int>()
+        val buttons: MutableList<MenuItem> = mutableListOf(
+                MenuItem(R.id.subSeekPrev) {
+                    MPVLib.command(arrayOf("sub-seek", "-1")); true
+                },
+                MenuItem(R.id.subSeekNext) {
+                    MPVLib.command(arrayOf("sub-seek", "1")); true
+                },
+                MenuItem(R.id.statsBtn) {
+                    MPVLib.command(arrayOf("script-binding", "stats/display-stats-toggle")); true
+                },
+                MenuItem(R.id.aspectBtn) {
+                    val ratios = resources.getStringArray(R.array.aspect_ratios)
+                    with (AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog)) {
+                        setItems(R.array.aspect_ratio_names) { dialog, item ->
+                            if (ratios[item] == "panscan") {
+                                MPVLib.setPropertyString("video-aspect-override", "-1")
+                                MPVLib.setPropertyDouble("panscan", 1.0)
+                            } else {
+                                MPVLib.setPropertyString("video-aspect-override", ratios[item])
+                                MPVLib.setPropertyDouble("panscan", 0.0)
+                            }
+                            dialog.dismiss()
+                        }
+                        setOnDismissListener { restoreState() }
+                        create().show()
+                    }; false
+                },
+        )
+
+        val statsButtons = arrayOf(R.id.statsBtn1, R.id.statsBtn2, R.id.statsBtn3)
+        for (i in 1..3) {
+            buttons.add(MenuItem(statsButtons[i-1]) {
+                MPVLib.command(arrayOf("script-binding", "stats/display-page-$i")); true
+            })
+        }
+
+        // contrast, brightness and others get a -100 to 100 slider
+        val basicIds = arrayOf(R.id.contrastBtn, R.id.brightnessBtn, R.id.gammaBtn, R.id.saturationBtn)
+        val basicProps = arrayOf("contrast", "brightness", "gamma", "saturation")
+        val basicTitles = arrayOf(R.string.contrast, R.string.video_brightness, R.string.gamma, R.string.saturation)
+        basicIds.forEachIndexed { index, id ->
+            buttons.add(MenuItem(id) {
+                val slider = SliderPickerDialog(-100.0, 100.0, 1, R.string.format_fixed_number)
+                genericPickerDialog(slider, basicTitles[index], basicProps[index], restoreState)
+                false
+            })
+        }
+
+        // audio / sub delay get a decimal picker
+        buttons.add(MenuItem(R.id.audioDelayBtn) {
+            val picker = DecimalPickerDialog(-600.0, 600.0)
+            genericPickerDialog(picker, R.string.audio_delay, "audio-delay", restoreState)
+            false
+        })
+        buttons.add(MenuItem(R.id.subDelayBtn) {
+            val picker = SubDelayDialog(-600.0, 600.0)
+            val dialog = with(AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog)) {
+                setTitle(R.string.sub_delay)
+                val inflater = LayoutInflater.from(context)
+                setView(picker.buildView(inflater))
+                setPositiveButton(R.string.dialog_ok) { _, _ ->
+                    picker.delay1?.let { player.subDelay = it }
+                    picker.delay2?.let { player.secondarySubDelay = it }
+                }
+                setNegativeButton(R.string.dialog_cancel) { dialog, _ -> dialog.cancel() }
+                setOnDismissListener { restoreState() }
+                create()
+            }
+
+            picker.delay1 = player.subDelay ?: 0.0
+            picker.delay2 = if (player.secondarySid != -1) player.secondarySubDelay else null
+            dialog.show()
+            false
+        })
+
+        // [SUBTITLE-STYLE] gaya & kecepatan subtitle (properti mpv; lihat SubStyleUi)
+        buttons.add(MenuItem(R.id.subStyleBtn) {
+            SubStyleUi.showStyleDialog(this, restoreState)
+            false
+        })
+        buttons.add(MenuItem(R.id.subSpeedBtn) {
+            SubStyleUi.showSpeedDialog(this, restoreState)
+            false
+        })
+        buttons.add(MenuItem(R.id.subConvertBtn) {
+            SubConvertUi.show(this, streamScope, restoreState)
+            false
+        })
+
+        buttons.add(MenuItem(R.id.spectrumToggleBtn) { // [SPECTRUM]
+            toggleSpectrum()
+            true
+        })
+        buttons.add(MenuItem(R.id.spectrumColorBtn) { // [SPECTRUM]
+            toggleSpectrumColors()
+            true
+        })
+
+        buttons.add(MenuItem(R.id.abLoopMenuBtn) { // [CTRL-LAYOUT] siklus A, B, mati; hasil lewat toast
+            cycleAbLoop()
+            true
+        })
+        buttons.add(MenuItem(R.id.sleepTimerBtn) {
+            pickSleepTimer(restoreState)
+            false
+        })
+        buttons.add(MenuItem(R.id.qualityBtn) { // [VIDEO-QUALITY]
+            restoreState() // lanjutkan putar agar statistik mencerminkan kondisi nyata
+            showQualityDialog()
+            false
+        })
+
+        if (player.vid == -1)
+            hiddenButtons.addAll(arrayOf(R.id.rowVideo1, R.id.rowVideo2, R.id.aspectBtn, R.id.qualityBtn))
+        if (player.aid == -1 || player.vid == -1)
+            hiddenButtons.add(R.id.audioDelayBtn)
+        if (player.sid == -1)
+            hiddenButtons.addAll(arrayOf(R.id.subDelayBtn, R.id.rowSubSeek, R.id.rowSubStyle))
+        if (!useAudioUI)
+            hiddenButtons.addAll(arrayOf(R.id.spectrumToggleBtn, R.id.spectrumColorBtn)) // [SPECTRUM]
+        else
+            hiddenButtons.add(R.id.qualityBtn) // [VIDEO-QUALITY] sampul audio bukan pilihan resolusi
+        /******/
+
+        genericMenu(R.layout.dialog_advanced_menu, buttons, hiddenButtons, restoreState) { v ->
+            v.findViewById<Button>(R.id.abLoopMenuBtn).text = abLoopLabel() // [CTRL-LAYOUT]
+            if (sleepTimer.active) {
+                val left = ((sleepTimer.remainingMs() + 59_999L) / 60_000L).toInt()
+                v.findViewById<Button>(R.id.sleepTimerBtn).text =
+                    getString(R.string.sleep_timer_active, left)
+            }
+        }
+    }
+
+    // [VIDEO-QUALITY] Pilihan resolusi menurut kondisi nyata: resolusi keluaran, jaringan, buffering, frame terlewat, dekoder.
+    private fun readVideoVariants(): List<VideoVariant> {
+        val out = mutableListOf<VideoVariant>()
+        val count = MPVLib.getPropertyInt("track-list/count") ?: return out
+        for (i in 0 until count) {
+            if (MPVLib.getPropertyString("track-list/$i/type") != "video") continue
+            if (MPVLib.getPropertyBoolean("track-list/$i/albumart") == true) continue
+            val id = MPVLib.getPropertyInt("track-list/$i/id") ?: continue
+            val bitrate = MPVLib.getPropertyInt("track-list/$i/hls-bitrate")
+                ?: MPVLib.getPropertyInt("track-list/$i/demux-bitrate") ?: 0
+            out.add(VideoVariant(
+                mpvId = id,
+                width = MPVLib.getPropertyInt("track-list/$i/demux-w") ?: 0,
+                height = MPVLib.getPropertyInt("track-list/$i/demux-h") ?: 0,
+                fps = MPVLib.getPropertyDouble("track-list/$i/demux-fps") ?: 0.0,
+                bitrateBps = bitrate.toLong(),
+                codec = MPVLib.getPropertyString("track-list/$i/codec"),
+            ))
+        }
+        return out
+    }
+
+    private fun readPlayConditions(): PlayConditions {
+        val dm = resources.displayMetrics
+        val dropped = (MPVLib.getPropertyInt("frame-drop-count") ?: 0) +
+            (MPVLib.getPropertyInt("decoder-frame-drop-count") ?: 0)
+        return PlayConditions(
+            outWidth = MPVLib.getPropertyInt("video-params/w") ?: 0,
+            outHeight = MPVLib.getPropertyInt("video-params/h") ?: 0,
+            fps = MPVLib.getPropertyDouble("estimated-vf-fps") ?: MPVLib.getPropertyDouble("container-fps") ?: 0.0,
+            hwdec = player.hwdecActive,
+            droppedFrames = dropped.toLong(),
+            netSpeedBps = (MPVLib.getPropertyInt("cache-speed") ?: 0).toLong() * 8L,
+            buffering = MPVLib.getPropertyBoolean("paused-for-cache") == true,
+            displayShortSidePx = minOf(dm.widthPixels, dm.heightPixels),
+        )
+    }
+
+    private fun qualityStatus(c: PlayConditions, rec: VideoVariant?): String {
+        val unk = getString(R.string.quality_unknown)
+        // [QUALITY-NOW] Mode video: "720p · 30 fps · 2.7 Mbps" (bitrate video nyata dari mpv); audio-only: "Hanya audio".
+        val vBps = ((MPVLib.getPropertyDouble("video-bitrate") ?: 0.0)).toLong()
+        val now = if (effectiveQuality() == CoreQuality.AUDIO) CoreQuality.AUDIO.label else listOfNotNull(
+            if (c.outHeight > 0) "${c.outHeight}p" else null,
+            if (c.fps > 0) String.format(java.util.Locale.US, "%.0f fps", c.fps) else null,
+            if (vBps > 0) VideoQuality.mbps(vBps) else null,
+        ).joinToString(" \u00B7 ").ifEmpty { unk }
+        val net = if (c.netSpeedBps > 0) VideoQuality.mbps(c.netSpeedBps) else unk
+        val yesNo = getString(if (c.buffering) R.string.quality_yes else R.string.quality_no)
+        val lines = mutableListOf(
+            getString(R.string.quality_now, now),
+            getString(R.string.quality_net, net, c.droppedFrames, yesNo),
+        )
+        if (rec != null) lines.add(getString(R.string.quality_recommended, VideoQuality.label(rec)))
+        return lines.joinToString("\n")
+    }
+
+    /** Dialog kualitas: header kondisi nyata diperbarui tiap detik saat dialog terbuka; daftar varian bila sumber punya >1. */
+    private fun showQualityDialog() {
+        val variants = readVideoVariants()
+            .sortedWith(compareByDescending<VideoVariant> { it.height }.thenByDescending { it.bitrateBps })
+        val builder = AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog)
+        val header = android.widget.TextView(builder.context).apply {
+            val pad = Utils.convertDp(this@MPVActivity, 24f)
+            setPadding(pad, pad, pad, pad / 2)
+            textSize = 13f
+            val ta = builder.context.obtainStyledAttributes(intArrayOf(android.R.attr.textColorPrimary))
+            setTextColor(ta.getColor(0, android.graphics.Color.WHITE))
+            ta.recycle()
+        }
+        var inFlight = false
+        fun refresh() { // [ANR-FIX2]
+            if (inFlight) return
+            inFlight = true
+            streamScope.launch {
+                try {
+                    val text = withContext(mpvDispatcher) {
+                        val c = readPlayConditions()
+                        val recId = VideoQuality.recommend(variants, c, player.vid)
+                        qualityStatus(c, variants.firstOrNull { it.mpvId == recId })
+                    }
+                    header.text = text
+                } finally { inFlight = false }
+            }
+        }
+        refresh()
+        builder.setCustomTitle(header)
+
+        if (variants.size > 1) {
+            val recAtOpen = VideoQuality.recommend(variants, readPlayConditions(), player.vid)
+            val labels = arrayOf(getString(R.string.quality_auto)) +
+                variants.map { VideoQuality.label(it) + (if (it.mpvId == recAtOpen) " \u2605" else "") }
+            val checked = variants.indexOfFirst { it.mpvId == player.vid }.let { if (it < 0) -1 else it + 1 }
+            builder.setSingleChoiceItems(labels, checked) { dialog, item ->
+                val name: String
+                if (item == 0) {
+                    MPVLib.setPropertyString("vid", "auto")
+                    mpvPost("mobile-cap") { applyMobileCap(true) } // [MOBILE-CAP] "Otomatis" tetap tunduk batas data seluler
+                    name = getString(R.string.quality_auto)
+                } else {
+                    val v = variants[item - 1]
+                    player.vid = v.mpvId
+                    name = VideoQuality.label(v)
+                }
+                dialog.dismiss()
+                showToast(getString(R.string.quality_switched, name), true)
+            }
+        } else {
+            builder.setMessage(R.string.quality_single)
+            builder.setPositiveButton(R.string.dialog_ok, null)
+        }
+
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        val tick = object : Runnable {
+            override fun run() {
+                if (isFinishing || isDestroyed) return
+                refresh()
+                handler.postDelayed(this, 1000L)
+            }
+        }
+        builder.setOnDismissListener { handler.removeCallbacks(tick) }
+        builder.create().show()
+        handler.postDelayed(tick, 1000L)
+    }
+
+    private val sleepHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val sleepTimer = SleepTimer(
+        clock = { android.os.SystemClock.elapsedRealtime() },
+        postDelayed = { ms, r -> sleepHandler.postDelayed(r, ms) },
+        remove = { r -> sleepHandler.removeCallbacks(r) },
+        getVolume = { MPVLib.getPropertyDouble("volume") },
+        setVolume = { MPVLib.setPropertyDouble("volume", it) },
+        isPaused = { player.paused == true },
+        pause = { player.paused = true },
+        onExpired = {
+            MpvLog.i(TAG, "Sleep timer habis, pemutaran dijeda")
+            showToast(getString(R.string.sleep_timer_done))
+        },
+    )
+
+    /** Pilih durasi sleep timer (0 = matikan). Fade-out dan jeda diurus [SleepTimer]. */
+    private fun pickSleepTimer(restoreState: StateRestoreCallback) {
+        val minutes = intArrayOf(0, 15, 30, 45, 60, 90)
+        val labels = minutes.map {
+            if (it == 0) getString(R.string.sleep_timer_off) else getString(R.string.sleep_timer_min, it)
+        }.toTypedArray()
+        with (AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog)) {
+            setTitle(R.string.sleep_timer)
+            setItems(labels) { dialog, idx ->
+                val m = minutes[idx]
+                sleepTimer.start(m)
+                MpvLog.i(TAG, "Sleep timer: $m menit")
+                showToast(
+                    if (m == 0) getString(R.string.sleep_timer_cancelled)
+                    else getString(R.string.sleep_timer_set, m)
+                )
+                dialog.dismiss()
+            }
+            setOnDismissListener { restoreState() }
+            create().show()
+        }
+    }
+
+    private var forcedAudioOnly = false
+        set(v) { field = v; com.molina.core.stream.StreamQuality.audioOnlyActive.value = v || useAudioUI } // [QUALITY-SYNC3-A] [QUALITY-SYNC4-B]
+
+    // [AUDIO-ONLY-BTN] Mode audio murni untuk item YouTube: resolve ulang hanya sebagai audio (video tidak diunduh),
+    // lanjut dari posisi terakhir. Aktif untuk item berikutnya juga sampai dimatikan.
+    private var audioReloadPrev: com.molina.core.stream.VideoQuality? = null
+    private var pendingSeekSec: Double? = null
+
+    /** True bila item aktif hasil resolver web dan sudah ditangani; false = pakai perilaku lama (matikan track video). */
+    private fun reloadAsAudioOnly(snap: QualitySnap): Boolean { // [ANR-FIX3] data dari snapshot, bukan JNI sinkron di main
+        val path = snap.path ?: return false
+        val page = streamSources[path] ?: return false
+        if (!StreamLoader.isWebUrl(page)) return false
+        if (snap.variants.size > 1) return false // [LIVE-SWITCH] pakai jalur vid, tanpa memuat ulang
+        val sq = com.molina.core.stream.StreamQuality
+        val audioQ = com.molina.core.stream.VideoQuality.AUDIO
+        val before = sq.current
+        val toAudio = before != audioQ
+        if (toAudio) {
+            audioReloadPrev = before
+            sq.current = audioQ
+        } else {
+            sq.current = audioReloadPrev ?: com.molina.core.stream.VideoQuality.AUTO
+            audioReloadPrev = null
+        }
+        forcedAudioOnly = toAudio
+        updateMetadataDisplay() // [AUDIO-TAG]
+        val pos = snap.pos
+        val idx = snap.idx
+        showToast(getString(if (toAudio) R.string.audio_only_on else R.string.audio_only_off), true)
+        streamScope.launch {
+            when (val p = StreamLoader.prepare(page) { showToast(getString(R.string.stream_resolving), true) }) {
+                is Prepared.Ready -> {
+                    p.title?.let { streamTitles[p.url] = it }
+                    streamSources[p.url] = page
+                    pendingSeekSec = pos.takeIf { it > 1.0 }
+                    val a = MpvLoad.loadfileArgs(p.url, "insert-at-play", p.headers, p.title)
+                    if (a.isNotEmpty() && a[0] == "loadfile") {
+                        withContext(mpvDispatcher) { swapCurrentEntry(a, idx) } /* [ANR-FIX] */ // [RELOAD-FIX]
+                    } else {
+                        withContext(mpvDispatcher) { MPVLib.command(a) } // [ANR-FIX3]
+                        sq.current = before; audioReloadPrev = null; forcedAudioOnly = !toAudio; updateMetadataDisplay() // [AUDIO-TAG-2]
+                    }
+                }
+                is Prepared.Failed -> {
+                    sq.current = before
+                    audioReloadPrev = if (toAudio) null else before
+                    forcedAudioOnly = !toAudio
+                    updateMetadataDisplay() // [AUDIO-TAG-3]
+                    showToast(getString(StreamLoader.messageRes(p.error)), true)
+                }
+            }
+        }
+        return true
+    }
+
+    /** Matikan/nyalakan track video lewat property `vid`; UI audio dipicu oleh observer current-tracks/video/image. */
+    private var audioToggleBusy = false // [ANR-FIX3] cegah ketuk ganda saat snapshot belum selesai
+
+    /** [ANR-FIX3] Keadaan mpv dibaca di thread khusus; panggil HANYA dari mpvDispatcher. */
+    private fun snapshotNow(): QualitySnap = QualitySnap(
+        MPVLib.getPropertyString("path"),
+        readVideoVariants(),
+        MPVLib.getPropertyDouble("time-pos") ?: 0.0,
+        MPVLib.getPropertyInt("playlist-pos") ?: 0,
+    )
+
+    private fun toggleAudioOnly() { // [ANR-FIX3]
+        if (audioToggleBusy) return
+        audioToggleBusy = true
+        streamScope.launch {
+            try {
+                val snap = withContext(mpvDispatcher) { snapshotNow() }
+                if (!isFinishing && !isDestroyed) toggleAudioOnly(snap)
+            } finally {
+                audioToggleBusy = false
+            }
+        }
+    }
+
+    private fun toggleAudioOnly(snap: QualitySnap) {
+        if (reloadAsAudioOnly(snap)) return // [AUDIO-ONLY-BTN]
+        forcedAudioOnly = !forcedAudioOnly
+        if (forcedAudioOnly)
+            mpvPost { player.vid = -1 }
+        else
+            mpvPost { MPVLib.setPropertyString("vid", "auto") }
+        MpvLog.i(TAG, "Audio only: $forcedAudioOnly")
+        updateMetadataDisplay() // [AUDIO-TAG-4]
+        showToast(getString(if (forcedAudioOnly) R.string.audio_only_on else R.string.audio_only_off), true)
+    }
+
+    // [QUALITY-SUGGEST] Buffering terus-menerus >= 6 dtk pada item web -> sarankan 480p/audio (sekali per item; tidak mengubah kualitas sendiri).
+    private val bufferingHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var qualityHintPath: String? = null
+    private val bufferingHint = Runnable {
+        val q = effectiveQuality() // [QUALITY-SYNC]
+        if (isFinishing || isDestroyed || q == CoreQuality.P480 || q == CoreQuality.AUDIO) return@Runnable
+        val path = MPVLib.getPropertyString("path") ?: return@Runnable
+        val page = streamSources[path]
+        if (page == null || !StreamLoader.isWebUrl(page) || qualityHintPath == path) return@Runnable
+        qualityHintPath = path
+        showQualitySnack() // [QUALITY-SNACK]
+    }
+
+    // [AUTO-NET-2] Turun satu tier otomatis saat macet berulang (3x/60 dtk atau sekali >= 8 dtk). Hanya mode AUTO:
+    // kunci eksplisit tidak pernah ditimpa. Naik lagi hanya pada video berikutnya (memuat ulang memutus buffer).
+    // [E-3b-3b] Aturan hitung macet, jeda, dan penjagaan ada di StallTracker (:core:library); di sini hanya efeknya.
+    private val stallTracker = StallTracker()
+    private val tierLongStall = Runnable { autoDownshift() }
+
+    private fun noteStall() {
+        if (isFinishing || isDestroyed || effectiveQuality() != CoreQuality.AUTO) return
+        // [ANR-FIX2] pemeriksaan seeking & time-pos < 5 dtk (buffering awal bukan tanda jaringan buruk) dipindah ke pemanggil
+        val trigger = stallTracker.recordStall(android.os.SystemClock.elapsedRealtime())
+        MpvLog.i("stall", "macet ${stallTracker.stallCount}/${StallTracker.THRESHOLD} dalam ${StallTracker.WINDOW_MS / 1000} dtk")
+        if (trigger) autoDownshift()
+    }
+
+    private fun autoDownshift() {
+        if (isFinishing || isDestroyed || effectiveQuality() != CoreQuality.AUTO) return
+        if (!stallTracker.tryBeginShift(android.os.SystemClock.elapsedRealtime())) return // [ANR-FIX2]
+        MpvLog.d("quality", "mencoba turun tier otomatis")
+        streamScope.launch {
+            var lowered: VideoVariant? = null // [ABR-HLS]
+            var multiVariant = false
+            val snap = withContext(mpvDispatcher) {
+                if (MPVLib.getPropertyBoolean("seeking") == true) return@withContext null
+                val path = MPVLib.getPropertyString("path") ?: return@withContext null
+                val vs = readVideoVariants()
+                if (vs.size > 1) { // [ABR-HLS] multi-varian (HLS/DASH/m3u): pindah satu varian ke bawah, tanpa memuat ulang, posisi tetap
+                    multiVariant = true
+                    lowered = VariantPicker.stepDown(vs, player.vid)
+                    lowered?.let { abrDownshifted = true; player.vid = it.mpvId }
+                    return@withContext null
+                }
+                QualitySnap(path, emptyList(), MPVLib.getPropertyDouble("time-pos") ?: 0.0, MPVLib.getPropertyInt("playlist-pos") ?: 0)
+            }
+            if (multiVariant) { // [ABR-HLS]
+                val to = lowered
+                if (to == null) {
+                    stallTracker.abortShift()
+                    MpvLog.d("quality", "[abr] tidak turun: sudah varian terendah atau varian aktif tidak dikenali")
+                    return@launch
+                }
+                stallTracker.commitShift()
+                MpvLog.i("quality", "[abr] turun varian otomatis ke ${VideoQuality.label(to)} id=${to.mpvId}")
+                showToast(getString(R.string.tier_down), true)
+                updateResChip() // [ABR-CHIP] varian setinggi sama (bitrate lebih rendah) tidak memicu video-params
+                return@launch
+            }
+            val page = snap?.path?.let { streamSources[it] }
+            if (snap == null || page == null || !StreamLoader.isWebUrl(page) || !com.molina.core.library.AdaptiveTier.downshift(page)) {
+                stallTracker.abortShift()
+                MpvLog.d("quality", "turun tier tidak dilakukan")
+                return@launch
+            }
+            stallTracker.commitShift()
+            MpvLog.i("quality", "turun tier otomatis (tingkat ${com.molina.core.library.AdaptiveTier.offsetFor(page)}/${com.molina.core.library.AdaptiveTier.MAX})")
+            showToast(getString(R.string.tier_down), true)
+            val pos = snap.pos
+            val idx = snap.idx
+            when (val p = StreamLoader.prepare(page)) {
+                is Prepared.Ready -> {
+                    p.title?.let { streamTitles[p.url] = it }
+                    streamSources[p.url] = page
+                    pendingSeekSec = pos.takeIf { it > 1.0 }
+                    val a = MpvLoad.loadfileArgs(p.url, "insert-at-play", p.headers, p.title)
+                    if (a.isNotEmpty() && a[0] == "loadfile") withContext(mpvDispatcher) { swapCurrentEntry(a, idx) } /* [ANR-FIX] */ else MPVLib.command(a)
+                }
+                is Prepared.Failed -> showToast(getString(StreamLoader.messageRes(p.error)), true)
+            }
+        }
+    }
+
+    private fun onBufferingChanged(on: Boolean) {
+        bufferingHandler.removeCallbacks(bufferingHint)
+        bufferingHandler.removeCallbacks(tierLongStall) // [AUTO-NET-2]
+        if (on) {
+            bufferingHandler.postDelayed(tierLongStall, StallTracker.LONG_STALL_MS) // [AUTO-NET-2]
+            streamScope.launch { // [ANR-FIX2] baca seeking/time-pos di thread khusus
+                val skip = withContext(mpvDispatcher) {
+                    MPVLib.getPropertyBoolean("seeking") == true || (MPVLib.getPropertyDouble("time-pos") ?: 0.0) < 5.0
+                }
+                if (!skip) noteStall()
+            }
+        } else bufferingHandler.post { dismissQualitySnack() } // [QUALITY-SNACK] saran basi bila buffering selesai
+    }
+
+    // [QUALITY-SNACK] Bar ala Snackbar buatan sendiri: tombol aksi langsung mengunci 480p; hilang sendiri setelah 8 dtk.
+    private var qualitySnack: android.view.View? = null
+    private val qualitySnackHide = Runnable { dismissQualitySnack() }
+
+    private fun dismissQualitySnack() {
+        bufferingHandler.removeCallbacks(qualitySnackHide)
+        qualitySnack?.let { (it.parent as? android.view.ViewGroup)?.removeView(it) }
+        qualitySnack = null
+    }
+
+    private fun showQualitySnack() {
+        val root = findViewById<android.view.ViewGroup>(android.R.id.content) ?: return
+        fun dp(v: Float): Int = Utils.convertDp(this, v)
+        dismissQualitySnack()
+        val brand = ContextCompat.getColor(this, R.color.molina_brand)
+        val low = PerfTierPolicy.current(this) == PerfTier.LOW // [PERF-AUDIO] di tier LOW otomatis sudah 480p: tawarkan audio saja
+        val bar = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(dp(16f), dp(4f), dp(4f), dp(4f))
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(0xF2141414.toInt())
+                cornerRadius = dp(12f).toFloat()
+                setStroke(dp(1f), brand)
+            }
+            elevation = dp(8f).toFloat()
+        }
+        bar.addView(android.widget.TextView(this).apply {
+            text = getString(if (low) R.string.quality_slow_snack_audio else R.string.quality_slow_snack)
+            setTextColor(android.graphics.Color.WHITE)
+            textSize = 13f
+        }, android.widget.LinearLayout.LayoutParams(0, android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        bar.addView(android.widget.TextView(this).apply {
+            text = if (low) getString(R.string.audio_only_on) else CoreQuality.P480.label
+            setTextColor(brand)
+            textSize = 14f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding(dp(14f), dp(10f), dp(14f), dp(10f))
+            setOnClickListener {
+                dismissQualitySnack()
+                if (low) { if (!(forcedAudioOnly || useAudioUI)) toggleAudioOnly() } // [PERF-AUDIO]
+                else applyQualityLock(CoreQuality.P480)
+            }
+        })
+        root.addView(bar, android.widget.FrameLayout.LayoutParams(
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+            android.view.Gravity.BOTTOM or android.view.Gravity.CENTER_HORIZONTAL
+        ).apply {
+            bottomMargin = dp(96f)
+            marginStart = dp(16f)
+            marginEnd = dp(16f)
+        })
+        qualitySnack = bar
+        bufferingHandler.postDelayed(qualitySnackHide, 8000L)
+    }
+
+    /**
+     * [RELOAD-FIX] Ganti entri playlist yang sedang diputar dengan hasil resolve baru TANPA pindah item.
+     * `insert-at-play` hanya memutar bila tidak ada yang sedang diputar, jadi dulu entri lama dihapus
+     * dan mpv lompat ke item berikutnya (pindah channel). Urutan benar: sisipkan di idx+1, putar,
+     * baru hapus entri lama di idx (entri baru bergeser ke idx).
+     */
+    private fun swapCurrentEntry(a: Array<String>, idx: Int) {
+        val at = (idx + 1).toString()
+        val cmd = if (a.size >= 5) a.copyOf().also { it[2] = "insert-at"; it[3] = at }
+                  else arrayOf("loadfile", a[1], "insert-at", at)
+        MPVLib.command(cmd)
+        MPVLib.setPropertyInt("playlist-pos", idx + 1)
+        MPVLib.command(arrayOf("playlist-remove", idx.toString()))
+    }
+
+    /** [QUALITY-NOW2] Resolve ulang item web aktif sesuai kunci saat ini, lanjut dari posisi terakhir. */
+    private fun reloadCurrentWeb(page: String) {
+        streamScope.launch {
+            val (pos, idx) = withContext(mpvDispatcher) { // [ANR-FIX3] baca di thread khusus
+                (MPVLib.getPropertyDouble("time-pos") ?: 0.0) to (MPVLib.getPropertyInt("playlist-pos") ?: 0)
+            }
+            when (val p = StreamLoader.prepare(page) { showToast(getString(R.string.stream_resolving), true) }) {
+                is Prepared.Ready -> {
+                    p.title?.let { streamTitles[p.url] = it }
+                    streamSources[p.url] = page
+                    pendingSeekSec = pos.takeIf { it > 1.0 }
+                    val a = MpvLoad.loadfileArgs(p.url, "insert-at-play", p.headers, p.title)
+                    withContext(mpvDispatcher) { if (a.isNotEmpty() && a[0] == "loadfile") swapCurrentEntry(a, idx) else MPVLib.command(a) } // [ANR-FIX3]
+                }
+                is Prepared.Failed -> showToast(getString(StreamLoader.messageRes(p.error)), true)
+            }
+        }
+    }
+
+    // [QUALITY-SYNC2] Pengaturan bisa mengganti kunci kualitas saat pemutar di belakang: lepas status audio-only lokal.
+    // Item yang sedang diputar tetap audio sampai dimuat ulang (pilih kualitas di sheet atau matikan ♪); item berikutnya mengikuti kunci.
+    /** [QUALITY-SYNC3-C] Pilihan di Pengaturan saat pemutar berjalan: Audio <-> video langsung diterapkan; antar-resolusi berlaku pada video berikutnya. */
+    private fun syncPlayerToLock(want: CoreQuality) {
+        if (isFinishing || isDestroyed) return
+        if ((want == CoreQuality.AUDIO) == (forcedAudioOnly || useAudioUI)) return // [QUALITY-SYNC4-G]
+        val sq = com.molina.core.stream.StreamQuality
+        sq.current = if (forcedAudioOnly) CoreQuality.AUDIO else (audioReloadPrev ?: CoreQuality.AUTO) // keadaan nyata sebelum diterapkan
+        applyQualityLock(want)
+    }
+
+    private fun syncAudioOnlyWithLock() { // [ANR-FIX3] dipanggil dari onResume: tidak boleh ada JNI sinkron di main thread
+        val sq = com.molina.core.stream.StreamQuality
+        if (forcedAudioOnly && sq.current != com.molina.core.stream.VideoQuality.AUDIO) {
+            forcedAudioOnly = false
+            mpvPost { MPVLib.setPropertyString("vid", "auto") } // [PREF-AUDIO] item berikutnya tidak boleh lagi tanpa trek video
+            audioReloadPrev = null
+            updateMetadataDisplay()
+        }
+        publishMode() // [QUALITY-NOW]
+        // [QUALITY-NOW2] Kunci bisa diganti (Pengaturan/Home) saat pemutar di belakang: samakan item web yang sedang
+        // diputar dengan kunci (video <-> audio saja). Hanya setelah item benar-benar berjalan, agar tidak memuat ulang saat memuat.
+        streamScope.launch {
+            val page = withContext(mpvDispatcher) {
+                val pg = MPVLib.getPropertyString("path")?.let { streamSources[it] }
+                if (pg != null && StreamLoader.isWebUrl(pg) && readVideoVariants().size <= 1 &&
+                    (MPVLib.getPropertyDouble("time-pos") ?: 0.0) > 1.0 && MPVLib.getPropertyBoolean("paused-for-cache") != true) pg else null
+            }
+            if (page == null || isFinishing || isDestroyed) return@launch
+            val wantAudio = sq.current == com.molina.core.stream.VideoQuality.AUDIO // dibaca ulang: kunci bisa berubah selama snapshot
+            if (wantAudio != useAudioUI) {
+                if (!wantAudio) mpvPost { MPVLib.setPropertyString("vid", "auto") }
+                reloadCurrentWeb(page)
+            }
+            publishMode() // [QUALITY-NOW]
+        }
+    }
+
+    /**
+     * [MOBILE-CAP] Data seluler: kualitas Otomatis maks 720p untuk semua media. YouTube sudah dibatasi di resolver (NewPipe dan yt-dlp);
+     * untuk HLS/DASH/m3u multi-varian mpv bawaannya memilih bitrate tertinggi, jadi di sini pindah ke varian tertinggi <= 720p lewat
+     * VariantPicker (aturan yang sama dengan kunci resolusi). Tanpa efek di Wi-Fi/Ethernet, kunci resolusi eksplisit, audio saja,
+     * atau satu varian saja. [auto] = pengguna memilih "Otomatis" di menu resolusi (berlaku walau ada kunci). Panggil dari thread mpv.
+     */
+    private fun applyMobileCap(auto: Boolean = false) {
+        if (!auto && effectiveQuality() != CoreQuality.AUTO) return
+        if (forcedAudioOnly || useAudioUI) return
+        val net = com.molina.core.net.NetworkHint.snapshot() // [NET-CAP]
+        if (net.wifi && !net.metered) return
+        val vs = readVideoVariants()
+        if (vs.size < 2 || vs.none { it.height > 0 }) return
+        val v = pickVariantLogged(CoreQuality.P720, vs, "data-seluler") ?: return
+        if (abrDownshifted) { // [ABR-HLS] jangan naikkan lagi varian yang diturunkan karena macet
+            val cur = vs.firstOrNull { it.mpvId == player.vid }
+            if (cur != null && cur.height < v.height) return
+        }
+        val limited = vs.any { it.height > v.height } // [NET-CAP] chip DATA hanya bila cap benar-benar menurunkan kualitas
+        if (limited != mobileCapApplied) { mobileCapApplied = limited; runOnUiThread { updateResChip() } }
+        if (v.mpvId != player.vid) player.vid = v.mpvId
+    }
+
+    // [NET-CAP] Status cap data seluler (untuk chip "720p \u00B7 DATA") dan pemantau perubahan jaringan.
+    @Volatile private var mobileCapApplied = false
+    @Volatile private var abrDownshifted = false // [ABR-HLS] varian aktif sudah diturunkan karena macet pada file ini
+    private var netCb: android.net.ConnectivityManager.NetworkCallback? = null
+    private var lastCapped: Boolean? = null
+
+    private fun isCappedNetwork(caps: android.net.NetworkCapabilities): Boolean =
+        !(caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) ||
+            caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)) ||
+            !caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+
+    /** Dipasang sekali (onStart), dilepas di onDestroy. Hanya bereaksi saat status berkuota/tidak berubah, bukan tiap sinyal bergeser. */
+    private fun registerNetCallback() {
+        if (netCb != null) return
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager ?: return
+        val cb = object : android.net.ConnectivityManager.NetworkCallback() {
+            override fun onCapabilitiesChanged(network: android.net.Network, caps: android.net.NetworkCapabilities) {
+                val capped = isCappedNetwork(caps)
+                val prev = lastCapped
+                lastCapped = capped
+                if (prev == null || prev == capped) return // panggilan awal ditangani FILE_LOADED
+                mpvPost("net-cap") { onCapStateChanged(capped) }
+            }
+        }
+        try {
+            cm.registerDefaultNetworkCallback(cb)
+            netCb = cb
+        } catch (e: Exception) {
+            MpvLog.w(TAG, "[net-cap] gagal memasang pemantau jaringan: ${e.message}")
+        }
+    }
+
+    private fun unregisterNetCallback() {
+        val cb = netCb ?: return
+        netCb = null
+        try {
+            (getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager)?.unregisterNetworkCallback(cb)
+        } catch (e: Exception) { /* sudah terlepas */ }
+    }
+
+    /** Thread mpv. Seluler -> terapkan cap; kembali ke Wi-Fi biasa -> lepas cap (hanya bila cap yang kita pasang). */
+    private fun onCapStateChanged(capped: Boolean) {
+        if (effectiveQuality() != CoreQuality.AUTO || forcedAudioOnly || useAudioUI) return
+        MpvLog.i(TAG, "[net-cap] jaringan berubah, berkuota=$capped")
+        if (capped) {
+            applyMobileCap()
+        } else if (mobileCapApplied) {
+            mobileCapApplied = false
+            abrDownshifted = false // [ABR-HLS] kembali ke Wi-Fi: varian dipilih ulang otomatis
+            MPVLib.setPropertyString("vid", "auto")
+            runOnUiThread { updateResChip() }
+        }
+    }
+
+    // [QUALITY-SYNC] Mode efektif: audio-only (tombol ♪ / jalur non-web) mengalahkan kunci resolusi tersimpan.
+    private fun effectiveQuality(): CoreQuality =
+        QualityRule.effective(forcedAudioOnly, useAudioUI, CoreQuality.AUDIO, com.molina.core.stream.StreamQuality.current) // [QUALITY-SYNC4-C] [E-3c-2] cermin keadaan nyata, bukan hanya kunci
+
+    /** [DIAG-QUALITY] Pilih varian lewat VariantPicker dan catat keputusannya (batas, kandidat, hasil, alasan) di tab Log. */
+    private fun pickVariantLogged(q: CoreQuality, vs: List<VideoVariant>, via: String): VideoVariant? {
+        val d = VariantPicker.decide(vs, q.maxHeight)
+        MpvLog.i(TAG, "[quality] kunci=${q.name} via=$via " + VariantPicker.describe(vs, q.maxHeight, d))
+        return d.variant
+    }
+
+    /**
+     * [LIVE-SWITCH] Siaran live (HLS) selalu memakai URL yang sama untuk semua kualitas, jadi resolve ulang hanya
+     * memulai ulang siaran tanpa mengubah apa pun. Bila stream sudah memuat beberapa varian video, cukup pindah
+     * trek `vid` (atau matikan untuk audio saja): tanpa memuat ulang, posisi tetap. Kunci sudah disimpan oleh pemanggil.
+     */
+    private fun switchVariantNoReload(q: CoreQuality, vs: List<VideoVariant>) {
+        if (q == CoreQuality.AUDIO) {
+            forcedAudioOnly = true
+            mpvPost { player.vid = -1 }
+        } else {
+            forcedAudioOnly = false
+            val pick = if (q == CoreQuality.AUTO) null
+                else pickVariantLogged(q, vs, "live-switch") // [E-3c-1]
+            if (pick != null) mpvPost { player.vid = pick.mpvId } else { mpvPost { MPVLib.setPropertyString("vid", "auto") }; mpvPost("mobile-cap") { applyMobileCap() } } // [MOBILE-CAP]
+        }
+        updateMetadataDisplay()
+        showToast(getString(R.string.quality_switched, q.label), true)
+    }
+
+    /** [QUALITY-SHEET] Simpan kunci, lalu resolve ulang item aktif pada kualitas baru dan lanjut dari posisi terakhir. */
+    private fun applyQualityLock(q: CoreQuality) {
+        val sq = com.molina.core.stream.StreamQuality
+        val before = sq.current
+        if (q == effectiveQuality() && q == before) return // [QUALITY-SYNC] [QUALITY-SYNC4-D] kunci tetap disimpan walau keadaan nyata sudah sama
+        sq.set(q)
+        audioReloadPrev = null
+        streamScope.launch { // [ANR-FIX2] baca keadaan mpv di thread khusus, lanjutkan logika di main
+            val snap = withContext(mpvDispatcher) {
+                QualitySnap(
+                    MPVLib.getPropertyString("path"),
+                    readVideoVariants(),
+                    MPVLib.getPropertyDouble("time-pos") ?: 0.0,
+                    MPVLib.getPropertyInt("playlist-pos") ?: 0,
+                )
+            }
+            applyQualityLockOn(q, before, snap)
+        }
+    }
+
+    private fun applyQualityLockOn(q: CoreQuality, before: CoreQuality, snap: QualitySnap) {
+        val sq = com.molina.core.stream.StreamQuality
+        val page = snap.path?.let { streamSources[it] }
+        if (page != null && StreamLoader.isWebUrl(page) && snap.variants.size > 1) { // [LIVE-SWITCH]
+            switchVariantNoReload(q, snap.variants)
+            return
+        }
+        if (page == null || !StreamLoader.isWebUrl(page)) {
+            // bukan hasil resolver web: audio-only lewat track vid; resolusi lewat varian HLS bila ada
+            if ((q == CoreQuality.AUDIO) != forcedAudioOnly) toggleAudioOnly(snap) // [ANR-FIX3] pakai snapshot yang sudah ada
+            if (q != CoreQuality.AUDIO) {
+                val vs = snap.variants
+                if (q == CoreQuality.AUTO) { mpvPost { MPVLib.setPropertyString("vid", "auto") }; mpvPost("mobile-cap") { applyMobileCap() } } // [MOBILE-CAP]
+                else if (vs.size > 1) {
+                    val pick = pickVariantLogged(q, vs, "sumber-lokal") // [E-3c-1]
+                    if (pick != null) mpvPost { player.vid = pick.mpvId }
+                } else {
+                    MpvLog.i(TAG, "[quality] kunci=${q.name} via=sumber-lokal tidak ada pilihan varian (varian=${vs.size}); berlaku pada video berikutnya") // [DIAG-QUALITY]
+                    showToast(getString(R.string.quality_next_video, q.label), true)
+                }
+            }
+            return
+        }
+        val wasAudio = forcedAudioOnly
+        val toAudio = q == CoreQuality.AUDIO
+        forcedAudioOnly = toAudio
+        if (!toAudio) mpvPost { MPVLib.setPropertyString("vid", "auto") } // [VID-AUTO] tanpa ini vid=no (pengaturan Audio saja) tetap berlaku pada stream YouTube
+        updateMetadataDisplay()
+        sq.lastFallback = false
+        val pos = snap.pos
+        val idx = snap.idx
+        showToast(getString(R.string.quality_switched, q.label), true)
+        streamScope.launch {
+            when (val p = StreamLoader.prepare(page) { showToast(getString(R.string.stream_resolving), true) }) {
+                is Prepared.Ready -> {
+                    p.title?.let { streamTitles[p.url] = it }
+                    streamSources[p.url] = page
+                    pendingSeekSec = pos.takeIf { it > 1.0 }
+                    val a = MpvLoad.loadfileArgs(p.url, "insert-at-play", p.headers, p.title)
+                    if (a.isNotEmpty() && a[0] == "loadfile") {
+                        withContext(mpvDispatcher) { swapCurrentEntry(a, idx) } /* [ANR-FIX] */ // [RELOAD-FIX]
+                    } else withContext(mpvDispatcher) { MPVLib.command(a) }
+                    if (sq.lastFallback && !toAudio) {
+                        lastQualityToastMs = System.currentTimeMillis() // [QUALITY-ACTUAL] cegah toast ganda
+                        showToast(getString(R.string.quality_fallback, q.label, sq.lastHeight), true)
+                    }
+                }
+                is Prepared.Failed -> {
+                    sq.set(before)
+                    forcedAudioOnly = wasAudio
+                    if (wasAudio) mpvPost { player.vid = -1 } // [VID-AUTO] selaraskan trek video dengan status yang dipulihkan
+                    updateMetadataDisplay()
+                    showToast(getString(StreamLoader.messageRes(p.error)), true)
+                }
+            }
+        }
+    }
+
+    // [AUDIO-LANG] Pilih bahasa audio trek YouTube (video dengan >= 2 trek bahasa); disimpan permanen.
+    private fun showAudioLangSheet() {
+        val sl = com.molina.core.stream.StreamAudioLang
+        val tracks = sl.lastTracks
+        if (tracks.size < 2) { showToast(getString(R.string.audio_lang_single), true); return }
+        val keys = listOf("") + tracks.map { it.key }
+        val labels = (listOf(getString(R.string.audio_lang_original)) + tracks.map { it.label }).toTypedArray()
+        val cur = if (sl.preferred.isEmpty()) 0 else keys.indexOf(sl.preferred).coerceAtLeast(0)
+        AlertDialog.Builder(this, R.style.AppTheme_PlayerDialog)
+            .setTitle(R.string.audio_lang_title)
+            .setSingleChoiceItems(labels, cur) { d, i -> d.dismiss(); applyAudioLang(keys[i]) }
+            .setNegativeButton(R.string.dialog_cancel, null)
+            .show()
+    }
+
+    /** [AUDIO-LANG] Simpan pilihan, lalu resolve ulang item aktif dan lanjut dari posisi terakhir. */
+    private fun applyAudioLang(key: String) {
+        val sl = com.molina.core.stream.StreamAudioLang
+        val before = sl.preferred
+        if (key == before) return
+        sl.set(key)
+        streamScope.launch {
+            val snap = withContext(mpvDispatcher) { // [ANR-FIX3] baca di thread khusus
+                Triple(MPVLib.getPropertyString("path"), MPVLib.getPropertyDouble("time-pos") ?: 0.0, MPVLib.getPropertyInt("playlist-pos") ?: 0)
+            }
+            val page = snap.first?.let { streamSources[it] }
+            if (page == null || !StreamLoader.isWebUrl(page)) {
+                showToast(getString(R.string.audio_lang_next_video), true)
+                return@launch
+            }
+            val pos = snap.second
+            val idx = snap.third
+            showToast(getString(R.string.audio_lang_switched), true)
+            when (val p = StreamLoader.prepare(page) { showToast(getString(R.string.stream_resolving), true) }) {
+                is Prepared.Ready -> {
+                    p.title?.let { streamTitles[p.url] = it }
+                    streamSources[p.url] = page
+                    pendingSeekSec = pos.takeIf { it > 1.0 }
+                    val a = MpvLoad.loadfileArgs(p.url, "insert-at-play", p.headers, p.title)
+                    if (a.isNotEmpty() && a[0] == "loadfile") {
+                        withContext(mpvDispatcher) { swapCurrentEntry(a, idx) } /* [ANR-FIX] */ // [RELOAD-FIX]
+                    } else withContext(mpvDispatcher) { MPVLib.command(a) } // [ANR-FIX3]
+                }
+                is Prepared.Failed -> {
+                    sl.set(before)
+                    showToast(getString(StreamLoader.messageRes(p.error)), true)
+                }
+            }
+        }
+    }
+
+    private fun cycleOrientation() {
+        requestedOrientation = if (requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE)
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+        else
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+    }
+
+    private fun refreshUi() {
+        // forces update of entire UI, used when resuming the activity
+        updatePlaybackStatus(psc.pause)
+        updatePlaybackPos(psc.positionSec)
+        updatePlaybackDuration(psc.durationSec)
+        updateAudioUI()
+        updateNowPlayingArt()
+        updateOrientation()
+        updateMetadataDisplay()
+        updateDecoderButton()
+        updateSpeedButton()
+        updatePlaylistButtons()
+        loadTracksAsync() // [ANR-FIX4] sebelumnya player.loadTracks() sinkron di main thread
+    }
+
+    private fun updateAudioUI() {
+        val audioButtons = arrayOf(R.id.prevBtn, R.id.cycleAudioBtn, R.id.playBtn,
+                R.id.cycleSpeedBtn, R.id.topMenuBtn, R.id.nextBtn) // [CTRL-LAYOUT]
+        val videoButtons = arrayOf(R.id.cycleAudioBtn, R.id.cycleSubsBtn, R.id.playBtn,
+                R.id.cycleDecoderBtn, R.id.cycleSpeedBtn, R.id.topMenuBtn)
+
+        val shouldUseAudioUI = isPlayingAudioOnly()
+        if (shouldUseAudioUI == useAudioUI)
+            return
+        useAudioUI = shouldUseAudioUI
+        MpvLog.v(TAG, "Audio UI: $useAudioUI")
+        publishMode() // [QUALITY-NOW]
+        MpvLog.i(TAG, "[QUALITY-SYNC4-H] audioUI=$useAudioUI forced=$forcedAudioOnly kunci=${com.molina.core.stream.StreamQuality.current.name} vid=${MPVLib.getPropertyString("vid")}")
+        applyControlMargins() // [LAND-2COL] mode dua kolom bergantung pada useAudioUI
+
+        val seekbarGroup = binding.controlsSeekbarGroup
+        val buttonGroup = binding.controlsButtonGroup
+
+        if (useAudioUI) {
+            // Move prev/next file from seekbar group to buttons group
+            Utils.viewGroupMove(seekbarGroup, R.id.prevBtn, buttonGroup, 0)
+            Utils.viewGroupMove(seekbarGroup, R.id.nextBtn, buttonGroup, -1)
+
+            // Change button layout of buttons group
+            Utils.viewGroupReorder(buttonGroup, audioButtons)
+
+            // Show song title and more metadata
+            binding.controlsTitleGroup.visibility = View.VISIBLE
+            Utils.viewGroupReorder(binding.controlsTitleGroup, arrayOf(R.id.titleTextView, R.id.minorTitleTextView))
+            updateMetadataDisplay()
+            applyTitlePlacement() // [TITLE-BANNER]
+
+            showControls()
+        } else {
+            Utils.viewGroupMove(buttonGroup, R.id.prevBtn, seekbarGroup, 0)
+            Utils.viewGroupMove(buttonGroup, R.id.nextBtn, seekbarGroup, -1)
+
+            Utils.viewGroupReorder(buttonGroup, videoButtons)
+
+            // Show title only depending on settings
+            if (showMediaTitle) {
+                binding.controlsTitleGroup.visibility = View.VISIBLE
+                Utils.viewGroupReorder(binding.controlsTitleGroup, arrayOf(R.id.fullTitleTextView))
+                updateMetadataDisplay()
+            } else {
+                binding.controlsTitleGroup.visibility = View.GONE
+            }
+
+            hideControls() // do NOT use fade runnable
+        }
+
+        // Visibility might have changed, so update
+        updatePlaylistButtons()
+        updateNowPlayingArt()
+    }
+
+    private fun updateScreenBrightness() {
+        if (lastScreenBrightness == -1)
+            return
+        val lp = window.attributes
+        lp.screenBrightness = lastScreenBrightness / 100f
+        window.attributes = lp
+    }
+
+    /** [AUDIO-TAG] Awali judul dengan penanda saat mode audio saja aktif (tombol menu atau pilihan kualitas AUDIO). */
+    private fun audioTag(title: CharSequence?): CharSequence {
+        val t = title?.toString().orEmpty()
+        if (!forcedAudioOnly && com.molina.core.stream.StreamQuality.current != com.molina.core.stream.VideoQuality.AUDIO) return t
+        return if (t.isEmpty()) "\u266A Audio" else "\u266A Audio \u00B7 $t"
+    }
+
+    // [QUALITY-ACTUAL] Kunci resolusi vs resolusi yang benar-benar diputar (video-params/h): beri tahu bila lebih rendah.
+    private var lastQualityToastMs = 0L
+    private var qualityNotedPath: String? = null
+
+    /** Tinggi aktual (>0) bila item web diputar lebih rendah dari kunci eksplisit; selain itu 0. */
+    private fun qualityMismatch(): Int {
+        val lock = com.molina.core.stream.StreamQuality.current
+        if (forcedAudioOnly || useAudioUI || lock == CoreQuality.AUTO || lock == CoreQuality.AUDIO) return 0 // [QUALITY-SYNC4-E]
+        val page = MPVLib.getPropertyString("path")?.let { streamSources[it] } ?: return 0
+        if (!StreamLoader.isWebUrl(page)) return 0
+        val h = MPVLib.getPropertyInt("video-params/h") ?: 0
+        return if (h in 1 until lock.maxHeight) h else 0
+    }
+
+    /** [QUALITY-BADGE-ACTUAL] Tinggi aktual (>0) item web yang sedang diputar; 0 bila audio-only/bukan web/belum diketahui. */
+    private fun actualHeight(): Int {
+        if (forcedAudioOnly || useAudioUI) return 0 // [QUALITY-SYNC4-F]
+        val page = MPVLib.getPropertyString("path")?.let { streamSources[it] } ?: return 0
+        if (!StreamLoader.isWebUrl(page)) return 0
+        return MPVLib.getPropertyInt("video-params/h") ?: 0
+    }
+
+    /** [AUTO-NET-2] True bila tier AUTO sedang diturunkan karena macet (ikon HD kuning). */
+    private fun tierLowered(): Boolean {
+        if (effectiveQuality() != CoreQuality.AUTO) return false
+        val page = MPVLib.getPropertyString("path")?.let { streamSources[it] } ?: return false
+        return com.molina.core.library.AdaptiveTier.offsetFor(page) > 0
+    }
+
+    private fun checkQualityMatch() { // [ANR-FIX2]
+        streamScope.launch {
+            val (h, path) = withContext(mpvDispatcher) { qualityMismatch() to MPVLib.getPropertyString("path") }
+            if (h != 0) checkQualityMatchOnUi(h, path)
+        }
+    }
+
+    private fun checkQualityMatchOnUi(h: Int, path: String?) {
+        if (path == qualityNotedPath) return
+        qualityNotedPath = path
+        val lock = com.molina.core.stream.StreamQuality.current
+        MpvLog.i(TAG, "[QUALITY-ACTUAL] kunci=${lock.label} aktual=${h}p")
+        if (System.currentTimeMillis() - lastQualityToastMs > 3000L) {
+            lastQualityToastMs = System.currentTimeMillis()
+            showToast(getString(R.string.quality_fallback, lock.label, h), true)
+        }
+    }
+
+    // [QUALITY-NOW] Status resolusi mengikuti kenyataan: AUDIO bila tanpa gambar video, selain itu kunci aktif.
+    private val applyQualityHook: (CoreQuality) -> Unit = { q -> runOnUiThread { applyQualityLock(q) } }
+
+    private fun nowQuality(): CoreQuality {
+        if (forcedAudioOnly || useAudioUI) return CoreQuality.AUDIO
+        val lock = com.molina.core.stream.StreamQuality.current
+        return if (lock == CoreQuality.AUDIO) CoreQuality.AUTO else lock // video tampil: AUDIO tidak mungkin
+    }
+
+    private fun publishMode() = BackgroundPlaybackState.setMode(nowQuality())
+
+    private fun updateMetadataDisplay() {
+        publishMode() // [QUALITY-NOW]
+        updatePerfChip() // [PERF-AUDIO] chip ikut berubah saat masuk/keluar audio saja
+        updateYtdlChip() // [YTDLP-CHIP-META]
+        updateResChip() // [RES-CHIP]
+        BackgroundPlaybackState.audioOnly = forcedAudioOnly || com.molina.core.stream.StreamQuality.current == com.molina.core.stream.VideoQuality.AUDIO // [AUDIO-TAG-NOTIF]
+        BackgroundPlaybackService.refreshRequested?.invoke()
+        if (!useAudioUI) {
+            if (showMediaTitle)
+                binding.fullTitleTextView.text = audioTag(psc.meta.formatTitle())
+            binding.fullTitleTextView.isSelected = true // [TITLE-MARQUEE]
+        } else {
+            binding.titleTextView.text = audioTag(psc.meta.formatTitle())
+            binding.minorTitleTextView.text = psc.meta.formatArtistAlbum()
+            binding.titleTextView.isSelected = true // [TITLE-MARQUEE] teks panjang berjalan, 1 baris
+            binding.minorTitleTextView.isSelected = true
+        }
+        // [TITLE-MARQUEE-RESTART] teks diam sebentar lalu bergulir; dipicu tiap judul berganti
+        listOf(binding.titleTextView, binding.minorTitleTextView, binding.fullTitleTextView)
+            .forEach { tv -> tv.post { tv.restartMarquee() } }
+    }
+
+    // [COVER-ART] Layar "Now Playing": sampul dimuat di thread IO, hanya untuk berkas lokal pada mode UI audio.
+    private var coverPath: String? = null
+    private var coverJob: Job? = null
+
+    // [SPECTRUM] Visualizer spektrum di layar Now Playing: PCM berkas lokal dianalisis MediaCodec (SpectrumDecoder),
+    // digambar SpectrumView menurut posisi putar mpv. Tidak menyentuh JNI/native mpv.
+    @Volatile private var spectrumPath: String? = null
+    @Volatile private var spectrumAnalyzer: SpectrumAnalyzer? = null // [SPECTRUM-JUMP]
+    private var spectrumReserve = false
+    @Volatile private var spectrumKickUntil = 0L
+
+    /** [SPECTRUM] Jaga spektrum tetap bergerak sesaat setelah seek, apa pun status pause/cache mpv. */
+    private fun kickSpectrum(ms: Long = 1200L) { spectrumKickUntil = SystemClock.uptimeMillis() + ms }
+
+    /** [SPECTRUM-JUMP] Event seek mpv: minta dekoder lompat (didebounce di analyzer) dan catat ke log mandiri (maks 1x/500 ms). */
+    @Volatile private var lastSeekLog = 0L
+    private fun logSpectrumSeek(eventId: Int) {
+        spectrumAnalyzer?.onSeek()
+        val now = SystemClock.uptimeMillis()
+        if (now - lastSeekLog < 500L) return
+        lastSeekLog = now
+        val t = binding.spectrumView.track ?: return
+        val name = if (eventId == MpvEvent.MPV_EVENT_SEEK) "SEEK" else "RESTART"
+        val pos = MPVLib.getPropertyDouble("time-pos/full")
+        val frame = if (pos == null) -1 else t.frameFor((pos * 1000).toLong())
+        MpvLog.d("spectrum", "event=$name pos=${pos ?: "null"}s frame=$frame terisi=${t.has(frame)} kepala=${t.firstGap()} akhir=${t.endFrame}")
+    }
+    private var lastCover: CoverArt.Cover? = null
+    @Volatile private var specPosMs = 0L
+    @Volatile private var specPosTick = 0L
+    private val specPosInFlight = java.util.concurrent.atomic.AtomicBoolean(false) // [ANR-FIX4]
+
+    /**
+     * Posisi putar dalam ms. [ANR-FIX4] Dipanggil SpectrumView tiap frame di main thread, jadi TIDAK boleh memanggil JNI sinkron:
+     * sampel dibaca tiap ~33 ms di thread khusus (maks. satu permintaan berjalan), di antaranya diekstrapolasi.
+     * Bila core mpv sibuk, spektrum tetap bergerak dari ekstrapolasi dan UI tidak ikut macet.
+     */
+    private fun spectrumPositionMs(): Long {
+        val now = SystemClock.uptimeMillis()
+        if (now - specPosTick >= 33 && specPosInFlight.compareAndSet(false, true)) {
+            streamScope.launch(mpvDispatcher) {
+                try {
+                    MPVLib.getPropertyDouble("time-pos/full")?.let { specPosMs = (it * 1000).toLong(); specPosTick = SystemClock.uptimeMillis() }
+                } catch (e: Exception) {
+                    // abaikan: ekstrapolasi tetap berjalan sampai sampel berikutnya
+                } finally {
+                    specPosInFlight.set(false)
+                }
+            }
+        }
+        val tick = specPosTick
+        if (tick == 0L) return specPosMs // belum ada sampel
+        val dt = if (psc.pause) 0L else (now - tick).coerceAtLeast(0L)
+        val p = specPosMs + (dt * psc.speed).toLong()
+        spectrumPlayhead = p // [SPECTRUM] dibaca dekoder (thread latar) untuk melompat ke posisi seek
+        return p
+    }
+
+    /** [ANR-FIX4] Seek saat drag/gestur: nilai terbaru menang, dijalankan berurutan di mpvDispatcher (tidak menumpuk, tidak memblokir main). */
+    private class SeekReq(val sec: Double, val exact: Boolean)
+    private val pendingSeek = java.util.concurrent.atomic.AtomicReference<SeekReq?>(null)
+    private fun seekCoalesced(sec: Double, exact: Boolean) {
+        if (pendingSeek.getAndSet(SeekReq(sec, exact)) != null) return // tugas sudah antre; ia mengambil nilai terbaru
+        streamScope.launch(mpvDispatcher) {
+            val r = pendingSeek.getAndSet(null) ?: return@launch
+            try {
+                if (r.exact) player.timePos = r.sec
+                else MPVLib.command(arrayOf("seek", r.sec.toString(), "absolute+keyframes"))
+            } catch (e: Exception) {
+                MpvLog.e(TAG, "[mpv-call] seek gagal: ${e.javaClass.simpleName}", e)
+            }
+        }
+    }
+
+    @Volatile private var spectrumPlayhead = 0L // playhead terakhir (ms) untuk SpectrumDecoder; nilai biasa, tanpa JNI di thread dekoder
+
+    private fun controlsReserved(): Int {
+        val d = resources.displayMetrics.density
+        val c = binding.controls
+        if (c.visibility != View.VISIBLE) return (24 * d).toInt() // [SPECTRUM] kontrol tersembunyi: spektrum turun ke bawah
+        val bottomMargin = (c.layoutParams as? MarginLayoutParams)?.bottomMargin ?: 0
+        return if (c.height > 0) c.height + bottomMargin else (180 * d).toInt()
+    }
+
+    /**
+     * [SPECTRUM] Ruang untuk bilah tool (shield/cari/kunci/PiP/pengaturan) yang menempel tepat di atas controls,
+     * supaya spektrum berada di atasnya dan tidak tertutup. Memakai tinggi terukur bila ada, jika belum 48dp.
+     */
+    private fun topBarReserve(): Int {
+        return 0 // [CTRL-LAYOUT] bar atas dihapus: Shield di baris status, setelan di baris tombol
+    }
+
+    private fun layoutSpectrum(reserved: Int) {
+        val lp = binding.spectrumView.layoutParams as? android.widget.FrameLayout.LayoutParams ?: return
+        val d = resources.displayMetrics.density
+        val two = twoColumnAudio() // [LAND-2COL] spektrum hanya selebar kolom kiri
+        // [LAND-FIX] total: bar atas (kunci/cari/PiP) juga dicadangkan di kolom kanan
+        val total = reserved + topBarReserve() + (if (two) (8 * d).toInt() else 0)
+        val left = if (two) artColumnWidth() + (8 * d).toInt() else 0
+        val edge = if (two) (24 * d).toInt() else 0
+        val w = ViewGroup.LayoutParams.MATCH_PARENT
+        // [LAND-SPEC-RIGHT] tinggi otomatis: 60% ruang kolom kanan (96..260dp)
+        val dm = resources.displayMetrics
+        val artH = binding.nowPlayingArt.height.takeIf { it > 0 } ?: dm.heightPixels
+        val avail = artH - total - (16 * d).toInt() // [LAND-FIX] avail
+        val minH = (96 * d).toInt()
+        val maxH = (260 * d).toInt()
+        val auto = (avail * 0.6f).toInt().coerceIn(minH, maxH)
+        val fit = auto.coerceAtMost(avail.coerceAtLeast((48 * d).toInt()))
+        val h = if (two) fit else (SPECTRUM_HEIGHT_DP * d).toInt()
+        val g = Gravity.BOTTOM
+        if (lp.bottomMargin == total && lp.width == w && lp.height == h &&
+            lp.gravity == g && lp.leftMargin == left && lp.rightMargin == edge) return
+        lp.bottomMargin = total
+        lp.leftMargin = left
+        lp.rightMargin = edge
+        lp.width = w
+        lp.height = h
+        lp.gravity = g
+        binding.spectrumView.layoutParams = lp
+    }
+
+    private fun setSpectrumReserve(on: Boolean) {
+        if (spectrumReserve == on) return
+        spectrumReserve = on
+        showNowPlayingArt(if (useAudioUI) lastCover else null)
+    }
+
+    private fun stopSpectrum() {
+        stopLiveSpectrum() // [SPECTRUM-LIVE]
+        spectrumAnalyzer?.cancel() // [SPECTRUM-JUMP]
+        spectrumAnalyzer = null
+        spectrumPath = null
+        binding.spectrumView.track = null
+        binding.spectrumView.visibility = View.GONE
+        setSpectrumReserve(false)
+    }
+
+    private var spectrumLive: SpectrumLive? = null // [SPECTRUM-LIVE]
+
+    private fun stopLiveSpectrum() { // [SPECTRUM-LIVE]
+        spectrumLive?.cancel()
+        spectrumLive = null
+        hideStationMarquee() // [STATION-LOGO]
+    }
+
+    private var marqueeUrl: String? = null
+
+    /** [TITLE-BANNER] Marquee dimulai ulang hanya bila teks berubah, supaya gulir tidak ter-reset tiap pembaruan. */
+    private fun setStationName(name: String) {
+        val tv = binding.stationName
+        if (tv.text.toString() == name) return
+        tv.text = name
+        tv.post { tv.restartMarquee() }
+    }
+
+    /**
+     * [TITLE-BANNER] Judul tampil di satu tempat saja. Saat banner stasiun tampil (UI audio), judul berjalan di bawah
+     * banner dan panel kontrol hanya memuat baris merek + jam; tanpa banner (berkas lokal) judul tetap di panel kontrol.
+     */
+    private fun applyTitlePlacement() {
+        if (!useAudioUI) return
+        val inBanner = marqueeUrl != null && binding.stationMarquee.visibility == View.VISIBLE
+        val want = if (inBanner) View.GONE else View.VISIBLE
+        if (binding.controlsTitleGroup.visibility == want) return
+        binding.controlsTitleGroup.visibility = want
+        if (!inBanner) listOf(binding.titleTextView, binding.minorTitleTextView).forEach { tv -> tv.post { tv.restartMarquee() } }
+    }
+
+    private fun stationName(url: String): String =
+        (streamTitles[url] ?: try { MPVLib.getPropertyString("media-title") } catch (e: Exception) { null }).orEmpty()
+
+    private var marqueePulse: android.animation.ObjectAnimator? = null // [MARQUEE-PULSE]
+    private var brandHue: android.animation.ValueAnimator? = null // [BRAND-TEXT] warna RGB berputar (posisi statis)
+    private var brandPulse: android.animation.ObjectAnimator? = null // [BRAND-TEXT] denyut alpha
+
+    /** Label NOW PLAYING berdenyut halus (alpha 0,6 ke 1) hanya saat marquee tampil, audio memutar, dan di latar depan. */
+    private fun updateMarqueePulse(paused: Boolean? = null) {
+        val tv = binding.stationNowPlaying
+        // [PERF-LITE-FX] tier Hemat: tanpa animasi tak berujung (denyut alpha + warna RGB berputar); tampil statis emas
+        val on = marqueeUrl != null && !(paused ?: psc.pause) && activityIsForeground &&
+            PerfTierPolicy.current(this) != PerfTier.LOW
+        if (on) {
+            if (marqueePulse == null) {
+                marqueePulse = android.animation.ObjectAnimator.ofFloat(tv, View.ALPHA, 0.6f, 1f).apply {
+                    duration = 1400
+                    repeatMode = android.animation.ValueAnimator.REVERSE
+                    repeatCount = android.animation.ValueAnimator.INFINITE
+                    interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+                    start()
+                }
+            }
+            // [BRAND-TEXT] wordmark MOLINA: teks saja, warna RGB berputar halus + denyut alpha; posisi tidak bergerak
+            val brand = binding.stationInitials
+            if (brandHue == null) {
+                brandHue = android.animation.ValueAnimator.ofFloat(0f, 360f).apply {
+                    duration = 6000
+                    repeatCount = android.animation.ValueAnimator.INFINITE
+                    interpolator = android.view.animation.LinearInterpolator()
+                    addUpdateListener { brand.setTextColor(android.graphics.Color.HSVToColor(floatArrayOf(it.animatedValue as Float, 0.85f, 1f))) }
+                    start()
+                }
+            }
+            if (brandPulse == null) {
+                brandPulse = android.animation.ObjectAnimator.ofFloat(brand, View.ALPHA, 0.65f, 1f).apply {
+                    duration = 1100
+                    repeatMode = android.animation.ValueAnimator.REVERSE
+                    repeatCount = android.animation.ValueAnimator.INFINITE
+                    interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+                    start()
+                }
+            }
+        } else {
+            marqueePulse?.cancel()
+            marqueePulse = null
+            tv.alpha = 1f
+            brandHue?.cancel(); brandHue = null // [BRAND-TEXT]
+            brandPulse?.cancel(); brandPulse = null
+            binding.stationInitials.alpha = 1f
+            binding.stationInitials.setTextColor(ContextCompat.getColor(this, R.color.cinema_gold))
+        }
+    }
+
+    private fun hideStationMarquee() { // [STATION-LOGO]
+        marqueeUrl = null
+        updateMarqueePulse() // [MARQUEE-PULSE]
+        binding.stationMarquee.visibility = View.GONE
+        applyTitlePlacement() // [TITLE-BANNER]
+    }
+
+    private fun layoutMarquee() { // [STATION-LOGO] padding sama dengan kartu sampul agar tidak tertimpa spektrum/kontrol
+        val d = resources.displayMetrics.density
+        val pad = artPadding(controlsReserved()) // [LAND-2COL]
+        binding.stationMarquee.setPadding(pad[0], pad[1], pad[2], pad[3])
+        // [BANNER-FIT] banner 16:9, tinggi menyesuaikan ruang tersisa agar tidak tertutup kontrol/spektrum (landscape)
+        val artH = binding.nowPlayingArt.height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
+        val artW = if (twoColumnAudio()) resources.displayMetrics.widthPixels else // [LAND-2COL] lebar terbaru (view bisa belum ter-layout ulang)
+            binding.nowPlayingArt.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
+        val availDp = (artH - binding.stationMarquee.paddingTop - binding.stationMarquee.paddingBottom) / d
+        val frameH0 = (availDp - 84f).coerceIn(48f, 126f) // [TITLE-BANNER] 84dp = label + jarak + nama satu baris 14sp
+        val frameH = frameH0.coerceAtMost(64f) // [CTRL-LAYOUT] NOW PLAYING dan MOLINA dirapatkan; lebar dan font tetap
+        val frameW = (frameH0 * 16f / 9f).coerceAtMost((artW - pad[0] - pad[2]) / d)
+        val lp = binding.stationFrame.layoutParams
+        val nw = (frameW * d).toInt()
+        val nh = (frameH * d).toInt()
+        if (lp.width != nw || lp.height != nh) {
+            lp.width = nw
+            lp.height = nh
+            binding.stationFrame.layoutParams = lp
+        }
+        // [TITLE-BANNER] nama berjalan selebar bingkai (min 200dp, maks lebar tersedia)
+        val nameW = maxOf(nw, (200 * d).toInt()).coerceAtMost((artW - pad[0] - pad[2]).coerceAtLeast(1))
+        val nlp = binding.stationName.layoutParams
+        if (nlp.width != nameW) { nlp.width = nameW; binding.stationName.layoutParams = nlp }
+        binding.stationInitials.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, (frameH0 * 0.26f).coerceIn(13f, 28f))
+    }
+
+    private fun showStationMarquee(url: String) { // [STATION-LOGO]
+        val name = stationName(url)
+        marqueeUrl = url
+        setStationName(name) // [TITLE-BANNER]
+        binding.stationInitials.text = getString(R.string.brand_wordmark) // [MOLINA-BRAND] identitas Molina, tanpa logo eksternal
+        binding.stationMarquee.visibility = View.VISIBLE
+        layoutMarquee()
+        applyTitlePlacement() // [TITLE-BANNER]
+        updateMarqueePulse() // [MARQUEE-PULSE]
+    }
+
+    private fun updateAnySpectrum(path: String?) { // [SPECTRUM-LIVE]
+        if (!updateLiveSpectrum(path)) updateSpectrum(path)
+    }
+
+    /** [SPECTRUM-LIVE] true bila stream http(s) ditangani visualizer live (jangan lanjut ke updateSpectrum). */
+    private fun updateLiveSpectrum(path: String?): Boolean {
+        if (path != null || !useAudioUI || !SpectrumPrefs.enabled(this)) { stopLiveSpectrum(); return false }
+        val url = try { MPVLib.getPropertyString("path") } catch (e: Exception) { null }
+        if (url == null || !(url.startsWith("http://") || url.startsWith("https://"))) { stopLiveSpectrum(); return false }
+        if (spectrumLive != null && spectrumPath == url) { setStationName(stationName(url)); return true } // [STATION-LOGO]
+        stopSpectrum()
+        spectrumPath = url
+        setSpectrumReserve(true)
+        val view = binding.spectrumView
+        view.accent = ContextCompat.getColor(this, R.color.player_playlist_active)
+        view.colorMode = SpectrumPrefs.colorMode(this)
+        view.frameIntervalMs = SpectrumPrefs.frameIntervalMs(this) // [SPECTRUM-FPS]
+        view.isPlaying = { !psc.pause && activityIsForeground }
+        view.dimWhen = { false }
+        val live = SpectrumLive(
+            active = { !psc.pause && activityIsForeground },
+            onTrack = { t -> view.post { if (spectrumPath == url) { view.track = t; view.visibility = View.VISIBLE } } },
+            onUnsupported = { view.post { if (spectrumPath == url && view.track == null) stopSpectrum() } },
+        )
+        view.positionMs = live::positionMs
+        spectrumLive = live
+        live.start()
+        showStationMarquee(url) // [STATION-LOGO]
+        return true
+    }
+
+    private fun updateSpectrum(path: String?) {
+        if (path == null || !SpectrumPrefs.enabled(this)) { stopSpectrum(); return }
+        if (path == spectrumPath) return
+        stopSpectrum()
+        spectrumPath = path
+        setSpectrumReserve(true)
+        val view = binding.spectrumView
+        view.accent = ContextCompat.getColor(this, R.color.player_playlist_active)
+        view.colorMode = SpectrumPrefs.colorMode(this)
+        view.frameIntervalMs = SpectrumPrefs.frameIntervalMs(this) // [SPECTRUM-FPS]
+        view.positionMs = ::spectrumPositionMs
+        view.isPlaying = { (!psc.pause || userIsOperatingSeekbar || pausedForSeek != 0 || SystemClock.uptimeMillis() < spectrumKickUntil) && activityIsForeground }
+        view.dimWhen = { false } // zona spektrum sudah dipisahkan dari konten lain, tidak perlu diredupkan
+        spectrumAnalyzer = SpectrumAnalyzer( // [SPECTRUM-JUMP] kepala berurutan + dekoder lompat setelah seek
+            path = path,
+            positionMs = { MPVLib.getPropertyDouble("time-pos/full")?.let { (it * 1000).toLong() } ?: -1L },
+            onTrack = { t -> view.post { if (spectrumPath == path) { view.track = t; view.visibility = View.VISIBLE } } },
+            onUnsupported = { view.post { if (spectrumPath == path && view.track == null) stopSpectrum() } }, // format tidak didukung dekoder perangkat
+        ).also { it.start() }
+    }
+
+    private fun toggleSpectrumColors() { // [SPECTRUM] putar mode: aksen tunggal -> per frekuensi -> Cinema
+        val mode = SpectrumPrefs.colorMode(this).next()
+        SpectrumPrefs.setColorMode(this, mode)
+        binding.spectrumView.colorMode = mode
+        showToast(getString(when (mode) {
+            SpectrumColorMode.ACCENT -> R.string.spectrum_colors_accent
+            SpectrumColorMode.FREQUENCY -> R.string.spectrum_colors_freq
+            SpectrumColorMode.CINEMA -> R.string.spectrum_colors_cinema
+        }), true)
+    }
+
+    private fun toggleSpectrum() {
+        val on = !SpectrumPrefs.enabled(this)
+        SpectrumPrefs.set(this, on)
+        updateAnySpectrum(if (useAudioUI) localVideoPath() else null) // [SPECTRUM-LIVE]
+        showToast(getString(if (on) R.string.spectrum_on else R.string.spectrum_off), true)
+    }
+
+    private fun updateNowPlayingArt() {
+        val path = if (useAudioUI) localVideoPath() else null
+        updateAnySpectrum(path) // [SPECTRUM] [SPECTRUM-LIVE]
+        if (path == null) {
+            coverJob?.cancel()
+            coverPath = null
+            showNowPlayingArt(null)
+            return
+        }
+        if (path == coverPath) return
+        coverPath = path
+        coverJob?.cancel()
+        coverJob = streamScope.launch {
+            val cover = withContext(Dispatchers.IO) { CoverArt.load(path) }
+            if (coverPath != path || !useAudioUI) return@launch
+            showNowPlayingArt(cover)
+            if (cover != null) {
+                // Sampul yang sama untuk notifikasi & sesi media (menggantikan bingkai yang di-grab mpv).
+                BackgroundPlaybackService.thumbnail = cover.thumb
+                updateMediaSession()
+            }
+        }
+    }
+
+    private fun showNowPlayingArt(cover: CoverArt.Cover?) {
+        lastCover = cover // [SPECTRUM]
+        if (cover == null) {
+            // [SPECTRUM] tanpa sampul tetap tampil (latar gelap) bila visualizer aktif
+            binding.nowPlayingArt.visibility = if (spectrumReserve) View.VISIBLE else View.GONE
+            binding.nowPlayingCover.setImageDrawable(null)
+            binding.nowPlayingBackdrop.setImageDrawable(null)
+            layoutSpectrum(controlsReserved())
+            layoutMarquee() // [STATION-LOGO]
+            return
+        }
+        // Sisakan ruang untuk bilah kontrol agar kartu sampul tidak tertimpa.
+        val reserved = controlsReserved() // [SPECTRUM] ikut status tampil/sembunyi kontrol
+        val pad = artPadding(reserved) // [LAND-2COL]
+        binding.nowPlayingCover.setPadding(pad[0], pad[1], pad[2], pad[3])
+        layoutSpectrum(reserved)
+        binding.nowPlayingCover.setImageBitmap(cover.art)
+        binding.nowPlayingBackdrop.setImageBitmap(cover.backdrop)
+        binding.nowPlayingArt.visibility = View.VISIBLE
+    }
+
+    private fun updatePlaybackPos(position: Int) {
+        binding.playbackPositionTxt.text = Utils.prettyTime(position)
+        if (useTimeRemaining) {
+            val diff = psc.durationSec - position
+            binding.playbackDurationTxt.text = if (diff <= 0)
+                "-00:00"
+            else
+                Utils.prettyTime(-diff, true)
+        }
+        if (!userIsOperatingSeekbar)
+            binding.playbackSeekbar.progress = position * SEEK_BAR_PRECISION
+
+        // Note: do NOT add other update functions here just because this is called every second.
+        // Use property observation instead.
+        updateStats()
+    }
+
+    private fun updatePlaybackDuration(duration: Int) {
+        if (!useTimeRemaining)
+            binding.playbackDurationTxt.text = Utils.prettyTime(duration)
+        if (!userIsOperatingSeekbar)
+            binding.playbackSeekbar.max = duration * SEEK_BAR_PRECISION
+        refreshSeekMarks()
+    }
+
+    /** Titik emas penanda di bilah seek; kosong untuk stream tanpa kunci penanda. */
+    private fun refreshSeekMarks() {
+        val key = try { bookmarkKey() } catch (e: Exception) { null }
+        seekMarks = if (key == null) emptyList() else VideoBookmarks.list(this, key)
+        binding.playbackSeekbar.setMarks(seekMarks.map { it.sec }, SEEK_BAR_PRECISION)
+    }
+
+    private var seekMarks: List<Mark> = emptyList()
+    private var markLabelShown = false
+    private val hideMarkLabel = Runnable {
+        if (markLabelShown) {
+            markLabelShown = false
+            binding.gestureTextView.visibility = View.GONE
+        }
+    }
+
+    private fun nearestMark(sec: Double, within: Double): Mark? =
+        seekMarks.minByOrNull { Math.abs(it.sec - sec) }?.takeIf { Math.abs(it.sec - sec) <= within }
+
+    private fun markLabel(sec: Double, m: Mark?): String {
+        val t = Utils.prettyTime(sec.roundToInt())
+        if (m == null) return t
+        return if (m.name.isBlank()) "\u25CF  $t" else "\u25CF  $t  \u00B7  ${m.name}"
+    }
+
+    /** Saat bilah seek diseret melewati penanda bernama (+-2 detik): tampilkan "mm:ss . nama" di label gestur. */
+    private fun showMarkLabelWhileSeeking(sec: Double) {
+        val m = nearestMark(sec, 2.0)
+        if (m == null) {
+            hideMarkLabel.run()
+            return
+        }
+        val tv = binding.gestureTextView
+        markLabelShown = true
+        tv.visibility = View.VISIBLE
+        tv.text = markLabel(sec, m)
+    }
+
+    /** Ketuk titik penanda di bilah seek: lompat tepat ke posisinya dan tampilkan labelnya sebentar. */
+    private fun jumpToMark(sec: Double) {
+        player.timePos = sec
+        val tv = binding.gestureTextView
+        markLabelShown = true
+        tv.visibility = View.VISIBLE
+        tv.text = markLabel(sec, nearestMark(sec, 0.5))
+        tv.removeCallbacks(hideMarkLabel)
+        tv.postDelayed(hideMarkLabel, 1500)
+    }
+
+    private val thumbnailer = SeekThumbnailer()
+
+    /** Path berkas lokal yang sedang diputar, atau null (stream / fd:// tidak mendukung pratinjau gambar). */
+    private fun localVideoPath(): String? {
+        val p = try { MPVLib.getPropertyString("path") } catch (e: Exception) { null } ?: return null
+        val f = if (p.startsWith("file://")) p.removePrefix("file://") else p
+        return if (f.startsWith("/") && java.io.File(f).isFile) f else null
+    }
+
+    private var probedUrl: String? = null // [SPECTRUM-LIVE-PROBE]
+
+    /** Diagnosis sementara: apakah af lavfi/astats + af-metadata tersedia untuk stream live. Hanya log, tanpa efek UI. */
+    private fun probeLiveSpectrum() { // [SPECTRUM-LIVE-PROBE]
+        val url = try { MPVLib.getPropertyString("path") } catch (e: Exception) { null } ?: return
+        if (url == probedUrl || !url.startsWith("http")) return
+        probedUrl = url
+        streamScope.launch {
+            val tag = "SpectrumProbe"
+            try {
+                MPVLib.command(arrayOf("af", "add", "@mprobe:lavfi=[astats=metadata=1:reset=1]"))
+                MpvLog.i(tag, "af add dikirim untuk $url")
+                kotlinx.coroutines.delay(3000)
+                val af = MPVLib.getPropertyString("af")
+                val rms = MPVLib.getPropertyString("af-metadata/mprobe/lavfi.astats.Overall.RMS_level")
+                MpvLog.i(tag, "af=$af | RMS_level=$rms")
+            } catch (e: Exception) {
+                MpvLog.e(tag, "probe gagal", e)
+            } finally {
+                try { MPVLib.command(arrayOf("af", "remove", "@mprobe")) } catch (_: Exception) {}
+            }
+        }
+    }
+
+    /** Kartu pratinjau di atas bilah kontrol saat bilah seek diseret: bingkai (berkas lokal) + waktu/penanda. */
+    private fun updateSeekPreview(sec: Double) {
+        val box = binding.seekPreview
+        val img = binding.seekPreviewImage
+        binding.seekPreviewText.text = markLabel(sec, nearestMark(sec, 2.0))
+        val hasThumb = thumbnailer.available
+        img.visibility = if (hasThumb) View.VISIBLE else View.GONE
+        if (box.visibility != View.VISIBLE) box.visibility = View.VISIBLE
+        positionSeekPreview(box)
+        if (hasThumb) thumbnailer.request(sec) { bmp ->
+            if (bmp != null && box.visibility == View.VISIBLE) img.setImageBitmap(bmp)
+        }
+    }
+
+    /** Pusatkan kartu pada posisi jempol bilah seek, dibatasi dalam lebar layar. */
+    private fun positionSeekPreview(box: View) {
+        val bar = binding.playbackSeekbar
+        val outside = binding.outside
+        val total = bar.max
+        if (total <= 0) return
+        val a = IntArray(2)
+        val b = IntArray(2)
+        bar.getLocationInWindow(a)
+        outside.getLocationInWindow(b)
+        val span = bar.width - bar.paddingLeft - bar.paddingRight
+        val x = a[0] - b[0] + bar.paddingLeft + span * bar.progress.toFloat() / total
+        val w = if (box.width > 0) box.width else (164 * resources.displayMetrics.density).toInt()
+        val maxX = (outside.width - w).coerceAtLeast(0).toFloat()
+        box.translationX = (x - w / 2f).coerceIn(0f, maxX)
+    }
+
+    private fun hideSeekPreview() {
+        thumbnailer.cancel()
+        binding.seekPreview.visibility = View.GONE
+    }
+
+    private fun updatePlaybackStatus(paused: Boolean) {
+        updateMarqueePulse(paused) // [MARQUEE-PULSE]
+        val r = if (paused) R.drawable.ic_play_arrow_black_24dp else R.drawable.ic_pause_black_24dp
+        binding.playBtn.setImageResource(r)
+
+        updatePiPParams()
+        if (paused) {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
+    // [PERF-CHIP] Chip mode Hemat: teks "Hemat" + tinggi video aktual; ketuk untuk pindah ke Maksimal.
+    private fun updatePerfChip() {
+        // [PERF-CHIP2] Sinkronkan visibilitas tiap pembaruan, bukan hanya saat onCreate
+        val low = PerfTierPolicy.current(this) == PerfTier.LOW
+        // [AUDIO-CHIP] audio saja (Pengaturan/chip): chip tampil di semua tier sebagai jalan keluar; non-LOW tanpa ikon daun
+        val show = low || forcedAudioOnly
+        binding.perfChip.visibility = if (show) View.VISIBLE else View.GONE
+        if (!show) return
+        if (perfLeaf == null) perfLeaf = binding.perfChip.compoundDrawablesRelative[0]
+        binding.perfChip.setCompoundDrawablesRelative(if (low) perfLeaf else null, null, null, null)
+        binding.perfChip.contentDescription = if (low) "Mode Hemat aktif" else "Audio saja aktif"
+        // [PERF-AUDIO] tiga keadaan: "♪" = audio saja, "NNNp" = tinggi video aktual, kosong + redup = belum diketahui
+        val audio = forcedAudioOnly || useAudioUI
+        perfChipJob?.cancel() // pembaruan lama tidak boleh menimpa yang baru (hindari tampilan tidak sinkron)
+        perfChipJob = streamScope.launch {
+            val h = if (audio) 0 else withContext(mpvDispatcher) { actualHeight() }
+            binding.perfChip.text = when { audio -> "\u266A"; else -> "" } // [PERF-LEAF] [RES-ALWAYS] tinggi video kini hanya di resChip
+            binding.perfChip.alpha = if (audio || h > 0) 1f else 0.5f
+            val accent = ContextCompat.getColor(this@MPVActivity, if (audio) R.color.molina_audio else R.color.molina_brand) // [PERF-OUTLINE]
+            binding.perfChip.setTextColor(accent)
+            binding.perfChip.background = perfChipBackground(accent)
+        }
+    }
+    // [PERF-OUTLINE] Latar chip dengan outline tipis sewarna status (hijau = Hemat, aksen audio = audio saja).
+    private fun perfChipBackground(accent: Int, strokeDp: Int = 1): android.graphics.drawable.Drawable { // [RES-HDR-RING]
+        val d = resources.displayMetrics.density
+        fun box(fill: Int, strokePx: Int, stroke: Int) = android.graphics.drawable.GradientDrawable().apply {
+            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+            cornerRadius = 6f * d
+            setColor(fill)
+            setStroke(strokePx, stroke)
+        }
+        val softAccent = (accent and 0x00FFFFFF) or (0xB3 shl 24)
+        return android.graphics.drawable.StateListDrawable().apply {
+            addState(intArrayOf(android.R.attr.state_pressed), box(0xFF2ECC71.toInt(), 0, 0))
+            addState(intArrayOf(android.R.attr.state_focused), box(0xFF2A2A2A.toInt(), (2 * d).toInt(), accent))
+            addState(intArrayOf(), box(0xFF161616.toInt(), maxOf(1, (strokeDp * d).toInt()), softAccent))
+        }
+    }
+    // [YTDLP-CHIP] Chip "Auto-turun ke 720p": hanya untuk item yang resolve yt-dlp-nya menurunkan format; item lain menyembunyikannya.
+    private var ytdlChipJob: Job? = null
+    private fun updateYtdlChip() {
+        ytdlChipJob?.cancel()
+        ytdlChipJob = streamScope.launch {
+            val (note, h) = withContext(mpvDispatcher) {
+                com.molina.core.stream.StreamQuality.ytdlNoteFor(MPVLib.getPropertyString("path")) to actualHeight()
+            }
+            val chip = binding.ytdlChip
+            if (note == null) { chip.visibility = View.GONE; return@launch }
+            val shown = if (h > 0) h else note.capHeight // tinggi aktual dari mpv bila sudah diketahui, jika belum batas percobaan
+            chip.text = when (note.kind) {
+                com.molina.core.stream.YtdlDowngrade.LADDER ->
+                    if (shown > 0) getString(R.string.stream_chip_lowered, shown) else getString(R.string.stream_chip_lowered_plain)
+                com.molina.core.stream.YtdlDowngrade.RELAXED -> getString(R.string.stream_chip_relaxed)
+                com.molina.core.stream.YtdlDowngrade.AUDIO -> getString(R.string.stream_chip_audio)
+            }
+            chip.contentDescription = chip.text
+            chip.setTextColor(android.graphics.Color.WHITE)
+            chip.background = perfChipBackground(ContextCompat.getColor(this@MPVActivity, R.color.cinema_maroon))
+            chip.visibility = View.VISIBLE
+        }
+    }
+
+    // [RES-CHIP] Indikator resolusi video realtime di bilah atas (1080p/4K) dari video-params/w+h; ikut berubah saat rendisi
+    // adaptif (HLS/DASH) berpindah. Disembunyikan untuk audio saja, tanpa video, [RES-ALWAYS] tampil juga di mode Hemat (perfChip hanya ikon daun).
+    private var resChipJob: Job? = null
+    private var resChipW = 0
+    private var resChipH = 0
+    private var resChipTier = -1 // [RES-SHINE] tier terakhir yang tampil; -1 = chip belum tampil
+    private val CAP_AMBER = 0xFFFFB300.toInt() // [NET-CAP] aksen amber: resolusi dibatasi demi kuota
+    private val ABR_ICE = 0xFF7FD4FF.toInt() // [ABR-CHIP] aksen biru-es: diturunkan otomatis karena jaringan lambat
+    private var resChipDetail = "" // [RES-TIER] teks ketuk: "1080p60 \u00B7 HEVC \u00B7 1920\u00D71080"
+    private fun updateResChip() {
+        resChipJob?.cancel()
+        val chip = binding.resChip
+        if (forcedAudioOnly || useAudioUI) { chip.visibility = View.GONE; resChipTier = -1; return } // [RES-SHINE] [RES-ALWAYS] tetap tampil di mode Hemat
+        resChipJob = streamScope.launch {
+            val (w, h) = withContext(mpvDispatcher) {
+                (MPVLib.getPropertyInt("video-params/w") ?: 0) to (MPVLib.getPropertyInt("video-params/h") ?: 0)
+            }
+            val label = ResLabel.of(w, h)
+            if (label.isEmpty()) { chip.visibility = View.GONE; resChipTier = -1; return@launch } // [RES-SHINE]
+            // [RES-TIER] fps + codec hanya dibaca setelah ukuran valid
+            val (fps, codec, hdr) = withContext(mpvDispatcher) { // [RES-HDR] gamma/colormatrix dibaca bersama fps dan codec
+                Triple(
+                    MPVLib.getPropertyDouble("container-fps") ?: MPVLib.getPropertyDouble("estimated-vf-fps") ?: 0.0,
+                    MPVLib.getPropertyString("video-format"),
+                    ResLabel.hdrName(MPVLib.getPropertyString("video-params/gamma"), MPVLib.getPropertyString("video-params/colormatrix")),
+                )
+            }
+            resChipW = w
+            resChipH = h
+            resChipDetail = ResLabel.detail(w, h, fps, codec, hdr) + (if (abrDownshifted) " \u00B7 diturunkan otomatis (jaringan lambat)" else if (mobileCapApplied) " \u00B7 dibatasi 720p (data seluler)" else "") // [NET-CAP] [ABR-CHIP]
+            chip.text = when { // [NET-CAP] [ABR-CHIP] ABR (macet nyata) mengalahkan cap kuota sebagai alasan yang ditampilkan
+                abrDownshifted -> "$label \u25BC"
+                mobileCapApplied -> "$label \u00B7 DATA"
+                else -> label
+            }
+            chip.contentDescription = getString(R.string.res_chip_hint, w, h)
+            val accent = if (abrDownshifted) ABR_ICE else if (mobileCapApplied) CAP_AMBER else when (ResLabel.tier(w, h)) { // [ABR-CHIP] // [NET-CAP] // [RES-TIER] 4K+ emas, 1080p/1440p putih, 720p ke bawah abu-abu
+                2 -> ContextCompat.getColor(this@MPVActivity, R.color.cinema_gold)
+                1 -> android.graphics.Color.WHITE
+                else -> 0xFFB0B0B0.toInt()
+            }
+            chip.setTextColor(accent)
+            chip.background = perfChipBackground(accent, if (ResLabel.tier(w, h) == 2 && hdr.isNotEmpty()) 2 else 1) // [RES-HDR-RING] 4K+ HDR: outline emas 2dp
+            chip.visibility = View.VISIBLE
+            // [RES-SHINE] kilau halus (alpha 0,8 ke 1,0) hanya saat naik ke tier emas dari tier lebih rendah; bukan saat awal putar
+            val tier = ResLabel.tier(w, h)
+            chip.animate().cancel()
+            chip.alpha = 1f
+            if (tier == 2 && resChipTier in 0..1) {
+                chip.alpha = 0.8f
+                chip.animate().alpha(1f).setDuration(RES_SHINE_DURATION).start()
+            }
+            resChipTier = tier
+        }
+    }
+
+    private var perfChipJob: Job? = null // [PERF-AUDIO]
+    private var perfLeaf: android.graphics.drawable.Drawable? = null // [AUDIO-CHIP] ikon daun asli dari layout
+
+    // [AUDIO-CHIP] Tier non-LOW: chip ♪ hanya ada saat audio saja aktif; dialog ini jalan keluar di pemutar, tanpa kata "Hemat".
+    private fun showAudioOnlyDialog() {
+        if (!forcedAudioOnly) return
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.audio_only_on))
+            .setMessage("Video diputar suaranya saja, tanpa gambar.\n\n" +
+                "Saat pemutar dibuka lagi, video kembali tanpa gambar kecuali \"Audio saja untuk video\" " +
+                "dimatikan di Pengaturan > Pemutar > Pemutaran.")
+            .setPositiveButton(getString(R.string.audio_only_off)) { _, _ ->
+                if (forcedAudioOnly) toggleAudioOnly() // keadaan bisa berubah selama dialog terbuka
+            }
+            .setNegativeButton("Tutup", null)
+            .show()
+    }
+
+    private fun showPerfDialog() { // [PERF-CHIP] [PERF-AUDIO]
+        if (PerfTierPolicy.current(this) != PerfTier.LOW) { showAudioOnlyDialog(); return } // [AUDIO-CHIP]
+        // Item aktif dicek di thread khusus (bukan JNI sinkron di main thread), lalu dialog dibuat.
+        streamScope.launch {
+            val canAudio = withContext(mpvDispatcher) {
+                val page = MPVLib.getPropertyString("path")?.let { streamSources[it] }
+                page != null && StreamLoader.isWebUrl(page)
+            }
+            if (isFinishing || isDestroyed) return@launch
+            val audioNow = forcedAudioOnly || useAudioUI
+            val extra = when {
+                audioNow -> "\n\nMode hanya audio sedang aktif."
+                canAudio -> "\n\nHanya audio: video tidak diunduh (lebih hemat kuota dan baterai). " +
+                    "Berlaku juga untuk video berikutnya sampai dimatikan (ketuk \u266A lagi)."
+                else -> ""
+            }
+            val b = AlertDialog.Builder(this@MPVActivity)
+                .setTitle("Mode Hemat aktif")
+                .setMessage(PerfTierPolicy.reasonText(this@MPVActivity) + "\n\n" + // [T24] alasan: otomatis (RAM) atau pilihan manual
+                    "Agar lancar di perangkat ini: cache kecil dan efek visual dimatikan.\n\n" + // [PERF-480] [PERF-SCOPE]
+                    "YouTube dibatasi ${PerfTierPolicy.LOW_HEIGHT_CAP}p saat kualitas Otomatis. " +
+                    "Tautan langsung, saluran M3U/IPTV, dan file lokal tetap memakai kualitas aslinya.\n\n" +
+                    "Pindah ke Maksimal? Berlaku mulai video berikutnya." + extra)
+                .setPositiveButton("Maksimal") { _, _ ->
+                    PerfTierPolicy.setMode(this@MPVActivity, "high")
+                    updatePerfChip() // [AUDIO-CHIP] bukan lagi LOW: chip hilang kecuali audio saja masih aktif
+                    Toast.makeText(this@MPVActivity, "Mode Maksimal berlaku mulai video berikutnya", Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton("Pengaturan") { _, _ -> openMainTab("player") } // [T24] Tetap Hemat = tutup dialog (ketuk di luar atau Kembali)
+            if (canAudio && !audioNow) {
+                b.setNeutralButton(getString(R.string.audio_only_on)) { _, _ ->
+                    // keadaan bisa berubah selama dialog terbuka: jangan sampai ♪ malah mematikan audio saja
+                    if (!(forcedAudioOnly || useAudioUI)) toggleAudioOnly()
+                }
+            } else if (forcedAudioOnly) { // [AUDIO-EXIT] jalan keluar nyata, juga saat mode audio saja datang dari Pengaturan
+                b.setNeutralButton(getString(R.string.audio_only_off)) { _, _ ->
+                    if (forcedAudioOnly) toggleAudioOnly() // keadaan bisa berubah selama dialog terbuka
+                }
+            }
+            b.show()
+        }
+    }
+
+    private fun updateDecoderButton() { // [ANR-FIX2]
+        updatePerfChip() // [PERF-CHIP]
+        streamScope.launch {
+            val active = withContext(mpvDispatcher) { player.hwdecActive }
+            binding.cycleDecoderBtn.text = when (active) {
+                "mediacodec" -> "HW+"
+                "no" -> "SW"
+                else -> "HW"
+            }
+        }
+    }
+
+    private fun updateSpeedButton() {
+        binding.cycleSpeedBtn.text = getString(R.string.ui_speed, psc.speed)
+    }
+
+    private fun updatePlaylistButtons() {
+        val plCount = psc.playlistCount
+
+        if (!useAudioUI && plCount == 1) {
+            // use View.GONE so the buttons won't take up any space
+            binding.prevBtn.visibility = View.GONE
+            binding.nextBtn.visibility = View.GONE
+            return
+        }
+        binding.prevBtn.visibility = View.VISIBLE
+        binding.nextBtn.visibility = View.VISIBLE
+
+        val g = ContextCompat.getColor(this, R.color.tint_disabled)
+        val w = ContextCompat.getColor(this, R.color.tint_normal)
+        // [PLAYLIST-WRAP] next/prev berputar, jadi aktif selama ada lebih dari satu trek
+        val navTint = ColorStateList.valueOf(if (plCount > 1) w else g)
+        binding.prevBtn.imageTintList = navTint
+        binding.nextBtn.imageTintList = navTint
+    }
+
+    private fun updateOrientation(initial: Boolean = false) {
+        // screen orientation is fixed (Android TV)
+        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_SCREEN_PORTRAIT))
+            return
+
+        if (autoRotationMode != "auto") {
+            if (!initial)
+                return // don't reset at runtime
+            requestedOrientation = when (autoRotationMode) {
+                "landscape" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                "portrait" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            }
+        }
+        if (initial)
+            return
+
+        // [ANR-FIX5] rasio dari cache event (tanpa JNI; dipanggil tiap onResume/perubahan video).
+        // Belum ada info video atau tanpa trek video: orientasi tidak diubah.
+        val ratio = cachedVideoAspect()?.toFloat() ?: return
+        if (ratio == 0f || ratio in (1f / ASPECT_RATIO_MIN) .. ASPECT_RATIO_MIN) {
+            // video is square, let Android do what it wants
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            return
+        }
+        requestedOrientation = if (ratio > 1f)
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        else
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+    }
+
+    @RequiresApi(26)
+    private fun makeRemoteAction(@DrawableRes icon: Int, @StringRes title: Int, intentAction: String): RemoteAction {
+        val intent = NotificationButtonReceiver.createIntent(this, intentAction)
+        return RemoteAction(Icon.createWithResource(this, icon), getString(title), getString(title), intent)
+    }
+
+    /**
+     * Update Picture-in-picture parameters. Will only run if in PiP mode unless
+     * `force` is set.
+     */
+    private fun updatePiPParams(force: Boolean = false) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O)
+            return
+        if (!isInPictureInPictureMode && !force)
+            return
+
+        val playPauseAction = if (psc.pause)
+            makeRemoteAction(R.drawable.ic_play_arrow_black_24dp, R.string.btn_play, "PLAY_PAUSE")
+        else
+            makeRemoteAction(R.drawable.ic_pause_black_24dp, R.string.btn_pause, "PLAY_PAUSE")
+        val actions = mutableListOf<RemoteAction>()
+        if (psc.playlistCount > 1) {
+            actions.add(makeRemoteAction(
+                R.drawable.ic_skip_previous_black_24dp, R.string.dialog_prev, "ACTION_PREV"
+            ))
+            actions.add(playPauseAction)
+            actions.add(makeRemoteAction(
+                R.drawable.ic_skip_next_black_24dp, R.string.dialog_next, "ACTION_NEXT"
+            ))
+        } else {
+            actions.add(playPauseAction)
+        }
+
+        val params = with(PictureInPictureParams.Builder()) {
+            val aspect = cachedVideoAspect() ?: 0.0 // [ANR-FIX5]
+            setAspectRatio(Rational(aspect.times(10000).toInt(), 10000))
+            setActions(actions)
+        }
+        try {
+            setPictureInPictureParams(params.build())
+            MpvLog.i("pip", "params diset: aksi=${actions.size} pause=${psc.pause} inPiP=$isInPictureInPictureMode force=$force") // [PIP-DIAG]
+        } catch (e: IllegalArgumentException) {
+            MpvLog.w("pip", "rasio ditolak (${e.message}), pakai 1:1") // [PIP-DIAG]
+            // Android has some limits of what the aspect ratio can be
+            params.setAspectRatio(Rational(1, 1))
+            setPictureInPictureParams(params.build())
+        }
+    }
+
+    // Media Session handling
+
+    private val mediaSessionCallback = object : MediaSessionCompat.Callback() {
+        override fun onPause() {
+            mpvPost("session-pause") { player.paused = true } // [ANR-FIX5]
+        }
+        override fun onPlay() {
+            mpvPost("session-play") { player.paused = false }
+        }
+        override fun onSeekTo(pos: Long) {
+            seekCoalesced(pos / 1000.0, exact = true) // scrub dari notifikasi memicu banyak panggilan: nilai terbaru menang
+        }
+        override fun onSkipToNext() = playlistNext()
+        override fun onSkipToPrevious() = playlistPrev()
+        override fun onSetRepeatMode(repeatMode: Int) {
+            mpvPost("session-repeat") { // [ANR-FIX5]
+                MPVLib.setPropertyString("loop-playlist",
+                    if (repeatMode == PlaybackStateCompat.REPEAT_MODE_ALL) "inf" else "no")
+                MPVLib.setPropertyString("loop-file",
+                    if (repeatMode == PlaybackStateCompat.REPEAT_MODE_ONE) "inf" else "no")
+            }
+        }
+        override fun onSetShuffleMode(shuffleMode: Int) {
+            mpvPost("session-shuffle") { player.changeShuffle(false, shuffleMode == PlaybackStateCompat.SHUFFLE_MODE_ALL) }
+        }
+    }
+
+    private fun initMediaSession(): MediaSessionCompat {
+        /*
+            developer.android.com/guide/topics/media-apps/working-with-a-media-session
+            developer.android.com/guide/topics/media-apps/audio-app/mediasession-callbacks
+            developer.android.com/reference/android/support/v4/media/session/MediaSessionCompat
+         */
+        val session = MediaSessionCompat(this, TAG)
+        session.setFlags(0)
+        session.setCallback(mediaSessionCallback)
+        return session
+    }
+
+    private fun updateMediaSession() {
+        synchronized (psc) {
+            mediaSession?.let { psc.write(it) }
+        }
+    }
+
+    // mpv events
+
+    private fun eventPropertyUi(property: String, dummy: Any?, metaUpdated: Boolean) {
+        if (!activityIsForeground) return
+        when (property) {
+            "track-list" -> loadTracksAsync() // [ANR-FIX2]
+            "current-tracks/audio/selected", "current-tracks/video/image" -> updateAudioUI()
+            "hwdec-current" -> updateDecoderButton()
+            "video-params/w", "video-params/h" -> updateResChip() // [RES-CHIP]
+        }
+        if (metaUpdated)
+            updateMetadataDisplay()
+    }
+
+    private fun eventPropertyUi(property: String, value: Boolean) {
+        if (!activityIsForeground) return
+        when (property) {
+            "pause" -> updatePlaybackStatus(value)
+            "mute" -> { // indirectly from updateAudioPresence()
+                updateAudioUI()
+            }
+        }
+    }
+
+    private fun eventPropertyUi(property: String, value: Long) {
+        if (!activityIsForeground) return
+        when (property) {
+            "time-pos" -> updatePlaybackPos(psc.positionSec)
+            "video-params/h" -> { updatePerfChip(); updateYtdlChip(); updateResChip() } // [PERF-CHIP3] [YTDLP-CHIP-EVT] [RES-CHIP]
+            "video-params/w" -> updateResChip() // [RES-CHIP]
+            "playlist-pos", "playlist-count" -> {
+                updatePlaylistButtons()
+                if (property == "playlist-count") {
+                    MpvLog.i(TAG, "playlist-count=$value")
+                    updatePiPParams()
+                }
+            }
+        }
+    }
+
+    private fun eventPropertyUi(property: String, value: Double) {
+        if (!activityIsForeground) return
+        when (property) {
+            "duration/full" -> updatePlaybackDuration(psc.durationSec)
+            "video-params/aspect", "video-params/rotate" -> {
+                updateOrientation()
+                updatePiPParams()
+                if (property == "video-params/aspect") checkQualityMatch() // [QUALITY-ACTUAL]
+            }
+        }
+    }
+
+    private fun eventPropertyUi(property: String, value: String, metaUpdated: Boolean) {
+        if (!activityIsForeground) return
+        when (property) {
+            "speed" -> updateSpeedButton()
+        }
+        if (metaUpdated)
+            updateMetadataDisplay()
+    }
+
+    /** [QUALITY] Video-only YouTube (720p/1080p): tambahkan trek audio terpisah. Header per-berkas ikut berlaku. */
+    private fun attachExternalAudio() {
+        val path = MPVLib.getPropertyString("path") ?: return
+        val audio = com.molina.core.stream.StreamQuality.audioFor(path) ?: return
+        if (UrlPolicy.check(audio) is UrlPolicy.Verdict.Blocked) return
+        try {
+            MPVLib.command(arrayOf("audio-add", audio, "select", "molina-audio"))
+        } catch (e: Exception) {
+            MpvLog.i(TAG, "audio-add gagal: ${e.message}")
+        }
+    }
+
+    private fun eventUi(eventId: Int) {
+        // [BG-AUDIO-FIX] audio-add+seek dipindah ke event() (tidak tergantung foreground)
+        if (!activityIsForeground) return
+        if (eventId == MpvEvent.MPV_EVENT_FILE_LOADED) updateNowPlayingArt() // [COVER-ART]
+    }
+
+    override fun eventProperty(property: String) {
+        val metaUpdated = psc.update(property)
+        // [ANR-FIX5] cache dari event (dibaca di thread event, bukan di main thread)
+        when (property) {
+            "current-tracks/video/image" -> videoImageProp = MPVLib.getPropertyString("current-tracks/video/image")
+            "video-params/aspect" -> videoAspectRaw = null // tidak tersedia (tanpa video)
+            "video-params/rotate" -> videoRotate = 0
+        }
+        if (metaUpdated)
+            updateMediaSession()
+        if (property == "loop-file" || property == "loop-playlist") {
+            mediaSession?.setRepeatMode(when (player.getRepeat()) {
+                2 -> PlaybackStateCompat.REPEAT_MODE_ONE
+                1 -> PlaybackStateCompat.REPEAT_MODE_ALL
+                else -> PlaybackStateCompat.REPEAT_MODE_NONE
+            })
+        } else if (property == "current-tracks/audio/selected") {
+            updateAudioPresence()
+        }
+
+        if (property == "pause" || property == "current-tracks/audio/selected")
+            handleAudioFocus()
+
+        // [INFO-DECODER] catat dekoder aktif untuk Sistem > Info (tetap tercatat saat di latar)
+        if (property == "hwdec-current") MpvVersionNote.recordDecoder(applicationContext, player.hwdecActive)
+
+        if (!activityIsForeground) return
+        eventUiHandler.post { eventPropertyUi(property, null, metaUpdated) }
+    }
+
+    override fun eventProperty(property: String, value: Boolean) {
+        if (property == "pause") WatchStats.onPause(value)
+        if (property == "paused-for-cache") onBufferingChanged(value) // [QUALITY-SUGGEST]
+        val metaUpdated = psc.update(property, value)
+        if (metaUpdated)
+            updateMediaSession()
+        if (property == "shuffle") {
+            mediaSession?.setShuffleMode(if (value)
+                PlaybackStateCompat.SHUFFLE_MODE_ALL
+            else
+                PlaybackStateCompat.SHUFFLE_MODE_NONE)
+        } else if (property == "mute") {
+            updateAudioPresence()
+        }
+
+        if (metaUpdated || property == "mute")
+            handleAudioFocus()
+
+        if (!activityIsForeground) return
+        eventUiHandler.post { eventPropertyUi(property, value) }
+    }
+
+    override fun eventProperty(property: String, value: Long) {
+        if (property == "playlist-count") guardPlaylistJunk(value) // [JUNK-GUARD]
+        if (psc.update(property, value))
+            updateMediaSession()
+
+        if (!activityIsForeground) return
+        eventUiHandler.post { eventPropertyUi(property, value) }
+    }
+
+    override fun eventProperty(property: String, value: Double) {
+        if (property == "video-params/aspect") videoAspectRaw = value // [ANR-FIX5]
+        if (property == "video-params/rotate") videoRotate = value.toInt()
+        if (psc.update(property, value))
+            updateMediaSession()
+
+        if (!activityIsForeground) return
+        eventUiHandler.post { eventPropertyUi(property, value) }
+    }
+
+    override fun eventProperty(property: String, value: String) {
+        val metaUpdated = psc.update(property, value)
+        if (metaUpdated)
+            updateMediaSession()
+
+        if (!activityIsForeground) return
+        eventUiHandler.post { eventPropertyUi(property, value, metaUpdated) }
+    }
+
+    override fun event(eventId: Int) {
+        if (eventId == MpvEvent.MPV_EVENT_SEEK || eventId == MpvEvent.MPV_EVENT_PLAYBACK_RESTART) logSpectrumSeek(eventId) // [SPECTRUM-DIAG]
+        if (eventId == MpvEvent.MPV_EVENT_END_FILE) {
+            WatchStats.onEnd()
+            val failSid = com.molina.core.diag.PlaybackSessions.current()?.label // [MPV-LOG-SHARE] ID sesi diambil sebelum onEnd menutupnya
+            PlaybackLog.onEnd(psc.position, psc.duration)
+            if (PlaybackLog.takeEndFailed()) { // [RADIO-DEAD] hook
+                markDeadStream()
+                offerLogShare(failSid) // [MPV-LOG-SHARE]
+            }
+            recordWatchProgress(shieldPath, psc.position, psc.duration) // [WATCH-PROGRESS]
+            psc.eof()
+            updateMediaSession()
+        }
+
+        if (eventId == MpvEvent.MPV_EVENT_SHUTDOWN)
+            finishWithResult(if (playbackHasStarted) RESULT_OK else RESULT_CANCELED)
+
+        if (pendingChannelHeaders.isNotEmpty()) applyPendingChannelHeaders() // [CH-HEADERS]
+        if (pendingStartIndex >= 0) applyPendingStart() // [ORDER-KEEP]
+
+        if (eventId == MpvEvent.MPV_EVENT_START_FILE || eventId == MpvEvent.MPV_EVENT_FILE_LOADED) {
+            shieldPath = MPVLib.getPropertyString("path") ?: ""
+            if (eventId == MpvEvent.MPV_EVENT_START_FILE && !PlaylistJunk.isJunk(shieldPath) && !PlaylistJunk.isJunkChild(shieldPath, junkParentUrl)) { // [JUNK-CHILD] // [JUNK-GUARD]
+                junkParentTitle = MPVLib.getPropertyString("media-title")
+                if (shieldPath != junkParentUrl) junkReportedParent = null // [JUNK-ONCE]
+                junkParentUrl = shieldPath // [UNPLAYABLE-CHIP]
+            }
+            runOnUiThread { updateShieldBadge() }
+        }
+
+        if (eventId == MpvEvent.MPV_EVENT_FILE_LOADED) { // [QUALITY] [AUDIO-ONLY-BTN] [ANR-FIX2] [BG-AUDIO-FIX]
+            // Harus jalan juga saat di latar belakang: next/prev dari notifikasi memuat item baru tanpa activity di depan.
+            val seekTo = pendingSeekSec
+            pendingSeekSec = null
+            mpvPost("audio-add+seek") {
+                attachExternalAudio()
+                if (seekTo != null) MPVLib.command(arrayOf("seek", seekTo.toString(), "absolute"))
+            }
+            mobileCapApplied = false // [NET-CAP] file baru: status cap dihitung ulang
+            abrDownshifted = false // [ABR-HLS] file baru: mulai lagi dari pilihan Otomatis
+            mpvPost("mobile-cap") { applyMobileCap() } // [MOBILE-CAP] varian HLS/DASH/m3u di data seluler maks 720p
+        }
+
+        if (eventId == MpvEvent.MPV_EVENT_FILE_LOADED) {
+            WatchStats.onLoaded()
+            PlaybackLog.onLoaded()
+            prefetchNext()
+        }
+
+        if (eventId == MpvEvent.MPV_EVENT_START_FILE) {
+            WatchStats.onStart()
+            PlaybackLog.onStart()
+            val cmds = onloadCommands.toTypedArray()
+            onloadCommands.clear()
+            for (c in cmds)
+                MPVLib.command(c)
+            if (this.statsLuaMode > 0 && !playbackHasStarted) {
+                MPVLib.command(arrayOf("script-binding", "stats/display-page-${this.statsLuaMode}-toggle"))
+            }
+
+            playbackHasStarted = true
+        }
+
+        if (!activityIsForeground) return
+        eventUiHandler.post { eventUi(eventId) }
+    }
+
+    // Gesture handler
+
+    private var initialSeek = 0f
+    private var initialBright = 0f
+    private var initialVolume = 0
+    private var maxVolume = 0
+    /** 0 = initial, 1 = paused, 2 = was already paused */
+    private var pausedForSeek = 0
+
+    private fun fadeGestureText() {
+        fadeHandler.removeCallbacks(fadeRunnable3)
+        binding.gestureTextView.visibility = View.VISIBLE
+
+        fadeHandler.postDelayed(fadeRunnable3, 500L)
+    }
+
+    override fun onPropertyChange(p: PropertyChange, diff: Float) {
+        val gestureTextView = binding.gestureTextView
+        when (p) {
+            /* Drag gestures */
+            PropertyChange.Init -> {
+                mightWantToToggleControls = false
+
+                initialSeek = (psc.position / 1000f)
+                initialBright = Utils.getScreenBrightness(this) ?: 0.5f
+                with (audioManager!!) {
+                    initialVolume = getStreamVolume(STREAM_TYPE)
+                    maxVolume = if (isVolumeFixed)
+                        0
+                    else
+                        getStreamMaxVolume(STREAM_TYPE)
+                }
+                if (!isPlayingAudio)
+                    maxVolume = 0 // disallow volume gesture if no audio
+                pausedForSeek = 0
+
+                fadeHandler.removeCallbacks(fadeRunnable3)
+                gestureTextView.visibility = View.VISIBLE
+                gestureTextView.text = ""
+            }
+            PropertyChange.Seek -> {
+                // disable seeking when duration is unknown
+                val duration = (psc.duration / 1000f)
+                if (duration == 0f || initialSeek < 0)
+                    return
+                if (smoothSeekGesture && pausedForSeek == 0) {
+                    pausedForSeek = if (psc.pause) 2 else 1
+                    if (pausedForSeek == 1)
+                        mpvPost { player.paused = true } // [ANR-FIX4]
+                }
+
+                kickSpectrum() // [SPECTRUM]
+                val newPosExact = (initialSeek + diff).coerceIn(0f, duration)
+                val newPos = newPosExact.roundToInt()
+                val newDiff = (newPosExact - initialSeek).roundToInt()
+                if (smoothSeekGesture) {
+                    seekCoalesced(newPosExact.toDouble(), exact = true) // (exact seek) [ANR-FIX4]
+                } else {
+                    // seek faster than assigning to timePos but less precise
+                    seekCoalesced(newPosExact.toDouble(), exact = false) // [ANR-FIX4]
+                }
+                // Note: don't call updatePlaybackPos() here because mpv will seek a timestamp
+                // actually present in the file, and not the exact one we specified.
+
+                val posText = Utils.prettyTime(newPos)
+                val diffText = Utils.prettyTime(newDiff, true)
+                gestureTextView.text = getString(R.string.ui_seek_distance, posText, diffText)
+            }
+            PropertyChange.Volume -> {
+                if (maxVolume == 0)
+                    return
+                val newVolume = (initialVolume + (diff * maxVolume).toInt()).coerceIn(0, maxVolume)
+                val newVolumePercent = 100 * newVolume / maxVolume
+                audioManager!!.setStreamVolume(STREAM_TYPE, newVolume, 0)
+
+                gestureTextView.text = getString(R.string.ui_volume, newVolumePercent)
+            }
+            PropertyChange.Bright -> {
+                val newBrightPercent = ((initialBright + diff).coerceIn(0f, 1f) * 100).roundToInt()
+                lastScreenBrightness = newBrightPercent
+                updateScreenBrightness()
+
+                gestureTextView.text = getString(R.string.ui_brightness, newBrightPercent)
+            }
+            PropertyChange.Finalize -> {
+                if (pausedForSeek == 1)
+                    mpvPost { player.paused = false } // [ANR-FIX4] antre setelah seek terakhir (thread yang sama)
+                gestureTextView.visibility = View.GONE
+            }
+
+            /* Tap gestures */
+            PropertyChange.SeekFixed -> {
+                kickSpectrum() // [SPECTRUM]
+                val seekTime = diff * 10f
+                val newPos = psc.positionSec + seekTime.toInt() // only for display
+                mpvPost { MPVLib.command(arrayOf("seek", seekTime.toString(), "relative")) } // [ANR-FIX4]
+
+                val diffText = Utils.prettyTime(seekTime.toInt(), true)
+                gestureTextView.text = getString(R.string.ui_seek_distance, Utils.prettyTime(newPos), diffText)
+                fadeGestureText()
+            }
+            PropertyChange.PlayPause -> mpvPost { player.cyclePause() } // [ANR-FIX4]
+            PropertyChange.Custom -> {
+                val keycode = 0x10002 + diff.toInt()
+                mpvPost { MPVLib.command(arrayOf("keypress", "0x%x".format(keycode))) } // [ANR-FIX4]
+            }
+        }
+    }
+
+    // Header HTTP dari intent pembuka (hanya untuk berkas pertama), lihat parseHeadersExtra
+    private var intentHeaders: Map<String, String> = emptyMap()
+
+    companion object {
+        private const val TAG = "mpv"
+        // SSOT batas playlist memory:// ada di :core:policy (dipakai juga untuk batas indeks posisi).
+        private const val MAX_MEMORY_PLAYLIST_ENTRIES = PlaybackSourcePolicy.MAX_MEMORY_PLAYLIST_ENTRIES
+        // how long should controls be displayed on screen (ms)
+        private const val CONTROLS_DISPLAY_TIMEOUT = 1500L
+        // how long controls fade to disappear (ms)
+        private const val CONTROLS_FADE_DURATION = 500L
+        // [RES-MOTION] lama kilau resChip saat naik ke 4K (ms); sama dengan kilau Terminal (TerminalScreen flash 700 ms)
+        private const val RES_SHINE_DURATION = 700L
+        // smallest aspect ratio that is considered non-square
+        private const val ASPECT_RATIO_MIN = 1.2f // covers 5:4 and up
+        private const val SPECTRUM_HEIGHT_DP = 96 // [SPECTRUM] samakan dengan tinggi spectrumView di player.xml
+        private const val TWO_COL_MIN_DP = 560 // [LAND-2COL] lebar layar (dp) minimum untuk mode dua kolom
+        // fraction to which audio volume is ducked on loss of audio focus
+        private const val AUDIO_FOCUS_DUCKING = 0.5f
+        // action of result intent
+        private const val RESULT_INTENT = "com.molina.cinema.MPVActivity.result"
+        // stream type used with AudioManager
+        private const val STREAM_TYPE = AudioManager.STREAM_MUSIC
+        // precision used by seekbar (1/s)
+        private const val SEEK_BAR_PRECISION = 2
+    }
+}

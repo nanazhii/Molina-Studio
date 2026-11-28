@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Molina: baris yang sedang diputar; tint hijau lembut + garis aksen kiri -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#1A2ECC71" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+    <item android:gravity="start|center_vertical" android:left="0dp" android:top="14dp" android:bottom="14dp">
+        <shape android:shape="rectangle">
+            <size android:width="3dp" android:height="20dp" />
+            <solid android:color="#2ECC71" />
+            <corners android:radius="2dp" />
+        </shape>
+    </item>
+</layer-list>

@@ -1,0 +1,63 @@
+# Molina Terminal - nanorc bawaan (dibuat otomatis, ditimpa tiap sesi).
+# Ingin kustom sendiri? Buat ~/.nanorc, maka berkas ini tidak dipakai lagi.
+# Daftar pintasan: ketik `molina keys`.
+
+# Tampilan: hemat layar ponsel
+set minibar
+set nohelp
+set linenumbers
+set indicator
+set mouse
+set softwrap
+
+# Pengeditan ala code editor
+set autoindent
+set tabsize 4
+set tabstospaces
+set smarthome
+set zap
+
+# Sorotan sintaks Debian
+include "/usr/share/nano/*.nanorc"
+# Sorotan tambahan Molina: playlist .m3u/.m3u8 dan konfigurasi mpv (mpv.conf, input.conf)
+include "/etc/molina/syntax/*.nanorc"
+
+# Warna tema Noir Molina (MolinaTheme). Hex 3 digit, perlu terminal 256 warna.
+# Brand #2ECC71 = #2c7, Good #9BE564 = #9e6, Warn #FFD54F = #fd5, Bad #FF5252 = #f55, Muted #9AA0A6 = #999
+set titlecolor bold,#000,#2c7
+set minicolor bold,#000,#2c7
+set statuscolor bold,#000,#9e6
+set promptcolor bold,#000,#9e6
+set errorcolor bold,#fff,#f55
+set selectedcolor #000,#fd5
+set spotlightcolor #000,#fd5
+set numbercolor #999
+set scrollercolor #2c7
+set keycolor #2c7
+set functioncolor #eee
+
+# Shortcut ala code editor (ketuk CTRL di baris tombol; tahan untuk mengunci)
+bind ^S savefile main
+bind ^Q exit main
+bind ^Z undo main
+bind ^Y redo main
+bind ^C copy main
+bind ^X cut main
+bind ^V paste main
+bind ^F whereis main
+bind ^R replace main
+bind ^G gotoline main
+bind ^_ comment main
+# Ctrl+A: pilih semua (ketuk lagi untuk membatalkan seleksi). Tombol Home tetap berfungsi.
+bind ^A "{firstline}{home}{mark}{lastline}{end}" main
+
+# Alt+O: simpan lalu buka berkas ini di Molina Code (lihat nano-open-code)
+bind M-o "{savefile}{execute}/usr/local/lib/molina/nano-open-code >/dev/null 2>&1{enter}" main
+# [NANO-PREVIEW] Alt+P: simpan lalu pratinjau Markdown/HTML/JSON (lihat nano-preview)
+bind M-p "{savefile}{execute}/usr/local/lib/molina/nano-preview >/dev/null 2>&1{enter}" main
+
+# Alt+R: simpan, keluar, lalu jalankan skrip dari berkasnya (molina-run). Pembungkus nano yang menjalankannya.
+bind M-r "{savefile}{execute}touch $MOLINA_RUN_FLAG{enter}{exit}" main
+
+# [NANO-FIX] Alt+F: simpan, keluar; pembungkus menjalankan 'molina-run --fix' (shebang + chmod +x) lalu membuka nano lagi.
+bind M-f "{savefile}{execute}touch $MOLINA_FIX_FLAG >/dev/null 2>&1{enter}{exit}" main

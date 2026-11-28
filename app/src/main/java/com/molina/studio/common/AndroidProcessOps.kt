@@ -1,0 +1,19 @@
+package com.molina.studio.common
+
+import android.os.Process
+import android.system.Os
+import android.system.OsConstants
+import com.molina.core.system.ProcFs
+import com.molina.core.system.ProcInfo
+import com.molina.core.system.ProcessOps
+import com.molina.core.system.ProcessReaper
+
+/** [ProcessOps] Android: daftar dari /proc, sinyal lewat Os.kill. */
+internal object AndroidProcessOps : ProcessOps {
+    override fun list(): List<ProcInfo> = ProcFs.list()
+    override fun term(pid: Int) { Os.kill(pid, OsConstants.SIGTERM) }
+    override fun kill(pid: Int) { Os.kill(pid, OsConstants.SIGKILL) }
+
+    /** Reaper untuk UID aplikasi ini; `logcat` milik LogcatReporter dilindungi. */
+    fun reaper(): ProcessReaper = ProcessReaper(this, Process.myPid(), Process.myUid())
+}

@@ -1,0 +1,6 @@
+# SHA-256 7-Zip bawaan [7ZIP-BUNDLE]. Diperiksa scripts/bundle_gate.py di CI. Ubah SADAR dan catat di progres.md.
+# Asal: rilis resmi 7-Zip 26.05 (ip7z/7zip), berkas 7z2605-linux-arm64.tar.xz; 7zzs.orig = 7zzs (build statis) di dalamnya.
+# lib7zz.so = 7zzs.orig + tambalan scripts/sevenzip/patch_7zzs.py [7ZIP-SECCOMP] (set_robust_list diblokir seccomp Android 8).
+0b71f6cfc34669b3bf69f2347efd3429f77020665003a13b9cdc53b784270421  7z2605-linux-arm64.tar.xz
+5d5104b7728ffb5395d2a7ae5e4e8f09f875bb776e19322f2df0d6167aa502fb  7zzs.orig
+e162391dd155f4dfe7aa1017d8d6706b0a60e015f8c770082da28a8c1fbad4e0  lib7zz.so

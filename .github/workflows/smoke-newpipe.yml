@@ -1,0 +1,62 @@
+name: Smoke NewPipe (uji runtime sebelum bump)
+
+# Menjalankan versi dasar (v0.26.5) DAN kandidat berdampingan, dengan MolinaDownloader asli.
+# Kandidat gagal + dasar lulus  => regresi versi, jangan dinaikkan.
+# Keduanya gagal               => IP runner kemungkinan diblokir YouTube; hasil tidak meyakinkan.
+on:
+  workflow_dispatch:
+    inputs:
+      candidate:
+        description: Tag NewPipeExtractor yang diuji
+        required: true
+        default: v0.27.1
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: smoke (${{ matrix.which }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        which: [baseline, candidate]
+    env:
+      NP_VERSION: ${{ matrix.which == 'baseline' && 'v0.26.5' || inputs.candidate }}
+    steps:
+      - name: Validasi versi
+        run: |
+          [[ "$NP_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::format versi salah: $NP_VERSION"; exit 1; }
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
+        with:
+          gradle-version: 8.10.2
+      - name: Salin MolinaDownloader asli
+        run: |
+          mkdir -p scripts/smoke-newpipe/src/main/kotlin
+          cp engine/newpipe/src/main/kotlin/com/molina/engine/newpipe/MolinaDownloader.kt scripts/smoke-newpipe/src/main/kotlin/
+          # [SHIELD-NP] MolinaDownloader memakai ShieldHttp: salin core/net + kontrak log agar smoke tetap memakai kode asli
+          cp core/net/src/main/kotlin/com/molina/core/net/*.kt scripts/smoke-newpipe/src/main/kotlin/
+          cp core/api/src/main/kotlin/com/molina/core/api/LogContract.kt scripts/smoke-newpipe/src/main/kotlin/
+      - name: Jalankan smoke test
+        working-directory: scripts/smoke-newpipe
+        run: |
+          set -o pipefail
+          gradle -q --console=plain -Pcoord="com.github.TeamNewPipe:NewPipeExtractor:$NP_VERSION" run 2>&1 | tee "$RUNNER_TEMP/smoke.txt"
+      - name: Ringkasan
+        if: always()
+        run: |
+          {
+            echo "### ${{ matrix.which }} ($NP_VERSION)"
+            echo '~~~'
+            cat "$RUNNER_TEMP/smoke.txt" 2>/dev/null || echo "(tidak ada keluaran)"
+            echo '~~~'
+          } >> "$GITHUB_STEP_SUMMARY"

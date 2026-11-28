@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MOLINA-VAULT-LOGO -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#F2FFF7"
+        android:pathData="M54,54m-24,0a24,24 0,1 1,48,0a24,24 0,1 1,-48,0"/>
+    <path android:fillColor="#00000000" android:strokeColor="#0B5D3B" android:strokeWidth="2"
+        android:pathData="M54,54m-18,0a18,18 0,1 1,36,0a18,18 0,1 1,-36,0"/>
+    <path android:fillColor="#0B5D3B"
+        android:pathData="M54,46.5m-5,0a5,5 0,1 1,10,0a5,5 0,1 1,-10,0"/>
+    <path android:fillColor="#0B5D3B"
+        android:pathData="M51.6,49.5L56.4,49.5L58.2,62L49.8,62Z"/>
+    <path android:fillColor="#F2FFF7"
+        android:pathData="M52,21.5h4v6h-4z"/>
+    <path android:fillColor="#F2FFF7"
+        android:pathData="M52,80.5h4v6h-4z"/>
+    <path android:fillColor="#F2FFF7"
+        android:pathData="M21.5,52h6v4h-6z"/>
+    <path android:fillColor="#F2FFF7"
+        android:pathData="M80.5,52h6v4h-6z"/>
+</vector>

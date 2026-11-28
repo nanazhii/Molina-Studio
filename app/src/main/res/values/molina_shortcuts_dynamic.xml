@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_last_short">Putar terakhir</string>
+    <string name="shortcut_last_long">Putar terakhir (Molina Cinema)</string>
+    <string name="shortcut_downloads_short">Unduhan</string>
+    <string name="shortcut_downloads_long">Molina Unduhan</string>
+    <string name="shortcut_storage_short">Penyimpanan</string>
+    <string name="shortcut_storage_long">Penyimpanan Molina</string>
+</resources>

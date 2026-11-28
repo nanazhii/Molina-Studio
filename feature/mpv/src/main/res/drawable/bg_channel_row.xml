@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Molina: baris flat; hanya hairline di bawah (tanpa kotak/border) -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:gravity="bottom" android:left="100dp" android:right="4dp">
+        <shape android:shape="rectangle">
+            <size android:height="1dp" />
+            <solid android:color="#14FFFFFF" />
+        </shape>
+    </item>
+</layer-list>

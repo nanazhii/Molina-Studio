@@ -1,0 +1,491 @@
+package com.molina.code.ui
+
+import com.molina.studio.ui.MolinaTheme
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip // [CODE-TITLE-FRAME2]
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.text.SpanStyle // [CODE-PATHBAR]
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString // [CODE-PATHBAR]
+import androidx.compose.ui.text.withStyle // [CODE-PATHBAR]
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import io.github.rosemoe.sora.widget.SelectionMovement
+import kotlinx.coroutines.delay
+import com.molina.core.preview.PreviewKind
+import com.molina.core.files.PathCrumbs // [DRAWER-CRUMBS]
+
+/**
+ * Layar tab Code (F2, F3, F4): header path, tab bar, editor, toolbar, dan panel direktori.
+ * Menu titik tiga ada di OverflowMenu.kt (F3b). Semua warna/ukuran dari [CodeColors] dan [CodeDimens].
+ */
+@Composable
+fun CodeScreen(session: CodeSession, modifier: Modifier = Modifier, onExit: (() -> Unit)? = null) {
+    var pendingClose by remember { mutableStateOf<EditorTab?>(null) }
+    val ctx = LocalContext.current
+    SideEffect { session.toast = { msg -> Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show() } }
+    LaunchedEffect(Unit) { session.refreshExternal() } // [CODE-GUARD] berkas berubah saat layar Code ditinggalkan
+    LaunchedEffect(Unit) { session.checkFolderChanges() } // [CODE-FEED4] perubahan folder saat Code tidak aktif (git pull, Terminal)
+    DisposableEffect(Unit) { onDispose { session.captureFolderBaseline() } } // [CODE-FEED4] baseline saat layar Code ditinggalkan
+    session.active?.let { t -> // [CODE-LSP3] sinkron ke server saat tab aktif/dimuat/berkasnya berubah atau saklar dinyalakan
+        LaunchedEffect(t.id, t.loading, t.file, t.editor, session.liveEnabled) { session.liveSync(t) }
+    }
+
+    // Pratinjau langsung: bangun ulang setelah mengetik berhenti sejenak (debounce). Pindah tab
+    // atau membuka panel langsung dibangun tanpa jeda.
+    val liveTab = session.active
+    LaunchedEffect(
+        liveTab?.id, liveTab?.revision, liveTab?.file,
+        session.preview.open, session.preview.mode, session.preview.htmlWebView
+    ) {
+        val tab = liveTab ?: return@LaunchedEffect
+        val pv = session.preview
+        if (!pv.open || pv.mode != PaneMode.Preview) return@LaunchedEffect
+        if (pv.shownTabId == tab.id) delay(PreviewController.DEBOUNCE_MS)
+        pv.refresh(tab)
+    }
+
+    Box(modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxSize().background(CodeColors.EditorBg)) {
+            PathHeader(session, onExit)
+            EditorTabBar(session) { tab ->
+                if (tab.dirty) pendingClose = tab else session.close(tab.id)
+            }
+            EditorHost(session, Modifier.weight(1f).fillMaxWidth())
+            // [CODE-NOSTATUS] bilah status dihapus: info baris/karakter/jenis/status ada di menu titik tiga > Informasi berkas
+            if (session.find.open) {
+                session.active?.let { FindBar(session, it) }
+            }
+            if (session.find.dialogOpen) session.active?.let { FindDialog(session, it) } // [FIND-DIALOG]
+            session.active?.let { tab ->
+                // Membaca revision: jenis berkas bisa berubah saat shebang diketik.
+                val kind = if (tab.revision >= 0) tab.previewKind() else PreviewKind.NONE
+                val previewing = (kind == PreviewKind.MARKDOWN || kind == PreviewKind.JSON || kind == PreviewKind.HTML) &&
+                    session.preview.open && session.preview.mode == PaneMode.Preview
+                val play = when {
+                    session.run.running -> PlayState.Running
+                    kind == PreviewKind.NONE -> PlayState.Off
+                    previewing -> PlayState.On
+                    else -> PlayState.Ready
+                }
+                EditorToolbar(
+                    tab = tab,
+                    onSave = { session.save(tab) },
+                    onPaste = { tab.editor?.pasteText() },
+                    onUndo = { tab.editor?.undo() },
+                    onRedo = { tab.editor?.redo() },
+                    onLeft = { tab.editor?.moveSelection(SelectionMovement.LEFT) },
+                    onRight = { tab.editor?.moveSelection(SelectionMovement.RIGHT) },
+                    onSelectAllCopy = {
+                        tab.editor?.let { ed ->
+                            if (ed.text.length > 0) {
+                                ed.selectAll()
+                                ed.copyText()
+                                Toast.makeText(ctx, "Semua teks disalin", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    onFind = { session.openFind() },
+                    findActive = session.find.pinned, // [FIND-PIN]
+                    play = play,
+                    onPlay = { session.playActive() },
+                    onClose = { if (tab.dirty) pendingClose = tab else session.close(tab.id) },
+                    onMenu = { session.dir.openPanel() } // [CODE-HAMBURGER]
+                )
+            }
+        }
+        // [CODE-HAMBURGER] drawer dibuka lewat ikon ≡ di toolbar (tanpa geser tepi, seperti terminal)
+        BackPill( // [CODE-BACK]
+            session,
+            Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = CodeDimens.ToolbarHeight + 10.dp),
+        )
+        DirectoryPanel(session)
+        // Halaman penuh: Tinjauan (Markdown/JSON/HTML) atau Keluaran skrip (.sh/.py), menutupi editor sampai ditutup.
+        if (session.previewFullScreen) {
+            PreviewPage(
+                session,
+                onJump = { line, col ->
+                    session.preview.open = false
+                    session.active?.editor?.jumpToLineHighlighted(line - 1, col)
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
+
+    FileDialogs(session)
+
+    if (session.gotoOpen) {
+        session.active?.let { GotoLineDialog(it) { session.gotoOpen = false } }
+    }
+
+    if (session.findFilesOpen) FindInFilesDialog(session) { session.findFilesOpen = false } // [CODE-SEARCH]
+    if (session.templatesOpen) LiveTemplateDialog(session) { session.templatesOpen = false } // [CODE-TEMPLATE]
+    if (session.scratchOpen) ScratchDialog(session) { session.scratchOpen = false }
+    if (session.historyOpen) session.active?.let { HistoryDialog(session, it) { session.historyOpen = false; session.historyFocus = null } } // [CODE-HISTORY]
+    session.gutterTap?.let { GutterHunkDialog(session, it) { session.gutterTap = null } } // [CODE-HISTORY8]
+    if (session.symbolOpen) SymbolDialog(session) { session.symbolOpen = false } // [CODE-SYMBOL]
+    session.definitionChoices?.let { DefinitionDialog(session, it) { session.definitionChoices = null } } // [CODE-LSP6]
+    if (session.problemsOpen) session.problems?.let { ProblemsDialog(session, it) { session.problemsOpen = false } } // [CODE-CHECK]
+    session.changeFeedView?.let { ChangeFeedDialog(session, it) { session.changeFeedView = null } } // [CODE-FEED]
+    if (session.outlineOpen) session.active?.let { OutlineDialog(it) { session.outlineOpen = false } }
+    if (session.infoOpen) session.active?.let { FileInfoScreen(it) { session.infoOpen = false } } // [CODE-INFO]
+    if (session.fontOpen) FontSizeDialog(session) { session.fontOpen = false } // [CODE-FONT]
+    if (session.themeOpen) ThemeDialog(session) { session.themeOpen = false } // [CODE-TM]
+
+    session.saveAs?.let { SaveAsDialog(session, it) }
+    session.staleConflict?.let { StaleDiskDialog(session, it) } // [CODE-GUARD]
+    session.scriptCheck?.let { ScriptCheckDialog(session, it) } // [CODE-GUARD]
+    if (session.undoRunOpen) UndoRunDialog(session) // [CODE-RUNREPORT]
+
+    pendingClose?.let { tab ->
+        ConfirmCloseDialog(
+            title = tab.title,
+            onSave = {
+                pendingClose = null
+                session.save(tab, after = { session.close(tab.id) })
+            },
+            onDiscard = {
+                session.close(tab.id)
+                pendingClose = null
+            },
+            onCancel = { pendingClose = null }
+        )
+    }
+}
+
+@Composable
+private fun Hairline() {
+    Box(Modifier.fillMaxWidth().height(CodeDimens.Hairline).background(CodeColors.Hairline))
+}
+
+/**
+ * Header: ikon folder (buka panel direktori), path berkas aktif (atau folder utama bila tab baru),
+ * chip status isi (Diubah / Tersimpan / Baru), dan tombol titik tiga yang membuka [OverflowMenu].
+ */
+@Composable
+private fun PathHeader(session: CodeSession, onExit: (() -> Unit)? = null) {
+    var menuOpen by remember { mutableStateOf(false) }
+    val tab = session.active
+    val path = tab?.file?.path ?: session.dir.root.path
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(CodeDimens.HeaderHeight)
+            .codeHeaderFrame(), // [CODE-HEADER-FRAME] hitam pekat + bingkai putih keabuan
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (onExit != null) Box( // keluar ke Berkas (editor dibuka layar penuh dari Penjelajah)
+            Modifier.width(CodeDimens.HeaderHeight).fillMaxHeight().clickable { onExit() },
+            contentAlignment = Alignment.Center
+        ) { CodeBackOrb() } // [CODE-BACKORB] sama dengan tombol kembali Pengaturan
+        Box(
+            Modifier
+                .width(CodeDimens.HeaderHeight)
+                .fillMaxHeight()
+                .clickable { session.dir.openPanel() },
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(Modifier.size(CodeDimens.DrawerHeaderIcon)) { drawDirIcon(DirIcon.Folder, CodeColors.IconDefault) }
+        }
+        Box( // [CODE-PATHBAR] kotak path bergaya bilah alamat Penjelajah: isi #101010, garis 1dp #3A3A3A, sudut siku, tinggi 28dp
+            Modifier
+                .weight(1f)
+                .padding(horizontal = 2.dp)
+                .height(28.dp)
+                .background(CodeColors.PathField)
+                .border(1.dp, CodeColors.PathFieldBorder)
+                .clickable { session.dir.openPanel() }
+                .padding(horizontal = 8.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            val crumbs = remember(path) { PathCrumbs.tail(path) }
+            BasicText(
+                text = buildAnnotatedString {
+                    val dim = SpanStyle(color = Win7Code.InkDim)
+                    if (crumbs.truncated) withStyle(dim) { append("\u2026" + PathCrumbs.SEP) }
+                    crumbs.parts.forEachIndexed { i, part ->
+                        if (i > 0) withStyle(dim) { append(PathCrumbs.SEP) }
+                        withStyle(if (i == crumbs.parts.lastIndex) SpanStyle(color = Win7Code.Ink) else dim) { append(part) }
+                    }
+                },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = TextStyle(color = Win7Code.Ink, fontSize = CodeDimens.PathTextSize)
+            )
+        }
+        OfflineBadge(Modifier.padding(horizontal = 4.dp)) // [CODE-OFFLINE] lencana privasi berupa ikon; dijaga scripts/offline_gate.py
+        if (tab != null) StatusChip(tab)
+        Box(
+            Modifier
+                .width(CodeDimens.HeaderHeight)
+                .fillMaxHeight()
+                .clickable { menuOpen = true },
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(Modifier.size(CodeDimens.ToolbarIconSize)) {
+                drawToolbarIcon(ToolbarIcon.More, CodeColors.IconDefault, false)
+            }
+            if (session.feedUnread > 0) { // [CODE-FEED2] titik hijau: ada notifikasi perubahan belum dibaca
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 10.dp, end = 10.dp)
+                        .size(8.dp)
+                        .background(CodeColors.Brand, CircleShape)
+                )
+            }
+            if (menuOpen) OverflowMenu(session) { menuOpen = false }
+        }
+    }
+    Hairline()
+}
+
+/**
+ * [CODE-STATUS-DOT] Status isi tab berupa titik saja (hemat ruang): hijau = tersimpan, biru = diubah,
+ * merah = basi (berkas di disk berubah), abu = baru/belum punya berkas, abu redup = memuat.
+ * Label teks tersedia lewat aksesibilitas, dan muncul sebentar saat titik diketuk [CODE-STATUS-TIP].
+ */
+@Composable
+private fun StatusChip(tab: EditorTab) {
+    val label: String
+    val hint: String
+    val color: androidx.compose.ui.graphics.Color
+    when {
+        tab.loading -> { label = "Memuat"; hint = "Memuat berkas"; color = CodeColors.IconDim.copy(alpha = 0.5f) }
+        tab.staleDisk -> { label = "Basi"; hint = "Basi: berkas di disk berubah"; color = CodeColors.Danger } // [CODE-GUARD]
+        tab.dirty -> { label = "Diubah"; hint = "Diubah: belum disimpan"; color = CodeColors.Modified }
+        tab.file != null -> { label = "Tersimpan"; hint = "Tersimpan"; color = CodeColors.Clean }
+        else -> { label = "Baru"; hint = "Baru: belum punya berkas"; color = CodeColors.IconDim }
+    }
+    // [CODE-STATUS-TIP] Ketuk titik = label muncul sebentar (hilang sendiri setelah 1,6 detik). Area ketuk 28dp agar mudah.
+    var tip by remember { mutableStateOf(false) }
+    LaunchedEffect(tip) { if (tip) { delay(1600); tip = false } }
+    val gapPx = with(LocalDensity.current) { 4.dp.roundToPx() }
+    Box(
+        Modifier.width(28.dp).fillMaxHeight().clickable { tip = true },
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            Modifier.size(8.dp)
+                .background(color, CircleShape)
+                .semantics { contentDescription = label }
+        )
+        if (tip) {
+            Popup(
+                alignment = Alignment.BottomCenter,
+                offset = IntOffset(0, gapPx),
+                onDismissRequest = { tip = false },
+                properties = PopupProperties(focusable = false)
+            ) {
+                val shape = RoundedCornerShape(8.dp)
+                Box(
+                    Modifier.background(CodeColors.SurfaceMenu, shape)
+                        .border(1.dp, CodeColors.Hairline, shape)
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    BasicText(hint, maxLines = 1, style = TextStyle(color = color.copy(alpha = 1f), fontSize = 12.sp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EditorTabBar(session: CodeSession, onRequestClose: (EditorTab) -> Unit) {
+    val scroll = rememberScrollState()
+    var viewport by remember { mutableIntStateOf(0) }
+    // Posisi (kiri, lebar) tiap tab di dalam area scroll, untuk auto-scroll ke tab aktif.
+    val bounds = remember { mutableStateMapOf<Int, Pair<Int, Int>>() }
+    val activeBounds = bounds[session.activeId]
+
+    LaunchedEffect(session.activeId, activeBounds, viewport) {
+        val (left, width) = activeBounds ?: return@LaunchedEffect
+        val right = left + width
+        val target = when {
+            left < scroll.value -> left
+            right > scroll.value + viewport -> right - viewport
+            else -> return@LaunchedEffect
+        }
+        scroll.animateScrollTo(target.coerceAtLeast(0))
+    }
+
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(CodeDimens.TabBarHeight)
+            .background(Win7Code.TabBarBrush)
+            .onSizeChanged { viewport = it.width }
+            .horizontalScroll(scroll)
+    ) {
+        session.tabs.forEach { tab ->
+            key(tab.id) {
+                DisposableEffect(Unit) { onDispose { bounds.remove(tab.id) } }
+                TabItem(
+                    tab = tab,
+                    active = tab.id == session.activeId,
+                    onSelect = { session.select(tab.id) },
+                    onClose = { onRequestClose(tab) },
+                    onBounds = { x, w -> bounds[tab.id] = x to w }
+                )
+            }
+        }
+        Box(
+            Modifier
+                .width(CodeDimens.TabBarHeight)
+                .fillMaxHeight()
+                .clickable { session.newTab() },
+            contentAlignment = Alignment.Center
+        ) {
+            BasicText(
+                text = "+",
+                style = TextStyle(color = CodeColors.TabIcon, fontSize = 20.sp)
+            )
+        }
+    }
+    Hairline()
+}
+
+/** Tab aktif: garis emas di ATAS, latar lebih gelap. Titik emas = belum disimpan. */
+@Composable
+private fun TabItem(
+    tab: EditorTab,
+    active: Boolean,
+    onSelect: () -> Unit,
+    onClose: () -> Unit,
+    onBounds: (Int, Int) -> Unit
+) {
+    Box(
+        Modifier
+            .height(CodeDimens.TabBarHeight)
+            .widthIn(min = CodeDimens.TabMinWidth, max = CodeDimens.TabMaxWidth)
+            .onGloballyPositioned { onBounds(it.positionInParent().x.toInt(), it.size.width) }
+            .win7Tab(active)
+            .padding(horizontal = 3.dp, vertical = 4.dp) // [CODE-TAB-FRAME] jarak antartab
+            .border(1.dp, if (active) CodeColors.TabFrame else CodeColors.TabFrameIdle, RoundedCornerShape(MolinaTheme.Tab.Radius))
+            .clickable(onClick = onSelect)
+    ) {
+        if (active) {
+            Box(
+                Modifier
+                    .align(Alignment.BottomStart) // [CODE-TABS-BLACK] garis hijau di BAWAH tab aktif
+                    .padding(start = 6.dp, end = 6.dp, bottom = 1.dp) // [CODE-TAB-FRAME] di dalam bingkai
+                    .fillMaxWidth()
+                    .height(CodeDimens.TabTopLine)
+                    .background(Win7Code.TabLine)
+            )
+        }
+        Row(
+            Modifier.fillMaxWidth().fillMaxHeight().padding(start = 12.dp), // [CODE-TABCLOSE-EDGE]
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (!tab.loading) {
+                Box(
+                    Modifier.size(CodeDimens.DirtyDot)
+                        .background(if (tab.dirty) CodeColors.Modified else CodeColors.Clean, CircleShape)
+                )
+                Spacer(Modifier.width(6.dp))
+            }
+            BasicText(
+                text = tab.title,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = TextStyle(
+                    color = if (active) CodeColors.TabTextOn else CodeColors.TabTextOff,
+                    fontSize = CodeDimens.TabTitleSize
+                )
+            )
+            Box(
+                Modifier.width(CodeDimens.TabCloseWidth).fillMaxHeight().clickable(onClick = onClose),
+                contentAlignment = Alignment.Center
+            ) {
+                BasicText(
+                    text = "\u2715",
+                    style = TextStyle(color = CodeColors.TabIcon, fontSize = 12.sp)
+                )
+            }
+        }
+    }
+}
+
+/** Konfirmasi tutup tab dirty (gaya Win7): Simpan, Buang, atau Batal. */
+@Composable
+private fun ConfirmCloseDialog(
+    title: String,
+    onSave: () -> Unit,
+    onDiscard: () -> Unit,
+    onCancel: () -> Unit
+) {
+    val shape = RoundedCornerShape(9.dp)
+    Dialog(onDismissRequest = onCancel) {
+        Column(Modifier.widthIn(max = 340.dp).win7DialogFrame(shape)) {
+            Win7DialogTitleBar("Molina Code", onCancel)
+            Column(Modifier.padding(16.dp)) {
+                BasicText(
+                    text = "Simpan perubahan?",
+                    style = TextStyle(color = Win7Code.Ink, fontSize = 16.sp)
+                )
+                Spacer(Modifier.height(8.dp))
+                BasicText(
+                    text = "\"$title\" belum disimpan. Simpan sebelum menutup?",
+                    style = TextStyle(color = CodeColors.TextPrimary, fontSize = 14.sp)
+                )
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp, Alignment.End)
+                ) {
+                    Win7DialogButton("Batal", onCancel)
+                    Win7DialogButton("Buang", onDiscard, accent = CodeColors.Danger)
+                    Win7DialogButton("Simpan", onSave, isDefault = true)
+                }
+            }
+        }
+    }
+}

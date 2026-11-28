@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- [YTDLP-ICON] Klaker film Molina Cinema untuk kartu galat pemutar: badan putih, garis dan tombol play marun merek. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M3,10.2h18V20.6H3z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M3,8.6L20.73,5.47L20.14,2.13L2.41,5.25z" />
+    <path
+        android:fillColor="@color/cinema_maroon"
+        android:pathData="M4.18,8.39L6.15,8.04L7.14,4.42L5.17,4.77z M8.91,7.56L10.88,7.21L11.86,3.58L9.89,3.93z M13.64,6.72L15.61,6.38L16.59,2.75L14.62,3.1z" />
+    <path
+        android:fillColor="@color/cinema_maroon"
+        android:pathData="M5,10.2L7,10.2L5.6,12.8L3.6,12.8z M9.8,10.2L11.8,10.2L10.4,12.8L8.4,12.8z M14.6,10.2L16.6,10.2L15.2,12.8L13.2,12.8z" />
+    <path
+        android:fillColor="@color/cinema_maroon"
+        android:pathData="M9.6,14.6L9.6,19L14.2,16.8z" />
+</vector>

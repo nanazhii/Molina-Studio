@@ -1,0 +1,50 @@
+name: Hapus riwayat run (manual)
+
+# Manual: menghapus massal run Actions yang SELESAI dan dibuat sebelum waktu yang diisi.
+# Run yang sedang berjalan tidak disentuh. Artefak milik run yang dihapus ikut hilang.
+# Tanpa PAT: memakai GITHUB_TOKEN bawaan dengan izin actions: write.
+on:
+  workflow_dispatch:
+    inputs:
+      sebelum:
+        description: "Hapus run yang dibuat SEBELUM waktu ini (UTC, contoh 2026-11-02T12:00:00Z)"
+        required: true
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  hapus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Hapus run lama
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SEBELUM: ${{ inputs.sebelum }}
+          RUN_INI: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if ! printf %s "$SEBELUM" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'; then
+            echo "::error::format waktu salah, contoh: 2026-11-02T12:00:00Z"; exit 1
+          fi
+          total=0
+          for putaran in $(seq 1 10); do
+            ids=$(gh api --paginate -X GET "repos/$REPO/actions/runs" -f created="<$SEBELUM" -f per_page=100 \
+                  --jq '.workflow_runs[] | select(.status == "completed") | .id' | grep -vx "$RUN_INI" || true)
+            [ -z "$ids" ] && break
+            for id in $ids; do
+              if gh api -X DELETE "repos/$REPO/actions/runs/$id" --silent; then
+                total=$((total + 1))
+              else
+                echo "gagal menghapus $id"
+              fi
+              if [ "$total" -ge 900 ]; then
+                echo "Batas 900 per eksekusi tercapai (batas laju API). Jalankan lagi nanti."
+                echo "Dihapus: $total"; exit 0
+              fi
+            done
+          done
+          echo "Dihapus: $total run"

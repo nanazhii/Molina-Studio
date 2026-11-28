@@ -1,0 +1,134 @@
+package com.molina.studio.terminal
+
+import com.molina.core.log.LogBus
+import com.molina.core.log.LogFileWriter
+import com.molina.core.log.LogcatConfig
+import com.molina.core.api.LogLevel
+
+/**
+ * Logcat reporter: membaca logcat milik proses aplikasi sendiri (tanpa izin tambahan)
+ * dan menyalurkannya ke LogBus (sumber "logcat") sehingga ikut digabung oleh LogGrouping.
+ * Default mati; dinyalakan lewat Settings > Terminal > Debugging.
+ */
+object LogcatReporter {
+    private val LINE = Regex("""^(\d\d)-(\d\d)\s+(\d\d):(\d\d):(\d\d)\.(\d{3})\s+(\d+)\s+(\d+)\s+([VDIWEFA])\s+(.+?)\s*:\s?(.*)$""")
+
+    @Volatile private var proc: Process? = null
+    @Volatile private var lastFileMs = 0L // [LOGCAT-DEDUP]
+    private var everStarted = false // [LOGCAT-TOGGLE] nyala ulang tidak memutar ulang 200 baris lama
+
+    @Synchronized
+    fun setEnabled(on: Boolean) { // [ANR-LOG]
+        com.molina.core.log.AnrWatchdog.setEnabled(on)
+        if (on) start() else stop()
+    }
+
+    @Synchronized
+    private fun start() {
+        if (proc != null) return
+        val p = try {
+            ProcessBuilder(LogcatConfig.command(!everStarted, android.os.Process.myPid()))
+                .redirectErrorStream(true).start()
+        } catch (e: Exception) {
+            LogBus.log("logcat", LogLevel.Warn, "reporter", "Gagal memulai logcat: ${e.message}")
+            return
+        }
+        proc = p
+        everStarted = true
+        val t0 = System.currentTimeMillis() // [LOGCAT-UID]
+        Thread({
+            try {
+                p.inputStream.bufferedReader().use { r -> r.forEachLine { line -> handle(line) } }
+            } catch (e: Exception) {
+                // proses dihentikan (destroy) -> abaikan
+            } finally { // [LOGCAT-PULIH] bersihkan status agar bisa dinyalakan ulang bila logcat mati sendiri
+                val unexpected = synchronized(LogcatReporter) {
+                    if (proc === p) { proc = null; true } else false
+                }
+                try { p.destroy() } catch (e: Exception) { }
+                try { p.waitFor() } catch (e: InterruptedException) { }
+                if (unexpected && LogcatConfig.scopeUid && System.currentTimeMillis() - t0 < 3_000L) { // [LOGCAT-UID]
+                    LogcatConfig.scopeUid = false
+                    LogBus.log("logcat", LogLevel.Warn, "reporter", "logcat menolak --uid; beralih ke --pid (proses anak tidak tercatat)")
+                    start()
+                } else if (unexpected) {
+                    LogBus.log("logcat", LogLevel.Warn, "reporter", "Logcat berhenti sendiri; nyalakan ulang di Settings > Terminal > Debugging")
+                }
+            }
+        }, "molina-logcat").apply { isDaemon = true }.start()
+        LogBus.log("logcat", LogLevel.Info, "reporter", "Logcat reporter aktif")
+    }
+
+    @Synchronized
+    private fun stop() {
+        proc?.destroy()
+        proc = null
+    }
+
+    /** [LOGCAT-CONFIG] Terapkan ulang -b/-T: hentikan, kosongkan entri logcat lama, putar ulang ekor sesuai konfigurasi. */
+    @Synchronized
+    fun restart() {
+        if (proc == null) return
+        stop()
+        LogBus.clearSource("logcat")
+        everStarted = false
+        start()
+    }
+
+    /** [LOGCAT-CLEAR] Setara `logcat -c`. Di Android 8 tanpa izin sistem bisa ditolak; hasilnya dicatat. */
+    fun clearDevice() {
+        Thread({
+            try {
+                val p = ProcessBuilder("logcat", "-c").redirectErrorStream(true).start()
+                val out = p.inputStream.bufferedReader().readText().trim()
+                val code = p.waitFor()
+                if (code != 0 || out.isNotEmpty()) {
+                    LogBus.log("logcat", LogLevel.Warn, "reporter", "logcat -c: $out (kode $code)")
+                }
+            } catch (e: Exception) {
+                LogBus.log("logcat", LogLevel.Warn, "reporter", "logcat -c gagal: ${e.message}")
+            }
+        }, "molina-logcat-clear").apply { isDaemon = true }.start()
+    }
+
+    private fun handle(line: String) {
+        // [LOGCAT-RAW-FILE] pemisah buffer ("--------- beginning of main") dan baris tak dikenal tetap masuk berkas, seperti adb
+        if (line.startsWith("---")) { LogFileWriter.append(line, false); return }
+        val m = LINE.find(line)
+        if (m == null) { if (line.isNotBlank()) LogFileWriter.append(line, false); return }
+        val g = m.groupValues
+        val pid = g[7].toIntOrNull() ?: return
+        val tid = g[8].toIntOrNull() ?: return
+        val prio = g[9][0]
+        val level = when (prio) {
+            'V', 'D' -> LogLevel.Debug
+            'I' -> LogLevel.Info
+            'W' -> LogLevel.Warn
+            else -> LogLevel.Error
+        }
+        val t = epochOf(g[1], g[2], g[3], g[4], g[5], g[6])
+        // [LOGCAT-ADB] simpan waktu/pid/tid/prioritas asli agar tampilan dan ekspor 1:1 dengan `logcat -v threadtime`
+        LogBus.logRaw("logcat", level, g[10], g[11], t, pid, tid, prio)
+        // [LOGCAT-FILE] salin mentah ke berkas bergulir; E/F langsung di-flush agar selamat dari crash
+        if (t >= lastFileMs) { // putar ulang saat restart tidak menggandakan baris di berkas
+            lastFileMs = t
+            LogFileWriter.append(line, prio == 'E' || prio == 'F' || prio == 'A')
+        }
+    }
+
+    /** Waktu logcat (tanpa tahun) -> epoch ms; bila hasilnya di masa depan (lintas tahun baru) pakai tahun lalu. */
+    private fun epochOf(mo: String, d: String, h: String, mi: String, sec: String, ms: String): Long {
+        val c = java.util.Calendar.getInstance()
+        val year = c.get(java.util.Calendar.YEAR)
+        c.clear()
+        c.set(year, (mo.toIntOrNull() ?: 1) - 1, d.toIntOrNull() ?: 1,
+            h.toIntOrNull() ?: 0, mi.toIntOrNull() ?: 0, sec.toIntOrNull() ?: 0)
+        c.set(java.util.Calendar.MILLISECOND, ms.toIntOrNull() ?: 0)
+        var t = c.timeInMillis
+        if (t > System.currentTimeMillis() + 86_400_000L) {
+            c.set(java.util.Calendar.YEAR, year - 1)
+            t = c.timeInMillis
+        }
+        return t
+    }
+}

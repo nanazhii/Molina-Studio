@@ -1,0 +1,417 @@
+package com.molina.studio.terminal
+
+import android.content.Context
+import com.molina.core.exec.DrawerRun
+import android.os.Environment
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.molina.core.system.MolinaPaths
+import com.molina.core.library.TrashBin
+import com.molina.core.fileops.FileNames
+import com.molina.core.fileops.FileOps
+import com.molina.explorer.W7ConfirmDialog
+import com.molina.core.ui.ExpanderIcon // [EXPANDER-ICON]
+import com.molina.core.ui.FileTreeIcon
+import com.molina.core.ui.MoreDotsIcon // [DRAWER-DOTS]
+import com.molina.core.ui.FileTreeIconSize
+import com.molina.core.ui.MintFileIcon
+import com.molina.explorer.W7InfoDialog
+import com.molina.explorer.W7NameDialog
+import com.molina.core.ui.Win7BackOrb
+import com.molina.core.ui.MintFolder
+import com.molina.studio.bridge.MolinaExplorer
+import com.molina.studio.ui.MolinaTheme
+import com.molina.studio.ui.SwipeDirection
+import com.molina.studio.ui.onHorizontalSwipe
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import com.molina.core.ui.MintFolderTint
+import com.molina.core.api.MolinaServices
+
+private val Brand = MolinaTheme.Brand
+// [DRAWER-HAMBURGER] lebar drawer: porsi layar, dijepit ke rentang ini (header butuh sekitar 200dp)
+private val DrawerMinWidth = 248.dp // [DRAWER-FRAME] 200 -> 224 -> 248 [DRAWER-GREEN]
+private val DrawerMaxWidth = 288.dp // 240 -> 264 -> 288
+private const val DrawerFraction = 0.40f
+private val DrawerCorner = 6.dp // [DRAWER-ROUND] radius sudut kanan drawer [DRAWER-SQUARISH] dulu 16.dp; agak kotak tapi tidak tajam (opsi: 4.dp lebih tegas, 8.dp lebih lembut)
+private val DrawerShape = androidx.compose.foundation.shape.RoundedCornerShape(topEnd = DrawerCorner, bottomEnd = DrawerCorner)
+private val MenuShape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp) // [DRAWER-DOTS] menu konteks: sudut 14dp, latar gelap
+private val MenuColor = MolinaTheme.CardBg
+private val DotsWidth = 36.dp // lebar kotak titik tiga per baris dan header
+private val DrawerFrameColor = Color.White // [DRAWER-WHITE] bingkai putih (dulu hijau transparan)
+private val DrawerFrameWidth = 0.5.dp // [DRAWER-THIN] bingkai tipis (dulu 1.dp); naikkan ke 0.75.dp bila terlalu halus
+
+/** [FILE-DRAWER2] Keadaan tree dipegang di sini (bukan remember) agar folder utama dan folder terbuka bertahan lintas pembukaan drawer. */
+private object FileTreeStore {
+    var root by mutableStateOf<File?>(null)
+    val children = mutableStateMapOf<String, List<File>>()
+    val expanded = mutableStateListOf<String>()
+}
+
+private sealed class Sheet {
+    class Rename(val f: File) : Sheet()
+    class Delete(val f: File) : Sheet()
+    class Info(val f: File) : Sheet()
+    class NewDir(val parent: File) : Sheet() // [FILE-DRAWER3]
+}
+
+/** Isi folder: folder dulu, lalu berkas, urut nama. Memblokir: panggil dari thread IO. */
+private fun listDir(dir: File): List<File> = com.molina.core.files.DirOrder.list(dir) // [FILE-CONTRACT]
+
+private fun toast(ctx: Context, msg: String) {
+    Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
+}
+
+/** Volume penyimpanan untuk Recycle Bin (internal + kartu SD), sama dengan Penjelajah. */
+private fun volumeDirs(): List<File> {
+    val out = mutableListOf(Environment.getExternalStorageDirectory())
+    File("/storage").listFiles()?.forEach {
+        if (it.isDirectory && it.canRead() && it.name != "emulated" && it.name != "self") out.add(it)
+    }
+    return out
+}
+
+/** [FILE-DRAWER3] Label chip volume: internal = "Internal", kartu SD = nama folder volume. */
+private fun volumeLabel(v: File): String =
+    if (v.path == Environment.getExternalStorageDirectory().path) "Internal" else v.name
+
+/** Jalur yang dilindungi dari hapus: akar volume, folder Recycle Bin, dan folder Molina. */
+private fun trashGuard(vols: List<File>): Set<String> =
+    vols.map { File(it, TrashBin.DIR).absolutePath }.toSet() + vols.map { it.absolutePath }.toSet() +
+        File(Environment.getExternalStorageDirectory(), MolinaPaths.APP_FOLDER).absolutePath
+
+/** cd ke [dir] di sesi aktif. Menolak bila tak ada sesi, program layar penuh berjalan, atau path tak aman. */
+private fun cdHere(ctx: Context, dir: File, quiet: Boolean = false): Boolean { // [DRAWER-CD-HEADER] quiet = langsung pindah, layar dibersihkan
+    val em = TerminalSessions.currentSession?.emulator
+    val path = MolinaExplorer.debianPath(dir)
+    return when {
+        em == null -> { toast(ctx, "Belum ada sesi terminal aktif."); false }
+        em.isAlternateBufferActive -> { toast(ctx, "Terminal sedang menjalankan program layar penuh. Keluar dulu."); false }
+        !MolinaExplorer.visibleInDebian(dir) -> { toast(ctx, "Folder ini tidak terlihat di Debian."); false }
+        path.any { it.code < 32 || it.code == 127 } -> { toast(ctx, "Nama folder mengandung karakter kontrol."); false }
+        else -> { TerminalActions.send(if (quiet) " cd " + MolinaExplorer.quote(path) + " && clear\r" else "cd " + MolinaExplorer.quote(path) + "\r"); true }
+    }
+}
+
+/**
+ * [FILE-DRAWER] Drawer berkas Terminal (menggantikan drawer sesi): tree folder ala editor Code.
+ * Ketuk folder = buka/tutup, ketuk berkas = edit di nano, tekan lama = menu (cd, ganti nama, salin path, properti, hapus).
+ * Dibuka lewat tombol ≡ (hamburger) di baris tombol ekstra; ditutup dengan geser ke kiri, ketuk latar, atau Back.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun TerminalFileDrawer(open: Boolean, onClose: () -> Unit) {
+    if (!open) return
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val swallow = remember { MutableInteractionSource() }
+    val drawerWidth = maxOf(DrawerMinWidth, minOf(DrawerMaxWidth, (LocalConfiguration.current.screenWidthDp * DrawerFraction).dp))
+    val storageRoot = remember { Environment.getExternalStorageDirectory() }
+    val vols = remember { volumeDirs() } // [FILE-DRAWER3] internal + kartu SD, dibaca setiap drawer dibuka
+    val st = FileTreeStore
+    val initialRoot = remember { MolinaServices.explorer.lastFolder() ?: storageRoot }
+    val root: File = st.root ?: initialRoot
+    var menuFor by remember { mutableStateOf<String?>(null) }
+    var headerMenu by remember { mutableStateOf(false) } // [DRAWER-CRUMBS]
+    var sheet by remember { mutableStateOf<Sheet?>(null) }
+    var newFile by remember { mutableStateOf(false) }
+    BackHandler(onBack = onClose)
+
+    fun load(dir: File) {
+        scope.launch { st.children[dir.path] = withContext(Dispatchers.IO) { listDir(dir) } }
+    }
+    fun setRoot(dir: File) {
+        st.root = dir
+        st.expanded.clear()
+        load(dir)
+    }
+    fun afterChange(parent: File?, oldPath: String) {
+        st.expanded.removeAll { it == oldPath || it.startsWith(oldPath + "/") }
+        st.children.keys.filter { it == oldPath || it.startsWith(oldPath + "/") }.forEach { st.children.remove(it) }
+        parent?.let { load(it) }
+    }
+    // Segarkan folder utama dan folder yang masih terbuka setiap drawer dibuka; buang yang sudah tidak ada.
+    LaunchedEffect(root.path) {
+        for (p in listOf(root.path) + st.expanded.toList()) {
+            val d = File(p)
+            if (d.isDirectory) st.children[p] = withContext(Dispatchers.IO) { listDir(d) }
+            else { st.children.remove(p); st.expanded.remove(p) }
+        }
+    }
+
+    val rows = ArrayList<Pair<File, Int>>()
+    fun walk(dir: File, depth: Int) {
+        st.children[dir.path]?.forEach { f ->
+            rows.add(f to depth)
+            if (f.isDirectory && f.path in st.expanded) walk(f, depth + 1)
+        }
+    }
+    walk(root, 0)
+    val canUp = root.parentFile != null && vols.none { it.path == root.path } // [FILE-DRAWER3] berhenti di akar volume
+    val dim = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+
+    Box(Modifier.fillMaxSize()) {
+        Box(
+            Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f))
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClose)
+        )
+        Column(
+            Modifier.fillMaxHeight().width(drawerWidth)
+                .clip(DrawerShape) // [DRAWER-ROUND] sudut kanan membulat; sisi kiri rata dengan tepi layar
+                .background(MaterialTheme.colorScheme.surface)
+                .drawWithContent { // [DRAWER-FRAME] bingkai hijau transparan di atas, kanan, bawah mengikuti lengkung; tepi kiri tanpa garis
+                    drawContent()
+                    val w = DrawerFrameWidth.toPx() // [DRAWER-THIN]
+                    val r = DrawerCorner.toPx()
+                    val y1 = w / 2f
+                    val y2 = size.height - w / 2f
+                    val x2 = size.width - w / 2f
+                    val frame = androidx.compose.ui.graphics.Path().apply {
+                        moveTo(0f, y1)
+                        lineTo(x2 - r, y1)
+                        arcTo(androidx.compose.ui.geometry.Rect(x2 - 2 * r, y1, x2, y1 + 2 * r), -90f, 90f, false)
+                        lineTo(x2, y2 - r)
+                        arcTo(androidx.compose.ui.geometry.Rect(x2 - 2 * r, y2 - 2 * r, x2, y2), 0f, 90f, false)
+                        lineTo(0f, y2)
+                    }
+                    drawPath(frame, DrawerFrameColor, style = androidx.compose.ui.graphics.drawscope.Stroke(width = w))
+                }
+                .clickable(interactionSource = swallow, indication = null, onClick = {})
+                .onHorizontalSwipe(22.dp, SwipeDirection.Left) { onClose() }
+        ) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(44.dp).clickable(enabled = canUp) { // [ORB-UNIFY] bulatan kembali sama dengan Pengaturan
+                        root.parentFile?.let { setRoot(it) }
+                    },
+                    contentAlignment = Alignment.Center
+                ) { Win7BackOrb(canUp) }
+                DrawerPathBar( // [DRAWER-CRUMBS] segmen bisa diketuk, berhenti di akar volume (sama dengan tombol kembali)
+                    root.path,
+                    canGo = { d -> vols.any { d.path == it.path || d.path.startsWith(it.path + "/") } },
+                    onGo = { setRoot(it) }, dim = dim, modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
+                )
+                Box(Modifier.width(DotsWidth).height(44.dp).clickable { headerMenu = true }, contentAlignment = Alignment.Center) {
+                    MoreDotsIcon(dim)
+                    DropdownMenu(expanded = headerMenu, onDismissRequest = { headerMenu = false }, shape = MenuShape, containerColor = MenuColor) {
+                        DropdownMenuItem(text = { Text("Muat ulang") }, onClick = {
+                            headerMenu = false
+                            for (p in listOf(root.path) + st.expanded.toList()) load(File(p))
+                        })
+                        DropdownMenuItem(text = { Text("cd ke sini") }, onClick = { headerMenu = false; if (cdHere(ctx, root, quiet = true)) onClose() }) // [DRAWER-CD-HEADER]
+                        if (root.path != storageRoot.path) {
+                            DropdownMenuItem(text = { Text("Ke penyimpanan internal") }, onClick = { headerMenu = false; setRoot(storageRoot) })
+                        }
+                    }
+                }
+            }
+            if (vols.size > 1) { // [FILE-DRAWER3] chip pilihan volume
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 2.dp)) {
+                    vols.forEach { v ->
+                        val on = root.path == v.path || root.path.startsWith(v.path + "/")
+                        Box(
+                            Modifier.padding(end = 6.dp)
+                                .background(if (on) Brand.copy(alpha = 0.25f) else dim.copy(alpha = 0.12f))
+                                .clickable { if (root.path != v.path) setRoot(v) }
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                        ) { Text(volumeLabel(v), color = if (on) Brand else dim, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1) }
+                    }
+                }
+            }
+            Box(Modifier.fillMaxWidth().height(1.dp).background(dim.copy(alpha = 0.3f)))
+            if (rows.isEmpty() && st.children[root.path] != null) {
+                Text("Folder kosong atau tidak bisa dibaca.", color = dim, fontSize = 12.sp, modifier = Modifier.padding(20.dp))
+            }
+            LazyColumn(Modifier.weight(1f).fillMaxWidth()) { // [DRAWER-BOTTOM]
+                items(rows, key = { it.first.path }) { (f, depth) ->
+                    val isDir = f.isDirectory
+                    val isOpen = f.path in st.expanded
+                    Box {
+                        Row(
+                            Modifier.fillMaxWidth().height(FileTreeIconSize.RowHeight) // [TREE-ICON]
+                                .alpha(if (f.name.startsWith(".")) 0.6f else 1f)
+                                .combinedClickable(
+                                    onClick = {
+                                        if (isDir) {
+                                            if (isOpen) st.expanded.remove(f.path)
+                                            else { st.expanded.add(f.path); if (st.children[f.path] == null) load(f) }
+                                        } else if (MolinaExplorer.editInTerminal(ctx, f)) onClose()
+                                    },
+                                    onLongClick = { menuFor = f.path }
+                                )
+                                .padding(start = (6 + depth * 14).dp, end = DotsWidth), // [DRAWER-DOTS] ruang untuk kotak titik tiga
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(Modifier.width(14.dp), contentAlignment = Alignment.Center) { // [EXPANDER-ICON] segitiga berputar, satu sumber dengan Code
+                                if (isDir) ExpanderIcon(isOpen, Brand)
+                            }
+                            FileTreeIcon(isDir, f.name, open = isOpen) // [TREE-ICON] ikon: satu sumber dengan tree Code
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                f.name, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                color = if (isDir) Color.White else MaterialTheme.colorScheme.onSurface, // [DRAWER-WHITE] nama folder putih
+                                fontFamily = FontFamily.Monospace, fontSize = 13.sp
+                            )
+                        }
+                        Box( // [DRAWER-DOTS] jangkar menu: titik tiga rata kanan baris; tekan lama tetap membuka menu yang sama
+                            Modifier.align(Alignment.CenterEnd).width(DotsWidth).height(FileTreeIconSize.RowHeight)
+                                .clickable { menuFor = f.path }
+                                .semantics { contentDescription = "Menu " + f.name; role = Role.Button },
+                            contentAlignment = Alignment.Center
+                        ) {
+                        MoreDotsIcon(dim)
+                        DropdownMenu(expanded = menuFor == f.path, onDismissRequest = { menuFor = null }, shape = MenuShape, containerColor = MenuColor) {
+                            if (isDir) {
+                                DropdownMenuItem(text = { Text("cd ke folder ini") }, onClick = { menuFor = null; if (cdHere(ctx, f)) onClose() })
+                                DropdownMenuItem(text = { Text("Jadikan folder utama") }, onClick = { menuFor = null; setRoot(f) })
+                                DropdownMenuItem(text = { Text("Folder baru di sini") }, onClick = { menuFor = null; sheet = Sheet.NewDir(f) }) // [FILE-DRAWER3]
+                            } else {
+                                DropdownMenuItem(text = { Text("Edit di nano") }, onClick = { menuFor = null; if (MolinaExplorer.editInTerminal(ctx, f)) onClose() })
+                                if (DrawerRun.supports(f.name)) { // [DRAWER-RUN] beda dari Edit di nano: langsung dijalankan, editor tidak dibuka
+                                    DropdownMenuItem(
+                                        text = { Text("\u25B6  Jalankan", color = Brand) },
+                                        onClick = { menuFor = null; if (MolinaExplorer.runInTerminal(ctx, f)) onClose() }
+                                    )
+                                }
+                            }
+                            DropdownMenuItem(text = { Text("Ganti nama") }, onClick = { menuFor = null; sheet = Sheet.Rename(f) })
+                            DropdownMenuItem(text = { Text("Salin path") }, onClick = { menuFor = null; MolinaExplorer.copyPath(ctx, f) })
+                            DropdownMenuItem(text = { Text("Properti") }, onClick = { menuFor = null; sheet = Sheet.Info(f) })
+                            DropdownMenuItem(text = { Text("Hapus", color = MolinaTheme.Bad) }, onClick = { menuFor = null; sheet = Sheet.Delete(f) })
+                        }
+                        } // [DRAWER-DOTS] tutup jangkar
+                    }
+                }
+            }
+            // [DRAWER-ICONS] Bar aksi hemat ruang: hanya ikon (Folder baru | Berkas baru), tinggi 40dp; label lewat aksesibilitas.
+            Box(Modifier.fillMaxWidth().height(1.dp).background(dim.copy(alpha = 0.3f)))
+            Row(Modifier.fillMaxWidth().navigationBarsPadding().height(40.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.weight(1f).fillMaxHeight().clickable { sheet = Sheet.NewDir(root) } // [FILE-DRAWER3] folder baru di akar drawer
+                        .semantics(mergeDescendants = true) { contentDescription = "Folder baru"; role = Role.Button },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        MintFolder(22.dp)
+                        Text("+", color = Brand, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.BottomEnd))
+                    }
+                }
+                Box(Modifier.width(1.dp).height(20.dp).background(dim.copy(alpha = 0.3f)))
+                Box(
+                    Modifier.weight(1f).fillMaxHeight().clickable { newFile = true } // [NANO-NEW]
+                        .semantics(mergeDescendants = true) { contentDescription = "Berkas baru"; role = Role.Button },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        MintFileIcon("", 22.dp)
+                        Text("+", color = Brand, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.BottomEnd))
+                    }
+                } // [DRAWER-SWAP] Berkas baru kini di kanan
+            }
+        }
+    }
+
+    when (val s = sheet) {
+        null -> Unit
+        is Sheet.Rename -> W7NameDialog(
+            title = if (s.f.isDirectory) "Ubah nama folder" else "Ubah nama berkas",
+            initial = s.f.name, selectEnd = FileNames.stemEnd(s.f.name, s.f.isDirectory), okLabel = "OK",
+            onCancel = { sheet = null }
+        ) { name ->
+            sheet = null
+            scope.launch {
+                val r = withContext(Dispatchers.IO) { runCatching { FileOps.rename(s.f, name) } }
+                r.onSuccess { nf -> afterChange(s.f.parentFile, s.f.path); toast(ctx, "Nama diubah: " + nf.name) }
+                    .onFailure { toast(ctx, it.message ?: "Gagal mengubah nama") }
+            }
+        }
+        is Sheet.Delete -> W7ConfirmDialog(listOf(s.f), false, onCancel = { sheet = null }) {
+            sheet = null
+            scope.launch {
+                val vols = volumeDirs()
+                val r = withContext(Dispatchers.IO) { runCatching { TrashBin.trash(listOf(s.f), vols, trashGuard(vols)) } }
+                r.onSuccess { afterChange(s.f.parentFile, s.f.path); toast(ctx, "Dipindahkan ke Recycle Bin: " + it.size + " item") }
+                    .onFailure { toast(ctx, it.message ?: "Gagal menghapus") }
+            }
+        }
+        is Sheet.Info -> W7InfoDialog(listOf(s.f), MolinaExplorer.visibleInDebian(s.f)) { sheet = null }
+        is Sheet.NewDir -> W7NameDialog( // [FILE-DRAWER3]
+            title = "Folder baru", initial = "Folder baru", selectEnd = "Folder baru".length, okLabel = "Buat",
+            hint = "Di: " + s.parent.path,
+            onCancel = { sheet = null }
+        ) { name ->
+            sheet = null
+            scope.launch {
+                val r = withContext(Dispatchers.IO) { runCatching { FileOps.mkdir(s.parent, name) } }
+                r.onSuccess { nf ->
+                    if (s.parent.path != root.path && s.parent.path !in st.expanded) st.expanded.add(s.parent.path)
+                    load(s.parent)
+                    toast(ctx, "Folder dibuat: " + nf.name)
+                }.onFailure { toast(ctx, it.message ?: "Gagal membuat folder") }
+            }
+        }
+    }
+    if (newFile) NewNanoFileDialog( // [NANO-NEW] [FILE-DRAWER3] [DRAWER-MERGE] buat di folder aktif drawer: Buat (kosong) atau Buka di nano
+        onDismiss = { newFile = false }, onOpened = { newFile = false; onClose() }, baseDir = root,
+        onCreated = { nf -> newFile = false; load(root); toast(ctx, "Berkas dibuat: " + nf.name) }
+    )
+}

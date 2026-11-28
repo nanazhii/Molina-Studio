@@ -1,0 +1,71 @@
+name: ffmpeg-cli
+
+# Build ffmpeg + ffprobe statis arm64 (cakupan Penuh) untuk Debian PRoot. Manual saja.
+# Setelah sukses: isi native/ffmpeg-cli.env (tag + SHA-256) dan catat di progres.md.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Dependensi build
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config git ca-certificates xz-utils \
+            zlib1g-dev libx264-dev libmp3lame-dev libopus-dev libvorbis-dev libogg-dev
+      - name: Build dan smoke test
+        run: bash native/ffmpeg-cli/build.sh
+      - name: Paket
+        run: |
+          set -euo pipefail
+          cd _ffcli_out
+          tar -cJf ffmpeg-molina-arm64.tar.xz ffmpeg ffprobe
+          sha256sum ffmpeg-molina-arm64.tar.xz > SHA256SUMS
+          {
+            ./ffmpeg -hide_banner -version | head -n 1
+            echo "FFMPEG_SHA=$(git -C ../_ffcli_work/ffmpeg-src rev-parse HEAD)"
+            dpkg-query -W libx264-dev libmp3lame-dev libopus-dev libvorbis-dev libogg-dev zlib1g-dev
+          } > BUILD-INFO.txt
+          ls -lh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: molina-ffmpeg-cli-arm64
+          path: |
+            _ffcli_out/ffmpeg-molina-arm64.tar.xz
+            _ffcli_out/SHA256SUMS
+            _ffcli_out/BUILD-INFO.txt
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: ffmpeg-cli-logs
+          path: _ffcli_work/ffmpeg-src/ffbuild/config.log
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Terbitkan ke GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd _ffcli_out
+          TAG="ffmpeg-cli-${GITHUB_SHA:0:7}-run${GITHUB_RUN_NUMBER}"
+          SUM="$(sha256sum ffmpeg-molina-arm64.tar.xz | cut -d' ' -f1)"
+          grep -q "$SUM  ffmpeg-molina-arm64.tar.xz" SHA256SUMS
+          gh release create "$TAG" ffmpeg-molina-arm64.tar.xz SHA256SUMS BUILD-INFO.txt \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+            --title "FFmpeg CLI statis (arm64) $TAG" \
+            --notes "ffmpeg dan ffprobe statis arm64 dari FFmpeg commit dipin (lihat BUILD-INFO.txt). SHA-256 tar.xz: $SUM"
+          {
+            echo '### Release ffmpeg-cli'
+            echo "- tag: \`$TAG\`"
+            echo "- sha256 tar.xz: \`$SUM\`"
+          } >> "$GITHUB_STEP_SUMMARY"
