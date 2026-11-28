@@ -27,6 +27,18 @@ object UnplayableStore {
         return n
     }
 
+    /** [ERR-CLEAR-OK] Hapus tanda ERR satu URL (mis. setelah berhasil dimuat/dipulihkan). True bila ada yang dihapus. */
+    @Synchronized
+    fun remove(ctx: Context, url: String): Boolean {
+        val now = System.currentTimeMillis()
+        val raw = prefs(ctx).getString(KEY, null)
+        if (raw.isNullOrEmpty()) return false
+        val map = UnplayableUrls.parse(raw, now)
+        if (map.remove(url) == null) return false
+        prefs(ctx).edit().putString(KEY, UnplayableUrls.serialize(map)).apply()
+        return true
+    }
+
     @Synchronized
     fun clear(ctx: Context) {
         prefs(ctx).edit().remove(KEY).apply()

@@ -221,13 +221,17 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     }
 
     private fun markDeadStream() {
-        val url = shieldPath
+        val url = streamSources[shieldPath] ?: shieldPath // [ERR-SOURCE-KEY] kunci = URL halaman asal, sama dengan yang dipakai daftar Cinema
         if (url.isEmpty() || !networkValidated()) return
         val nth = UnplayableStore.add(applicationContext, url)
         if (nth > 0) PlaybackLog.onMarkedUnplayable(junkParentTitle.orEmpty(), url, nth)
     }
 
     private var failDialog: AlertDialog? = null // [MPV-LOG-SHARE]
+
+    /** [DIALOG-LEAK] Dialog pemutar yang sedang terbuka; ditutup di onDestroy agar tidak ada WindowLeaked. Hanya dari thread utama. */
+    private val liveDialogs: MutableSet<android.app.Dialog> =
+        java.util.Collections.newSetFromMap(java.util.WeakHashMap<android.app.Dialog, Boolean>())
 
     /**
      * [MPV-LOG-SHARE] Gagal membuka sumber TUNGGAL: dialog gelap beraksen emas dengan tombol "Bagikan log mpv".
@@ -1130,6 +1134,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         if (BackgroundPlaybackState.applyQuality === applyQualityHook) BackgroundPlaybackState.applyQuality = null // [QUALITY-NOW]
         dismissQualitySnack() // [QUALITY-SNACK]
         failDialog?.dismiss() // [MPV-LOG-SHARE]
+        liveDialogs.toList().forEach { runCatching { it.dismiss() } } // [DIALOG-LEAK]
         MemProbe.stop() // [PERF-MEM]
         unregisterNetCallback() // [NET-CAP]
         thumbnailer.release()
@@ -2420,7 +2425,9 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         }
         dialog = builder.create()
         dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        if (isFinishing || isDestroyed) { restore(); return } // [DIALOG-LEAK]
         dialog.show()
+        liveDialogs.add(dialog)
     }
 
     /** Putar hasil yang diketuk; hasil tonton YouTube lainnya (maks. 50) menjadi antrean bergulir. */
@@ -2481,7 +2488,9 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             setOnDismissListener { restore() }
             create()
         }
+        if (isFinishing || isDestroyed) { restore(); return } // [DIALOG-LEAK]
         dialog.show()
+        liveDialogs.add(dialog)
     }
 
     private fun pickDecoder() {
@@ -2501,7 +2510,9 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                 dialog.dismiss()
             }
             setOnDismissListener { restore() }
-            create().show()
+            create().also { d -> // [DIALOG-LEAK]
+                if (isFinishing || isDestroyed) restore() else { d.show(); liveDialogs.add(d) }
+            }
         }
     }
 
@@ -4978,6 +4989,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         if (eventId == MpvEvent.MPV_EVENT_FILE_LOADED) {
             WatchStats.onLoaded()
             PlaybackLog.onLoaded()
+            runCatching { UnplayableStore.remove(applicationContext, streamSources[shieldPath] ?: shieldPath) } // [ERR-CLEAR-OK]
             prefetchNext()
             updatePartChip() // [PART-LABEL]
         }
